@@ -1,0 +1,28 @@
+# Changes here will be overwritten by Copier
+_commit: v1.22
+_src_path: gh:emcd/python-project-common
+author_email: emcd@users.noreply.github.com
+author_name: Eric McDonald
+description: Model Context Protocol (MCP) server for Sphinx documentation.
+development_status: 4 - Beta
+distribution_name: sphinx-mcp-server
+enable_cli: true
+enable_executables: true
+enable_property_tests: false
+enable_publication: true
+enable_rust_extension: false
+gh_owner: emcd
+include_data_resources: true
+inject_exceptions: true
+inject_foundations: true
+package_name: sphinxmcps
+project_name: python-sphinx-mcp-server
+pypy_versions:
+- '3.10'
+python_version_min: '3.10'
+python_versions:
+- '3.10'
+- '3.11'
+- '3.12'
+- '3.13'
+year_of_origin: 2025
