@@ -45,7 +45,77 @@
    :target: https://pypi.org/project/sphinx-mcp-server/
 
 
-.. todo:: Provide content.
+.. todo:: Provide project description and key features.
+
+
+Installation 📦
+===============================================================================
+
+Method: Download Standalone Executable
+-------------------------------------------------------------------------------
+
+Download the latest standalone executable for your platform from `GitHub
+Releases <https://github.com/emcd/python-sphinx-mcp-server/releases>`_. These
+executables have no dependencies and work out of the box.
+
+Method: Install Executable Script
+-------------------------------------------------------------------------------
+
+Install via the `uv <https://github.com/astral-sh/uv/blob/main/README.md>`_
+``tool`` command:
+
+::
+
+    uv tool install sphinx-mcp-server
+
+or, run directly with `uvx
+<https://github.com/astral-sh/uv/blob/main/README.md>`_:
+
+::
+
+    uvx --from sphinx-mcp-server sphinxmcps
+
+Or, install via `pipx <https://pipx.pypa.io/stable/installation/>`_:
+
+::
+
+    pipx install sphinx-mcp-server
+
+Method: Install Python Package
+-------------------------------------------------------------------------------
+
+Install via `uv <https://github.com/astral-sh/uv/blob/main/README.md>`_ ``pip``
+command:
+
+::
+
+    uv pip install sphinx-mcp-server
+
+Or, install via ``pip``:
+
+::
+
+    pip install sphinx-mcp-server
+
+
+.. todo:: Provide usage examples and additional content.
+
+
+Contribution 🤝
+===============================================================================
+
+Contribution to this project is welcome! However, it must follow the `code of
+conduct
+<https://emcd.github.io/python-project-common/stable/sphinx-html/common/conduct.html>`_
+for the project.
+
+Please file bug reports and feature requests in the `issue tracker
+<https://github.com/emcd/python-sphinx-mcp-server/issues>`_ or submit `pull
+requests <https://github.com/emcd/python-sphinx-mcp-server/pulls>`_ to
+improve the source code or documentation.
+
+For development guidance and standards, please see the `development guide
+<https://emcd.github.io/python-sphinx-mcp-server/stable/sphinx-html/contribution.html#development>`_.
 
 
 `More Flair <https://www.imdb.com/title/tt0151804/characters/nm0431918>`_
