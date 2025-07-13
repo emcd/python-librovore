@@ -47,15 +47,25 @@ class ServeCommand(
 ):
     ''' Starts MCP server. '''
 
-    transport: str = 'stdio'
-    port: int = 3000
-    socket_path: str = 'sphinxmcps.sock'
+    develop: bool = False
+    port: __.typx.Optional[ int ] = None
+    socket: __.typx.Optional[ str ] = None
+    transport: __.typx.Optional[ str ] = None
 
     async def __call__(
         self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
     ) -> None:
-        await _server.serve(
-            self.transport, self.port, self.socket_path )
+        nomargs: __.NominativeArguments = { }
+        if self.develop:
+            socket_nomargs: __.NominativeArguments = (
+                { } if self.socket is None else dict( socket = self.socket ) )
+            nomargs[ 'socket' ] = (
+                _server.resolve_socket_location( auxdata, **socket_nomargs ) )
+        if self.port is not None:
+            nomargs[ 'port' ] = self.port
+        if self.transport is not None:
+            nomargs[ 'transport' ] = self.transport
+        await _server.serve( auxdata, **nomargs )
 
 
 class Cli(

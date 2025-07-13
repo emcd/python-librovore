@@ -15,8 +15,9 @@ license = 'Apache-2.0'
 readme = { 'file' = 'README.rst', 'content-type' = 'text/x-rst' }
 requires-python = '>= 3.10'
 dependencies = [
+  'absence~=1.1',
   'emcd-appcore~=1.1',
-  'frigid',
+  'frigid~=4.1',
   'mcp',
   'sphobjinv',
   'typing-extensions',
