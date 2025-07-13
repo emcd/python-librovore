@@ -16,6 +16,8 @@ readme = { 'file' = 'README.rst', 'content-type' = 'text/x-rst' }
 requires-python = '>= 3.10'
 dependencies = [
   'emcd-appcore~=1.1',
+  'frigid',
+  'mcp',
   'sphobjinv',
   'typing-extensions',
   # --- BEGIN: Injected by Copier ---
