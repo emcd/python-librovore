@@ -27,10 +27,6 @@ from . import __
 from . import functions as _functions
 
 
-mcp = _FastMCP( 'Sphinx MCP Server' )
-
-
-@mcp.tool( )
 def hello( name: str = 'World' ) -> str:
     ''' Says hello with the given name. '''
     return _functions.hello( name )
@@ -42,13 +38,13 @@ async def serve(
     socket: __.Absential[ str ] = __.absent,
     transport: str = 'stdio',
 ) -> None:
-    ''' Runs MCP server with specified transport. '''
+    ''' Runs MCP server. '''
+    mcp = _FastMCP( 'Sphinx MCP Server', port = port )
+    mcp.tool( )( hello )
     match transport:
         case 'stdio':
             await mcp.run_stdio_async( )
         case 'sse':
-            # TODO: Figure out how to specify port with FastMCP SSE
-            # Currently FastMCP seems to use a hardcoded port (8000)
             await mcp.run_sse_async( mount_path = None )
         case 'unix':
             # TODO: Implement Unix socket transport for development
@@ -63,7 +59,7 @@ async def serve(
 
 
 def resolve_socket_location(
-    auxdata: __.Globals, socket: __.Absential[ str ] = __.absent
+    auxdata: __.Globals, /, socket: __.Absential[ str ] = __.absent
 ) -> __.Path:
     ''' Resolves socket location.
 
