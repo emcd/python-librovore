@@ -22,6 +22,77 @@
 
 
 from . import __
+from . import functions as _functions
+from . import interfaces as _interfaces
+from . import server as _server
+
+
+class HelloCommand(
+    _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
+):
+    ''' Says hello with the given name. '''
+
+    name: str = 'World'
+
+    async def __call__(
+        self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
+    ) -> None:
+        result = _functions.hello( self.name )
+        stream = await display.provide_stream( )
+        print( result, file = stream )
+
+
+class ServeCommand(
+    _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
+):
+    ''' Starts MCP server. '''
+
+    transport: str = 'stdio'
+    port: int = 3000
+    socket_path: str = 'sphinxmcps.sock'
+
+    async def __call__(
+        self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
+    ) -> None:
+        await _server.serve(
+            self.transport, self.port, self.socket_path )
+
+
+class Cli(
+    __.immut.DataclassObject,
+    decorators = ( __.simple_tyro_class, ),
+):
+    ''' Sphinx MCP server CLI. '''
+
+    application: __.appcore.ApplicationInformation
+    display: _interfaces.ConsoleDisplay
+    command: __.typx.Union[
+        __.typx.Annotated[
+            HelloCommand,
+            __.tyro.conf.subcommand( 'hello', prefix_name = False ),
+        ],
+        __.typx.Annotated[
+            ServeCommand,
+            __.tyro.conf.subcommand( 'serve', prefix_name = False ),
+        ],
+    ]
+
+    async def __call__( self ):
+        ''' Invokes command after library preparation. '''
+        nomargs = self.prepare_invocation_args( )
+        async with __.ctxl.AsyncExitStack( ) as exits:
+            auxdata = await _prepare( exits = exits, **nomargs )
+            await self.command( auxdata = auxdata, display = self.display )
+
+    def prepare_invocation_args(
+        self,
+    ) -> __.cabc.Mapping[ str, __.typx.Any ]:
+        ''' Prepares arguments for initial configuration. '''
+        args: dict[ str, __.typx.Any ] = dict(
+            application = self.application,
+            environment = True,
+        )
+        return args
 
 
 def execute( ) -> None:
@@ -30,12 +101,18 @@ def execute( ) -> None:
     config = (
         __.tyro.conf.HelptextFromCommentsOff,
     )
-    try: run( __.tyro.cli( _main, config = config )( ) ) # pyright: ignore
+    try: run( __.tyro.cli( Cli, config = config )( ) )
     except SystemExit: raise
-    except BaseException:
-        # TODO: Log exception.
+    except BaseException as exc:
+        print( exc, file = __.sys.stderr )
         raise SystemExit( 1 ) from None
 
 
-async def _main( ) -> None:
-    print( "Hello from sphinxmcps CLI!" )
+async def _prepare(
+    application: __.appcore.ApplicationInformation,
+    environment: bool,
+    exits: __.ctxl.AsyncExitStack,
+) -> __.Globals:
+    ''' Configures application based on arguments. '''
+    return await __.appcore.prepare(
+        application = application, environment = environment, exits = exits )

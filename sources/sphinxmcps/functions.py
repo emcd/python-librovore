@@ -18,30 +18,9 @@
 #============================================================================#
 
 
-''' Common imports used throughout the package. '''
-
-# ruff: noqa: F401
+''' Core business logic shared between CLI and MCP server. '''
 
 
-import                      abc
-import collections.abc as   cabc
-import contextlib as        ctxl
-import                      enum
-import                      io
-import                      sys
-import                      types
-
-from pathlib import Path
-
-import                      appcore
-import frigid as            immut
-import typing_extensions as typx
-# --- BEGIN: Injected by Copier ---
-import tyro
-# --- END: Injected by Copier ---
-
-from appcore.state import Globals
-
-
-simple_tyro_class = tyro.conf.configure( )
-standard_tyro_class = tyro.conf.configure( tyro.conf.OmitArgPrefixes )
+def hello( name: str ) -> str:
+    ''' Says hello. '''
+    return f"Hello, {name}!"

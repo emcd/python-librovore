@@ -18,30 +18,33 @@
 #============================================================================#
 
 
-''' Common imports used throughout the package. '''
-
-# ruff: noqa: F401
+''' MCP server implementation. '''
 
 
-import                      abc
-import collections.abc as   cabc
-import contextlib as        ctxl
-import                      enum
-import                      io
-import                      sys
-import                      types
+from mcp.server.fastmcp import FastMCP as _FastMCP
 
-from pathlib import Path
-
-import                      appcore
-import frigid as            immut
-import typing_extensions as typx
-# --- BEGIN: Injected by Copier ---
-import tyro
-# --- END: Injected by Copier ---
-
-from appcore.state import Globals
+from . import functions as _functions
 
 
-simple_tyro_class = tyro.conf.configure( )
-standard_tyro_class = tyro.conf.configure( tyro.conf.OmitArgPrefixes )
+mcp = _FastMCP( "Sphinx MCP Server" )
+
+
+@mcp.tool( )
+def hello( name: str = 'World' ) -> str:
+    ''' Invokes hello function. '''
+    return _functions.hello( name )
+
+
+async def serve( transport: str, port: int, socket_path: str ) -> None:
+    # TODO: Enum or typing.Literal for transport.
+    # TODO: Handle port. Ideally, port 0 would mean choose a port.
+    #       Need to investigate how MCP clients know the server port.
+    ''' Runs MCP server with specified transport. '''
+    match transport:
+        case 'sse' | 'stdio':
+            mcp.run( transport = transport )
+        case 'unix':
+            # TODO: Implement Unix socket transport for development
+            raise NotImplementedError(
+                "Unix socket transport not yet implemented." )
+        case _: raise ValueError
