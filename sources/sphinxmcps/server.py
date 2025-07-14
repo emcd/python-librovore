@@ -35,7 +35,7 @@ def extract_inventory(
 ) -> dict[ str, __.typx.Any ]:
     ''' Extracts Sphinx inventory from URL or file path with optional
     filtering.
-
+    
         Args:
             source: URL or file path to Sphinx documentation
                     (objects.inv auto-appended)
@@ -43,10 +43,6 @@ def extract_inventory(
             role: Filter objects by role (e.g., 'function', 'class', 'method')
             search: Filter objects by name containing this text
                     (case-insensitive)
-
-        Returns structured data with project info, domains, and objects.
-        When filters are applied, includes 'filters' field showing active
-        filters.
     '''
     return _functions.extract_inventory(
         source, domain = domain, role = role, search = search
