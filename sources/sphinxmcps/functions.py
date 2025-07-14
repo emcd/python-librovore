@@ -20,6 +20,9 @@
 
 ''' Core business logic shared between CLI and MCP server. '''
 
+
+import urllib.parse as _urlparse
+
 import sphobjinv as _sphobjinv
 
 from . import __
@@ -27,18 +30,23 @@ from . import exceptions as _exceptions
 
 
 def extract_inventory( source: str ) -> dict[ str, __.typx.Any ]:
-    # TODO: Use 'urllib.parse.urlparse'.
     ''' Extracts Sphinx inventory from URL or file path. '''
+    # Normalize source to ensure it points to objects.inv
+    normalized_source = _normalize_inventory_source( source )
     # Determine if source is URL or file path
-    if source.startswith( ( 'http://', 'https://', 'file://' ) ):
+    if normalized_source.startswith( ( 'http://', 'https://', 'file://' ) ):
         try:
-            inventory = _sphobjinv.Inventory( url = source )
+            inventory = _sphobjinv.Inventory( url = normalized_source )
         except ( OSError, ConnectionError, TimeoutError ) as exc:
-            raise _exceptions.NetworkConnectionFailure( source ) from exc
+            raise _exceptions.NetworkConnectionFailure(
+                normalized_source
+            ) from exc
         except Exception as exc:
-            raise _exceptions.InventoryFormatInvalidity( source ) from exc
+            raise _exceptions.InventoryFormatInvalidity(
+                normalized_source
+            ) from exc
     else:
-        path = __.Path( source ).resolve( )
+        path = __.Path( normalized_source ).resolve( )
         inventory = _load_local_inventory( path )
     objects_by_domain: dict[ str, list[ dict[ str, __.typx.Any ] ] ] = { }
     for obj in inventory.objects:
@@ -70,32 +78,81 @@ def hello( name: str ) -> str:
     return f"Hello, {name}!"
 
 
+def filter_inventory(
+    source: str,
+    *,
+    domain: str | None = None,
+    role: str | None = None,
+    search: str | None = None
+) -> dict[ str, __.typx.Any ]:
+    ''' Extracts inventory with optional filtering. '''
+    data = extract_inventory( source )
+    if not any( [ domain, role, search ] ):
+        return data
+    # Apply filters
+    filtered_objects: dict[ str, list[ dict[ str, __.typx.Any ] ] ] = { }
+    total_filtered = 0
+    for domain_name, objects in data[ 'objects' ].items( ):
+        if domain and domain_name != domain:
+            continue
+        filtered_domain_objects: list[ dict[ str, __.typx.Any ] ] = [ ]
+        for obj in objects:
+            if role and obj['role'] != role:
+                continue
+            if search and search.lower( ) not in obj[ 'name' ].lower( ):
+                continue
+            filtered_domain_objects.append( obj )
+        if filtered_domain_objects:
+            filtered_objects[ domain_name ] = filtered_domain_objects
+            total_filtered += len( filtered_domain_objects )
+    domains_summary = {
+        domain_name: len( objs )
+        for domain_name, objs in filtered_objects.items( )
+    }
+    return {
+        'project': data['project'],
+        'version': data['version'],
+        'source': data['source'],
+        'object_count': total_filtered,
+        'domains': domains_summary,
+        'objects': filtered_objects,
+        'filters': {
+            'domain': domain,
+            'role': role,
+            'search': search,
+        },
+    }
+
+
 def summarize_inventory( source: str ) -> str:
     ''' Provides human-readable summary of a Sphinx inventory. '''
     data = extract_inventory( source )
     lines = [
-        f"Sphinx Inventory: {data['project']} v{data['version']}",
-        f"Source: {data['source']}",
-        f"Total Objects: {data['object_count']}",
+        "Sphinx Inventory: {project} v{version}".format(
+            project = data[ 'project' ], version = data[ 'version' ]
+        ),
+        "Source: {source}".format( source = data[ 'source' ] ),
+        "Total Objects: {count}".format( count = data[ 'object_count' ] ),
         "",
         "Domains:",
     ]
-    for domain, count in sorted( data['domains'].items( ) ):
-        lines.append( f"  {domain}: {count} objects" )
+    for domain, count in sorted( data[ 'domains' ].items( ) ):
+        lines.append( "  {domain}: {count} objects".format(
+            domain = domain, count = count ) )
     # Show sample objects from largest domain
-    if data['objects']:
+    if data[ 'objects' ]:
         largest_domain = max(
-            data['domains'].items( ), key = lambda x: x[1]
-        )[0]
-        sample_objects = data['objects'][largest_domain][:5]
+            data[ 'domains' ].items( ), key = lambda x: x[ 1 ] )[ 0 ]
+        sample_objects = data[ 'objects' ][ largest_domain ][ :5 ]
         lines.extend( [
             "",
-            f"Sample {largest_domain} objects:",
+            "Sample {domain} objects:".format( domain = largest_domain ),
         ] )
         lines.extend(
-            f"  {obj['role']}: {obj['name']}" for obj in sample_objects
-        )
-    return "\n".join( lines )
+            "  {role}: {name}".format(
+                role = obj[ 'role' ], name = obj[ 'name' ] )
+            for obj in sample_objects )
+    return '\n'.join( lines )
 
 
 def _load_local_inventory( path: __.Path ) -> _sphobjinv.Inventory:
@@ -108,3 +165,21 @@ def _load_local_inventory( path: __.Path ) -> _sphobjinv.Inventory:
         return _sphobjinv.Inventory( fname_zlib = str( path ) )
     except Exception as exc:
         raise _exceptions.InventoryFormatInvalidity( str( path ) ) from exc
+
+
+def _normalize_inventory_source( source: str ) -> str:
+    ''' Appends objects.inv to URLs and paths that don't already have it. '''
+    if source.endswith( 'objects.inv' ): return source
+    if source.startswith( ( 'http://', 'https://', 'file://' ) ):
+        try:
+            parsed = _urlparse.urlparse( source )
+            path = parsed.path.rstrip( '/' ) + '/objects.inv'
+            return _urlparse.urlunparse( parsed._replace( path = path ) )
+        except Exception as exc:
+            raise _exceptions.InventoryUrlInvalidity(
+                source, "Failed to parse URL" ) from exc
+    else:
+        path = __.Path( source )
+        if path.is_dir( ) or not path.suffix:
+            return str( path / 'objects.inv' )
+        return source

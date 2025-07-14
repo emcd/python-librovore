@@ -35,6 +35,21 @@ def extract_inventory( source: str ) -> dict[ str, __.typx.Any ]:
     return _functions.extract_inventory( source )
 
 
+def filter_inventory(
+    source: str,
+    domain: str | None = None,
+    role: str | None = None,
+    search: str | None = None,
+) -> dict[ str, __.typx.Any ]:
+    ''' Extracts Sphinx inventory with optional filtering.
+
+        Returns filtered inventory data based on domain, role, or search terms.
+    '''
+    return _functions.filter_inventory(
+        source, domain = domain, role = role, search = search
+    )
+
+
 def hello( name: str = 'World' ) -> str:
     ''' Says hello with the given name. '''
     return _functions.hello( name )
@@ -55,6 +70,7 @@ async def serve(
     mcp = _FastMCP( 'Sphinx MCP Server', port = port )
     mcp.tool( )( hello )
     mcp.tool( )( extract_inventory )
+    mcp.tool( )( filter_inventory )
     mcp.tool( )( summarize_inventory )
     match transport:
         case 'stdio': await mcp.run_stdio_async( )
