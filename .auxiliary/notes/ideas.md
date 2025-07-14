@@ -106,9 +106,26 @@
 
 ### Testing Infrastructure
 - [x] **Subprocess integration tests**: Native Python subprocess + TCP bridging ✅ COMPLETED
-- [ ] **Pytest slow test markers**: `@pytest.mark.slow` for integration tests
-- [ ] **Mock inventory fixtures**: Create test inventories for unit testing
+- [x] **Pytest slow test markers**: `@pytest.mark.slow` for integration tests ✅ COMPLETED
+- [x] **Mock inventory fixtures**: Create test inventories for unit testing ✅ COMPLETED
 - [ ] **Performance benchmarks**: Track extraction and filtering performance
+- [ ] **Server transport tests**: Test stdio-over-tcp and other transport methods
+- [ ] **Full integration tests**: Complete MCP protocol testing
+
+### Process Management Improvements
+- [ ] **Dynamic port discovery**: Avoid parsing port numbers from stderr output
+- [ ] **Shared memory communication**: Use IPC for server-client communication
+- [ ] **Process lifecycle management**: Better subprocess cleanup and monitoring
+- [ ] **Server object introspection**: Direct port number access from server objects
+
+### CLI Simplification
+- [ ] **Remove redundant help command**: `help` MCP tool and CLI subcommand
+- [ ] **Split inventory subcommand**: `extract-inventory` and `summarize-inventory`
+- [ ] **Mirror MCP tool structure**: Consistent CLI and MCP tool organization
+
+### URL Handling Simplification
+- [ ] **Consolidate URL processing**: Simplify URL validation and processing logic
+- [ ] **Reduce URL-related functions**: Better maintainability and fewer edge cases
 
 ## Real-World Applications
 

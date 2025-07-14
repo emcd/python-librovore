@@ -80,11 +80,13 @@ class MCPTestClient:
         }
         result = await self.send_request( request )
         
-        # Send initialized notification
-        await self.send_request( {
+        # Send initialized notification (no ID for notifications)
+        request_line = json.dumps( {
             "jsonrpc": "2.0",
             "method": "notifications/initialized"
-        } )
+        } ) + '\n'
+        self.writer.write( request_line.encode( ) )
+        await self.writer.drain( )
         
         return result
         
@@ -92,7 +94,8 @@ class MCPTestClient:
         ''' List available MCP tools. '''
         return await self.send_request( {
             "jsonrpc": "2.0",
-            "method": "tools/list"
+            "method": "tools/list",
+            "params": { }
         } )
         
     async def call_tool( self, name: str, arguments: dict ) -> dict:

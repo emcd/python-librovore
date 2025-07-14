@@ -58,9 +58,29 @@ def hello( name: str = 'World' ) -> str:
     return _functions.hello( name )
 
 
-def summarize_inventory( source: str ) -> str:
-    ''' Provides human-readable summary of Sphinx inventory. '''
-    return _functions.summarize_inventory( source )
+def summarize_inventory( 
+    source: str, 
+    domain: str | None = None,
+    role: str | None = None,
+    search: str | None = None,
+) -> str:
+    ''' Provides human-readable summary of Sphinx inventory with optional
+    filtering.
+    
+        Args:
+            source: URL or file path to Sphinx documentation
+                    (objects.inv auto-appended)
+            domain: Filter objects by domain (e.g., 'py', 'std')
+            role: Filter objects by role (e.g., 'function', 'class', 'method')
+            search: Filter objects by name containing this text
+                    (case-insensitive)
+    '''
+    # Extract with filters and pass filter info to summary
+    data = _functions.extract_inventory(
+        source, domain = domain, role = role, search = search
+    )
+    filters = data.get( 'filters' )
+    return _functions.summarize_inventory( source, filters = filters )
 
 
 async def serve(
