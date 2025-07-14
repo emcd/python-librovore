@@ -27,24 +27,21 @@ from . import __
 from . import functions as _functions
 
 
-def hello( name: str = 'World' ) -> str:
-    ''' Says hello with the given name. '''
-    return _functions.hello( name )
-
-
 def extract_inventory( source: str ) -> dict[ str, __.typx.Any ]:
-    ''' Extract Sphinx inventory from URL or file path.
-    
+    ''' Extracts Sphinx inventory from URL or file path.
+
         Returns structured data with project info, domains, and objects.
     '''
     return _functions.extract_inventory( source )
 
 
+def hello( name: str = 'World' ) -> str:
+    ''' Says hello with the given name. '''
+    return _functions.hello( name )
+
+
 def summarize_inventory( source: str ) -> str:
-    ''' Get human-readable summary of Sphinx inventory.
-    
-        Returns formatted text summary of inventory contents.
-    '''
+    ''' Provides human-readable summary of Sphinx inventory. '''
     return _functions.summarize_inventory( source )
 
 
@@ -60,37 +57,6 @@ async def serve(
     mcp.tool( )( extract_inventory )
     mcp.tool( )( summarize_inventory )
     match transport:
-        case 'stdio':
-            await mcp.run_stdio_async( )
-        case 'sse':
-            await mcp.run_sse_async( mount_path = None )
-        case 'unix':
-            # TODO: Implement Unix socket transport for development
-            if __.sys.platform == 'win32':
-                raise NotImplementedError(
-                    "Unix sockets not supported on Windows."
-                )
-            raise NotImplementedError(
-                f"Unix socket transport not yet implemented ({socket})."
-            )
+        case 'stdio': await mcp.run_stdio_async( )
+        case 'sse': await mcp.run_sse_async( mount_path = None )
         case _: raise ValueError
-
-
-def resolve_socket_location(
-    auxdata: __.Globals, /, socket: __.Absential[ str ] = __.absent
-) -> __.Path:
-    ''' Resolves socket location.
-
-        Accounts for local development versus production.
-    '''
-    if not __.is_absent( socket ):
-        return __.Path( socket ).resolve( )
-    name = 'sphinxmcps.sock'
-    if __.sys.platform == 'win32':
-        # TODO: Use named pipes on Windows
-        raise NotImplementedError
-    if auxdata.distribution.editable: # local development
-        directory = __.Path( '.auxiliary/exercise' )
-        directory.mkdir( parents = True, exist_ok = True )
-        return directory / name
-    return auxdata.directories.user_cache_path / name

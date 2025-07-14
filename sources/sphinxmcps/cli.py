@@ -45,7 +45,7 @@ class HelloCommand(
 class InventoryCommand(
     _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
-    ''' Extract and display Sphinx inventory information. '''
+    ''' Extracts and displays Sphinx inventory information. '''
 
     source: str
     format: str = 'summary'
@@ -54,21 +54,17 @@ class InventoryCommand(
         self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
-        
-        try:
-            if self.format == 'summary':
+        match self.format:
+            case 'summary':
                 result = _functions.summarize_inventory( self.source )
                 print( result, file = stream )
-            elif self.format == 'json':
+            case 'json':
                 import json
                 data = _functions.extract_inventory( self.source )
                 print( json.dumps( data, indent = 2 ), file = stream )
-            else:
+            case _:
                 print( f"Unknown format: {self.format}", file = __.sys.stderr )
                 return
-                
-        except Exception as exc:
-            print( f"Error: {exc}", file = __.sys.stderr )
 
 
 class ServeCommand(
@@ -76,7 +72,6 @@ class ServeCommand(
 ):
     ''' Starts MCP server. '''
 
-    develop: bool = False
     port: __.typx.Optional[ int ] = None
     socket: __.typx.Optional[ str ] = None
     transport: __.typx.Optional[ str ] = None
@@ -85,11 +80,6 @@ class ServeCommand(
         self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
     ) -> None:
         nomargs: __.NominativeArguments = { }
-        if self.develop:
-            socket_nomargs: __.NominativeArguments = (
-                { } if self.socket is None else dict( socket = self.socket ) )
-            nomargs[ 'socket' ] = (
-                _server.resolve_socket_location( auxdata, **socket_nomargs ) )
         if self.port is not None:
             nomargs[ 'port' ] = self.port
         if self.transport is not None:
