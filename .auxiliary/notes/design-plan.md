@@ -152,11 +152,13 @@ def get_inventory_content(url: str) -> str:
 - [x] Function consolidation and architecture cleanup
 - [x] Comprehensive MCP tool documentation
 
-### Phase 5: Testing and Polish (IN PROGRESS)
-- [ ] Comprehensive test suite with pytest
-- [ ] Integration tests using subprocess + TCP bridge
-- [ ] CLI restructuring (`use` command for operations)
-- [ ] Enhanced serve command for TCP bridging
+### Phase 5: Testing and Polish ✅ COMPLETED
+- [x] CLI restructuring (`use` command for operations) ✅ COMPLETED
+- [x] Enhanced serve command for TCP bridging ✅ COMPLETED
+- [x] Implement stdio-over-tcp transport with dynamic port assignment ✅ COMPLETED
+- [x] Fix Pyright compliance and clean up overloaded behaviors ✅ COMPLETED
+- [ ] Comprehensive test suite with pytest (NEXT)
+- [ ] Integration tests using subprocess + TCP bridge (NEXT)
 
 ## Dependencies to Add
 
@@ -174,12 +176,13 @@ dependencies = [
 - MCP server tests using socat bridge and netcat
 - Rapid iteration testing without Claude Code restarts
 
-## Development Workflow ✅ ESTABLISHED
+## Development Workflow ✅ ENHANCED
 
-1. Start socat bridge: `socat TCP-LISTEN:8002,fork,reuseaddr EXEC:"hatch run sphinxmcps serve"`
-2. Test via MCP protocol over TCP using netcat with proper JSON-RPC handshake
-3. Iterate without restarting Claude Code session
-4. See `testing-protocol.md` for detailed testing procedures
+1. Start TCP bridge: `hatch run sphinxmcps serve --transport stdio-over-tcp --port 0`
+2. Test via MCP protocol over TCP using asyncio connections
+3. Iterate without restarting Claude Code session  
+4. Dynamic port assignment eliminates port conflicts
+5. See `testing-protocol.md` for updated testing procedures
 
 ## Key Achievements
 
@@ -213,10 +216,11 @@ dependencies = [
 
 ### Current Status
 - **MCP Tools**: `hello`, `extract_inventory` (with filtering), `summarize_inventory`
-- **CLI Commands**: `hello`, `inventory` (with all filter options), `serve`
-- **Transports**: stdio (primary), SSE (secondary)
-- **Testing**: Socat bridge with full MCP protocol validation
-- **Ready for**: Production use, testing infrastructure, CLI enhancements
+- **CLI Commands**: `use hello`, `use inventory` (with all filter options), `serve`
+- **Transports**: stdio (primary), sse, stdio-over-tcp (with dynamic ports)
+- **Testing**: stdio-over-tcp bridge replaces socat dependency
+- **Architecture**: Clean transport semantics, Pyright compliant
+- **Ready for**: Comprehensive test suite development
 
 ## Coding Standards Adherence
 

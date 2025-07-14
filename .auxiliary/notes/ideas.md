@@ -98,14 +98,14 @@
 - [ ] **Search suggestion**: Provide auto-complete and search suggestions
 
 ### CLI and UX Improvements  
-- [ ] **`use` command restructuring**: `sphinxmcps use inventory` and `sphinxmcps use hello`
-- [ ] **TCP bridge integration**: `sphinxmcps serve --port 8002` for stdio-over-TCP
+- [x] **`use` command restructuring**: `sphinxmcps use inventory` and `sphinxmcps use hello` ✅ COMPLETED
+- [x] **TCP bridge integration**: `sphinxmcps serve --transport stdio-over-tcp --port 0` ✅ COMPLETED
 - [ ] **Interactive inventory browser**: Navigate inventories with arrow keys/search
 - [ ] **Configuration files**: Store frequently used inventory sources and filters
 - [ ] **Shell completion**: Bash/zsh auto-completion for commands and parameters
 
 ### Testing Infrastructure
-- [ ] **Subprocess integration tests**: Replace socat with Python subprocess + TCP bridging
+- [x] **Subprocess integration tests**: Native Python subprocess + TCP bridging ✅ COMPLETED
 - [ ] **Pytest slow test markers**: `@pytest.mark.slow` for integration tests
 - [ ] **Mock inventory fixtures**: Create test inventories for unit testing
 - [ ] **Performance benchmarks**: Track extraction and filtering performance

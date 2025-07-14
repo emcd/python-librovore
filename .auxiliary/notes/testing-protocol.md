@@ -6,20 +6,24 @@ This document describes the testing infrastructure established for rapid develop
 
 ## Testing Infrastructure
 
-### Socat Bridge Setup
+### Native TCP Bridge (stdio-over-tcp transport)
 
-The primary testing method uses `socat` to bridge the MCP server's stdio transport to a TCP socket:
+The primary testing method uses the built-in `stdio-over-tcp` transport:
 
 ```bash
-# Start socat bridge (typically on port 8002)
-socat TCP-LISTEN:8002,fork,reuseaddr EXEC:"hatch run sphinxmcps serve"
+# Start TCP bridge with dynamic port assignment
+hatch run sphinxmcps serve --transport stdio-over-tcp --port 0
+
+# Or use fixed port
+hatch run sphinxmcps serve --transport stdio-over-tcp --port 8005
 ```
 
 This approach provides:
-- ✅ **No session management complexity** (vs HTTP/SSE transport)
+- ✅ **No external dependencies** (eliminates socat requirement)
+- ✅ **Dynamic port assignment** (eliminates port conflicts)
 - ✅ **Direct JSON-RPC communication** over TCP
-- ✅ **Persistent testing capability** without restarts
-- ✅ **Multiple concurrent connections** via `fork`
+- ✅ **Multiple concurrent connections** via asyncio
+- ✅ **Clean subprocess management** with proper cleanup
 
 ### MCP Protocol Handshake
 
@@ -35,7 +39,7 @@ All MCP communication requires proper initialization sequence:
 timeout 5 bash -c 'printf "%s\n%s\n%s\n" \
   "INITIALIZE_JSON" \
   "NOTIFY_INITIALIZED_JSON" \
-  "COMMAND_JSON" | nc localhost 8002'
+  "COMMAND_JSON" | nc localhost PORT'
 ```
 
 ## Common Test Commands
@@ -104,7 +108,7 @@ timeout 5 bash -c 'printf "%s\n%s\n%s\n" \
 timeout 5 bash -c 'printf "%s\n%s\n%s\n" \
   "{\"jsonrpc\":\"2.0\",\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{\"roots\":{\"listChanged\":true},\"sampling\":{}},\"clientInfo\":{\"name\":\"test-client\",\"version\":\"1.0.0\"}},\"id\":1}" \
   "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}" \
-  "{\"jsonrpc\":\"2.0\",\"method\":\"tools/list\",\"id\":2}" | nc localhost 8002'
+  "{\"jsonrpc\":\"2.0\",\"method\":\"tools/list\",\"id\":2}" | nc localhost PORT'
 ```
 
 **Expected Response:**
@@ -119,7 +123,7 @@ timeout 5 bash -c 'printf "%s\n%s\n%s\n" \
 timeout 5 bash -c 'printf "%s\n%s\n%s\n" \
   "{\"jsonrpc\":\"2.0\",\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{\"roots\":{\"listChanged\":true},\"sampling\":{}},\"clientInfo\":{\"name\":\"test-client\",\"version\":\"1.0.0\"}},\"id\":1}" \
   "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}" \
-  "{\"jsonrpc\":\"2.0\",\"method\":\"tools/call\",\"params\":{\"name\":\"hello\",\"arguments\":{\"name\":\"Claude\"}},\"id\":3}" | nc localhost 8002'
+  "{\"jsonrpc\":\"2.0\",\"method\":\"tools/call\",\"params\":{\"name\":\"hello\",\"arguments\":{\"name\":\"Claude\"}},\"id\":3}" | nc localhost PORT'
 ```
 
 **Expected Response:**
@@ -145,14 +149,16 @@ The HTTP/SSE transport requires session management:
 2. Use session ID for `/messages/` POST requests  
 3. Listen to SSE stream for responses
 
-This approach was explored but proved more complex due to session persistence requirements.
+This approach is more complex due to session persistence requirements.
 
-### Named Pipes (Not Tested)
+### Python asyncio Testing (Recommended for Integration Tests)
 
-Could potentially use named pipes with socat:
-```bash
-mkfifo /tmp/mcp_in /tmp/mcp_out
-socat EXEC:"hatch run sphinxmcps serve",pty PIPE:/tmp/mcp_in,PIPE:/tmp/mcp_out
+For programmatic testing, use Python asyncio clients:
+```python
+async def test_mcp_server():
+    reader, writer = await asyncio.open_connection('localhost', port)
+    # Send MCP requests and receive responses
+    # See .auxiliary/scribbles/test_stdio_over_tcp.py for examples
 ```
 
 ## Testing Guidelines
