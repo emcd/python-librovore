@@ -29,9 +29,9 @@ from . import functions as _functions
 
 def extract_inventory(
     source: str,
-    domain: str | None = None,
-    role: str | None = None,
-    search: str | None = None,
+    domain: __.typx.Optional[ str ] = None,
+    role: __.typx.Optional[ str ] = None,
+    search: __.typx.Optional[ str ] = None,
 ) -> dict[ str, __.typx.Any ]:
     ''' Extracts Sphinx inventory from URL or file path with optional
     filtering.
@@ -51,9 +51,9 @@ def extract_inventory(
 
 def summarize_inventory( 
     source: str, 
-    domain: str | None = None,
-    role: str | None = None,
-    search: str | None = None,
+    domain: __.typx.Optional[ str ] = None,
+    role: __.typx.Optional[ str ] = None,
+    search: __.typx.Optional[ str ] = None,
 ) -> str:
     ''' Provides human-readable summary of Sphinx inventory with optional
     filtering.
