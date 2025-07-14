@@ -57,19 +57,17 @@ class InventoryCommand(
         self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
-        # Use filtered extraction if any filters are specified
-        if any( [ self.domain, self.role, self.search ] ):
-            data = _functions.filter_inventory(
-                self.source,
-                domain = self.domain,
-                role = self.role,
-                search = self.search,
-            )
-        else:
-            data = _functions.extract_inventory( self.source )
+        # Extract inventory with optional filtering
+        data = _functions.extract_inventory(
+            self.source,
+            domain = self.domain,
+            role = self.role,
+            search = self.search,
+        )
         match self.format:
             case 'summary':
-                result = _format_inventory_summary( data )
+                result = _functions.summarize_inventory( 
+                    data[ 'source' ], filters = data.get( 'filters' ) )
                 print( result, file = stream )
             case 'json':
                 print( __.json.dumps( data, indent = 2 ), file = stream )
@@ -153,43 +151,6 @@ def execute( ) -> None:
         raise SystemExit( 1 ) from None
 
 
-def _format_inventory_summary( data: dict[ str, __.typx.Any ] ) -> str:
-    ''' Formats inventory data as human-readable summary. '''
-    lines = [
-        "Sphinx Inventory: {project} v{version}".format(
-            project = data[ 'project' ], version = data[ 'version' ]
-        ),
-        "Source: {source}".format( source = data[ 'source' ] ),
-        "Total Objects: {count}".format( count = data[ 'object_count' ] ),
-    ]
-    # Show filter information if present
-    if 'filters' in data and any( data[ 'filters' ].values( ) ):
-        filter_parts: list[ str ] = [ ]
-        for filter_name, filter_value in data[ 'filters' ].items( ):
-            if filter_value:
-                filter_parts.append( "{name}={value}".format(
-                    name = filter_name, value = filter_value ) )
-        if filter_parts:
-            lines.append( "Filters: {parts}".format(
-                parts = ', '.join( filter_parts ) ) )
-    lines.extend( [ "", "Domains:" ] )
-    for domain, count in sorted( data[ 'domains' ].items( ) ):
-        lines.append( "  {domain}: {count} objects".format(
-            domain = domain, count = count ) )
-    # Show sample objects from largest domain
-    if data[ 'objects' ]:
-        largest_domain = max(
-            data[ 'domains' ].items( ), key = lambda x: x[ 1 ] )[ 0 ]
-        sample_objects = data[ 'objects' ][ largest_domain ][ :5 ]
-        lines.extend( [
-            "",
-            "Sample {domain} objects:".format( domain = largest_domain ),
-        ] )
-        lines.extend(
-            "  {role}: {name}".format(
-                role = obj[ 'role' ], name = obj[ 'name' ] )
-            for obj in sample_objects )
-    return '\n'.join( lines )
 
 
 async def _prepare(

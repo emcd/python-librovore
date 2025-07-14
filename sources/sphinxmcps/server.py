@@ -27,25 +27,28 @@ from . import __
 from . import functions as _functions
 
 
-def extract_inventory( source: str ) -> dict[ str, __.typx.Any ]:
-    ''' Extracts Sphinx inventory from URL or file path.
-
-        Returns structured data with project info, domains, and objects.
-    '''
-    return _functions.extract_inventory( source )
-
-
-def filter_inventory(
+def extract_inventory(
     source: str,
     domain: str | None = None,
     role: str | None = None,
     search: str | None = None,
 ) -> dict[ str, __.typx.Any ]:
-    ''' Extracts Sphinx inventory with optional filtering.
+    ''' Extracts Sphinx inventory from URL or file path with optional
+    filtering.
 
-        Returns filtered inventory data based on domain, role, or search terms.
+        Args:
+            source: URL or file path to Sphinx documentation
+                    (objects.inv auto-appended)
+            domain: Filter objects by domain (e.g., 'py', 'std')
+            role: Filter objects by role (e.g., 'function', 'class', 'method')
+            search: Filter objects by name containing this text
+                    (case-insensitive)
+
+        Returns structured data with project info, domains, and objects.
+        When filters are applied, includes 'filters' field showing active
+        filters.
     '''
-    return _functions.filter_inventory(
+    return _functions.extract_inventory(
         source, domain = domain, role = role, search = search
     )
 
@@ -70,7 +73,6 @@ async def serve(
     mcp = _FastMCP( 'Sphinx MCP Server', port = port )
     mcp.tool( )( hello )
     mcp.tool( )( extract_inventory )
-    mcp.tool( )( filter_inventory )
     mcp.tool( )( summarize_inventory )
     match transport:
         case 'stdio': await mcp.run_stdio_async( )
