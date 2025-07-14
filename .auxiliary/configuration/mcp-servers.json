@@ -28,6 +28,17 @@
       "args": [
         "mcp-text-editor"
       ]
+    },
+    "sphinx-mcp-server": {
+      "command": "hatch",
+      "args": [
+        "run",
+        "sphinxmcps",
+        "serve",
+        "--transport",
+        "stdio"
+      ],
+      "env": {}
     }
   }
 }

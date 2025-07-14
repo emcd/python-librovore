@@ -115,9 +115,7 @@ async def _serve_stdio_over_tcp( port: int ) -> None:
         print( f"Connection from {addr}", file = __.sys.stderr )
         # Start MCP server subprocess in stdio mode
         process = await __.asyncio.create_subprocess_exec(
-            # TODO? Might not need to `hatch run` in this case,
-            #       since we are clearly running in a proper environment.
-            'hatch', 'run', 'sphinxmcps', 'serve',
+            __.sys.executable, '-m', 'sphinxmcps', 'serve',
             stdin = __.asyncio.subprocess.PIPE,
             stdout = __.asyncio.subprocess.PIPE,
             stderr = __.asyncio.subprocess.PIPE )

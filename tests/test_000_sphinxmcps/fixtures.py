@@ -26,6 +26,7 @@ import json
 import os
 import re
 import signal
+import sys
 from contextlib import asynccontextmanager
 
 
@@ -111,7 +112,7 @@ class MCPTestClient:
 async def mcp_test_server( ):
     ''' Context manager for MCP server with dependency injection. '''
     process = await asyncio.create_subprocess_exec(
-        'hatch', 'run', 'sphinxmcps', 'serve', 
+        sys.executable, '-m', 'sphinxmcps', 'serve', 
         '--transport', 'stdio-over-tcp', '--port', '0',
         stdout = asyncio.subprocess.PIPE,
         stderr = asyncio.subprocess.PIPE,
@@ -138,35 +139,50 @@ async def mcp_test_server( ):
 
 async def cleanup_server_process( process ):
     ''' Clean up server process using dependency injection pattern. '''
-    try:
-        # Close pipes first to prevent warnings
-        if process.stdin and not process.stdin.is_closing( ):
-            process.stdin.close( )
-        if process.stdout and not process.stdout.is_closing( ):
-            process.stdout.close( )
-        if process.stderr and not process.stderr.is_closing( ):
-            process.stderr.close( )
+    if process.returncode is not None:
+        # Process already terminated
+        return
         
-        # Wait for pipes to close
-        if process.stdin:
-            await process.stdin.wait_closed( )
-        if process.stdout:
-            await process.stdout.wait_closed( )
-        if process.stderr:
-            await process.stderr.wait_closed( )
-            
-        # Then terminate the process
-        os.killpg( os.getpgid( process.pid ), signal.SIGTERM )
-        await asyncio.wait_for( process.wait( ), timeout = 3.0 )
-    except ( ProcessLookupError, asyncio.TimeoutError ):
+    try:
+        # Try graceful termination first
+        process.terminate( )
         try:
-            os.killpg( os.getpgid( process.pid ), signal.SIGKILL )
-            await process.wait( )
-        except ProcessLookupError:
+            await asyncio.wait_for( process.wait( ), timeout = 2.0 )
+            return  # Graceful termination worked
+        except asyncio.TimeoutError:
             pass
-    except ( OSError, AttributeError ):
-        # Ignore pipe/process cleanup errors
-        pass
+            
+        # If still running, try process group termination
+        try:
+            os.killpg( os.getpgid( process.pid ), signal.SIGTERM )
+            await asyncio.wait_for( process.wait( ), timeout = 2.0 )
+            return  # Process group termination worked
+        except ( ProcessLookupError, OSError, asyncio.TimeoutError ):
+            pass
+            
+        # Last resort: force kill
+        try:
+            process.kill( )
+            await asyncio.wait_for( process.wait( ), timeout = 1.0 )
+        except ( ProcessLookupError, asyncio.TimeoutError ):
+            # Process might be stuck, try process group kill
+            try:
+                os.killpg( os.getpgid( process.pid ), signal.SIGKILL )
+                await process.wait( )
+            except ( ProcessLookupError, OSError ):
+                pass  # Process is gone or cleanup failed
+                
+    finally:
+        # Always close pipes to prevent warnings
+        try:
+            if process.stdin and not process.stdin.is_closing( ):
+                process.stdin.close( )
+            if process.stdout and not process.stdout.is_closing( ):
+                process.stdout.close( )
+            if process.stderr and not process.stderr.is_closing( ):
+                process.stderr.close( )
+        except ( OSError, AttributeError, ValueError ):
+            pass  # Ignore expected pipe cleanup errors
 
 
 def mock_inventory_bytes( ) -> bytes:
@@ -202,7 +218,7 @@ class MockCompletedProcess:
 async def run_cli_command( args: list[ str ] ):
     ''' Run CLI command and return result using dependency injection. '''
     process = await asyncio.create_subprocess_exec(
-        'hatch', 'run', 'sphinxmcps', *args,
+        sys.executable, '-m', 'sphinxmcps', *args,
         stdout = asyncio.subprocess.PIPE,
         stderr = asyncio.subprocess.PIPE
     )
@@ -217,7 +233,7 @@ async def run_cli_command( args: list[ str ] ):
 async def start_server_process( args: list[ str ] ):
     ''' Start server subprocess with dependency injection. '''
     return await asyncio.create_subprocess_exec(
-        'hatch', 'run', 'sphinxmcps', 'serve', *args,
+        sys.executable, '-m', 'sphinxmcps', 'serve', *args,
         stdout = asyncio.subprocess.PIPE,
         stderr = asyncio.subprocess.PIPE,
         preexec_fn = os.setsid
