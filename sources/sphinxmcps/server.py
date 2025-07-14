@@ -70,6 +70,12 @@ async def serve(
     transport: str = 'stdio',
 ) -> None:
     ''' Runs MCP server. '''
+    # TCP bridging: if port specified with stdio transport, serve stdio
+    # over TCP
+    if port != 0 and transport == 'stdio':
+        await _serve_stdio_over_tcp( port )
+        return
+    # Standard MCP server modes
     mcp = _FastMCP( 'Sphinx MCP Server', port = port )
     mcp.tool( )( hello )
     mcp.tool( )( extract_inventory )
@@ -78,3 +84,75 @@ async def serve(
         case 'stdio': await mcp.run_stdio_async( )
         case 'sse': await mcp.run_sse_async( mount_path = None )
         case _: raise ValueError
+
+
+async def _serve_stdio_over_tcp( port: int ) -> None:
+    ''' Serves MCP stdio protocol over TCP.
+
+        Bridges connections to subprocesses.
+
+        Eliminates the need for external tools, like 'socat', by providing
+        built-in TCP bridging functionality for development and testing.
+    '''
+    async def handle_client(
+        reader: __.asyncio.StreamReader,
+        writer: __.asyncio.StreamWriter
+    ) -> None:
+        ''' Handles a single TCP client by bridging to MCP subprocess. '''
+        addr = writer.get_extra_info( 'peername' )
+        print( f"Connection from {addr}", file = __.sys.stderr )
+        # Start MCP server subprocess in stdio mode
+        process = await __.asyncio.create_subprocess_exec(
+            # TODO? Might not need to `hatch run` in this case,
+            #       since we are clearly running in a proper environment.
+            'hatch', 'run', 'sphinxmcps', 'serve',
+            stdin = __.asyncio.subprocess.PIPE,
+            stdout = __.asyncio.subprocess.PIPE,
+            stderr = __.asyncio.subprocess.PIPE )
+        try:
+            await __.asyncio.gather(
+                _bridge_reader_to_writer( reader, process.stdin ),
+                _bridge_reader_to_writer( process.stdout, writer ),
+                return_exceptions = True )
+        finally:
+            writer.close( )
+            await writer.wait_closed( )
+            if process.returncode is None:
+                process.terminate( )
+                try:
+                    await __.asyncio.wait_for( process.wait( ), timeout = 5.0 )
+                except __.asyncio.TimeoutError:
+                    process.kill( )
+                    await process.wait( )
+            print( f"Disconnected {addr}", file = __.sys.stderr )
+    server = await __.asyncio.start_server( handle_client, 'localhost', port )
+    addr = server.sockets[ 0 ].getsockname( )
+    print(
+        f"Serving MCP stdio over TCP on {addr[ 0 ]}:{addr[ 1 ]}",
+        # TODO: Use designated diagnostic stream from DisplayOptions object.
+        file = __.sys.stderr )
+    async with server:
+        await server.serve_forever( )
+
+
+async def _bridge_reader_to_writer(
+    reader: __.asyncio.StreamReader,
+    writer: __.asyncio.StreamWriter,
+) -> None:
+    ''' Bridges data from a reader to a writer until EOF or error. '''
+    try:
+        while True:
+            data = await reader.read( 8192 )
+            if not data:
+                break
+            writer.write( data )
+            await writer.drain( )
+    except Exception:
+        # Connection closed or other error - normal during cleanup
+        return
+    finally:
+        try:
+            writer.close( )
+            await writer.wait_closed( )
+        except Exception:
+            return
