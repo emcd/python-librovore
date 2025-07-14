@@ -18,7 +18,7 @@
 #============================================================================#
 
 
-''' Assert correct function of common imports. '''
+''' Assert correct function of internal utilities and common imports. '''
 
 
 import pytest
@@ -26,10 +26,40 @@ import pytest
 from . import PACKAGE_NAME, cache_import_module
 
 
+def test_000_common_imports_available( ):
+    ''' Common imports module provides expected utilities. '''
+    module = cache_import_module( f"{PACKAGE_NAME}.__" )
+    assert hasattr( module, 'asyncio' )
+    assert hasattr( module, 'json' )
+    assert hasattr( module, 'sys' )
+
+
+def test_010_globals_type_available( ):
+    ''' Globals type is properly defined. '''
+    module = cache_import_module( f"{PACKAGE_NAME}.__" )
+    assert hasattr( module, 'Globals' )
+
+
 @pytest.mark.parametrize(
     'module_name', ( 'cabc', 'types', 'typx' )
 )
 def test_100_exports( module_name ):
     ''' Module exports expected names. '''
-    module = cache_import_module( f"{PACKAGE_NAME}.__.imports" )
+    module = cache_import_module( f"{PACKAGE_NAME}.__" )
     assert hasattr( module, module_name )
+
+
+def test_110_asyncio_functionality( ):
+    ''' Asyncio import provides expected functionality. '''
+    module = cache_import_module( f"{PACKAGE_NAME}.__" )
+    asyncio = module.asyncio
+    assert hasattr( asyncio, 'run' )
+    assert hasattr( asyncio, 'create_subprocess_exec' )
+
+
+def test_120_json_functionality( ):
+    ''' JSON import provides expected functionality. '''
+    module = cache_import_module( f"{PACKAGE_NAME}.__" )
+    json = module.json
+    assert hasattr( json, 'dumps' )
+    assert hasattr( json, 'loads' )
