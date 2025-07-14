@@ -105,8 +105,9 @@ class ServeCommand(
     ''' Starts MCP server. '''
 
     port: __.typx.Optional[ int ] = None
-    socket: __.typx.Optional[ str ] = None
+    ''' TCP port for server. Use 0 for dynamic port with stdio-over-tcp. '''
     transport: __.typx.Optional[ str ] = None
+    ''' Transport: stdio, sse, or stdio-over-tcp. '''
 
     async def __call__(
         self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay

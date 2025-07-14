@@ -81,7 +81,7 @@ def extract_inventory(
         domain_name: len( objs )
         for domain_name, objs in objects_by_domain.items( )
     }
-    result = {
+    result: dict[ str, __.typx.Any ] = {
         'project': inventory.project,
         'version': inventory.version,
         'source': source,

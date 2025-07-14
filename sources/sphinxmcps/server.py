@@ -66,23 +66,18 @@ def summarize_inventory( source: str ) -> str:
 async def serve(
     auxdata: __.Globals, /, *,
     port: int = 0,
-    socket: __.Absential[ str ] = __.absent,
     transport: str = 'stdio',
 ) -> None:
     ''' Runs MCP server. '''
-    # TCP bridging: if port specified with stdio transport, serve stdio
-    # over TCP
-    if port != 0 and transport == 'stdio':
-        await _serve_stdio_over_tcp( port )
-        return
     # Standard MCP server modes
     mcp = _FastMCP( 'Sphinx MCP Server', port = port )
     mcp.tool( )( hello )
     mcp.tool( )( extract_inventory )
     mcp.tool( )( summarize_inventory )
     match transport:
-        case 'stdio': await mcp.run_stdio_async( )
         case 'sse': await mcp.run_sse_async( mount_path = None )
+        case 'stdio': await mcp.run_stdio_async( )
+        case 'stdio-over-tcp': await _serve_stdio_over_tcp( port )
         case _: raise ValueError
 
 
@@ -93,6 +88,9 @@ async def _serve_stdio_over_tcp( port: int ) -> None:
 
         Eliminates the need for external tools, like 'socat', by providing
         built-in TCP bridging functionality for development and testing.
+
+        Args:
+            port: TCP port to bind to. Use 0 for dynamic port assignment.
     '''
     async def handle_client(
         reader: __.asyncio.StreamReader,
@@ -110,6 +108,10 @@ async def _serve_stdio_over_tcp( port: int ) -> None:
             stdout = __.asyncio.subprocess.PIPE,
             stderr = __.asyncio.subprocess.PIPE )
         try:
+            # Pyright needs explicit None checks for subprocess pipes
+            if process.stdin is None or process.stdout is None:
+                # TODO: Improve exception.
+                raise RuntimeError
             await __.asyncio.gather(
                 _bridge_reader_to_writer( reader, process.stdin ),
                 _bridge_reader_to_writer( process.stdout, writer ),
@@ -127,10 +129,17 @@ async def _serve_stdio_over_tcp( port: int ) -> None:
             print( f"Disconnected {addr}", file = __.sys.stderr )
     server = await __.asyncio.start_server( handle_client, 'localhost', port )
     addr = server.sockets[ 0 ].getsockname( )
+    actual_port = addr[ 1 ]
     print(
-        f"Serving MCP stdio over TCP on {addr[ 0 ]}:{addr[ 1 ]}",
-        # TODO: Use designated diagnostic stream from DisplayOptions object.
+        f"Serving MCP stdio over TCP on {addr[ 0 ]}:{actual_port}",
+        # TODO: Use designated diagnostic stream.
         file = __.sys.stderr )
+    # For dynamic port assignment, ensure port is captured for clients
+    if port == 0:
+        print(
+            f"Dynamic port assigned: {actual_port}",
+            # TODO: Use designated diagnostic stream.
+            file = __.sys.stderr )
     async with server:
         await server.serve_forever( )
 
