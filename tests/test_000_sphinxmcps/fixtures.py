@@ -139,6 +139,23 @@ async def mcp_test_server( ):
 async def cleanup_server_process( process ):
     ''' Clean up server process using dependency injection pattern. '''
     try:
+        # Close pipes first to prevent warnings
+        if process.stdin and not process.stdin.is_closing( ):
+            process.stdin.close( )
+        if process.stdout and not process.stdout.is_closing( ):
+            process.stdout.close( )
+        if process.stderr and not process.stderr.is_closing( ):
+            process.stderr.close( )
+        
+        # Wait for pipes to close
+        if process.stdin:
+            await process.stdin.wait_closed( )
+        if process.stdout:
+            await process.stdout.wait_closed( )
+        if process.stderr:
+            await process.stderr.wait_closed( )
+            
+        # Then terminate the process
         os.killpg( os.getpgid( process.pid ), signal.SIGTERM )
         await asyncio.wait_for( process.wait( ), timeout = 3.0 )
     except ( ProcessLookupError, asyncio.TimeoutError ):
@@ -147,6 +164,9 @@ async def cleanup_server_process( process ):
             await process.wait( )
         except ProcessLookupError:
             pass
+    except ( OSError, AttributeError ):
+        # Ignore pipe/process cleanup errors
+        pass
 
 
 def mock_inventory_bytes( ) -> bytes:
