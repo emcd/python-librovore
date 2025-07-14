@@ -104,13 +104,16 @@
 - [ ] **Configuration files**: Store frequently used inventory sources and filters
 - [ ] **Shell completion**: Bash/zsh auto-completion for commands and parameters
 
-### Testing Infrastructure
+### Testing Infrastructure  
 - [x] **Subprocess integration tests**: Native Python subprocess + TCP bridging ✅ COMPLETED
 - [x] **Pytest slow test markers**: `@pytest.mark.slow` for integration tests ✅ COMPLETED
 - [x] **Mock inventory fixtures**: Create test inventories for unit testing ✅ COMPLETED
+- [x] **Full integration tests**: Complete MCP protocol testing ✅ COMPLETED
+- [x] **Test automation scripts**: `testers` (fast) and `testers-all` (complete) ✅ COMPLETED
+- [x] **Comprehensive test coverage**: 78 tests across all layers ✅ COMPLETED
 - [ ] **Performance benchmarks**: Track extraction and filtering performance
-- [ ] **Server transport tests**: Test stdio-over-tcp and other transport methods
-- [ ] **Full integration tests**: Complete MCP protocol testing
+- [ ] **Server unit tests**: Direct testing of FastMCP and transport modes
+- [ ] **Coverage improvement**: Address 56% coverage gaps in server/CLI modules
 
 ### Process Management Improvements
 - [ ] **Dynamic port discovery**: Avoid parsing port numbers from stderr output
