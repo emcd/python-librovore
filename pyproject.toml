@@ -240,6 +240,7 @@ cache_dir = '.auxiliary/caches/pytest'
 [tool.ruff]
 #builtins = [ 'ic' ]
 cache-dir = '.auxiliary/caches/ruff'
+exclude = [ 'sources/**/_typedecls/**/*.pyi' ]
 indent-width = 4
 line-length = 79
 [tool.ruff.lint]

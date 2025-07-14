@@ -34,3 +34,47 @@ class Omniexception( BaseException ):
 
 class Omnierror( Omniexception, Exception ):
     ''' Base for error exceptions raised by package API. '''
+
+
+class NetworkConnectionFailure( Omnierror ):
+    ''' Network request failed when fetching inventory. '''
+    
+    def __init__(
+        self, source: str, reason: str = "Network connection failed"
+    ):
+        message = f"{reason} when fetching inventory from {source}"
+        super( ).__init__( message )
+        self.source = source
+        self.reason = reason
+
+
+class InventoryAbsence( Omnierror ):
+    ''' Inventory file or resource not found. '''
+    
+    def __init__( self, source: str, reason: str = "Resource not found" ):
+        message = f"{reason}: {source}"
+        super( ).__init__( message )
+        self.source = source
+        self.reason = reason
+
+
+class InventoryFormatInvalidity( Omnierror ):
+    ''' Inventory has invalid format or cannot be parsed. '''
+    
+    def __init__(
+        self, source: str, reason: str = "Invalid inventory format"
+    ):
+        message = f"{reason} at {source}"
+        super( ).__init__( message )
+        self.source = source
+        self.reason = reason
+
+
+class InventoryUrlInvalidity( Omnierror ):
+    ''' Inventory URL is malformed or invalid. '''
+    
+    def __init__( self, source: str, reason: str = "Invalid URL format" ):
+        message = f"{reason}: {source}"
+        super( ).__init__( message )
+        self.source = source
+        self.reason = reason

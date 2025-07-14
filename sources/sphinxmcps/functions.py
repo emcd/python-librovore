@@ -23,6 +23,7 @@
 import sphobjinv as _sphobjinv
 
 from . import __
+from . import exceptions as _exceptions
 
 
 def extract_inventory( source: str ) -> dict[ str, __.typx.Any ]:
@@ -30,13 +31,18 @@ def extract_inventory( source: str ) -> dict[ str, __.typx.Any ]:
     ''' Extracts Sphinx inventory from URL or file path. '''
     # Determine if source is URL or file path
     if source.startswith( ( 'http://', 'https://', 'file://' ) ):
-        inventory = _sphobjinv.Inventory( url = source )
+        try:
+            inventory = _sphobjinv.Inventory( url = source )
+        except ( OSError, ConnectionError, TimeoutError ) as exc:
+            raise _exceptions.NetworkConnectionFailure( source ) from exc
+        except Exception as exc:
+            raise _exceptions.InventoryFormatInvalidity( source ) from exc
     else:
         path = __.Path( source ).resolve( )
         inventory = _load_local_inventory( path )
-    objects_by_domain = { }
+    objects_by_domain: dict[ str, list[ dict[ str, __.typx.Any ] ] ] = { }
     for obj in inventory.objects:
-        domain = obj.domain
+        domain: str = obj.domain
         if domain not in objects_by_domain:
             objects_by_domain[ domain ] = [ ]
         objects_by_domain[ domain ].append( {
@@ -46,7 +52,7 @@ def extract_inventory( source: str ) -> dict[ str, __.typx.Any ]:
             'uri': obj.uri,
             'dispname': obj.dispname if obj.dispname != '-' else obj.name,
         } )
-    domains_summary = {
+    domains_summary: dict[ str, int ] = {
         domain: len( objs ) for domain, objs in objects_by_domain.items( )
     }
     return {
@@ -95,5 +101,10 @@ def summarize_inventory( source: str ) -> str:
 def _load_local_inventory( path: __.Path ) -> _sphobjinv.Inventory:
     ''' Loads inventory from local file path. '''
     if not path.exists( ):
-        raise FileNotFoundError
-    return _sphobjinv.Inventory( fname_zlib = str( path ) )
+        raise _exceptions.InventoryAbsence(
+            str( path ), "Inventory file not found"
+        )
+    try:
+        return _sphobjinv.Inventory( fname_zlib = str( path ) )
+    except Exception as exc:
+        raise _exceptions.InventoryFormatInvalidity( str( path ) ) from exc
