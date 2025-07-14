@@ -167,6 +167,17 @@ testers = [
   'coverage html',
   'coverage xml',
 ]
+testers-all = [
+  'coverage erase',
+  'coverage run -m pytest -m ""',
+  """coverage run -m sphinx.cmd.build \
+     -E -b doctest -d .auxiliary/caches/sphinx \
+     documentation .auxiliary/artifacts/sphinx-doctest""",
+  'coverage combine',
+  'coverage report --skip-covered',
+  'coverage html',
+  'coverage xml',
+]
 make-all = [
   'linters',
   'testers',
