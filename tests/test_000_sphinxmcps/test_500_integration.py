@@ -76,63 +76,10 @@ async def test_010_mcp_tools_list( ):
         tools = response[ 'result' ][ 'tools' ]
         tool_names = [ tool[ 'name' ] for tool in tools ]
         
-        assert 'hello' in tool_names
         assert 'extract_inventory' in tool_names
         assert 'summarize_inventory' in tool_names
 
 
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_020_mcp_hello_tool( ):
-    ''' MCP hello tool returns correct greeting. '''
-    async with (
-        mcp_test_server( ) as port,
-        MCPTestClient( port ) as client
-    ):
-        await client.initialize( )
-        response = await client.call_tool( 'hello', { 'name': 'World' } )
-        
-        assert response[ 'jsonrpc' ] == '2.0'
-        assert 'result' in response
-        assert 'content' in response[ 'result' ]
-        
-        content = response[ 'result' ][ 'content' ]
-        assert len( content ) > 0
-        assert content[ 0 ][ 'type' ] == 'text'
-        assert 'Hello, World!' in content[ 0 ][ 'text' ]
-
-
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_030_mcp_hello_tool_custom_name( ):
-    ''' MCP hello tool accepts custom names. '''
-    async with (
-        mcp_test_server( ) as port,
-        MCPTestClient( port ) as client
-    ):
-        await client.initialize( )
-        response = await client.call_tool( 'hello', { 'name': 'Claude' } )
-        
-        assert response[ 'jsonrpc' ] == '2.0'
-        assert 'result' in response
-        content = response[ 'result' ][ 'content' ]
-        assert 'Hello, Claude!' in content[ 0 ][ 'text' ]
-
-
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_040_mcp_hello_tool_missing_name( ):
-    ''' MCP hello tool handles missing name parameter. '''
-    async with (
-        mcp_test_server( ) as port,
-        MCPTestClient( port ) as client
-    ):
-        await client.initialize( )
-        response = await client.call_tool( 'hello', { } )
-        
-        # Should either provide default or return error
-        assert response[ 'jsonrpc' ] == '2.0'
-        assert 'result' in response or 'error' in response
 
 
 @pytest.mark.slow
@@ -400,12 +347,19 @@ async def test_400_mcp_stdio_over_tcp_transport( ):
         assert response[ 'jsonrpc' ] == '2.0'
         assert 'result' in response
         
-        # Verify tool calls work over TCP
-        response = await client.call_tool( 'hello', { 'name': 'TCP' } )
-        assert response[ 'jsonrpc' ] == '2.0'
-        assert 'result' in response
-        content = response[ 'result' ][ 'content' ]
-        assert 'Hello, TCP!' in content[ 0 ][ 'text' ]
+        # Verify tool calls work over TCP using inventory tools
+        inventory_path = temp_inventory_file( )
+        try:
+            response = await client.call_tool(
+                'summarize_inventory', { 'source': inventory_path }
+            )
+            assert response[ 'jsonrpc' ] == '2.0'
+            assert 'result' in response
+            content = response[ 'result' ][ 'content' ]
+            assert 'Sphinx Inventory' in content[ 0 ][ 'text' ]
+        finally:
+            with suppress( OSError ):
+                os.unlink( inventory_path )
 
 
 @pytest.mark.slow
@@ -425,21 +379,29 @@ async def test_410_mcp_concurrent_clients( ):
         assert response2[ 'jsonrpc' ] == '2.0'
         
         # Both clients should be able to call tools
-        hello1 = await client1.call_tool(
-            'hello', { 'name': 'Client1' }
-        )
-        hello2 = await client2.call_tool(
-            'hello', { 'name': 'Client2' }
-        )
-        
-        assert (
-            'Hello, Client1!' in 
-            hello1[ 'result' ][ 'content' ][ 0 ][ 'text' ]
-        )
-        assert (
-            'Hello, Client2!' in 
-            hello2[ 'result' ][ 'content' ][ 0 ][ 'text' ]
-        )
+        inventory_path1 = temp_inventory_file( )
+        inventory_path2 = temp_inventory_file( )
+        try:
+            response1 = await client1.call_tool(
+                'summarize_inventory', { 'source': inventory_path1 }
+            )
+            response2 = await client2.call_tool(
+                'summarize_inventory', { 'source': inventory_path2 }
+            )
+            
+            assert (
+                'Sphinx Inventory' in 
+                response1[ 'result' ][ 'content' ][ 0 ][ 'text' ]
+            )
+            assert (
+                'Sphinx Inventory' in 
+                response2[ 'result' ][ 'content' ][ 0 ][ 'text' ]
+            )
+        finally:
+            with suppress( OSError ):
+                os.unlink( inventory_path1 )
+            with suppress( OSError ):
+                os.unlink( inventory_path2 )
 
 
 @pytest.mark.slow
@@ -452,13 +414,18 @@ async def test_500_mcp_server_shutdown_cleanup( ):
         MCPTestClient( port ) as client
     ):
         await client.initialize( )
-        response = await client.call_tool(
-            'hello', { 'name': 'Shutdown' }
-        )
-        assert (
-            'Hello, Shutdown!' in 
-            response[ 'result' ][ 'content' ][ 0 ][ 'text' ]
-        )
+        inventory_path = temp_inventory_file( )
+        try:
+            response = await client.call_tool(
+                'summarize_inventory', { 'source': inventory_path }
+            )
+            assert (
+                'Sphinx Inventory' in 
+                response[ 'result' ][ 'content' ][ 0 ][ 'text' ]
+            )
+        finally:
+            with suppress( OSError ):
+                os.unlink( inventory_path )
         
         # Client connection should close cleanly
         

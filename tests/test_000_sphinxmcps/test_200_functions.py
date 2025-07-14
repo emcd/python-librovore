@@ -28,33 +28,6 @@ from . import PACKAGE_NAME, cache_import_module
 from .fixtures import mock_inventory_bytes
 
 
-def test_000_hello_world( ):
-    ''' Hello function returns greeting with World. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-    result = functions_module.hello( "World" )
-    assert result == "Hello, World!"
-
-
-def test_010_hello_custom_name( ):
-    ''' Hello function returns greeting with custom name. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-    result = functions_module.hello( "Claude" )
-    assert result == "Hello, Claude!"
-
-
-def test_020_hello_empty_name( ):
-    ''' Hello function handles empty name gracefully. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-    result = functions_module.hello( "" )
-    assert result == "Hello, !"
-
-
-def test_030_hello_whitespace_name( ):
-    ''' Hello function preserves whitespace in names. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-    result = functions_module.hello( "  Test  " )
-    assert result == "Hello,   Test  !"
-
 
 def test_100_extract_inventory_local_file( ):
     ''' Extract inventory processes local inventory files. '''

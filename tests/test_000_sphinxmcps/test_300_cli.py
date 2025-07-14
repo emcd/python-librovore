@@ -35,44 +35,16 @@ def temp_inventory_file( ):
         return f.name
 
 
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_000_cli_hello_command( ):
-    ''' CLI hello command returns greeting. '''
-    result = await run_cli_command( [ 'use', 'hello', '--name', 'World' ] )
-    assert result.returncode == 0
-    assert 'Hello, World!' in result.stdout or 'Hello, World!' in result.stderr
 
 
 @pytest.mark.slow
 @pytest.mark.asyncio
-async def test_010_cli_hello_custom_name( ):
-    ''' CLI hello command with custom name. '''
-    result = await run_cli_command( [ 'use', 'hello', '--name', 'Claude' ] )
-    assert result.returncode == 0
-    assert (
-        'Hello, Claude!' in result.stdout or 
-        'Hello, Claude!' in result.stderr
-    )
-
-
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_020_cli_hello_default_name( ):
-    ''' CLI hello command uses default name. '''
-    result = await run_cli_command( [ 'use', 'hello' ] )
-    assert result.returncode == 0
-    assert 'Hello, World!' in result.stdout or 'Hello, World!' in result.stderr
-
-
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_100_cli_inventory_local_file( ):
-    ''' CLI inventory processes local files. '''
+async def test_100_cli_extract_inventory_local_file( ):
+    ''' CLI extract-inventory processes local files. '''
     inventory_path = temp_inventory_file( )
     try:
         result = await run_cli_command( [ 
-            'use', 'inventory', '--source', inventory_path, '--format', 'json' 
+            'use', 'extract-inventory', '--source', inventory_path 
         ] )
         assert result.returncode == 0
         assert 'project' in result.stdout or 'project' in result.stderr
@@ -83,13 +55,13 @@ async def test_100_cli_inventory_local_file( ):
 
 @pytest.mark.slow
 @pytest.mark.asyncio
-async def test_110_cli_inventory_with_domain_filter( ):
-    ''' CLI inventory applies domain filtering. '''
+async def test_110_cli_extract_inventory_with_domain_filter( ):
+    ''' CLI extract-inventory applies domain filtering. '''
     inventory_path = temp_inventory_file( )
     try:
         result = await run_cli_command( [
-            'use', 'inventory', '--source', inventory_path, 
-            '--domain', 'py', '--format', 'json'
+            'use', 'extract-inventory', '--source', inventory_path, 
+            '--domain', 'py'
         ] )
         assert result.returncode == 0
         assert 'domain' in result.stdout or 'domain' in result.stderr
@@ -100,13 +72,13 @@ async def test_110_cli_inventory_with_domain_filter( ):
 
 @pytest.mark.slow
 @pytest.mark.asyncio
-async def test_120_cli_inventory_with_role_filter( ):
-    ''' CLI inventory applies role filtering. '''
+async def test_120_cli_extract_inventory_with_role_filter( ):
+    ''' CLI extract-inventory applies role filtering. '''
     inventory_path = temp_inventory_file( )
     try:
         result = await run_cli_command( [
-            'use', 'inventory', '--source', inventory_path, 
-            '--role', 'module', '--format', 'json'
+            'use', 'extract-inventory', '--source', inventory_path, 
+            '--role', 'module'
         ] )
         assert result.returncode == 0
         assert 'role' in result.stdout or 'role' in result.stderr
@@ -117,13 +89,13 @@ async def test_120_cli_inventory_with_role_filter( ):
 
 @pytest.mark.slow
 @pytest.mark.asyncio
-async def test_130_cli_inventory_with_search_filter( ):
-    ''' CLI inventory applies search filtering. '''
+async def test_130_cli_extract_inventory_with_search_filter( ):
+    ''' CLI extract-inventory applies search filtering. '''
     inventory_path = temp_inventory_file( )
     try:
         result = await run_cli_command( [
-            'use', 'inventory', '--source', inventory_path, 
-            '--search', 'test', '--format', 'json'
+            'use', 'extract-inventory', '--source', inventory_path, 
+            '--search', 'test'
         ] )
         assert result.returncode == 0
         assert 'search' in result.stdout or 'search' in result.stderr
@@ -134,10 +106,10 @@ async def test_130_cli_inventory_with_search_filter( ):
 
 @pytest.mark.slow
 @pytest.mark.asyncio
-async def test_140_cli_inventory_nonexistent_file( ):
-    ''' CLI inventory fails gracefully for missing files. '''
+async def test_140_cli_extract_inventory_nonexistent_file( ):
+    ''' CLI extract-inventory fails gracefully for missing files. '''
     result = await run_cli_command( [
-        'use', 'inventory', '--source', '/nonexistent/path.inv'
+        'use', 'extract-inventory', '--source', '/nonexistent/path.inv'
     ] )
     assert result.returncode != 0
     assert (
@@ -148,13 +120,12 @@ async def test_140_cli_inventory_nonexistent_file( ):
 
 @pytest.mark.slow
 @pytest.mark.asyncio
-async def test_200_cli_inventory_summary_local_file( ):
-    ''' CLI inventory summary processes local files. '''
+async def test_200_cli_summarize_inventory_local_file( ):
+    ''' CLI summarize-inventory processes local files. '''
     inventory_path = temp_inventory_file( )
     try:
         result = await run_cli_command( [ 
-            'use', 'inventory', '--source', inventory_path, 
-            '--format', 'summary' 
+            'use', 'summarize-inventory', '--source', inventory_path
         ] )
         assert result.returncode == 0
         assert (
@@ -168,13 +139,13 @@ async def test_200_cli_inventory_summary_local_file( ):
 
 @pytest.mark.slow
 @pytest.mark.asyncio
-async def test_210_cli_inventory_summary_with_filters( ):
-    ''' CLI inventory summary includes filter information. '''
+async def test_210_cli_summarize_inventory_with_filters( ):
+    ''' CLI summarize-inventory includes filter information. '''
     inventory_path = temp_inventory_file( )
     try:
         result = await run_cli_command( [
-            'use', 'inventory', '--source', inventory_path, 
-            '--domain', 'py', '--format', 'summary'
+            'use', 'summarize-inventory', '--source', inventory_path, 
+            '--domain', 'py'
         ] )
         assert result.returncode == 0
         assert (
@@ -188,11 +159,10 @@ async def test_210_cli_inventory_summary_with_filters( ):
 
 @pytest.mark.slow
 @pytest.mark.asyncio
-async def test_220_cli_inventory_summary_nonexistent_file( ):
-    ''' CLI inventory summary fails gracefully for missing files. '''
+async def test_220_cli_summarize_inventory_nonexistent_file( ):
+    ''' CLI summarize-inventory fails gracefully for missing files. '''
     result = await run_cli_command( [
-        'use', 'inventory', '--source', '/nonexistent/path.inv', 
-        '--format', 'summary'
+        'use', 'summarize-inventory', '--source', '/nonexistent/path.inv'
     ] )
     assert result.returncode != 0
     assert (

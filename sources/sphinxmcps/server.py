@@ -53,11 +53,6 @@ def extract_inventory(
     )
 
 
-def hello( name: str = 'World' ) -> str:
-    ''' Says hello with the given name. '''
-    return _functions.hello( name )
-
-
 def summarize_inventory( 
     source: str, 
     domain: str | None = None,
@@ -91,7 +86,6 @@ async def serve(
     ''' Runs MCP server. '''
     # Standard MCP server modes
     mcp = _FastMCP( 'Sphinx MCP Server', port = port )
-    mcp.tool( )( hello )
     mcp.tool( )( extract_inventory )
     mcp.tool( )( summarize_inventory )
     match transport:

@@ -98,7 +98,7 @@
 - [ ] **Search suggestion**: Provide auto-complete and search suggestions
 
 ### CLI and UX Improvements  
-- [x] **`use` command restructuring**: `sphinxmcps use inventory` and `sphinxmcps use hello` ✅ COMPLETED
+- [x] **`use` command restructuring**: `sphinxmcps use extract-inventory` and `sphinxmcps use summarize-inventory` ✅ COMPLETED
 - [x] **TCP bridge integration**: `sphinxmcps serve --transport stdio-over-tcp --port 0` ✅ COMPLETED
 - [ ] **Interactive inventory browser**: Navigate inventories with arrow keys/search
 - [ ] **Configuration files**: Store frequently used inventory sources and filters
@@ -122,9 +122,9 @@
 - [ ] **Server object introspection**: Direct port number access from server objects
 
 ### CLI Simplification
-- [ ] **Remove redundant help command**: `help` MCP tool and CLI subcommand
-- [ ] **Split inventory subcommand**: `extract-inventory` and `summarize-inventory`
-- [ ] **Mirror MCP tool structure**: Consistent CLI and MCP tool organization
+- [x] **Remove redundant hello functionality**: Removed hello function, MCP tool, and CLI command ✅ COMPLETED
+- [x] **Split inventory subcommand**: `extract-inventory` and `summarize-inventory` ✅ COMPLETED
+- [x] **Mirror MCP tool structure**: Consistent CLI and MCP tool organization ✅ COMPLETED
 
 ### URL Handling Simplification
 - [ ] **Consolidate URL processing**: Simplify URL validation and processing logic

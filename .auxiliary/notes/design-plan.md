@@ -244,8 +244,8 @@ dependencies = [
 - ✅ Enhanced summarize_inventory with filter display support
 
 ### Current Status
-- **MCP Tools**: `hello`, `extract_inventory` (with filtering), `summarize_inventory`
-- **CLI Commands**: `use hello`, `use inventory` (with all filter options), `serve`
+- **MCP Tools**: `extract_inventory` (with filtering), `summarize_inventory`
+- **CLI Commands**: `use extract-inventory`, `use summarize-inventory` (with all filter options), `serve`
 - **Transports**: stdio (primary), sse, stdio-over-tcp (with dynamic ports)
 - **Testing**: stdio-over-tcp bridge replaces socat dependency
 - **Architecture**: Clean transport semantics, Pyright compliant

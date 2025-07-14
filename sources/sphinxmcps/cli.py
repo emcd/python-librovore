@@ -27,28 +27,12 @@ from . import interfaces as _interfaces
 from . import server as _server
 
 
-class HelloCommand(
+class ExtractInventoryCommand(
     _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
-    ''' Says hello with the given name. '''
-
-    name: str = 'World'
-
-    async def __call__(
-        self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
-    ) -> None:
-        result = _functions.hello( self.name )
-        stream = await display.provide_stream( )
-        print( result, file = stream )
-
-
-class InventoryCommand(
-    _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
-):
-    ''' Extracts and displays Sphinx inventory information. '''
+    ''' Extracts Sphinx inventory with optional filtering. '''
 
     source: str
-    format: str = 'summary'
     domain: __.typx.Optional[ str ] = None
     role: __.typx.Optional[ str ] = None
     search: __.typx.Optional[ str ] = None
@@ -57,24 +41,38 @@ class InventoryCommand(
         self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
-        # Extract inventory with optional filtering
         data = _functions.extract_inventory(
             self.source,
             domain = self.domain,
             role = self.role,
             search = self.search,
         )
-        match self.format:
-            case 'summary':
-                result = _functions.summarize_inventory( 
-                    data[ 'source' ], filters = data.get( 'filters' ) )
-                print( result, file = stream )
-            case 'json':
-                print( __.json.dumps( data, indent = 2 ), file = stream )
-            case _:
-                # TODO? Use logger.
-                print( f"Unknown format: {self.format}", file = __.sys.stderr )
-                return
+        print( __.json.dumps( data, indent = 2 ), file = stream )
+
+
+class SummarizeInventoryCommand(
+    _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
+):
+    ''' Provides human-readable summary of Sphinx inventory. '''
+
+    source: str
+    domain: __.typx.Optional[ str ] = None
+    role: __.typx.Optional[ str ] = None
+    search: __.typx.Optional[ str ] = None
+
+    async def __call__(
+        self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
+    ) -> None:
+        stream = await display.provide_stream( )
+        data = _functions.extract_inventory(
+            self.source,
+            domain = self.domain,
+            role = self.role,
+            search = self.search,
+        )
+        result = _functions.summarize_inventory( 
+            data[ 'source' ], filters = data.get( 'filters' ) )
+        print( result, file = stream )
 
 
 class UseCommand(
@@ -84,12 +82,16 @@ class UseCommand(
 
     operation: __.typx.Union[
         __.typx.Annotated[
-            HelloCommand,
-            __.tyro.conf.subcommand( 'hello', prefix_name = False ),
+            ExtractInventoryCommand,
+            __.tyro.conf.subcommand(
+                'extract-inventory', prefix_name = False
+            ),
         ],
         __.typx.Annotated[
-            InventoryCommand,
-            __.tyro.conf.subcommand( 'inventory', prefix_name = False ),
+            SummarizeInventoryCommand,
+            __.tyro.conf.subcommand(
+                'summarize-inventory', prefix_name = False
+            ),
         ],
     ]
 

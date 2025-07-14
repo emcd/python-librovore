@@ -99,11 +99,6 @@ def extract_inventory(
     return result
 
 
-def hello( name: str ) -> str:
-    ''' Says hello. '''
-    return f"Hello, {name}!"
-
-
 
 
 def summarize_inventory( 
