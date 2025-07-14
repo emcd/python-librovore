@@ -3,10 +3,13 @@
 ## Immediate Enhancements
 
 ### Advanced Filtering and Search
-- **Filter by domain/role**: `inventory --source URL --domain py --role function`
-- **Object name search**: `inventory --source URL --search "datetime"`
-- **Regex pattern matching**: Support regex in search functionality
-- **Priority filtering**: Filter objects by priority levels
+- [x] **Filter by domain/role**: `inventory --source URL --domain py --role function` ✅ COMPLETED
+- [x] **Object name search**: `inventory --source URL --search "datetime"` ✅ COMPLETED  
+- [x] **Auto-append objects.inv**: Automatically append objects.inv to URLs and paths ✅ COMPLETED
+- [ ] **Regex pattern matching**: Support regex in search functionality
+- [ ] **Priority filtering**: Filter objects by priority levels
+- [ ] **Boolean search operators**: Support `domain=py AND role=class` expressions
+- [ ] **Case-sensitive search**: Option for exact case matching
 
 ### Enhanced Output Formats
 - **YAML output**: Add `--format yaml` option
@@ -72,6 +75,40 @@
 - **ReadTheDocs API**: Direct API access beyond objects.inv
 - **Custom inventory formats**: Support non-Sphinx documentation
 - **API specification parsing**: OpenAPI, AsyncAPI inventory extraction
+
+## Next Phase Enhancements
+
+### Object Detail and Relationships
+- [ ] **Object detail retrieval**: Get full documentation for specific objects by name/path
+- [ ] **Relationship mapping**: Show inheritance hierarchies and cross-references between objects
+- [ ] **Dependency analysis**: Map intersphinx dependencies between documentation sites  
+- [ ] **Cross-reference validation**: Verify that object links are valid and accessible
+
+### Batch Operations and Advanced Search
+- [ ] **Batch processing**: Process multiple documentation sources in one call
+- [ ] **Multi-site search**: Search across multiple inventories simultaneously  
+- [ ] **Search result ranking**: Score and rank search results by relevance
+- [ ] **Fuzzy matching**: Find objects with similar names when exact matches fail
+
+### Sphinx Search Box Emulation
+- [ ] **JavaScript search analysis**: Reverse-engineer Sphinx search.js functionality
+- [ ] **HTML content extraction**: Use BeautifulSoup/Scrapy to extract object documentation
+- [ ] **Site mapping**: Build complete site maps from Sphinx documentation
+- [ ] **Full-text search**: Index and search complete documentation content beyond just objects.inv
+- [ ] **Search suggestion**: Provide auto-complete and search suggestions
+
+### CLI and UX Improvements  
+- [ ] **`use` command restructuring**: `sphinxmcps use inventory` and `sphinxmcps use hello`
+- [ ] **TCP bridge integration**: `sphinxmcps serve --port 8002` for stdio-over-TCP
+- [ ] **Interactive inventory browser**: Navigate inventories with arrow keys/search
+- [ ] **Configuration files**: Store frequently used inventory sources and filters
+- [ ] **Shell completion**: Bash/zsh auto-completion for commands and parameters
+
+### Testing Infrastructure
+- [ ] **Subprocess integration tests**: Replace socat with Python subprocess + TCP bridging
+- [ ] **Pytest slow test markers**: `@pytest.mark.slow` for integration tests
+- [ ] **Mock inventory fixtures**: Create test inventories for unit testing
+- [ ] **Performance benchmarks**: Track extraction and filtering performance
 
 ## Real-World Applications
 

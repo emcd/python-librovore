@@ -77,6 +77,28 @@ class InventoryCommand(
                 return
 
 
+class UseCommand(
+    _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
+):
+    ''' Use Sphinx MCP server tools. '''
+
+    operation: __.typx.Union[
+        __.typx.Annotated[
+            HelloCommand,
+            __.tyro.conf.subcommand( 'hello', prefix_name = False ),
+        ],
+        __.typx.Annotated[
+            InventoryCommand,
+            __.tyro.conf.subcommand( 'inventory', prefix_name = False ),
+        ],
+    ]
+
+    async def __call__(
+        self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
+    ) -> None:
+        await self.operation( auxdata = auxdata, display = display )
+
+
 class ServeCommand(
     _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
@@ -107,12 +129,8 @@ class Cli(
     display: _interfaces.ConsoleDisplay
     command: __.typx.Union[
         __.typx.Annotated[
-            HelloCommand,
-            __.tyro.conf.subcommand( 'hello', prefix_name = False ),
-        ],
-        __.typx.Annotated[
-            InventoryCommand,
-            __.tyro.conf.subcommand( 'inventory', prefix_name = False ),
+            UseCommand,
+            __.tyro.conf.subcommand( 'use', prefix_name = False ),
         ],
         __.typx.Annotated[
             ServeCommand,

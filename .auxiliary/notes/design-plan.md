@@ -17,14 +17,16 @@ Building an MCP (Model Context Protocol) server to extract object inventories (`
 
 ```
 sources/sphinxmcps/
-├── __/                     # Common imports (existing)
-├── __init__.py            # Package init (existing)
-├── __main__.py            # Entry point (existing)
-├── cli.py                 # CLI implementation (existing, to be expanded)
-├── exceptions.py          # Custom exceptions (existing)
-├── core.py                # Shared business logic (new)
-├── mcp_server.py          # MCP server implementation (new)
-└── interfaces.py          # CLI interfaces (new)
+├── __/                     # Common imports ✅
+├── __init__.py            # Package init ✅
+├── __main__.py            # Entry point ✅
+├── cli.py                 # CLI implementation ✅
+├── exceptions.py          # Custom exceptions with Omnierror hierarchy ✅
+├── functions.py           # Shared business logic ✅
+├── server.py              # MCP server implementation ✅
+├── interfaces.py          # CLI interfaces ✅
+└── _typedecls/            # Type stubs for external libraries ✅
+    └── sphobjinv/         # sphobjinv type declarations ✅
 ```
 
 ### CLI Structure (Following emcdproj patterns)
@@ -135,17 +137,26 @@ def get_inventory_content(url: str) -> str:
 - [x] Test different transport methods (stdio via socat, SSE via HTTP)
 - [ ] Add Unix socket support for development (optional future enhancement)
 
-### Phase 3: Sphinx Integration
-- [ ] Implement sphobjinv-based inventory extraction
-- [ ] Add extract_inventory tool
-- [ ] Add inventory resource
-- [ ] Add URL validation and error handling
+### Phase 3: Sphinx Integration ✅ COMPLETED
+- [x] Implement sphobjinv-based inventory extraction
+- [x] Add extract_inventory tool with comprehensive filtering
+- [x] Add auto-append objects.inv functionality
+- [x] Add URL validation and robust exception handling
+- [x] Support both local files and remote URLs
+- [x] Add summarize_inventory tool for human-readable output
 
-### Phase 4: Advanced Features
-- [ ] Caching for inventory data
-- [ ] Multiple site support
-- [ ] Enhanced error reporting
-- [ ] Performance optimizations
+### Phase 4: Advanced Features ✅ COMPLETED  
+- [x] Advanced filtering (domain, role, search parameters)
+- [x] Enhanced error reporting with structured exceptions
+- [x] Performance optimizations (filter during iteration)
+- [x] Function consolidation and architecture cleanup
+- [x] Comprehensive MCP tool documentation
+
+### Phase 5: Testing and Polish (IN PROGRESS)
+- [ ] Comprehensive test suite with pytest
+- [ ] Integration tests using subprocess + TCP bridge
+- [ ] CLI restructuring (`use` command for operations)
+- [ ] Enhanced serve command for TCP bridging
 
 ## Dependencies to Add
 
@@ -172,12 +183,40 @@ dependencies = [
 
 ## Key Achievements
 
+### Foundation ✅
 - ✅ Dynamic FastMCP server construction with port configuration
 - ✅ Programmatic tool registration (vs decorator-based at module level)
 - ✅ Working socat bridge testing infrastructure  
 - ✅ Full MCP protocol handshake and tool execution validation
 - ✅ Hello world functionality proven via both CLI and MCP
-- ✅ Ready for sphobjinv integration phase
+
+### Sphinx Integration ✅
+- ✅ Complete sphobjinv integration for inventory extraction
+- ✅ Auto-append objects.inv to URLs and file paths
+- ✅ Support for both local files and remote URLs
+- ✅ Robust exception handling with custom hierarchy
+- ✅ Type safety with custom sphobjinv type stubs
+
+### Advanced Filtering ✅
+- ✅ Domain filtering (`domain=py`)
+- ✅ Role filtering (`role=function`) 
+- ✅ Object name search (`search=datetime`)
+- ✅ Filter during iteration for performance
+- ✅ Comprehensive filter parameter documentation
+
+### Architecture Cleanup ✅
+- ✅ Consolidated duplicate functions (extract_inventory + filter_inventory)
+- ✅ Eliminated duplicate formatting code (CLI + functions)
+- ✅ Centralized URL detection logic with `_is_url` helper
+- ✅ Single well-documented MCP tool with optional filters
+- ✅ Enhanced summarize_inventory with filter display support
+
+### Current Status
+- **MCP Tools**: `hello`, `extract_inventory` (with filtering), `summarize_inventory`
+- **CLI Commands**: `hello`, `inventory` (with all filter options), `serve`
+- **Transports**: stdio (primary), SSE (secondary)
+- **Testing**: Socat bridge with full MCP protocol validation
+- **Ready for**: Production use, testing infrastructure, CLI enhancements
 
 ## Coding Standards Adherence
 
