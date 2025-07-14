@@ -233,11 +233,14 @@ stubPath = 'sources/sphinxmcps/_typedecls'
 # Note: Cannot run doctests from Pytest, because Pytest tries to update '_'
 #       attribute on protected modules. Instead, we use Sphinx to run doctests.
 minversion = '8.1'
-addopts = '--capture=no --exitfirst -rfE'
+addopts = '--capture=no --exitfirst -rfE -m "not slow"'
 testpaths = [ 'tests' ]
 python_files = [ 'test_*.py' ]
 python_functions = [ 'test_[0-9][0-9][0-9]_*' ]
 cache_dir = '.auxiliary/caches/pytest'
+markers = [
+    'slow: marks tests as slow (excluded by default, run with -m "slow" or -m "")',
+]
 
 [tool.ruff]
 #builtins = [ 'ic' ]

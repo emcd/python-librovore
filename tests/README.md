@@ -64,7 +64,7 @@ Exception tests verify both inheritance hierarchy and message content without mo
 ## Commands
 
 ```bash
-# Run all tests with coverage
+# Run all tests with coverage (excludes slow tests by default)
 hatch --env develop run testers
 
 # Run linting checks
@@ -72,6 +72,12 @@ hatch --env develop run linters
 
 # Run specific test modules
 hatch --env develop run pytest tests/test_000_sphinxmcps/test_100_exceptions.py
+
+# Run slow tests (subprocess-based CLI and server tests)
+hatch --env develop run pytest -m "slow"
+
+# Run all tests including slow tests
+hatch --env develop run pytest -m ""
 
 # Run tests by numbering ranges
 hatch --env develop run pytest tests/test_000_sphinxmcps/test_0*.py  # Infrastructure
