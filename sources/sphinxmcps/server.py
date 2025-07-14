@@ -32,6 +32,22 @@ def hello( name: str = 'World' ) -> str:
     return _functions.hello( name )
 
 
+def extract_inventory( source: str ) -> dict[ str, __.typx.Any ]:
+    ''' Extract Sphinx inventory from URL or file path.
+    
+        Returns structured data with project info, domains, and objects.
+    '''
+    return _functions.extract_inventory( source )
+
+
+def summarize_inventory( source: str ) -> str:
+    ''' Get human-readable summary of Sphinx inventory.
+    
+        Returns formatted text summary of inventory contents.
+    '''
+    return _functions.summarize_inventory( source )
+
+
 async def serve(
     auxdata: __.Globals, /, *,
     port: int = 0,
@@ -41,6 +57,8 @@ async def serve(
     ''' Runs MCP server. '''
     mcp = _FastMCP( 'Sphinx MCP Server', port = port )
     mcp.tool( )( hello )
+    mcp.tool( )( extract_inventory )
+    mcp.tool( )( summarize_inventory )
     match transport:
         case 'stdio':
             await mcp.run_stdio_async( )

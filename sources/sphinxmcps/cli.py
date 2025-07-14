@@ -42,6 +42,35 @@ class HelloCommand(
         print( result, file = stream )
 
 
+class InventoryCommand(
+    _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
+):
+    ''' Extract and display Sphinx inventory information. '''
+
+    source: str
+    format: str = 'summary'
+
+    async def __call__(
+        self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
+    ) -> None:
+        stream = await display.provide_stream( )
+        
+        try:
+            if self.format == 'summary':
+                result = _functions.summarize_inventory( self.source )
+                print( result, file = stream )
+            elif self.format == 'json':
+                import json
+                data = _functions.extract_inventory( self.source )
+                print( json.dumps( data, indent = 2 ), file = stream )
+            else:
+                print( f"Unknown format: {self.format}", file = __.sys.stderr )
+                return
+                
+        except Exception as exc:
+            print( f"Error: {exc}", file = __.sys.stderr )
+
+
 class ServeCommand(
     _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
@@ -80,6 +109,10 @@ class Cli(
         __.typx.Annotated[
             HelloCommand,
             __.tyro.conf.subcommand( 'hello', prefix_name = False ),
+        ],
+        __.typx.Annotated[
+            InventoryCommand,
+            __.tyro.conf.subcommand( 'inventory', prefix_name = False ),
         ],
         __.typx.Annotated[
             ServeCommand,
