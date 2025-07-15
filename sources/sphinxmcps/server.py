@@ -23,16 +23,22 @@
 
 from mcp.server.fastmcp import FastMCP as _FastMCP
 
+# FastMCP uses Pydantic to generate JSON schemas from function signatures.
+# Pydantic looks up type annotations in the function's __globals__ namespace,
+# but our __.typx alias isn't directly accessible there (it's nested).
+# This import makes typing_extensions directly available for schema generation.
+import typing_extensions as _typx
+
 from . import __
 from . import functions as _functions
 
 
 def extract_inventory(
     source: str,
-    domain: __.typx.Optional[ str ] = None,
-    role: __.typx.Optional[ str ] = None,
-    search: __.typx.Optional[ str ] = None,
-) -> dict[ str, __.typx.Any ]:
+    domain: _typx.Optional[ str ] = None,
+    role: _typx.Optional[ str ] = None,
+    search: _typx.Optional[ str ] = None,
+) -> dict[ str, _typx.Any ]:
     ''' Extracts Sphinx inventory from URL or file path with optional
     filtering.
     
@@ -51,9 +57,9 @@ def extract_inventory(
 
 def summarize_inventory( 
     source: str, 
-    domain: __.typx.Optional[ str ] = None,
-    role: __.typx.Optional[ str ] = None,
-    search: __.typx.Optional[ str ] = None,
+    domain: _typx.Optional[ str ] = None,
+    role: _typx.Optional[ str ] = None,
+    search: _typx.Optional[ str ] = None,
 ) -> str:
     ''' Provides human-readable summary of Sphinx inventory with optional
     filtering.
