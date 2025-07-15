@@ -22,22 +22,12 @@
 
 
 import pytest
-import tempfile
-import os
-from contextlib import suppress
 
 from .fixtures import (
     mcp_test_server, 
     MCPTestClient, 
-    mock_inventory_bytes
+    get_test_inventory_path
 )
-
-
-def temp_inventory_file( ):
-    ''' Create temporary inventory file for testing. '''
-    with tempfile.NamedTemporaryFile( suffix='.inv', delete=False ) as f:
-        f.write( mock_inventory_bytes( ) )
-        return f.name
 
 
 @pytest.mark.slow
@@ -86,7 +76,7 @@ async def test_010_mcp_tools_list( ):
 @pytest.mark.asyncio
 async def test_100_mcp_extract_inventory_tool( ):
     ''' MCP extract_inventory tool processes inventory files. '''
-    inventory_path = temp_inventory_file( )
+    inventory_path = get_test_inventory_path( 'sphinxmcps' )
     async with (
         mcp_test_server( ) as port,
         MCPTestClient( port ) as client
@@ -106,17 +96,13 @@ async def test_100_mcp_extract_inventory_tool( ):
         text_content = content[ 0 ][ 'text' ]
         assert 'project' in text_content
         assert 'objects' in text_content
-    
-    # Clean up temporary file
-    with suppress( OSError ):
-        os.unlink( inventory_path )
 
 
 @pytest.mark.slow
 @pytest.mark.asyncio
 async def test_110_mcp_extract_inventory_with_domain_filter( ):
     ''' MCP extract_inventory tool applies domain filtering. '''
-    inventory_path = temp_inventory_file( )
+    inventory_path = get_test_inventory_path( 'sphinxmcps' )
     async with (
         mcp_test_server( ) as port,
         MCPTestClient( port ) as client
@@ -133,17 +119,13 @@ async def test_110_mcp_extract_inventory_with_domain_filter( ):
         text_content = content[ 0 ][ 'text' ]
         assert 'domain' in text_content
         assert 'py' in text_content
-    
-    # Clean up temporary file
-    with suppress( OSError ):
-        os.unlink( inventory_path )
 
 
 @pytest.mark.slow
 @pytest.mark.asyncio
 async def test_120_mcp_extract_inventory_with_role_filter( ):
     ''' MCP extract_inventory tool applies role filtering. '''
-    inventory_path = temp_inventory_file( )
+    inventory_path = get_test_inventory_path( 'sphinxmcps' )
     async with (
         mcp_test_server( ) as port,
         MCPTestClient( port ) as client
@@ -160,17 +142,13 @@ async def test_120_mcp_extract_inventory_with_role_filter( ):
         text_content = content[ 0 ][ 'text' ]
         assert 'role' in text_content
         assert 'module' in text_content
-    
-    # Clean up temporary file
-    with suppress( OSError ):
-        os.unlink( inventory_path )
 
 
 @pytest.mark.slow
 @pytest.mark.asyncio
 async def test_130_mcp_extract_inventory_with_search_filter( ):
     ''' MCP extract_inventory tool applies search filtering. '''
-    inventory_path = temp_inventory_file( )
+    inventory_path = get_test_inventory_path( 'sphinxmcps' )
     async with (
         mcp_test_server( ) as port,
         MCPTestClient( port ) as client
@@ -187,10 +165,6 @@ async def test_130_mcp_extract_inventory_with_search_filter( ):
         text_content = content[ 0 ][ 'text' ]
         assert 'search' in text_content
         assert 'test' in text_content
-    
-    # Clean up temporary file
-    with suppress( OSError ):
-        os.unlink( inventory_path )
 
 
 @pytest.mark.slow
@@ -217,7 +191,7 @@ async def test_140_mcp_extract_inventory_nonexistent_file( ):
 @pytest.mark.asyncio
 async def test_200_mcp_summarize_inventory_tool( ):
     ''' MCP summarize_inventory tool provides human-readable summary. '''
-    inventory_path = temp_inventory_file( )
+    inventory_path = get_test_inventory_path( 'sphinxmcps' )
     async with (
         mcp_test_server( ) as port,
         MCPTestClient( port ) as client
@@ -236,17 +210,13 @@ async def test_200_mcp_summarize_inventory_tool( ):
         text_content = content[ 0 ][ 'text' ]
         assert 'Sphinx Inventory' in text_content
         assert 'objects' in text_content
-    
-    # Clean up temporary file
-    with suppress( OSError ):
-        os.unlink( inventory_path )
 
 
 @pytest.mark.slow
 @pytest.mark.asyncio
 async def test_210_mcp_summarize_inventory_with_filters( ):
     ''' MCP summarize_inventory tool includes filter information. '''
-    inventory_path = temp_inventory_file( )
+    inventory_path = get_test_inventory_path( 'sphinxmcps' )
     async with (
         mcp_test_server( ) as port,
         MCPTestClient( port ) as client
@@ -263,10 +233,6 @@ async def test_210_mcp_summarize_inventory_with_filters( ):
         text_content = content[ 0 ][ 'text' ]
         assert 'Sphinx Inventory' in text_content
         assert 'py' in text_content
-    
-    # Clean up temporary file
-    with suppress( OSError ):
-        os.unlink( inventory_path )
 
 
 @pytest.mark.slow
@@ -348,18 +314,14 @@ async def test_400_mcp_stdio_over_tcp_transport( ):
         assert 'result' in response
         
         # Verify tool calls work over TCP using inventory tools
-        inventory_path = temp_inventory_file( )
-        try:
-            response = await client.call_tool(
-                'summarize_inventory', { 'source': inventory_path }
-            )
-            assert response[ 'jsonrpc' ] == '2.0'
-            assert 'result' in response
-            content = response[ 'result' ][ 'content' ]
-            assert 'Sphinx Inventory' in content[ 0 ][ 'text' ]
-        finally:
-            with suppress( OSError ):
-                os.unlink( inventory_path )
+        inventory_path = get_test_inventory_path( 'sphinxmcps' )
+        response = await client.call_tool(
+            'summarize_inventory', { 'source': inventory_path }
+        )
+        assert response[ 'jsonrpc' ] == '2.0'
+        assert 'result' in response
+        content = response[ 'result' ][ 'content' ]
+        assert 'Sphinx Inventory' in content[ 0 ][ 'text' ]
 
 
 @pytest.mark.slow
@@ -379,29 +341,23 @@ async def test_410_mcp_concurrent_clients( ):
         assert response2[ 'jsonrpc' ] == '2.0'
         
         # Both clients should be able to call tools
-        inventory_path1 = temp_inventory_file( )
-        inventory_path2 = temp_inventory_file( )
-        try:
-            response1 = await client1.call_tool(
-                'summarize_inventory', { 'source': inventory_path1 }
-            )
-            response2 = await client2.call_tool(
-                'summarize_inventory', { 'source': inventory_path2 }
-            )
-            
-            assert (
-                'Sphinx Inventory' in 
-                response1[ 'result' ][ 'content' ][ 0 ][ 'text' ]
-            )
-            assert (
-                'Sphinx Inventory' in 
-                response2[ 'result' ][ 'content' ][ 0 ][ 'text' ]
-            )
-        finally:
-            with suppress( OSError ):
-                os.unlink( inventory_path1 )
-            with suppress( OSError ):
-                os.unlink( inventory_path2 )
+        inventory_path1 = get_test_inventory_path( 'sphinxmcps' )
+        inventory_path2 = get_test_inventory_path( 'sphobjinv' )
+        response1 = await client1.call_tool(
+            'summarize_inventory', { 'source': inventory_path1 }
+        )
+        response2 = await client2.call_tool(
+            'summarize_inventory', { 'source': inventory_path2 }
+        )
+        
+        assert (
+            'Sphinx Inventory' in 
+            response1[ 'result' ][ 'content' ][ 0 ][ 'text' ]
+        )
+        assert (
+            'Sphinx Inventory' in 
+            response2[ 'result' ][ 'content' ][ 0 ][ 'text' ]
+        )
 
 
 @pytest.mark.slow
@@ -414,18 +370,14 @@ async def test_500_mcp_server_shutdown_cleanup( ):
         MCPTestClient( port ) as client
     ):
         await client.initialize( )
-        inventory_path = temp_inventory_file( )
-        try:
-            response = await client.call_tool(
-                'summarize_inventory', { 'source': inventory_path }
-            )
-            assert (
-                'Sphinx Inventory' in 
-                response[ 'result' ][ 'content' ][ 0 ][ 'text' ]
-            )
-        finally:
-            with suppress( OSError ):
-                os.unlink( inventory_path )
+        inventory_path = get_test_inventory_path( 'sphinxmcps' )
+        response = await client.call_tool(
+            'summarize_inventory', { 'source': inventory_path }
+        )
+        assert (
+            'Sphinx Inventory' in 
+            response[ 'result' ][ 'content' ][ 0 ][ 'text' ]
+        )
         
         # Client connection should close cleanly
         

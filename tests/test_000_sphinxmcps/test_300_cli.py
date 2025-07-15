@@ -22,17 +22,10 @@
 
 
 import pytest
-import tempfile
-import os
 
-from .fixtures import run_cli_command, mock_inventory_bytes
+from .fixtures import run_cli_command, get_test_inventory_path
 
 
-def temp_inventory_file( ):
-    ''' Create temporary inventory file for testing. '''
-    with tempfile.NamedTemporaryFile( suffix = '.inv', delete = False ) as f:
-        f.write( mock_inventory_bytes( ) )
-        return f.name
 
 
 
@@ -41,67 +34,55 @@ def temp_inventory_file( ):
 @pytest.mark.asyncio
 async def test_100_cli_extract_inventory_local_file( ):
     ''' CLI extract-inventory processes local files. '''
-    inventory_path = temp_inventory_file( )
-    try:
-        result = await run_cli_command( [
-            'use', 'extract-inventory', '--source', inventory_path
-        ] )
-        assert result.returncode == 0
-        assert 'project' in result.stdout or 'project' in result.stderr
-        assert 'objects' in result.stdout or 'objects' in result.stderr
-    finally:
-        os.unlink( inventory_path )
+    inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    result = await run_cli_command( [
+        'use', 'extract-inventory', '--source', inventory_path
+    ] )
+    assert result.returncode == 0
+    assert 'project' in result.stdout or 'project' in result.stderr
+    assert 'objects' in result.stdout or 'objects' in result.stderr
 
 
 @pytest.mark.slow
 @pytest.mark.asyncio
 async def test_110_cli_extract_inventory_with_domain_filter( ):
     ''' CLI extract-inventory applies domain filtering. '''
-    inventory_path = temp_inventory_file( )
-    try:
-        result = await run_cli_command( [
-            'use', 'extract-inventory', '--source', inventory_path,
-            '--domain', 'py'
-        ] )
-        assert result.returncode == 0
-        assert 'domain' in result.stdout or 'domain' in result.stderr
-        assert 'py' in result.stdout or 'py' in result.stderr
-    finally:
-        os.unlink( inventory_path )
+    inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    result = await run_cli_command( [
+        'use', 'extract-inventory', '--source', inventory_path,
+        '--domain', 'py'
+    ] )
+    assert result.returncode == 0
+    assert 'domain' in result.stdout or 'domain' in result.stderr
+    assert 'py' in result.stdout or 'py' in result.stderr
 
 
 @pytest.mark.slow
 @pytest.mark.asyncio
 async def test_120_cli_extract_inventory_with_role_filter( ):
     ''' CLI extract-inventory applies role filtering. '''
-    inventory_path = temp_inventory_file( )
-    try:
-        result = await run_cli_command( [
-            'use', 'extract-inventory', '--source', inventory_path,
-            '--role', 'module'
-        ] )
-        assert result.returncode == 0
-        assert 'role' in result.stdout or 'role' in result.stderr
-        assert 'module' in result.stdout or 'module' in result.stderr
-    finally:
-        os.unlink( inventory_path )
+    inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    result = await run_cli_command( [
+        'use', 'extract-inventory', '--source', inventory_path,
+        '--role', 'module'
+    ] )
+    assert result.returncode == 0
+    assert 'role' in result.stdout or 'role' in result.stderr
+    assert 'module' in result.stdout or 'module' in result.stderr
 
 
 @pytest.mark.slow
 @pytest.mark.asyncio
-async def test_130_cli_extract_inventory_with_search_filter( ):
-    ''' CLI extract-inventory applies search filtering. '''
-    inventory_path = temp_inventory_file( )
-    try:
-        result = await run_cli_command( [
-            'use', 'extract-inventory', '--source', inventory_path,
-            '--search', 'test'
-        ] )
-        assert result.returncode == 0
-        assert 'search' in result.stdout or 'search' in result.stderr
-        assert 'test' in result.stdout or 'test' in result.stderr
-    finally:
-        os.unlink( inventory_path )
+async def test_130_cli_extract_inventory_with_term_filter( ):
+    ''' CLI extract-inventory applies term filtering. '''
+    inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    result = await run_cli_command( [
+        'use', 'extract-inventory', '--source', inventory_path,
+        '--term', 'test'
+    ] )
+    assert result.returncode == 0
+    assert 'term' in result.stdout or 'term' in result.stderr
+    assert 'test' in result.stdout or 'test' in result.stderr
 
 
 @pytest.mark.slow
@@ -113,8 +94,9 @@ async def test_140_cli_extract_inventory_nonexistent_file( ):
     ] )
     assert result.returncode != 0
     assert (
-        'error' in result.stderr.lower( ) or
-        'not found' in result.stderr.lower( )
+        'inaccessible' in result.stderr.lower( ) or
+        'not found' in result.stderr.lower( ) or
+        'no such file' in result.stderr.lower( )
     )
 
 
@@ -122,39 +104,33 @@ async def test_140_cli_extract_inventory_nonexistent_file( ):
 @pytest.mark.asyncio
 async def test_200_cli_summarize_inventory_local_file( ):
     ''' CLI summarize-inventory processes local files. '''
-    inventory_path = temp_inventory_file( )
-    try:
-        result = await run_cli_command( [
-            'use', 'summarize-inventory', '--source', inventory_path
-        ] )
-        assert result.returncode == 0
-        assert (
-            'Sphinx Inventory' in result.stdout or
-            'Sphinx Inventory' in result.stderr
-        )
-        assert 'objects' in result.stdout or 'objects' in result.stderr
-    finally:
-        os.unlink( inventory_path )
+    inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    result = await run_cli_command( [
+        'use', 'summarize-inventory', '--source', inventory_path
+    ] )
+    assert result.returncode == 0
+    assert (
+        'Sphinx Inventory' in result.stdout or
+        'Sphinx Inventory' in result.stderr
+    )
+    assert 'objects' in result.stdout or 'objects' in result.stderr
 
 
 @pytest.mark.slow
 @pytest.mark.asyncio
 async def test_210_cli_summarize_inventory_with_filters( ):
     ''' CLI summarize-inventory includes filter information. '''
-    inventory_path = temp_inventory_file( )
-    try:
-        result = await run_cli_command( [
-            'use', 'summarize-inventory', '--source', inventory_path,
-            '--domain', 'py'
-        ] )
-        assert result.returncode == 0
-        assert (
-            'Sphinx Inventory' in result.stdout or
-            'Sphinx Inventory' in result.stderr
-        )
-        assert 'py' in result.stdout or 'py' in result.stderr
-    finally:
-        os.unlink( inventory_path )
+    inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    result = await run_cli_command( [
+        'use', 'summarize-inventory', '--source', inventory_path,
+        '--domain', 'py'
+    ] )
+    assert result.returncode == 0
+    assert (
+        'Sphinx Inventory' in result.stdout or
+        'Sphinx Inventory' in result.stderr
+    )
+    assert 'py' in result.stdout or 'py' in result.stderr
 
 
 @pytest.mark.slow
@@ -166,8 +142,9 @@ async def test_220_cli_summarize_inventory_nonexistent_file( ):
     ] )
     assert result.returncode != 0
     assert (
-        'error' in result.stderr.lower( ) or
-        'not found' in result.stderr.lower( )
+        'inaccessible' in result.stderr.lower( ) or
+        'not found' in result.stderr.lower( ) or
+        'no such file' in result.stderr.lower( )
     )
 
 

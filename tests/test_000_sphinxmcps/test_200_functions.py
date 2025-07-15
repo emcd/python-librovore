@@ -22,102 +22,82 @@
 
 
 import pytest
-from pyfakefs.fake_filesystem_unittest import Patcher
+from pathlib import Path
 
 from . import PACKAGE_NAME, cache_import_module
-from .fixtures import mock_inventory_bytes
+from .fixtures import get_test_inventory_path
 
 
 
 def test_100_extract_inventory_local_file( ):
     ''' Extract inventory processes local inventory files. '''
     functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-    
-    with Patcher( ) as patcher:
-        fs = patcher.fs
-        inventory_path = '/fake/objects.inv'
-        fs.create_file( inventory_path, contents = mock_inventory_bytes( ) )
-        
-        result = functions_module.extract_inventory( inventory_path )
-        assert 'project' in result
-        assert 'objects' in result
+
+    inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    result = functions_module.extract_inventory( inventory_path )
+    assert 'project' in result
+    assert 'objects' in result
 
 
 def test_110_extract_inventory_with_domain_filter( ):
     ''' Extract inventory applies domain filtering correctly. '''
     functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-    
-    with Patcher( ) as patcher:
-        fs = patcher.fs
-        inventory_path = '/fake/objects.inv'
-        fs.create_file( inventory_path, contents = mock_inventory_bytes( ) )
-        
-        result = functions_module.extract_inventory(
-            inventory_path, domain = 'py'
-        )
-        assert 'filters' in result
-        assert result[ 'filters' ][ 'domain' ] == 'py'
+
+    inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    result = functions_module.extract_inventory(
+        inventory_path, domain = 'py'
+    )
+    assert 'filters' in result
+    assert result[ 'filters' ][ 'domain' ] == 'py'
 
 
 def test_120_extract_inventory_with_role_filter( ):
     ''' Extract inventory applies role filtering correctly. '''
     functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-    
-    with Patcher( ) as patcher:
-        fs = patcher.fs
-        inventory_path = '/fake/objects.inv'
-        fs.create_file( inventory_path, contents = mock_inventory_bytes( ) )
-        
-        result = functions_module.extract_inventory(
-            inventory_path, role = 'module'
-        )
-        assert 'filters' in result
-        assert result[ 'filters' ][ 'role' ] == 'module'
+
+    inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    result = functions_module.extract_inventory(
+        inventory_path, role = 'module'
+    )
+    assert 'filters' in result
+    assert result[ 'filters' ][ 'role' ] == 'module'
 
 
 def test_130_extract_inventory_with_search_filter( ):
     ''' Extract inventory applies search filtering correctly. '''
     functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-    
-    with Patcher( ) as patcher:
-        fs = patcher.fs
-        inventory_path = '/fake/objects.inv'
-        fs.create_file( inventory_path, contents = mock_inventory_bytes( ) )
-        
-        result = functions_module.extract_inventory(
-            inventory_path, term = 'test'
-        )
-        assert 'filters' in result
-        assert result[ 'filters' ][ 'term' ] == 'test'
+
+    inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    result = functions_module.extract_inventory(
+        inventory_path, term = 'test'
+    )
+    assert 'filters' in result
+    assert result[ 'filters' ][ 'term' ] == 'test'
 
 
 def test_140_extract_inventory_with_all_filters( ):
     ''' Extract inventory applies multiple filters correctly. '''
     functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-    
-    with Patcher( ) as patcher:
-        fs = patcher.fs
-        inventory_path = '/fake/objects.inv'
-        fs.create_file( inventory_path, contents = mock_inventory_bytes( ) )
-        
-        result = functions_module.extract_inventory( 
-            inventory_path, 
-            domain = 'py', 
-            role = 'module', 
-            term = 'test' 
-        )
-        assert 'filters' in result
-        filters = result[ 'filters' ]
-        assert filters[ 'domain' ] == 'py'
-        assert filters[ 'role' ] == 'module'
-        assert filters[ 'term' ] == 'test'
+
+    inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    result = functions_module.extract_inventory(
+        inventory_path,
+        domain = 'py',
+        role = 'module',
+        term = 'test'
+    )
+    assert 'filters' in result
+    filters = result[ 'filters' ]
+    assert filters[ 'domain' ] == 'py'
+    assert filters[ 'role' ] == 'module'
+    assert filters[ 'term' ] == 'test'
 
 
 def test_150_extract_inventory_nonexistent_file( ):
     ''' Extract inventory raises appropriate exception for missing files. '''
     functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
     exceptions_module = cache_import_module( f"{PACKAGE_NAME}.exceptions" )
-    
+
     with pytest.raises( exceptions_module.InventoryInaccessibility ):
         functions_module.extract_inventory( "/nonexistent/path.inv" )
 
@@ -125,59 +105,46 @@ def test_150_extract_inventory_nonexistent_file( ):
 def test_160_extract_inventory_auto_append_objects_inv( ):
     ''' Extract inventory auto-appends objects.inv to URLs/paths. '''
     functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-    
-    with Patcher( ) as patcher:
-        fs = patcher.fs
-        # Create directory structure
-        fs.create_dir( '/fake/docs' )
-        fs.create_file(
-            '/fake/docs/objects.inv', 
-            contents = mock_inventory_bytes( )
-        )
-        
-        # Test without objects.inv suffix
-        result = functions_module.extract_inventory( '/fake/docs' )
-        assert 'project' in result
-        assert 'objects' in result
+
+    # Get real inventory directory path
+    real_inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    inventory_dir = str( Path( real_inventory_path ).parent )
+
+    # Test without objects.inv suffix
+    result = functions_module.extract_inventory( inventory_dir )
+    assert 'project' in result
+    assert 'objects' in result
 
 
 def test_200_summarize_inventory_basic( ):
     ''' Summarize inventory provides human-readable summary. '''
     functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-    
-    with Patcher( ) as patcher:
-        fs = patcher.fs
-        inventory_path = '/fake/objects.inv'
-        fs.create_file( inventory_path, contents = mock_inventory_bytes( ) )
-        
-        result = functions_module.summarize_inventory( inventory_path )
-        assert 'objects' in result
+
+    inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    result = functions_module.summarize_inventory( inventory_path )
+    assert 'objects' in result
 
 
 def test_210_summarize_inventory_with_filters( ):
     ''' Summarize inventory includes filter information when provided. '''
     functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-    
-    with Patcher( ) as patcher:
-        fs = patcher.fs
-        inventory_path = '/fake/objects.inv'
-        fs.create_file( inventory_path, contents = mock_inventory_bytes( ) )
-        
-        # Summarize with domain filter applied
-        result = functions_module.summarize_inventory( 
-            inventory_path, domain = 'py' 
-        )
-        
-        assert 'objects' in result
-        # Should mention filtering was applied
-        assert 'filter' in result.lower( ) or 'domain' in result.lower( )
+
+    inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    # Summarize with domain filter applied
+    result = functions_module.summarize_inventory(
+        inventory_path, domain = 'py'
+    )
+
+    assert 'objects' in result
+    # Should mention filtering was applied
+    assert 'filter' in result.lower( ) or 'domain' in result.lower( )
 
 
 def test_220_summarize_inventory_nonexistent_file( ):
     ''' Summarize inventory raises appropriate exception for missing files. '''
     functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
     exceptions_module = cache_import_module( f"{PACKAGE_NAME}.exceptions" )
-    
+
     with pytest.raises( exceptions_module.InventoryInaccessibility ):
         functions_module.summarize_inventory( "/nonexistent/path.inv" )
 
@@ -185,7 +152,7 @@ def test_220_summarize_inventory_nonexistent_file( ):
 def test_300_url_detection_http( ):
     ''' URL detection correctly identifies HTTP URLs. '''
     functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-    
+
     # Access the _is_url helper function if it exists
     if hasattr( functions_module, '_is_url' ):
         assert functions_module._is_url( "http://example.com" )
@@ -195,7 +162,7 @@ def test_300_url_detection_http( ):
 def test_310_url_detection_file_paths( ):
     ''' URL detection correctly identifies file paths as non-URLs. '''
     functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-    
+
     # Access the _is_url helper function if it exists
     if hasattr( functions_module, '_is_url' ):
         assert not functions_module._is_url( "/path/to/file.inv" )
@@ -205,7 +172,7 @@ def test_310_url_detection_file_paths( ):
 def test_320_url_detection_edge_cases( ):
     ''' URL detection handles edge cases correctly. '''
     functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-    
+
     # Access the _is_url helper function if it exists
     if hasattr( functions_module, '_is_url' ):
         assert not functions_module._is_url( "" )

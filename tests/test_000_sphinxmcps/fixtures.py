@@ -185,25 +185,31 @@ async def cleanup_server_process( process ):
             pass  # Ignore expected pipe cleanup errors
 
 
-def mock_inventory_bytes( ) -> bytes:
-    ''' Create minimal valid inventory data for testing.
+def get_test_inventory_path( site_name: str = 'sphinxmcps' ) -> str:
+    ''' Get path to test inventory file.
     
-        Returns minimal sphobjinv-compatible inventory data to avoid
-        external dependencies in unit tests.
+        Args:
+            site_name: Name of the site directory (e.g., 'sphinxmcps')
+            
+        Returns:
+            Path to the site's objects.inv file for testing
     '''
-    # Basic inventory structure with minimal content for testing
-    # This is a simplified version that satisfies sphobjinv requirements
-    header = (
-        b"# Sphinx inventory version 2\n# Project: test\n# Version: 1.0\n"
-        b"# The remainder of this file is compressed using zlib.\n"
+    from pathlib import Path
+    
+    # Get the test directory relative to this file
+    test_dir = Path( __file__ ).parent.parent
+    inventory_path = (
+        test_dir / 'data' / 'inventories' / site_name / 'objects.inv'
     )
     
-    # Minimal compressed inventory content
-    import zlib
-    inventory_data = "test py:module 1 test.html#module-test Test module\n"
-    compressed_data = zlib.compress( inventory_data.encode( 'utf-8' ) )
+    if not inventory_path.exists( ):
+        raise FileNotFoundError(
+            f"Test inventory file not found: {inventory_path}"
+        )
     
-    return header + compressed_data
+    return str( inventory_path )
+
+
 
 
 class MockCompletedProcess:

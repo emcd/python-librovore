@@ -53,8 +53,13 @@ def extract_inventory(
         'objects': objects,
     }
     if any( ( domain, role, term ) ):
-        result[ 'filters' ] = {
-            'domain': domain, 'role': role, 'term': term  }
+        result[ 'filters' ] = { }
+        if not __.is_absent( domain ):
+            result[ 'filters' ][ 'domain' ] = domain
+        if not __.is_absent( role ):
+            result[ 'filters' ][ 'role' ] = role
+        if not __.is_absent( term ):
+            result[ 'filters' ][ 'term' ] = term
     return result
 
 
