@@ -35,18 +35,20 @@ class ExtractInventoryCommand(
     source: str
     domain: __.typx.Optional[ str ] = None
     role: __.typx.Optional[ str ] = None
-    search: __.typx.Optional[ str ] = None
+    term: __.typx.Optional[ str ] = None
 
     async def __call__(
         self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
-        data = _functions.extract_inventory(
-            self.source,
-            domain = self.domain,
-            role = self.role,
-            search = self.search,
-        )
+        nomargs: __.NominativeArguments = { }
+        if self.domain is not None:
+            nomargs[ 'domain' ] = self.domain
+        if self.role is not None:
+            nomargs[ 'role' ] = self.role
+        if self.term is not None:
+            nomargs[ 'term' ] = self.term
+        data = _functions.extract_inventory( self.source, **nomargs )
         print( __.json.dumps( data, indent = 2 ), file = stream )
 
 
@@ -58,20 +60,20 @@ class SummarizeInventoryCommand(
     source: str
     domain: __.typx.Optional[ str ] = None
     role: __.typx.Optional[ str ] = None
-    search: __.typx.Optional[ str ] = None
+    term: __.typx.Optional[ str ] = None
 
     async def __call__(
         self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
-        data = _functions.extract_inventory(
-            self.source,
-            domain = self.domain,
-            role = self.role,
-            search = self.search,
-        )
-        result = _functions.summarize_inventory( 
-            data[ 'source' ], filters = data.get( 'filters' ) )
+        nomargs: __.NominativeArguments = { }
+        if self.domain is not None:
+            nomargs[ 'domain' ] = self.domain
+        if self.role is not None:
+            nomargs[ 'role' ] = self.role
+        if self.term is not None:
+            nomargs[ 'term' ] = self.term
+        result = _functions.summarize_inventory( self.source, **nomargs )
         print( result, file = stream )
 
 

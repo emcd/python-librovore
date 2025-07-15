@@ -30,84 +30,43 @@ from . import exceptions as _exceptions
 
 
 def extract_inventory(
-    source: str,
-    *,
-    domain: str | None = None,
-    role: str | None = None,
-    search: str | None = None
+    source: str, /, *,
+    domain: __.Absential[ str ] = __.absent,
+    role: __.Absential[ str ] = __.absent,
+    term: __.Absential[ str ] = __.absent,
 ) -> dict[ str, __.typx.Any ]:
-    ''' Extracts Sphinx inventory from URL or file path with optional
-    filtering. '''
-    # Normalize source to ensure it points to objects.inv
-    normalized_source = _normalize_inventory_source( source )
-    # Determine if source is URL or file path
-    if _is_url( normalized_source ):
-        try:
-            inventory = _sphobjinv.Inventory( url = normalized_source )
-        except ( OSError, ConnectionError, TimeoutError ) as exc:
-            raise _exceptions.NetworkConnectionFailure(
-                normalized_source
-            ) from exc
-        except Exception as exc:
-            raise _exceptions.InventoryFormatInvalidity(
-                normalized_source
-            ) from exc
-    else:
-        path = __.Path( normalized_source ).resolve( )
-        inventory = _load_local_inventory( path )
-    objects_by_domain: dict[ str, list[ dict[ str, __.typx.Any ] ] ] = { }
-    total_filtered = 0
-    for obj in inventory.objects:
-        # Apply filtering during iteration
-        if domain and obj.domain != domain:
-            continue
-        if role and obj.role != role:
-            continue
-        if search and search.lower( ) not in obj.name.lower( ):
-            continue
-        # Object passes filters, add to results
-        domain_name: str = obj.domain
-        if domain_name not in objects_by_domain:
-            objects_by_domain[ domain_name ] = [ ]
-        objects_by_domain[ domain_name ].append( {
-            'name': obj.name,
-            'role': obj.role,
-            'priority': obj.priority,
-            'uri': obj.uri,
-            'dispname': obj.dispname if obj.dispname != '-' else obj.name,
-        } )
-        total_filtered += 1
+    ''' Extracts Sphinx inventory from source with optional filtering. '''
+    inventory = _extract_inventory( source )
+    objects, selections_total = (
+        _filter_inventory(
+            inventory, domain = domain, role = role, term = term ) )
     domains_summary: dict[ str, int ] = {
         domain_name: len( objs )
-        for domain_name, objs in objects_by_domain.items( )
+        for domain_name, objs in objects.items( )
     }
     result: dict[ str, __.typx.Any ] = {
         'project': inventory.project,
         'version': inventory.version,
         'source': source,
-        'object_count': total_filtered,
+        'object_count': selections_total,
         'domains': domains_summary,
-        'objects': objects_by_domain,
+        'objects': objects,
     }
-    # Add filters field if any filters were applied
-    if any( [ domain, role, search ] ):
+    if any( ( domain, role, term ) ):
         result[ 'filters' ] = {
-            'domain': domain,
-            'role': role,
-            'search': search,
-        }
+            'domain': domain, 'role': role, 'term': term  }
     return result
 
 
-
-
-def summarize_inventory( 
-    source: str, 
-    *, 
-    filters: dict[ str, str | None ] | None = None 
+def summarize_inventory(
+    source: str, /, *,
+    domain: __.Absential[ str ] = __.absent,
+    role: __.Absential[ str ] = __.absent,
+    term: __.Absential[ str ] = __.absent,
 ) -> str:
     ''' Provides human-readable summary of a Sphinx inventory. '''
-    data = extract_inventory( source )
+    data = extract_inventory(
+        source, domain = domain, role = role, term = term )
     lines = [
         "Sphinx Inventory: {project} v{version}".format(
             project = data[ 'project' ], version = data[ 'version' ]
@@ -115,6 +74,7 @@ def summarize_inventory(
         "Source: {source}".format( source = data[ 'source' ] ),
         "Total Objects: {count}".format( count = data[ 'object_count' ] ),
     ]
+    filters = data.get( 'filters' )
     # Show filter information if present
     if filters and any( filters.values( ) ):
         filter_parts: list[ str ] = [ ]
@@ -126,9 +86,9 @@ def summarize_inventory(
             lines.append( "Filters: {parts}".format(
                 parts = ', '.join( filter_parts ) ) )
     lines.extend( [ "", "Domains:" ] )
-    for domain, count in sorted( data[ 'domains' ].items( ) ):
+    for domain_, count in sorted( data[ 'domains' ].items( ) ):
         lines.append( "  {domain}: {count} objects".format(
-            domain = domain, count = count ) )
+            domain = domain_, count = count ) )
     # Show sample objects from largest domain
     if data[ 'objects' ]:
         largest_domain = max(
@@ -145,41 +105,64 @@ def summarize_inventory(
     return '\n'.join( lines )
 
 
-def _load_local_inventory( path: __.Path ) -> _sphobjinv.Inventory:
-    ''' Loads inventory from local file path. '''
-    if not path.exists( ):
-        raise _exceptions.InventoryAbsence(
-            str( path ), "Inventory file not found"
-        )
-    try:
-        return _sphobjinv.Inventory( fname_zlib = str( path ) )
+def _extract_inventory( source: str ) -> _sphobjinv.Inventory:
+    url = _normalize_inventory_source( source )
+    url_s = _urlparse.urlunparse( url )
+    nomargs: __.NominativeArguments = { }
+    match url.scheme:
+        case 'http' | 'https': nomargs[ 'url' ] = url_s
+        case 'file' | '': nomargs[ 'fname_zlib' ] = url_s
+        case _:
+            raise _exceptions.InventoryUrlNoSupport(
+                url, component = 'scheme', value = url.scheme )
+    try: return _sphobjinv.Inventory( **nomargs )
+    except ( ConnectionError, OSError, TimeoutError ) as exc:
+        raise _exceptions.InventoryInaccessibility(
+            url_s, cause = exc ) from exc
     except Exception as exc:
-        raise _exceptions.InventoryFormatInvalidity( str( path ) ) from exc
+        raise _exceptions.InventoryInvalidity(
+            url_s, cause = exc ) from exc
 
 
-def _normalize_inventory_source( source: str ) -> str:
-    ''' Appends objects.inv to URLs and paths that don't already have it. '''
-    if source.endswith( 'objects.inv' ): return source
-    if _is_url( source ):
-        try:
-            parsed = _urlparse.urlparse( source )
-            path = parsed.path.rstrip( '/' ) + '/objects.inv'
-            return _urlparse.urlunparse( parsed._replace( path = path ) )
-        except Exception as exc:
-            raise _exceptions.InventoryUrlInvalidity(
-                source, "Failed to parse URL" ) from exc
-    else:
-        path = __.Path( source )
-        if path.is_dir( ) or not path.suffix:
-            return str( path / 'objects.inv' )
-        return source
+def _filter_inventory(
+    inventory: _sphobjinv.Inventory,
+    domain: __.Absential[ str ] = __.absent,
+    role: __.Absential[ str ] = __.absent,
+    term: __.Absential[ str ] = __.absent,
+) -> tuple[ dict[ str, __.typx.Any ], int ]:
+    objects: __.cabc.MutableMapping[
+        str, list[ __.cabc.Mapping[ str, __.typx.Any ] ]
+    ] = __.collections.defaultdict(
+        list[ __.cabc.Mapping[ str, __.typx.Any ] ] )
+    selections_total = 0
+    term_ = '' if __.is_absent( term ) else term.lower( )
+    for objct in inventory.objects:
+        if domain and objct.domain != domain: continue
+        if role and objct.role != role: continue
+        if term_ and term_ not in objct.name.lower( ): continue
+        objects[ objct.domain ].append( {
+            'name': objct.name,
+            'role': objct.role,
+            'priority': objct.priority,
+            'uri': objct.uri,
+            'dispname':
+                objct.dispname if objct.dispname != '-' else objct.name,
+        } )
+        selections_total += 1
+    return objects, selections_total
 
 
-def _is_url( source: str ) -> bool:
-    ''' Determines if source is a URL using urlparse. '''
-    try:
-        parsed = _urlparse.urlparse( source )
-    except Exception:
-        return False
-    else:
-        return parsed.scheme in ( 'http', 'https', 'file' )
+def _normalize_inventory_source( source: str ) -> _urlparse.ParseResult:
+    ''' Parses URL strings into components.
+
+        Also appends 'objects.inv' to the path component, if necessary.
+    '''
+    try: url = _urlparse.urlparse( source )
+    except Exception as exc:
+        raise _exceptions.InventoryUrlInvalidity( source ) from exc
+    filename = 'objects.inv'
+    if url.path.endswith( filename ): return url
+    return _urlparse.ParseResult(
+        scheme = url.scheme, netloc = url.netloc,
+        path = f"{url.path}/{filename}",
+        params = url.params, query = url.query, fragment = url.fragment )

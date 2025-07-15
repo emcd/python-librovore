@@ -21,6 +21,8 @@
 ''' Family of exceptions for package API. '''
 
 
+import urllib.parse as _urlparse
+
 from . import __
 
 
@@ -36,45 +38,45 @@ class Omnierror( Omniexception, Exception ):
     ''' Base for error exceptions raised by package API. '''
 
 
-class NetworkConnectionFailure( Omnierror ):
-    ''' Network request failed when fetching inventory. '''
-    
-    def __init__(
-        self, source: str, reason: str = "Network connection failed"
-    ):
-        message = f"{reason} when fetching inventory from {source}"
-        super( ).__init__( message )
+class InventoryInaccessibility( Omnierror, RuntimeError ):
+    ''' Inventory file or resource absent or inaccessible. '''
+
+    def __init__( self, source: str, cause: Exception ):
+        message = f"Inventory at '{source}' is inaccessible. Cause: {cause}"
         self.source = source
-        self.reason = reason
-
-
-class InventoryAbsence( Omnierror ):
-    ''' Inventory file or resource not found. '''
-    
-    def __init__( self, source: str, reason: str = "Resource not found" ):
-        message = f"{reason}: {source}"
         super( ).__init__( message )
-        self.source = source
-        self.reason = reason
 
 
-class InventoryFormatInvalidity( Omnierror ):
+class InventoryInvalidity( Omnierror, ValueError ):
     ''' Inventory has invalid format or cannot be parsed. '''
-    
-    def __init__(
-        self, source: str, reason: str = "Invalid inventory format"
-    ):
-        message = f"{reason} at {source}"
-        super( ).__init__( message )
+
+    def __init__( self, source: str, cause: Exception ):
+        message = f"Inventory at '{source}' is invalid. Cause: {cause}"
         self.source = source
-        self.reason = reason
+        super( ).__init__( message )
 
 
-class InventoryUrlInvalidity( Omnierror ):
+class InventoryUrlInvalidity( Omnierror, ValueError ):
     ''' Inventory URL is malformed or invalid. '''
-    
-    def __init__( self, source: str, reason: str = "Invalid URL format" ):
-        message = f"{reason}: {source}"
-        super( ).__init__( message )
+
+    def __init__( self, source: str ):
+        message = f"Invalid URL format: {source}"
         self.source = source
-        self.reason = reason
+        super( ).__init__( message )
+
+
+class InventoryUrlNoSupport( Omnierror, NotImplementedError ):
+    ''' Inventory URL has unsupported component. '''
+
+    def __init__(
+        self, url: _urlparse.ParseResult, component: str,
+        value: __.Absential[ str ] = __.absent,
+    ):
+        url_s = _urlparse.urlunparse( url )
+        message_c = f"Component '{component}' "
+        message_i = f"not supported in inventory URL '{url_s}'."
+        message = (
+            f"{message_c} {message_i}" if __.is_absent( value )
+            else f"{message_c} with value '{value}' {message_i}" )
+        self.url = url
+        super( ).__init__( message )

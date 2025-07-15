@@ -85,10 +85,10 @@ def test_130_extract_inventory_with_search_filter( ):
         fs.create_file( inventory_path, contents = mock_inventory_bytes( ) )
         
         result = functions_module.extract_inventory(
-            inventory_path, search = 'test'
+            inventory_path, term = 'test'
         )
         assert 'filters' in result
-        assert result[ 'filters' ][ 'search' ] == 'test'
+        assert result[ 'filters' ][ 'term' ] == 'test'
 
 
 def test_140_extract_inventory_with_all_filters( ):
@@ -104,13 +104,13 @@ def test_140_extract_inventory_with_all_filters( ):
             inventory_path, 
             domain = 'py', 
             role = 'module', 
-            search = 'test' 
+            term = 'test' 
         )
         assert 'filters' in result
         filters = result[ 'filters' ]
         assert filters[ 'domain' ] == 'py'
         assert filters[ 'role' ] == 'module'
-        assert filters[ 'search' ] == 'test'
+        assert filters[ 'term' ] == 'test'
 
 
 def test_150_extract_inventory_nonexistent_file( ):
@@ -118,7 +118,7 @@ def test_150_extract_inventory_nonexistent_file( ):
     functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
     exceptions_module = cache_import_module( f"{PACKAGE_NAME}.exceptions" )
     
-    with pytest.raises( exceptions_module.InventoryAbsence ):
+    with pytest.raises( exceptions_module.InventoryInaccessibility ):
         functions_module.extract_inventory( "/nonexistent/path.inv" )
 
 
@@ -163,14 +163,9 @@ def test_210_summarize_inventory_with_filters( ):
         inventory_path = '/fake/objects.inv'
         fs.create_file( inventory_path, contents = mock_inventory_bytes( ) )
         
-        # First extract with filters to get filtered data
-        filtered_data = functions_module.extract_inventory( 
-            inventory_path, domain = 'py' 
-        )
-        
-        # Then summarize the source with filter info
+        # Summarize with domain filter applied
         result = functions_module.summarize_inventory( 
-            inventory_path, filters = filtered_data.get( 'filters' ) 
+            inventory_path, domain = 'py' 
         )
         
         assert 'objects' in result
@@ -183,7 +178,7 @@ def test_220_summarize_inventory_nonexistent_file( ):
     functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
     exceptions_module = cache_import_module( f"{PACKAGE_NAME}.exceptions" )
     
-    with pytest.raises( exceptions_module.InventoryAbsence ):
+    with pytest.raises( exceptions_module.InventoryInaccessibility ):
         functions_module.summarize_inventory( "/nonexistent/path.inv" )
 
 

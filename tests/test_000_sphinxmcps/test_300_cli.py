@@ -30,7 +30,7 @@ from .fixtures import run_cli_command, mock_inventory_bytes
 
 def temp_inventory_file( ):
     ''' Create temporary inventory file for testing. '''
-    with tempfile.NamedTemporaryFile( suffix='.inv', delete=False ) as f:
+    with tempfile.NamedTemporaryFile( suffix = '.inv', delete = False ) as f:
         f.write( mock_inventory_bytes( ) )
         return f.name
 
@@ -43,8 +43,8 @@ async def test_100_cli_extract_inventory_local_file( ):
     ''' CLI extract-inventory processes local files. '''
     inventory_path = temp_inventory_file( )
     try:
-        result = await run_cli_command( [ 
-            'use', 'extract-inventory', '--source', inventory_path 
+        result = await run_cli_command( [
+            'use', 'extract-inventory', '--source', inventory_path
         ] )
         assert result.returncode == 0
         assert 'project' in result.stdout or 'project' in result.stderr
@@ -60,7 +60,7 @@ async def test_110_cli_extract_inventory_with_domain_filter( ):
     inventory_path = temp_inventory_file( )
     try:
         result = await run_cli_command( [
-            'use', 'extract-inventory', '--source', inventory_path, 
+            'use', 'extract-inventory', '--source', inventory_path,
             '--domain', 'py'
         ] )
         assert result.returncode == 0
@@ -77,7 +77,7 @@ async def test_120_cli_extract_inventory_with_role_filter( ):
     inventory_path = temp_inventory_file( )
     try:
         result = await run_cli_command( [
-            'use', 'extract-inventory', '--source', inventory_path, 
+            'use', 'extract-inventory', '--source', inventory_path,
             '--role', 'module'
         ] )
         assert result.returncode == 0
@@ -94,7 +94,7 @@ async def test_130_cli_extract_inventory_with_search_filter( ):
     inventory_path = temp_inventory_file( )
     try:
         result = await run_cli_command( [
-            'use', 'extract-inventory', '--source', inventory_path, 
+            'use', 'extract-inventory', '--source', inventory_path,
             '--search', 'test'
         ] )
         assert result.returncode == 0
@@ -113,7 +113,7 @@ async def test_140_cli_extract_inventory_nonexistent_file( ):
     ] )
     assert result.returncode != 0
     assert (
-        'error' in result.stderr.lower( ) or 
+        'error' in result.stderr.lower( ) or
         'not found' in result.stderr.lower( )
     )
 
@@ -124,12 +124,12 @@ async def test_200_cli_summarize_inventory_local_file( ):
     ''' CLI summarize-inventory processes local files. '''
     inventory_path = temp_inventory_file( )
     try:
-        result = await run_cli_command( [ 
+        result = await run_cli_command( [
             'use', 'summarize-inventory', '--source', inventory_path
         ] )
         assert result.returncode == 0
         assert (
-            'Sphinx Inventory' in result.stdout or 
+            'Sphinx Inventory' in result.stdout or
             'Sphinx Inventory' in result.stderr
         )
         assert 'objects' in result.stdout or 'objects' in result.stderr
@@ -144,12 +144,12 @@ async def test_210_cli_summarize_inventory_with_filters( ):
     inventory_path = temp_inventory_file( )
     try:
         result = await run_cli_command( [
-            'use', 'summarize-inventory', '--source', inventory_path, 
+            'use', 'summarize-inventory', '--source', inventory_path,
             '--domain', 'py'
         ] )
         assert result.returncode == 0
         assert (
-            'Sphinx Inventory' in result.stdout or 
+            'Sphinx Inventory' in result.stdout or
             'Sphinx Inventory' in result.stderr
         )
         assert 'py' in result.stdout or 'py' in result.stderr
@@ -166,7 +166,7 @@ async def test_220_cli_summarize_inventory_nonexistent_file( ):
     ] )
     assert result.returncode != 0
     assert (
-        'error' in result.stderr.lower( ) or 
+        'error' in result.stderr.lower( ) or
         'not found' in result.stderr.lower( )
     )
 
@@ -218,7 +218,7 @@ async def test_410_cli_main_version( ):
     assert result.returncode == 0
     # Help should show version-related option
     assert (
-        'application.version' in result.stdout.lower( ) or 
+        'application.version' in result.stdout.lower( ) or
         'version' in result.stdout.lower( )
     )
 
@@ -230,6 +230,6 @@ async def test_420_cli_invalid_command( ):
     result = await run_cli_command( [ 'invalid-command' ] )
     assert result.returncode != 0
     assert (
-        'error' in result.stderr.lower( ) or 
+        'error' in result.stderr.lower( ) or
         'invalid' in result.stderr.lower( )
     )

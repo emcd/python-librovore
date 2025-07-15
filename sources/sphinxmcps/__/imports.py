@@ -26,6 +26,7 @@
 import                      abc
 import                      asyncio
 import collections.abc as   cabc
+import                      collections
 import contextlib as        ctxl
 import                      enum
 import                      io

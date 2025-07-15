@@ -29,16 +29,20 @@ def test_000_exception_hierarchy_inheritance( ):
     ''' Exception classes follow proper inheritance hierarchy. '''
     exceptions_module = cache_import_module( f"{PACKAGE_NAME}.exceptions" )
     
-    exc = exceptions_module.InventoryAbsence( "test.inv" )
+    exc = exceptions_module.InventoryInaccessibility(
+        "test.inv", Exception( "test" )
+    )
     assert isinstance( exc, exceptions_module.Omnierror )
     assert isinstance( exc, exceptions_module.Omniexception )
 
 
 def test_010_network_failure_inheritance( ):
-    ''' NetworkConnectionFailure follows proper hierarchy. '''
+    ''' InventoryInaccessibility follows proper hierarchy. '''
     exceptions_module = cache_import_module( f"{PACKAGE_NAME}.exceptions" )
     
-    exc = exceptions_module.NetworkConnectionFailure( "http://example.com" )
+    exc = exceptions_module.InventoryInaccessibility(
+        "http://example.com", Exception( "network error" )
+    )
     assert isinstance( exc, exceptions_module.Omnierror )
     assert isinstance( exc, exceptions_module.Omniexception )
 
@@ -61,37 +65,45 @@ def test_030_omnierror_inheritance( ):
 
 
 def test_040_inventory_format_invalidity_inheritance( ):
-    ''' InventoryFormatInvalidity inherits from Omnierror. '''
+    ''' InventoryInvalidity inherits from Omnierror. '''
     exceptions_module = cache_import_module( f"{PACKAGE_NAME}.exceptions" )
     
-    exc = exceptions_module.InventoryFormatInvalidity( "test.inv" )
+    exc = exceptions_module.InventoryInvalidity(
+        "test.inv", Exception( "format error" )
+    )
     assert isinstance( exc, exceptions_module.Omnierror )
 
 
-def test_100_inventory_absence_message( ):
-    ''' InventoryAbsence includes source in message. '''
+def test_100_inventory_inaccessibility_message( ):
+    ''' InventoryInaccessibility includes source in message. '''
     exceptions_module = cache_import_module( f"{PACKAGE_NAME}.exceptions" )
     
     source = "/path/to/missing.inv"
-    exc = exceptions_module.InventoryAbsence( source )
+    exc = exceptions_module.InventoryInaccessibility(
+        source, Exception( "not found" )
+    )
     assert source in str( exc )
 
 
-def test_110_network_connection_failure_message( ):
-    ''' NetworkConnectionFailure includes source in message. '''
+def test_110_inventory_inaccessibility_network_message( ):
+    ''' InventoryInaccessibility includes source in network error messages. '''
     exceptions_module = cache_import_module( f"{PACKAGE_NAME}.exceptions" )
     
     source = "http://example.com/objects.inv"
-    exc = exceptions_module.NetworkConnectionFailure( source )
+    exc = exceptions_module.InventoryInaccessibility(
+        source, Exception( "connection failed" )
+    )
     assert source in str( exc )
 
 
-def test_120_inventory_format_invalidity_message( ):
-    ''' InventoryFormatInvalidity includes source in message. '''
+def test_120_inventory_invalidity_message( ):
+    ''' InventoryInvalidity includes source in message. '''
     exceptions_module = cache_import_module( f"{PACKAGE_NAME}.exceptions" )
     
     source = "/path/to/invalid.inv"
-    exc = exceptions_module.InventoryFormatInvalidity( source )
+    exc = exceptions_module.InventoryInvalidity(
+        source, Exception( "invalid format" )
+    )
     assert source in str( exc )
 
 
@@ -108,39 +120,39 @@ def test_200_exception_with_custom_reason( ):
     ''' Exceptions accept custom reason messages. '''
     exceptions_module = cache_import_module( f"{PACKAGE_NAME}.exceptions" )
     
-    custom_reason = "Custom error reason"
-    exc = exceptions_module.InventoryAbsence( "test.inv", custom_reason )
-    assert custom_reason in str( exc )
+    custom_reason = Exception( "Custom error reason" )
+    exc = exceptions_module.InventoryInaccessibility(
+        "test.inv", custom_reason
+    )
+    assert "Custom error reason" in str( exc )
 
 
-def test_210_network_failure_with_custom_reason( ):
-    ''' NetworkConnectionFailure accepts custom reason. '''
+def test_210_inaccessibility_with_custom_reason( ):
+    ''' InventoryInaccessibility accepts custom reason. '''
     exceptions_module = cache_import_module( f"{PACKAGE_NAME}.exceptions" )
     
-    custom_reason = "Connection timeout"
-    exc = exceptions_module.NetworkConnectionFailure( 
+    custom_reason = Exception( "Connection timeout" )
+    exc = exceptions_module.InventoryInaccessibility( 
         "http://example.com", custom_reason 
     )
-    assert custom_reason in str( exc )
+    assert "Connection timeout" in str( exc )
 
 
-def test_220_format_invalidity_with_custom_reason( ):
-    ''' InventoryFormatInvalidity accepts custom reason. '''
+def test_220_invalidity_with_custom_reason( ):
+    ''' InventoryInvalidity accepts custom reason. '''
     exceptions_module = cache_import_module( f"{PACKAGE_NAME}.exceptions" )
     
-    custom_reason = "Corrupted header"
-    exc = exceptions_module.InventoryFormatInvalidity( 
+    custom_reason = Exception( "Corrupted header" )
+    exc = exceptions_module.InventoryInvalidity( 
         "test.inv", custom_reason 
     )
-    assert custom_reason in str( exc )
+    assert "Corrupted header" in str( exc )
 
 
-def test_230_url_invalidity_with_custom_reason( ):
-    ''' InventoryUrlInvalidity accepts custom reason. '''
+def test_230_url_invalidity_message( ):
+    ''' InventoryUrlInvalidity includes source in message. '''
     exceptions_module = cache_import_module( f"{PACKAGE_NAME}.exceptions" )
     
-    custom_reason = "Missing protocol"
-    exc = exceptions_module.InventoryUrlInvalidity( 
-        "example.com", custom_reason 
-    )
-    assert custom_reason in str( exc )
+    source = "not-a-valid-url"
+    exc = exceptions_module.InventoryUrlInvalidity( source )
+    assert source in str( exc )

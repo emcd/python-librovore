@@ -37,47 +37,53 @@ def extract_inventory(
     source: str,
     domain: _typx.Optional[ str ] = None,
     role: _typx.Optional[ str ] = None,
-    search: _typx.Optional[ str ] = None,
+    term: _typx.Optional[ str ] = None,
 ) -> dict[ str, _typx.Any ]:
     ''' Extracts Sphinx inventory from URL or file path with optional
     filtering.
-    
+
         Args:
             source: URL or file path to Sphinx documentation
                     (objects.inv auto-appended)
             domain: Filter objects by domain (e.g., 'py', 'std')
             role: Filter objects by role (e.g., 'function', 'class', 'method')
-            search: Filter objects by name containing this text
+            term: Filter objects by name containing this text
                     (case-insensitive)
     '''
-    return _functions.extract_inventory(
-        source, domain = domain, role = role, search = search
-    )
+    nomargs: __.NominativeArguments = { }
+    if domain is not None:
+        nomargs[ 'domain' ] = domain
+    if role is not None:
+        nomargs[ 'role' ] = role
+    if term is not None:
+        nomargs[ 'term' ] = term
+    return _functions.extract_inventory( source, **nomargs )
 
 
-def summarize_inventory( 
-    source: str, 
+def summarize_inventory(
+    source: str,
     domain: _typx.Optional[ str ] = None,
     role: _typx.Optional[ str ] = None,
-    search: _typx.Optional[ str ] = None,
+    term: _typx.Optional[ str ] = None,
 ) -> str:
-    ''' Provides human-readable summary of Sphinx inventory with optional
-    filtering.
-    
+    ''' Provides human-readable summary of Sphinx inventory.
+
         Args:
             source: URL or file path to Sphinx documentation
                     (objects.inv auto-appended)
             domain: Filter objects by domain (e.g., 'py', 'std')
             role: Filter objects by role (e.g., 'function', 'class', 'method')
-            search: Filter objects by name containing this text
+            term: Filter objects by name containing this text
                     (case-insensitive)
     '''
-    # Extract with filters and pass filter info to summary
-    data = _functions.extract_inventory(
-        source, domain = domain, role = role, search = search
-    )
-    filters = data.get( 'filters' )
-    return _functions.summarize_inventory( source, filters = filters )
+    nomargs: __.NominativeArguments = { }
+    if domain is not None:
+        nomargs[ 'domain' ] = domain
+    if role is not None:
+        nomargs[ 'role' ] = role
+    if term is not None:
+        nomargs[ 'term' ] = term
+    return _functions.summarize_inventory( source, **nomargs )
 
 
 async def serve(
