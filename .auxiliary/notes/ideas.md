@@ -3,10 +3,7 @@
 ## Immediate Enhancements
 
 ### Advanced Filtering and Search
-- [x] **Filter by domain/role**: `inventory --source URL --domain py --role function` ✅ COMPLETED
-- [x] **Object name search**: `inventory --source URL --search "datetime"` ✅ COMPLETED  
-- [x] **Auto-append objects.inv**: Automatically append objects.inv to URLs and paths ✅ COMPLETED
-- [ ] **Regex pattern matching**: Support regex in search functionality  
+- [ ] **Regex pattern matching**: Support regex in search functionality
 - [ ] **Fuzzy matching**: Approximate string matching for typos and variations (sphobjinv uses fuzzywuzzy)
 - [ ] **Priority filtering**: Filter objects by priority levels
 - [ ] **Boolean search operators**: Support `domain=py AND role=class` expressions
@@ -45,14 +42,6 @@
 
 ## Developer Experience
 
-### Development Server and Hot Reloading ✅ COMPLETED
-- [x] **Reloaderoo integration**: Transparent hot-reload proxy for MCP servers ✅ COMPLETED
-  - Session continuity: No broken MCP protocol handshakes during reloads
-  - Manual control: Use `restart_server` tool to reload when needed
-  - Transparent proxying: No custom subprocess management required
-  - Seamless integration: Test changes without restarting Claude Code
-  - Development workflow: `reloaderoo -- hatch run sphinxmcps serve` with restart control
-
 ### Enhanced CLI
 - **Interactive mode**: Browse inventories interactively
 - **Shell completion**: Bash/zsh completion for commands
@@ -90,12 +79,12 @@
 ### Object Detail and Relationships
 - [ ] **Object detail retrieval**: Get full documentation for specific objects by name/path
 - [ ] **Relationship mapping**: Show inheritance hierarchies and cross-references between objects
-- [ ] **Dependency analysis**: Map intersphinx dependencies between documentation sites  
+- [ ] **Dependency analysis**: Map intersphinx dependencies between documentation sites
 - [ ] **Cross-reference validation**: Verify that object links are valid and accessible
 
 ### Batch Operations and Advanced Search
 - [ ] **Batch processing**: Process multiple documentation sources in one call
-- [ ] **Multi-site search**: Search across multiple inventories simultaneously  
+- [ ] **Multi-site search**: Search across multiple inventories simultaneously
 - [ ] **Search result ranking**: Score and rank search results by relevance
 - [ ] **Fuzzy matching**: Find objects with similar names when exact matches fail
 
@@ -106,20 +95,12 @@
 - [ ] **Full-text search**: Index and search complete documentation content beyond just objects.inv
 - [ ] **Search suggestion**: Provide auto-complete and search suggestions
 
-### CLI and UX Improvements  
-- [x] **`use` command restructuring**: `sphinxmcps use extract-inventory` and `sphinxmcps use summarize-inventory` ✅ COMPLETED
-- [x] **TCP bridge integration**: `sphinxmcps serve --transport stdio-over-tcp --port 0` ✅ COMPLETED
+### CLI and UX Improvements
 - [ ] **Interactive inventory browser**: Navigate inventories with arrow keys/search
 - [ ] **Configuration files**: Store frequently used inventory sources and filters
 - [ ] **Shell completion**: Bash/zsh auto-completion for commands and parameters
 
-### Testing Infrastructure  
-- [x] **Subprocess integration tests**: Native Python subprocess + TCP bridging ✅ COMPLETED
-- [x] **Pytest slow test markers**: `@pytest.mark.slow` for integration tests ✅ COMPLETED
-- [x] **Mock inventory fixtures**: Create test inventories for unit testing ✅ COMPLETED
-- [x] **Full integration tests**: Complete MCP protocol testing ✅ COMPLETED
-- [x] **Test automation scripts**: `testers` (fast) and `testers-all` (complete) ✅ COMPLETED
-- [x] **Comprehensive test coverage**: 78 tests across all layers ✅ COMPLETED
+### Testing Infrastructure
 - [ ] **Performance benchmarks**: Track extraction and filtering performance
 - [ ] **Server unit tests**: Direct testing of FastMCP and transport modes
 - [ ] **Coverage improvement**: Address 56% coverage gaps in server/CLI modules
@@ -129,15 +110,6 @@
 - [ ] **Shared memory communication**: Use IPC for server-client communication
 - [ ] **Process lifecycle management**: Better subprocess cleanup and monitoring
 - [ ] **Server object introspection**: Direct port number access from server objects
-
-### CLI Simplification
-- [x] **Remove redundant hello functionality**: Removed hello function, MCP tool, and CLI command ✅ COMPLETED
-- [x] **Split inventory subcommand**: `extract-inventory` and `summarize-inventory` ✅ COMPLETED
-- [x] **Mirror MCP tool structure**: Consistent CLI and MCP tool organization ✅ COMPLETED
-
-### URL Handling Simplification
-- [ ] **Consolidate URL processing**: Simplify URL validation and processing logic
-- [ ] **Reduce URL-related functions**: Better maintainability and fewer edge cases
 
 ## Real-World Applications
 

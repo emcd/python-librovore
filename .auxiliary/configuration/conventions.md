@@ -83,6 +83,8 @@
 - Do not write to paths outside of the current project unless the user has
   explicitly requested that you do so. If you need a scratch space, use
   the `.auxiliary/scribbles` directory instead of `/tmp`.
+- Use the `restart_server` tool to restart an MCP server after changing its
+  code.
 
 # Per-Language Advice
 
