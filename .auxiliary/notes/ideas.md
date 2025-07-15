@@ -6,7 +6,8 @@
 - [x] **Filter by domain/role**: `inventory --source URL --domain py --role function` ✅ COMPLETED
 - [x] **Object name search**: `inventory --source URL --search "datetime"` ✅ COMPLETED  
 - [x] **Auto-append objects.inv**: Automatically append objects.inv to URLs and paths ✅ COMPLETED
-- [ ] **Regex pattern matching**: Support regex in search functionality
+- [ ] **Regex pattern matching**: Support regex in search functionality  
+- [ ] **Fuzzy matching**: Approximate string matching for typos and variations (sphobjinv uses fuzzywuzzy)
 - [ ] **Priority filtering**: Filter objects by priority levels
 - [ ] **Boolean search operators**: Support `domain=py AND role=class` expressions
 - [ ] **Case-sensitive search**: Option for exact case matching
@@ -43,6 +44,15 @@
 - **Dead link detection**: Find broken cross-references
 
 ## Developer Experience
+
+### Development Server and Hot Reloading
+- **`--develop` flag**: Add development mode to `serve` subcommand
+  - File watching: Monitor `sources/sphinxmcps/` for changes
+  - Automatic restart: Replace underlying MCP server when files change
+  - Transparent proxy: Chain stdio streams through supervisor process
+  - Seamless integration: Test changes without restarting Claude Code
+  - Simplified testing: Eliminate need for `stdio-over-tcp` transport
+  - Development workflow: `sphinxmcps serve --develop` for hot reloading
 
 ### Enhanced CLI
 - **Interactive mode**: Browse inventories interactively
