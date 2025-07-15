@@ -30,14 +30,15 @@
       ]
     },
     "sphinx": {
-      "command": "hatch",
+      "command": "reloaderoo",
       "args": [
+        "--",
+        "hatch",
         "run",
         "sphinxmcps",
         "--logfile",
         ".auxiliary/inscriptions/server.txt",
-        "serve",
-        "--develop"
+        "serve"
       ]
     }
   }

@@ -45,14 +45,13 @@
 
 ## Developer Experience
 
-### Development Server and Hot Reloading
-- **`--develop` flag**: Add development mode to `serve` subcommand
-  - File watching: Monitor `sources/sphinxmcps/` for changes
-  - Automatic restart: Replace underlying MCP server when files change
-  - Transparent proxy: Chain stdio streams through supervisor process
+### Development Server and Hot Reloading ✅ COMPLETED
+- [x] **Reloaderoo integration**: Transparent hot-reload proxy for MCP servers ✅ COMPLETED
+  - Session continuity: No broken MCP protocol handshakes during reloads
+  - Manual control: Use `restart_server` tool to reload when needed
+  - Transparent proxying: No custom subprocess management required
   - Seamless integration: Test changes without restarting Claude Code
-  - Simplified testing: Eliminate need for `stdio-over-tcp` transport
-  - Development workflow: `sphinxmcps serve --develop` for hot reloading
+  - Development workflow: `reloaderoo -- hatch run sphinxmcps serve` with restart control
 
 ### Enhanced CLI
 - **Interactive mode**: Browse inventories interactively

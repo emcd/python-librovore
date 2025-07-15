@@ -1,164 +1,68 @@
-# Sphinx MCP Server - Testing Protocol
+# Sphinx MCP Server - Development and Testing Guide
 
 ## Overview
 
-This document describes the testing infrastructure established for rapid development and testing of the Sphinx MCP Server without requiring Claude Code restarts.
+This document describes the development workflow for the Sphinx MCP Server using reloaderoo for hot-reloading.
 
-## Testing Infrastructure
+## Development Setup with Reloaderoo
 
-### Native TCP Bridge (stdio-over-tcp transport)
+The primary development method uses **reloaderoo** for transparent hot-reloading:
 
-The primary testing method uses the built-in `stdio-over-tcp` transport:
+### Claude Code Configuration
 
-```bash
-# Start TCP bridge with dynamic port assignment
-hatch run sphinxmcps serve --transport stdio-over-tcp --port 0
-
-# Or use fixed port
-hatch run sphinxmcps serve --transport stdio-over-tcp --port 8005
-```
-
-This approach provides:
-- ✅ **No external dependencies** (eliminates socat requirement)
-- ✅ **Dynamic port assignment** (eliminates port conflicts)
-- ✅ **Direct JSON-RPC communication** over TCP
-- ✅ **Multiple concurrent connections** via asyncio
-- ✅ **Clean subprocess management** with proper cleanup
-
-### MCP Protocol Handshake
-
-All MCP communication requires proper initialization sequence:
-
-1. **Initialize connection** with client info and capabilities
-2. **Send initialized notification** to complete handshake  
-3. **Send actual commands** (tools/list, tools/call, etc.)
-
-### Standard Test Template
-
-```bash
-timeout 5 bash -c 'printf "%s\n%s\n%s\n" \
-  "INITIALIZE_JSON" \
-  "NOTIFY_INITIALIZED_JSON" \
-  "COMMAND_JSON" | nc localhost PORT'
-```
-
-## Common Test Commands
-
-### 1. Initialize Connection
+Configure `.auxiliary/configuration/mcp-servers.json`:
 
 ```json
 {
-  "jsonrpc": "2.0",
-  "method": "initialize", 
-  "params": {
-    "protocolVersion": "2024-11-05",
-    "capabilities": {
-      "roots": {"listChanged": true},
-      "sampling": {}
-    },
-    "clientInfo": {
-      "name": "test-client", 
-      "version": "1.0.0"
+  "mcpServers": {
+    "sphinx": {
+      "command": "reloaderoo",
+      "args": [
+        "--",
+        "hatch",
+        "run",
+        "sphinxmcps",
+        "--logfile",
+        ".auxiliary/inscriptions/server.txt",
+        "serve"
+      ]
     }
-  },
-  "id": 1
+  }
 }
 ```
 
-### 2. Initialized Notification
+### Hot-Reload Workflow
 
-```json
-{
-  "jsonrpc": "2.0",
-  "method": "notifications/initialized"
-}
-```
+1. **Start Claude Code** with the reloaderoo configuration
+2. **Make code changes** to the server implementation  
+3. **Use the `restart_server` tool** to reload changes:
+   - "Please restart the server to pick up my code changes"
+   - Claude Code will call the `restart_server` tool automatically
+4. **Test immediately** - no session loss or reconnection needed
 
-### 3. List Available Tools
+### Key Advantages
 
-```json
-{
-  "jsonrpc": "2.0",
-  "method": "tools/list",
-  "id": 2
-}
-```
-
-### 4. Call a Tool
-
-```json
-{
-  "jsonrpc": "2.0",
-  "method": "tools/call",
-  "params": {
-    "name": "hello",
-    "arguments": {
-      "name": "Claude"
-    }
-  },
-  "id": 3
-}
-```
-
-## Working Examples
-
-### Test Tools List
-
-```bash
-timeout 5 bash -c 'printf "%s\n%s\n%s\n" \
-  "{\"jsonrpc\":\"2.0\",\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{\"roots\":{\"listChanged\":true},\"sampling\":{}},\"clientInfo\":{\"name\":\"test-client\",\"version\":\"1.0.0\"}},\"id\":1}" \
-  "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}" \
-  "{\"jsonrpc\":\"2.0\",\"method\":\"tools/list\",\"id\":2}" | nc localhost PORT'
-```
-
-**Expected Response:**
-```json
-{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","capabilities":{"experimental":{},"prompts":{"listChanged":false},"resources":{"subscribe":false,"listChanged":false},"tools":{"listChanged":false}},"serverInfo":{"name":"Sphinx MCP Server","version":"1.11.0"}}}
-{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"hello","description":" Says hello with the given name. ","inputSchema":{"properties":{"name":{"default":"World","title":"Name","type":"string"}},"title":"helloArguments","type":"object"},"outputSchema":{"properties":{"result":{"title":"Result","type":"string"}},"required":["result"],"title":"helloOutput","type":"object"}}]}}
-```
-
-### Test Tool Execution
-
-```bash
-timeout 5 bash -c 'printf "%s\n%s\n%s\n" \
-  "{\"jsonrpc\":\"2.0\",\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{\"roots\":{\"listChanged\":true},\"sampling\":{}},\"clientInfo\":{\"name\":\"test-client\",\"version\":\"1.0.0\"}},\"id\":1}" \
-  "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}" \
-  "{\"jsonrpc\":\"2.0\",\"method\":\"tools/call\",\"params\":{\"name\":\"hello\",\"arguments\":{\"name\":\"Claude\"}},\"id\":3}" | nc localhost PORT'
-```
-
-**Expected Response:**
-```json
-{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","capabilities":{"experimental":{},"prompts":{"listChanged":false},"resources":{"subscribe":false,"listChanged":false},"tools":{"listChanged":false}},"serverInfo":{"name":"Sphinx MCP Server","version":"1.11.0"}}}
-{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"Hello, Claude!"}],"structuredContent":{"result":"Hello, Claude!"},"isError":false}}
-```
+- ✅ **Session continuity preserved** - No broken MCP protocol handshakes
+- ✅ **Manual control** - Restart exactly when needed, not on every file change  
+- ✅ **Transparent proxying** - No complex TCP bridging or external tools
+- ✅ **Immediate testing** - Tools work immediately after restart
+- ✅ **Simple architecture** - No custom subprocess management
 
 ## Server Monitoring
 
-The server logs show processing activity:
-```text
-mcp.server.lowlevel.server: Processing request of type ListToolsRequest
-mcp.server.lowlevel.server: Processing request of type CallToolRequest
+Monitor server activity via the configured log file:
+
+```bash
+tail -f .auxiliary/inscriptions/server.txt
 ```
 
-## Alternative Testing Approaches
-
-### HTTP/SSE Transport (More Complex)
-
-The HTTP/SSE transport requires session management:
-1. Connect to `/sse` endpoint to get session ID
-2. Use session ID for `/messages/` POST requests  
-3. Listen to SSE stream for responses
-
-This approach is more complex due to session persistence requirements.
-
-### Python asyncio Testing (Recommended for Integration Tests)
-
-For programmatic testing, use Python asyncio clients:
-```python
-async def test_mcp_server():
-    reader, writer = await asyncio.open_connection('localhost', port)
-    # Send MCP requests and receive responses
-    # See .auxiliary/scribbles/test_stdio_over_tcp.py for examples
+Typical log entries show:
+```text
+sphinxmcps.server: Initializing FastMCP server
+sphinxmcps.server: Registering extract_inventory tool
+sphinxmcps.server: Registering summarize_inventory tool
+mcp.server.lowlevel.server: Processing request of type CallToolRequest
+sphinxmcps.server: extract_inventory called: source=..., domain=..., role=..., term=...
 ```
 
 ## Testing Guidelines
@@ -166,10 +70,10 @@ async def test_mcp_server():
 ### ⚠️ Important: Avoid Large Inventory Dumps
 
 **DO NOT** dump entire inventories from large sites like `python.org` during testing:
-- ❌ **Avoid**: `extract_inventory` or `filter_inventory` with minimal filtering on large sites
+- ❌ **Avoid**: `extract_inventory` with minimal filtering on large sites
 - ❌ **Avoid**: JSON output of complete inventories from major documentation sites
 - ✅ **Prefer**: Local inventories generated by `hatch --env develop run docsgen`
-- ✅ **Prefer**: Highly filtered results (`domain` + `role` + `search` filters)
+- ✅ **Prefer**: Highly filtered results (`domain` + `role` + `term` filters)
 - ✅ **Prefer**: Summary output format for large inventories
 
 ### Recommended Test Sources
@@ -179,7 +83,7 @@ async def test_mcp_server():
    # Generate local docs first
    hatch --env develop run docsgen
    # Use local inventory
-   ".auxiliary/artifacts/sphinx-html/objects.inv"
+   ".auxiliary/artifacts/sphinx-html"
    ```
 
 2. **Small external inventories**:
@@ -187,23 +91,29 @@ async def test_mcp_server():
    - Other smaller documentation sites
 
 3. **Filtered large inventories** (when testing filters):
-   - `domain=py&role=class&search=Exception` (small result set)
-   - Use summary format, not JSON for large sites
+   - Use domain + role + term filters for small result sets
+   - Use summary format, not extract format for large sites
 
 ## Development Workflow Benefits
 
-This testing infrastructure enables:
+This reloaderoo-based infrastructure enables:
 - ✅ **Rapid iteration** on tool development
-- ✅ **Immediate feedback** on schema changes
+- ✅ **Immediate feedback** on code changes
 - ✅ **No Claude Code restarts** required
 - ✅ **Full MCP protocol validation**
-- ✅ **Easy debugging** of tool behavior
+- ✅ **Easy debugging** with persistent logging
+- ✅ **Warm reload** on demand via `restart_server` tool
 
-## Integration with Claude Code
+## Alternative Development Setup
 
-For full integration testing, the server can be registered with Claude Code using:
+For standalone testing without Claude Code, the server can be run directly:
+
 ```bash
-uv run mcp install server.py --name "Sphinx MCP Server"
+# Standard stdio mode
+hatch run sphinxmcps serve
+
+# SSE mode on custom port  
+hatch run sphinxmcps serve --transport sse --port 8000
 ```
 
-However, the socat bridge testing is preferred for development iteration.
+However, the reloaderoo + Claude Code approach is preferred for development iteration.

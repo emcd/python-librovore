@@ -111,10 +111,7 @@ class ServeCommand(
     port: __.typx.Optional[ int ] = None
     ''' TCP port for server. '''
     transport: __.typx.Optional[ str ] = None
-    ''' Transport: stdio, sse, or stdio-over-tcp. '''
-    develop: bool = False
-    ''' Enable development mode with hot reloading. '''
-
+    ''' Transport: stdio or sse. '''
     async def __call__(
         self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
     ) -> None:
@@ -123,8 +120,6 @@ class ServeCommand(
             nomargs[ 'port' ] = self.port
         if self.transport is not None:
             nomargs[ 'transport' ] = self.transport
-        if self.develop:
-            nomargs[ 'develop' ] = self.develop
         await _server.serve( auxdata, **nomargs )
 
 
