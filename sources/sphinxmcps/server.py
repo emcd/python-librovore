@@ -24,21 +24,41 @@
 from mcp.server.fastmcp import FastMCP as _FastMCP
 
 # FastMCP uses Pydantic to generate JSON schemas from function signatures.
-# Pydantic looks up type annotations in the function's __globals__ namespace,
-# but our __.typx alias isn't directly accessible there (it's nested).
-# This import makes typing_extensions directly available for schema generation.
-import typing_extensions as _typx
+from pydantic import Field as _Field
 
 from . import __
 from . import functions as _functions
 
 
 def extract_inventory(
-    source: str,
-    domain: _typx.Optional[ str ] = None,
-    role: _typx.Optional[ str ] = None,
-    term: _typx.Optional[ str ] = None,
-) -> dict[ str, _typx.Any ]:
+    source: __.typx.Annotated[
+        str,
+        _Field(
+            description = "URL or file path to Sphinx documentation"
+        )
+    ],
+    domain: __.typx.Annotated[
+        str,
+        _Field(
+            default = '',
+            description = "Filter objects by domain (e.g., 'py', 'std')"
+        )
+    ] = '',
+    role: __.typx.Annotated[
+        str,
+        _Field(
+            default = '',
+            description = "Filter objects by role (e.g., 'function', 'class')"
+        )
+    ] = '',
+    term: __.typx.Annotated[
+        str,
+        _Field(
+            default = '',
+            description = "Filter objects by name (case-insensitive)"
+        )
+    ] = '',
+) -> dict[ str, __.typx.Any ]:
     ''' Extracts Sphinx inventory from URL or file path with optional
     filtering.
 
@@ -51,20 +71,43 @@ def extract_inventory(
                     (case-insensitive)
     '''
     nomargs: __.NominativeArguments = { }
-    if domain is not None:
+    if domain:
         nomargs[ 'domain' ] = domain
-    if role is not None:
+    if role:
         nomargs[ 'role' ] = role
-    if term is not None:
+    if term:
         nomargs[ 'term' ] = term
     return _functions.extract_inventory( source, **nomargs )
 
 
 def summarize_inventory(
-    source: str,
-    domain: _typx.Optional[ str ] = None,
-    role: _typx.Optional[ str ] = None,
-    term: _typx.Optional[ str ] = None,
+    source: __.typx.Annotated[
+        str,
+        _Field(
+            description = "URL or file path to Sphinx documentation"
+        )
+    ],
+    domain: __.typx.Annotated[
+        str,
+        _Field(
+            default = '',
+            description = "Filter objects by domain (e.g., 'py', 'std')"
+        )
+    ] = '',
+    role: __.typx.Annotated[
+        str,
+        _Field(
+            default = '',
+            description = "Filter objects by role (e.g., 'function', 'class')"
+        )
+    ] = '',
+    term: __.typx.Annotated[
+        str,
+        _Field(
+            default = '',
+            description = "Filter objects by name (case-insensitive)"
+        )
+    ] = '',
 ) -> str:
     ''' Provides human-readable summary of Sphinx inventory.
 
@@ -77,11 +120,11 @@ def summarize_inventory(
                     (case-insensitive)
     '''
     nomargs: __.NominativeArguments = { }
-    if domain is not None:
+    if domain:
         nomargs[ 'domain' ] = domain
-    if role is not None:
+    if role:
         nomargs[ 'role' ] = role
-    if term is not None:
+    if term:
         nomargs[ 'term' ] = term
     return _functions.summarize_inventory( source, **nomargs )
 
