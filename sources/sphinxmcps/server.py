@@ -30,6 +30,9 @@ from . import __
 from . import functions as _functions
 
 
+_scribe = __.acquire_scribe( __name__ )
+
+
 def extract_inventory(
     source: __.typx.Annotated[
         str,
@@ -70,6 +73,11 @@ def extract_inventory(
             term: Filter objects by name containing this text
                     (case-insensitive)
     '''
+    _scribe.debug(
+        "extract_inventory called: source=%s, domain=%s, role=%s, term=%s",
+        source, domain, role, term
+    )
+    _scribe.debug( "Processing extract_inventory request after hot-reload..." )
     nomargs: __.NominativeArguments = { }
     if domain:
         nomargs[ 'domain' ] = domain
@@ -119,6 +127,10 @@ def summarize_inventory(
             term: Filter objects by name containing this text
                     (case-insensitive)
     '''
+    _scribe.debug(
+        "summarize_inventory called: source=%s, domain=%s, role=%s, term=%s",
+        source, domain, role, term
+    )
     nomargs: __.NominativeArguments = { }
     if domain:
         nomargs[ 'domain' ] = domain
@@ -133,12 +145,20 @@ async def serve(
     auxdata: __.Globals, /, *,
     port: int = 0,
     transport: str = 'stdio',
+    develop: bool = False,
 ) -> None:
     ''' Runs MCP server. '''
+    if develop:
+        await _serve_develop( auxdata, port = port, transport = transport )
+        return
     # Standard MCP server modes
+    _scribe.debug( "Initializing FastMCP server" )
     mcp = _FastMCP( 'Sphinx MCP Server', port = port )
+    _scribe.debug( "Registering extract_inventory tool" )
     mcp.tool( )( extract_inventory )
+    _scribe.debug( "Registering summarize_inventory tool" )
     mcp.tool( )( summarize_inventory )
+    _scribe.debug( "Tools registered successfully" )
     match transport:
         case 'sse': await mcp.run_sse_async( mount_path = None )
         case 'stdio': await mcp.run_stdio_async( )
@@ -228,3 +248,166 @@ async def _bridge_reader_to_writer(
             await writer.wait_closed( )
         except Exception:
             return
+
+
+def _build_child_args( port: int, transport: str ) -> list[ str ]:
+    ''' Builds subprocess arguments with develop flag filtered out. '''
+    args = [ __.sys.executable, '-m', 'sphinxmcps', '--logfile', '.auxiliary/inscriptions/server-child.txt', 'serve' ]
+    # Force stdio transport for child process
+    if transport != 'stdio':
+        args.extend( [ '--transport', 'stdio' ] )
+    # Pass through port if specified
+    if port != 0:
+        args.extend( [ '--port', str( port ) ] )
+    # develop flag is never passed to child process
+    return args
+
+
+async def _bridge_stdio_streams(
+    process: __.asyncio.subprocess.Process
+) -> None:
+    ''' Bridges stdio streams between parent and child process. '''
+    if not process.stdin or not process.stdout:
+        return
+    # Use asyncio to bridge stdin/stdout with the child process
+    await __.asyncio.gather(
+        _bridge_stdin_to_child( process.stdin ),
+        _bridge_child_to_stdout( process.stdout ),
+        _bridge_child_to_stderr( process.stderr ),
+        return_exceptions = True )
+
+
+async def _bridge_stdin_to_child(
+    child_stdin: __.asyncio.StreamWriter
+) -> None:
+    ''' Bridges parent stdin to child process stdin. '''
+    try:
+        # Create async stdin reader
+        loop = __.asyncio.get_event_loop( )
+        stdin_reader = __.asyncio.StreamReader( )
+        stdin_protocol = __.asyncio.StreamReaderProtocol( stdin_reader )
+        await loop.connect_read_pipe( lambda: stdin_protocol, __.sys.stdin )
+        # Read from parent stdin and write to child stdin
+        while True:
+            data = await stdin_reader.read( 8192 )
+            if not data:
+                break
+            child_stdin.write( data )
+            await child_stdin.drain( )
+    except Exception:
+        # Connection closed or other error - normal during cleanup
+        return
+    finally:
+        try:
+            child_stdin.close( )
+            await child_stdin.wait_closed( )
+        except Exception:
+            return
+
+
+async def _bridge_child_to_stdout(
+    child_stdout: __.asyncio.StreamReader
+) -> None:
+    ''' Bridges child process stdout to parent stdout. '''
+    try:
+        while True:
+            data = await child_stdout.read( 8192 )
+            if not data:
+                break
+            __.sys.stdout.buffer.write( data )
+            __.sys.stdout.buffer.flush( )
+    except Exception:
+        # Connection closed or other error - normal during cleanup
+        return
+
+
+async def _bridge_child_to_stderr(
+    child_stderr: __.typx.Optional[ __.asyncio.StreamReader ]
+) -> None:
+    ''' Bridges child process stderr to parent stderr. '''
+    if not child_stderr:
+        return
+    try:
+        while True:
+            data = await child_stderr.read( 8192 )
+            if not data:
+                break
+            __.sys.stderr.buffer.write( data )
+            __.sys.stderr.buffer.flush( )
+    except Exception:
+        # Connection closed or other error - normal during cleanup
+        return
+
+
+def _python_files_only( change: __.typx.Any, path: str ) -> bool:
+    ''' Filter function to watch only Python source files. '''
+    return path.endswith( '.py' ) and '__pycache__' not in path
+
+
+async def _serve_develop(
+    auxdata: __.Globals, /, *,
+    port: int = 0,
+    transport: str = 'stdio',
+) -> None:
+    ''' Runs MCP server in development mode with hot reloading. '''
+    _scribe.info( "Running MCP server in development mode." )
+    from watchfiles import awatch  # type: ignore
+    source_path = __.Path( __file__ ).parent
+    current_process: __.typx.Optional[ __.asyncio.subprocess.Process ] = None
+    try:
+        current_process = await _start_child_server( port, transport )
+        bridge_task = __.asyncio.create_task(
+            _bridge_stdio_streams( current_process )
+        )
+        async for changes in awatch(
+            source_path, watch_filter = _python_files_only
+        ):
+            if changes:
+                print(
+                    "Files changed, restarting server...",
+                    file = __.sys.stderr
+                )
+                bridge_task.cancel( )
+                with __.ctxl.suppress( __.asyncio.CancelledError ):
+                    await bridge_task
+                if current_process:
+                    await _terminate_child_process( current_process )
+                current_process = await _start_child_server( port, transport )
+                bridge_task = __.asyncio.create_task(
+                    _bridge_stdio_streams( current_process )
+                )
+                print( "Server restarted", file = __.sys.stderr )
+    except __.asyncio.CancelledError:
+        pass # Graceful shutdown
+    except Exception as exc:
+        print( f"Development server error: {exc}", file = __.sys.stderr )
+        raise
+    finally:
+        if current_process and current_process.returncode is None:
+            await _terminate_child_process( current_process )
+
+
+async def _start_child_server(
+    port: int, transport: str
+) -> __.asyncio.subprocess.Process:
+    ''' Starts child MCP server process with filtered arguments. '''
+    args = _build_child_args( port, transport )
+    return await __.asyncio.create_subprocess_exec(
+        *args,
+        stdin = __.asyncio.subprocess.PIPE,
+        stdout = __.asyncio.subprocess.PIPE,
+        stderr = __.asyncio.subprocess.PIPE )
+
+
+async def _terminate_child_process(
+    process: __.asyncio.subprocess.Process
+) -> None:
+    ''' Gracefully terminates child process. '''
+    if process.returncode is not None:
+        return  # Already terminated
+    process.terminate( )
+    try:
+        await __.asyncio.wait_for( process.wait( ), timeout = 3.0 )
+    except __.asyncio.TimeoutError:
+        process.kill( )
+        await process.wait( )

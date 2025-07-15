@@ -109,9 +109,11 @@ class ServeCommand(
     ''' Starts MCP server. '''
 
     port: __.typx.Optional[ int ] = None
-    ''' TCP port for server. Use 0 for dynamic port with stdio-over-tcp. '''
+    ''' TCP port for server. '''
     transport: __.typx.Optional[ str ] = None
     ''' Transport: stdio, sse, or stdio-over-tcp. '''
+    develop: bool = False
+    ''' Enable development mode with hot reloading. '''
 
     async def __call__(
         self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
@@ -121,6 +123,8 @@ class ServeCommand(
             nomargs[ 'port' ] = self.port
         if self.transport is not None:
             nomargs[ 'transport' ] = self.transport
+        if self.develop:
+            nomargs[ 'develop' ] = self.develop
         await _server.serve( auxdata, **nomargs )
 
 
@@ -142,6 +146,10 @@ class Cli(
             __.tyro.conf.subcommand( 'serve', prefix_name = False ),
         ],
     ]
+    logfile: __.typx.Annotated[
+        __.typx.Optional[ str ],
+        __.ddoc.Doc( ''' Path to log capture file. ''' ),
+    ] = None
 
     async def __call__( self ):
         ''' Invokes command after library preparation. '''
@@ -157,6 +165,7 @@ class Cli(
         args: dict[ str, __.typx.Any ] = dict(
             application = self.application,
             environment = True,
+            logfile = self.logfile,
         )
         return args
 
@@ -174,13 +183,23 @@ def execute( ) -> None:
         raise SystemExit( 1 ) from None
 
 
-
-
 async def _prepare(
     application: __.appcore.ApplicationInformation,
     environment: bool,
     exits: __.ctxl.AsyncExitStack,
+    logfile: __.typx.Optional[ str ],
 ) -> __.Globals:
     ''' Configures application based on arguments. '''
-    return await __.appcore.prepare(
-        application = application, environment = environment, exits = exits )
+    nomargs: __.NominativeArguments = {
+        'application': application,
+        'environment': environment,
+        'exits': exits,
+    }
+    if logfile:
+        logfile_p = __.Path( logfile ).resolve( )
+        ( logfile_p.parent ).mkdir( parents = True, exist_ok = True )
+        logstream = exits.enter_context( logfile_p.open( 'w' ) )
+        inscription = __.appcore.inscription.Control(
+            level = 'debug', target = logstream )
+        nomargs[ 'inscription' ] = inscription
+    return await __.appcore.prepare( **nomargs )

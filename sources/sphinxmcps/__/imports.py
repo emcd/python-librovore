@@ -34,9 +34,11 @@ import                      json
 import                      sys
 import                      types
 
+from logging import getLogger as acquire_scribe
 from pathlib import Path
 
 import                      appcore
+import dynadoc as           ddoc
 import frigid as            immut
 import typing_extensions as typx
 # --- BEGIN: Injected by Copier ---

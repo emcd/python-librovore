@@ -29,16 +29,16 @@
         "mcp-text-editor"
       ]
     },
-    "sphinx-mcp-server": {
+    "sphinx": {
       "command": "hatch",
       "args": [
         "run",
         "sphinxmcps",
+        "--logfile",
+        ".auxiliary/inscriptions/server.txt",
         "serve",
-        "--transport",
-        "stdio"
-      ],
-      "env": {}
+        "--develop"
+      ]
     }
   }
 }

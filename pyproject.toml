@@ -16,11 +16,13 @@ readme = { 'file' = 'README.rst', 'content-type' = 'text/x-rst' }
 requires-python = '>= 3.10'
 dependencies = [
   'absence~=1.1',
+  'dynadoc~=1.3',
   'emcd-appcore~=1.1',
   'frigid~=4.1',
   'mcp',
   'sphobjinv',
   'typing-extensions',
+  'watchfiles',
   # --- BEGIN: Injected by Copier ---
   'tyro',
   # --- END: Injected by Copier ---
