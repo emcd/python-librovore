@@ -35,22 +35,15 @@ class MCPTestClient:
     Async context manager for MCP server testing with dependency injection.
     '''
     
-    def __init__( self, port: int ):
-        self.port = port
-        self.reader = None
-        self.writer = None
+    def __init__( self, process ):
+        self.process = process
         self.request_id = 0
         
     async def __aenter__( self ):
-        self.reader, self.writer = await asyncio.open_connection(
-            'localhost', self.port
-        )
         return self
         
     async def __aexit__( self, exc_type, exc_val, exc_tb ):
-        if self.writer:
-            self.writer.close( )
-            await self.writer.wait_closed( )
+        pass  # Process cleanup handled by mcp_test_server
             
     async def send_request( self, request: dict ) -> dict:
         ''' Send MCP request and receive response. '''
@@ -58,11 +51,15 @@ class MCPTestClient:
         if 'id' not in request:
             request[ 'id' ] = self.request_id
             
+        # Send request via stdin
         request_line = json.dumps( request ) + '\n'
-        self.writer.write( request_line.encode( ) )
-        await self.writer.drain( )
+        self.process.stdin.write( request_line.encode( ) )
+        await self.process.stdin.drain( )
         
-        response_line = await self.reader.readline( )
+        # Read response from stdout
+        response_line = await self.process.stdout.readline( )
+        if not response_line:
+            raise RuntimeError( "No response from MCP server" )
         return json.loads( response_line.decode( ).strip( ) )
         
     async def initialize( self ) -> dict:
@@ -82,12 +79,12 @@ class MCPTestClient:
         result = await self.send_request( request )
         
         # Send initialized notification (no ID for notifications)
-        request_line = json.dumps( {
+        notification = json.dumps( {
             "jsonrpc": "2.0",
             "method": "notifications/initialized"
         } ) + '\n'
-        self.writer.write( request_line.encode( ) )
-        await self.writer.drain( )
+        self.process.stdin.write( notification.encode( ) )
+        await self.process.stdin.drain( )
         
         return result
         
@@ -112,26 +109,17 @@ class MCPTestClient:
 async def mcp_test_server( ):
     ''' Context manager for MCP server with dependency injection. '''
     process = await asyncio.create_subprocess_exec(
-        sys.executable, '-m', 'sphinxmcps', 'serve', 
-        '--transport', 'stdio-over-tcp', '--port', '0',
+        sys.executable, '-m', 'sphinxmcps', 'serve',
+        stdin = asyncio.subprocess.PIPE,
         stdout = asyncio.subprocess.PIPE,
         stderr = asyncio.subprocess.PIPE,
         preexec_fn = os.setsid
     )
     
     try:
-        # Extract dynamic port from stderr
+        # Wait for server to start
         await asyncio.sleep( 1 )
-        stderr_data = await process.stderr.read( 1024 )
-        port_match = re.search( r'127\.0\.0\.1:(\d+)', stderr_data.decode( ) )
-        
-        if not port_match:
-            raise RuntimeError(
-                "Could not extract dynamic port from server output"
-            )
-            
-        port = int( port_match.group( 1 ) )
-        yield port
+        yield process
         
     finally:
         await cleanup_server_process( process )

@@ -18,7 +18,7 @@
 #============================================================================#
 
 
-''' Full MCP protocol integration tests using stdio-over-tcp transport. '''
+''' Full MCP protocol integration tests using SSE transport. '''
 
 
 import pytest
@@ -156,14 +156,14 @@ async def test_130_mcp_extract_inventory_with_search_filter( ):
         await client.initialize( )
         response = await client.call_tool( 'extract_inventory', {
             'source': inventory_path,
-            'search': 'test'
+            'term': 'test'
         } )
         
         assert response[ 'jsonrpc' ] == '2.0'
         assert 'result' in response
         content = response[ 'result' ][ 'content' ]
         text_content = content[ 0 ][ 'text' ]
-        assert 'search' in text_content
+        assert 'term' in text_content
         assert 'test' in text_content
 
 
@@ -298,22 +298,22 @@ async def test_310_mcp_protocol_error_handling( ):
 
 @pytest.mark.slow
 @pytest.mark.asyncio
-async def test_400_mcp_stdio_over_tcp_transport( ):
-    ''' stdio-over-tcp transport works correctly with MCP protocol. '''
+async def test_400_mcp_stdio_transport( ):
+    ''' stdio transport works correctly with MCP protocol. '''
     # This test is implicit in all the above tests, but let's be explicit
     async with (
-        mcp_test_server( ) as port,
-        MCPTestClient( port ) as client
+        mcp_test_server( ) as process,
+        MCPTestClient( process ) as client
     ):
-        # Verify we can connect via TCP
-        assert client.port == port
+        # Verify we can connect via stdio
+        assert client.process == process
         
-        # Verify MCP protocol works over TCP
+        # Verify MCP protocol works over stdio
         response = await client.initialize( )
         assert response[ 'jsonrpc' ] == '2.0'
         assert 'result' in response
         
-        # Verify tool calls work over TCP using inventory tools
+        # Verify tool calls work over stdio using inventory tools
         inventory_path = get_test_inventory_path( 'sphinxmcps' )
         response = await client.call_tool(
             'summarize_inventory', { 'source': inventory_path }
@@ -326,36 +326,41 @@ async def test_400_mcp_stdio_over_tcp_transport( ):
 
 @pytest.mark.slow
 @pytest.mark.asyncio
-async def test_410_mcp_concurrent_clients( ):
-    ''' Multiple MCP clients can connect to server simultaneously. '''
+async def test_410_mcp_multiple_requests( ):
+    ''' MCP server can handle multiple sequential requests. '''
+    # Note: Cannot test concurrent clients with stdio transport
+    # since each process has only one stdin/stdout pair
     async with (
-        mcp_test_server( ) as port,
-        MCPTestClient( port ) as client1,
-        MCPTestClient( port ) as client2
+        mcp_test_server( ) as process,
+        MCPTestClient( process ) as client
     ):
-        # Both clients should be able to initialize
-        response1 = await client1.initialize( )
-        response2 = await client2.initialize( )
+        # Initialize once
+        await client.initialize( )
         
+        # Make multiple tool calls sequentially
+        inventory_path = get_test_inventory_path( 'sphinxmcps' )
+        
+        # First call
+        response1 = await client.call_tool(
+            'summarize_inventory', { 'source': inventory_path }
+        )
         assert response1[ 'jsonrpc' ] == '2.0'
+        assert 'result' in response1
+        
+        # Second call with different parameters
+        response2 = await client.call_tool(
+            'extract_inventory', { 'source': inventory_path }
+        )
         assert response2[ 'jsonrpc' ] == '2.0'
+        assert 'result' in response2
         
-        # Both clients should be able to call tools
-        inventory_path1 = get_test_inventory_path( 'sphinxmcps' )
-        inventory_path2 = get_test_inventory_path( 'sphobjinv' )
-        response1 = await client1.call_tool(
-            'summarize_inventory', { 'source': inventory_path1 }
-        )
-        response2 = await client2.call_tool(
-            'summarize_inventory', { 'source': inventory_path2 }
-        )
-        
+        # Both should have valid content
         assert (
             'Sphinx Inventory' in 
             response1[ 'result' ][ 'content' ][ 0 ][ 'text' ]
         )
         assert (
-            'Sphinx Inventory' in 
+            'project' in 
             response2[ 'result' ][ 'content' ][ 0 ][ 'text' ]
         )
 
