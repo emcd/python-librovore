@@ -29,27 +29,39 @@ from . import __
 from . import exceptions as _exceptions
 
 
+# Common type aliases for function arguments
+SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
+    str,
+    __.ddoc.Doc( ''' URL or file path to Sphinx documentation. ''' )
+]
+
+DomainFilter: __.typx.TypeAlias = __.typx.Annotated[
+    __.Absential[ str ],
+    __.ddoc.Doc( ''' Filter objects by domain (e.g., 'py', 'std'). ''' )
+]
+
+RoleFilter: __.typx.TypeAlias = __.typx.Annotated[
+    __.Absential[ str ],
+    __.ddoc.Doc( ''' Filter objects by role (e.g., 'function'). ''' )
+]
+
+TermFilter: __.typx.TypeAlias = __.typx.Annotated[
+    __.Absential[ str ],
+    __.ddoc.Doc( ''' Filter objects by name containing this text. ''' )
+]
+
+RegexFlag: __.typx.TypeAlias = __.typx.Annotated[
+    bool,
+    __.ddoc.Doc( ''' Use regex pattern matching for term filter. ''' )
+]
+
+
 def extract_inventory(
-    source: __.typx.Annotated[
-        str,
-        __.ddoc.Doc( ''' URL or file path to Sphinx documentation. ''' )
-    ], /, *,
-    domain: __.typx.Annotated[
-        __.Absential[ str ],
-        __.ddoc.Doc( ''' Filter objects by domain (e.g., 'py', 'std'). ''' )
-    ] = __.absent,
-    role: __.typx.Annotated[
-        __.Absential[ str ],
-        __.ddoc.Doc( ''' Filter objects by role (e.g., 'function'). ''' )
-    ] = __.absent,
-    term: __.typx.Annotated[
-        __.Absential[ str ],
-        __.ddoc.Doc( ''' Filter objects by name containing this text. ''' )
-    ] = __.absent,
-    regex: __.typx.Annotated[
-        bool,
-        __.ddoc.Doc( ''' Use regex pattern matching for term filter. ''' )
-    ] = False,
+    source: SourceArgument, /, *,
+    domain: DomainFilter = __.absent,
+    role: RoleFilter = __.absent,
+    term: TermFilter = __.absent,
+    regex: RegexFlag = False,
 ) -> __.typx.Annotated[
     dict[ str, __.typx.Any ],
     __.ddoc.Doc(
@@ -93,26 +105,11 @@ def extract_inventory(
 
 
 def summarize_inventory(
-    source: __.typx.Annotated[
-        str,
-        __.ddoc.Doc( ''' URL or file path to Sphinx documentation. ''' )
-    ], /, *,
-    domain: __.typx.Annotated[
-        __.Absential[ str ],
-        __.ddoc.Doc( ''' Filter objects by domain (e.g., 'py', 'std'). ''' )
-    ] = __.absent,
-    role: __.typx.Annotated[
-        __.Absential[ str ],
-        __.ddoc.Doc( ''' Filter objects by role (e.g., 'function'). ''' )
-    ] = __.absent,
-    term: __.typx.Annotated[
-        __.Absential[ str ],
-        __.ddoc.Doc( ''' Filter objects by name containing this text. ''' )
-    ] = __.absent,
-    regex: __.typx.Annotated[
-        bool,
-        __.ddoc.Doc( ''' Use regex pattern matching for term filter. ''' )
-    ] = False,
+    source: SourceArgument, /, *,
+    domain: DomainFilter = __.absent,
+    role: RoleFilter = __.absent,
+    term: TermFilter = __.absent,
+    regex: RegexFlag = False,
 ) -> __.typx.Annotated[
     str,
     __.ddoc.Doc( ''' Human-readable summary of inventory contents. ''' )
@@ -158,12 +155,7 @@ def summarize_inventory(
     return '\n'.join( lines )
 
 
-def _extract_inventory( 
-    source: __.typx.Annotated[
-        str,
-        __.ddoc.Doc( ''' URL or file path to Sphinx documentation. ''' )
-    ] 
-) -> __.typx.Annotated[
+def _extract_inventory( source: SourceArgument ) -> __.typx.Annotated[
     _sphobjinv.Inventory,
     __.ddoc.Doc( ''' Parsed Sphinx inventory object. ''' )
 ]:
@@ -191,22 +183,10 @@ def _filter_inventory(
         _sphobjinv.Inventory,
         __.ddoc.Doc( ''' Sphinx inventory object to filter. ''' )
     ],
-    domain: __.typx.Annotated[
-        __.Absential[ str ],
-        __.ddoc.Doc( ''' Filter objects by domain (e.g., 'py', 'std'). ''' )
-    ] = __.absent,
-    role: __.typx.Annotated[
-        __.Absential[ str ],
-        __.ddoc.Doc( ''' Filter objects by role (e.g., 'function'). ''' )
-    ] = __.absent,
-    term: __.typx.Annotated[
-        __.Absential[ str ],
-        __.ddoc.Doc( ''' Filter objects by name containing this text. ''' )
-    ] = __.absent,
-    regex: __.typx.Annotated[
-        bool,
-        __.ddoc.Doc( ''' Use regex pattern matching for term filter. ''' )
-    ] = False,
+    domain: DomainFilter = __.absent,
+    role: RoleFilter = __.absent,
+    term: TermFilter = __.absent,
+    regex: RegexFlag = False,
 ) -> __.typx.Annotated[
     tuple[ dict[ str, __.typx.Any ], int ],
     __.ddoc.Doc(
@@ -251,12 +231,7 @@ def _filter_inventory(
     return objects, selections_total
 
 
-def _normalize_inventory_source( 
-    source: __.typx.Annotated[
-        str,
-        __.ddoc.Doc( ''' URL or file path to normalize. ''' )
-    ]
-) -> __.typx.Annotated[
+def _normalize_inventory_source( source: SourceArgument ) -> __.typx.Annotated[
     _urlparse.ParseResult,
     __.ddoc.Doc(
         ''' Parsed URL components with objects.inv appended if needed.

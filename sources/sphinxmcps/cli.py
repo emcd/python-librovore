@@ -27,15 +27,47 @@ from . import interfaces as _interfaces
 from . import server as _server
 
 
+# CLI-specific type aliases for command arguments
+CliSourceArgument: __.typx.TypeAlias = __.typx.Annotated[
+    str,
+    __.ddoc.Doc( ''' URL or file path to Sphinx documentation. ''' )
+]
+
+CliDomainFilter: __.typx.TypeAlias = __.typx.Annotated[
+    __.typx.Optional[ str ],
+    __.ddoc.Doc( ''' Filter objects by domain (e.g., 'py', 'std'). ''' )
+]
+
+CliRoleFilter: __.typx.TypeAlias = __.typx.Annotated[
+    __.typx.Optional[ str ],
+    __.ddoc.Doc( ''' Filter objects by role (e.g., 'function'). ''' )
+]
+
+CliTermFilter: __.typx.TypeAlias = __.typx.Annotated[
+    __.typx.Optional[ str ],
+    __.ddoc.Doc( ''' Filter objects by name containing this text. ''' )
+]
+
+CliPortArgument: __.typx.TypeAlias = __.typx.Annotated[
+    __.typx.Optional[ int ],
+    __.ddoc.Doc( ''' TCP port for server. ''' )
+]
+
+CliTransportArgument: __.typx.TypeAlias = __.typx.Annotated[
+    __.typx.Optional[ str ],
+    __.ddoc.Doc( ''' Transport: stdio or sse. ''' )
+]
+
+
 class ExtractInventoryCommand(
     _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
     ''' Extracts Sphinx inventory with optional filtering. '''
 
-    source: str
-    domain: __.typx.Optional[ str ] = None
-    role: __.typx.Optional[ str ] = None
-    term: __.typx.Optional[ str ] = None
+    source: CliSourceArgument
+    domain: CliDomainFilter = None
+    role: CliRoleFilter = None
+    term: CliTermFilter = None
 
     async def __call__(
         self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
@@ -57,10 +89,10 @@ class SummarizeInventoryCommand(
 ):
     ''' Provides human-readable summary of Sphinx inventory. '''
 
-    source: str
-    domain: __.typx.Optional[ str ] = None
-    role: __.typx.Optional[ str ] = None
-    term: __.typx.Optional[ str ] = None
+    source: CliSourceArgument
+    domain: CliDomainFilter = None
+    role: CliRoleFilter = None
+    term: CliTermFilter = None
 
     async def __call__(
         self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
@@ -108,10 +140,8 @@ class ServeCommand(
 ):
     ''' Starts MCP server. '''
 
-    port: __.typx.Optional[ int ] = None
-    ''' TCP port for server. '''
-    transport: __.typx.Optional[ str ] = None
-    ''' Transport: stdio or sse. '''
+    port: CliPortArgument = None
+    transport: CliTransportArgument = None
     async def __call__(
         self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
     ) -> None:
@@ -179,11 +209,26 @@ def execute( ) -> None:
 
 
 async def _prepare(
-    application: __.appcore.ApplicationInformation,
-    environment: bool,
-    exits: __.ctxl.AsyncExitStack,
-    logfile: __.typx.Optional[ str ],
-) -> __.Globals:
+    application: __.typx.Annotated[
+        __.appcore.ApplicationInformation,
+        __.ddoc.Doc( ''' Application information and metadata. ''' )
+    ],
+    environment: __.typx.Annotated[
+        bool,
+        __.ddoc.Doc( ''' Whether to configure environment. ''' )
+    ],
+    exits: __.typx.Annotated[
+        __.ctxl.AsyncExitStack,
+        __.ddoc.Doc( ''' Exit stack for resource management. ''' )
+    ],
+    logfile: __.typx.Annotated[
+        __.typx.Optional[ str ],
+        __.ddoc.Doc( ''' Path to log capture file. ''' )
+    ],
+) -> __.typx.Annotated[
+    __.Globals,
+    __.ddoc.Doc( ''' Configured global state. ''' )
+]:
     ''' Configures application based on arguments. '''
     nomargs: __.NominativeArguments = {
         'application': application,

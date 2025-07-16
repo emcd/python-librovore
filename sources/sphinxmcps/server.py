@@ -43,28 +43,24 @@ def extract_inventory(
     domain: __.typx.Annotated[
         str,
         _Field(
-            default = '',
             description = "Filter objects by domain (e.g., 'py', 'std')"
         )
     ] = '',
     role: __.typx.Annotated[
         str,
         _Field(
-            default = '',
             description = "Filter objects by role (e.g., 'function', 'class')"
         )
     ] = '',
     term: __.typx.Annotated[
         str,
         _Field(
-            default = '',
             description = "Filter objects by name (case-insensitive)"
         )
     ] = '',
     regex: __.typx.Annotated[
         bool,
         _Field(
-            default = False,
             description = "Use regex pattern matching for term filter"
         )
     ] = False,
@@ -109,28 +105,24 @@ def summarize_inventory(
     domain: __.typx.Annotated[
         str,
         _Field(
-            default = '',
             description = "Filter objects by domain (e.g., 'py', 'std')"
         )
     ] = '',
     role: __.typx.Annotated[
         str,
         _Field(
-            default = '',
             description = "Filter objects by role (e.g., 'function', 'class')"
         )
     ] = '',
     term: __.typx.Annotated[
         str,
         _Field(
-            default = '',
             description = "Filter objects by name (case-insensitive)"
         )
     ] = '',
     regex: __.typx.Annotated[
         bool,
         _Field(
-            default = False,
             description = "Use regex pattern matching for term filter"
         )
     ] = False,
