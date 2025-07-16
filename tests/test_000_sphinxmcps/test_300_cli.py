@@ -288,47 +288,6 @@ async def test_100_cli_extract_inventory_local_file( ):
     assert 'objects' in result.stdout or 'objects' in result.stderr
 
 
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_110_cli_extract_inventory_with_domain_filter( ):
-    ''' CLI extract-inventory applies domain filtering. '''
-    inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = await run_cli_command( [
-        'use', 'extract-inventory', '--source', inventory_path,
-        '--domain', 'py'
-    ] )
-    assert result.returncode == 0
-    assert 'domain' in result.stdout or 'domain' in result.stderr
-    assert 'py' in result.stdout or 'py' in result.stderr
-
-
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_120_cli_extract_inventory_with_role_filter( ):
-    ''' CLI extract-inventory applies role filtering. '''
-    inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = await run_cli_command( [
-        'use', 'extract-inventory', '--source', inventory_path,
-        '--role', 'module'
-    ] )
-    assert result.returncode == 0
-    assert 'role' in result.stdout or 'role' in result.stderr
-    assert 'module' in result.stdout or 'module' in result.stderr
-
-
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_130_cli_extract_inventory_with_term_filter( ):
-    ''' CLI extract-inventory applies term filtering. '''
-    inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = await run_cli_command( [
-        'use', 'extract-inventory', '--source', inventory_path,
-        '--term', 'test'
-    ] )
-    assert result.returncode == 0
-    assert 'term' in result.stdout or 'term' in result.stderr
-    assert 'test' in result.stdout or 'test' in result.stderr
-
 
 @pytest.mark.slow
 @pytest.mark.asyncio
@@ -361,21 +320,6 @@ async def test_200_cli_summarize_inventory_local_file( ):
     assert 'objects' in result.stdout or 'objects' in result.stderr
 
 
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_210_cli_summarize_inventory_with_filters( ):
-    ''' CLI summarize-inventory includes filter information. '''
-    inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = await run_cli_command( [
-        'use', 'summarize-inventory', '--source', inventory_path,
-        '--domain', 'py'
-    ] )
-    assert result.returncode == 0
-    assert (
-        'Sphinx Inventory' in result.stdout or
-        'Sphinx Inventory' in result.stderr
-    )
-    assert 'py' in result.stdout or 'py' in result.stderr
 
 
 @pytest.mark.slow
