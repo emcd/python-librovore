@@ -31,6 +31,7 @@ import contextlib as        ctxl
 import                      enum
 import                      io
 import                      json
+import                      re
 import                      sys
 import                      types
 

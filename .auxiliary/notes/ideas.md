@@ -3,7 +3,7 @@
 ## Immediate Enhancements
 
 ### Advanced Filtering and Search
-- [ ] **Regex pattern matching**: Support regex in search functionality
+- [x] **Regex pattern matching**: Support regex in search functionality ✅ COMPLETED
 - [ ] **Fuzzy matching**: Approximate string matching for typos and variations (sphobjinv uses fuzzywuzzy)
 - [ ] **Priority filtering**: Filter objects by priority levels
 - [ ] **Boolean search operators**: Support `domain=py AND role=class` expressions

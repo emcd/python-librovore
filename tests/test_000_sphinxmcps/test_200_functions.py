@@ -116,6 +116,52 @@ def test_160_extract_inventory_auto_append_objects_inv( ):
     assert 'objects' in result
 
 
+def test_170_extract_inventory_with_regex_term( ):
+    ''' Extract inventory applies regex term filtering correctly. '''
+    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
+
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    # Use regex to find objects containing "inventory"
+    result = functions_module.extract_inventory(
+        inventory_path, term = '.*inventory.*', regex = True
+    )
+    assert 'filters' in result
+    assert result[ 'filters' ][ 'term' ] == '.*inventory.*'
+    assert result[ 'filters' ][ 'regex' ] is True
+    assert result[ 'object_count' ] > 0
+
+
+def test_180_extract_inventory_with_regex_anchors( ):
+    ''' Extract inventory handles regex anchor patterns correctly. '''
+    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
+
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    # Use regex anchors to find objects starting with specific pattern
+    result = functions_module.extract_inventory(
+        inventory_path, term = r'^sphobjinv\.', regex = True
+    )
+    assert 'filters' in result
+    assert result[ 'filters' ][ 'regex' ] is True
+    # Should find objects starting with "sphobjinv."
+    if result[ 'object_count' ] > 0:
+        for domain_objects in result[ 'objects' ].values( ):
+            for obj in domain_objects:
+                assert obj[ 'name' ].startswith( 'sphobjinv.' )
+
+
+def test_190_extract_inventory_invalid_regex( ):
+    ''' Extract inventory raises exception for invalid regex patterns. '''
+    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
+    exceptions_module = cache_import_module( f"{PACKAGE_NAME}.exceptions" )
+
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    # Invalid regex pattern should raise InventoryFilterInvalidity
+    with pytest.raises( exceptions_module.InventoryFilterInvalidity ):
+        functions_module.extract_inventory(
+            inventory_path, term = '[invalid_regex', regex = True
+        )
+
+
 def test_200_summarize_inventory_basic( ):
     ''' Summarize inventory provides human-readable summary. '''
     functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
@@ -138,6 +184,21 @@ def test_210_summarize_inventory_with_filters( ):
     assert 'objects' in result
     # Should mention filtering was applied
     assert 'filter' in result.lower( ) or 'domain' in result.lower( )
+
+
+def test_215_summarize_inventory_with_regex( ):
+    ''' Summarize inventory includes regex filter information. '''
+    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
+
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    # Summarize with regex filter applied
+    result = functions_module.summarize_inventory(
+        inventory_path, term = '.*inventory.*', regex = True
+    )
+
+    assert 'objects' in result
+    # Should mention regex filtering was applied
+    assert 'regex' in result.lower( )
 
 
 def test_220_summarize_inventory_nonexistent_file( ):

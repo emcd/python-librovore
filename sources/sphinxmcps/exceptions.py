@@ -56,6 +56,13 @@ class InventoryInvalidity( Omnierror, ValueError ):
         super( ).__init__( message )
 
 
+class InventoryFilterInvalidity( Omnierror, ValueError ):
+    ''' Inventory filter is invalid. '''
+
+    def __init__( self, message: str ):
+        super( ).__init__( message )
+
+
 class InventoryUrlInvalidity( Omnierror, ValueError ):
     ''' Inventory URL is malformed or invalid. '''
 

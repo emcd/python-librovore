@@ -34,12 +34,16 @@ def extract_inventory(
     domain: __.Absential[ str ] = __.absent,
     role: __.Absential[ str ] = __.absent,
     term: __.Absential[ str ] = __.absent,
+    regex: bool = False,
 ) -> dict[ str, __.typx.Any ]:
     ''' Extracts Sphinx inventory from source with optional filtering. '''
     inventory = _extract_inventory( source )
     objects, selections_total = (
         _filter_inventory(
-            inventory, domain = domain, role = role, term = term ) )
+            inventory,
+            domain = domain, role = role, term = term, regex = regex
+        )
+    )
     domains_summary: dict[ str, int ] = {
         domain_name: len( objs )
         for domain_name, objs in objects.items( )
@@ -52,7 +56,7 @@ def extract_inventory(
         'domains': domains_summary,
         'objects': objects,
     }
-    if any( ( domain, role, term ) ):
+    if any( ( domain, role, term ) ) or regex:
         result[ 'filters' ] = { }
         if not __.is_absent( domain ):
             result[ 'filters' ][ 'domain' ] = domain
@@ -60,6 +64,8 @@ def extract_inventory(
             result[ 'filters' ][ 'role' ] = role
         if not __.is_absent( term ):
             result[ 'filters' ][ 'term' ] = term
+        if regex:
+            result[ 'filters' ][ 'regex' ] = True
     return result
 
 
@@ -68,10 +74,11 @@ def summarize_inventory(
     domain: __.Absential[ str ] = __.absent,
     role: __.Absential[ str ] = __.absent,
     term: __.Absential[ str ] = __.absent,
+    regex: bool = False,
 ) -> str:
     ''' Provides human-readable summary of a Sphinx inventory. '''
     data = extract_inventory(
-        source, domain = domain, role = role, term = term )
+        source, domain = domain, role = role, term = term, regex = regex )
     lines = [
         "Sphinx Inventory: {project} v{version}".format(
             project = data[ 'project' ], version = data[ 'version' ]
@@ -134,17 +141,29 @@ def _filter_inventory(
     domain: __.Absential[ str ] = __.absent,
     role: __.Absential[ str ] = __.absent,
     term: __.Absential[ str ] = __.absent,
+    regex: bool = False,
 ) -> tuple[ dict[ str, __.typx.Any ], int ]:
     objects: __.cabc.MutableMapping[
         str, list[ __.cabc.Mapping[ str, __.typx.Any ] ]
     ] = __.collections.defaultdict(
         list[ __.cabc.Mapping[ str, __.typx.Any ] ] )
     selections_total = 0
-    term_ = '' if __.is_absent( term ) else term.lower( )
+    term_ = '' if __.is_absent( term ) else term
+    pattern = None
+    if term_ and regex:
+        try:
+            pattern = __.re.compile( term_, __.re.IGNORECASE )
+        except __.re.error as exc:
+            message = f"Invalid regex pattern: {term_}"
+            raise _exceptions.InventoryFilterInvalidity( message ) from exc
     for objct in inventory.objects:
         if domain and objct.domain != domain: continue
         if role and objct.role != role: continue
-        if term_ and term_ not in objct.name.lower( ): continue
+        if term_:
+            if regex and pattern:
+                if not pattern.search( objct.name ): continue
+            elif term_.lower( ) not in objct.name.lower( ):
+                continue
         objects[ objct.domain ].append( {
             'name': objct.name,
             'role': objct.role,

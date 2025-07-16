@@ -61,6 +61,13 @@ def extract_inventory(
             description = "Filter objects by name (case-insensitive)"
         )
     ] = '',
+    regex: __.typx.Annotated[
+        bool,
+        _Field(
+            default = False,
+            description = "Use regex pattern matching for term filter"
+        )
+    ] = False,
 ) -> dict[ str, __.typx.Any ]:
     ''' Extracts Sphinx inventory from URL or file path with optional
     filtering.
@@ -71,11 +78,13 @@ def extract_inventory(
             domain: Filter objects by domain (e.g., 'py', 'std')
             role: Filter objects by role (e.g., 'function', 'class', 'method')
             term: Filter objects by name containing this text
-                    (case-insensitive)
+                    (case-insensitive unless regex=True)
+            regex: Use regex pattern matching for term filter
     '''
     _scribe.debug(
-        "extract_inventory called: source=%s, domain=%s, role=%s, term=%s",
-        source, domain, role, term
+        "extract_inventory called: source=%s, domain=%s, role=%s, term=%s, "
+        "regex=%s",
+        source, domain, role, term, regex
     )
     _scribe.debug( "Processing extract_inventory request with RELOADEROO!" )
     nomargs: __.NominativeArguments = { }
@@ -85,6 +94,8 @@ def extract_inventory(
         nomargs[ 'role' ] = role
     if term:
         nomargs[ 'term' ] = term
+    if regex:
+        nomargs[ 'regex' ] = regex
     return _functions.extract_inventory( source, **nomargs )
 
 
@@ -116,6 +127,13 @@ def summarize_inventory(
             description = "Filter objects by name (case-insensitive)"
         )
     ] = '',
+    regex: __.typx.Annotated[
+        bool,
+        _Field(
+            default = False,
+            description = "Use regex pattern matching for term filter"
+        )
+    ] = False,
 ) -> str:
     ''' Provides human-readable summary of Sphinx inventory.
 
@@ -125,11 +143,13 @@ def summarize_inventory(
             domain: Filter objects by domain (e.g., 'py', 'std')
             role: Filter objects by role (e.g., 'function', 'class', 'method')
             term: Filter objects by name containing this text
-                    (case-insensitive)
+                    (case-insensitive unless regex=True)
+            regex: Use regex pattern matching for term filter
     '''
     _scribe.debug(
-        "summarize_inventory called: source=%s, domain=%s, role=%s, term=%s",
-        source, domain, role, term
+        "summarize_inventory called: source=%s, domain=%s, role=%s, term=%s, "
+        "regex=%s",
+        source, domain, role, term, regex
     )
     nomargs: __.NominativeArguments = { }
     if domain:
@@ -138,6 +158,8 @@ def summarize_inventory(
         nomargs[ 'role' ] = role
     if term:
         nomargs[ 'term' ] = term
+    if regex:
+        nomargs[ 'regex' ] = regex
     return _functions.summarize_inventory( source, **nomargs )
 
 

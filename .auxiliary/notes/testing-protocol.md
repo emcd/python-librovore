@@ -94,6 +94,32 @@ sphinxmcps.server: extract_inventory called: source=..., domain=..., role=..., t
    - Use domain + role + term filters for small result sets
    - Use summary format, not extract format for large sites
 
+## Regex Pattern Examples
+
+The `regex=true` parameter enables powerful pattern-based filtering:
+
+### Basic Patterns
+- **Contains**: `term=".*inventory.*", regex=true` - Objects containing "inventory"
+- **Prefix**: `term="^extract", regex=true` - Objects starting with "extract"  
+- **Suffix**: `term=".*_file$", regex=true` - Objects ending with "_file"
+
+### Advanced Patterns
+- **Alternation**: `term="^(data|json)_.*", regex=true` - Objects starting with "data_" or "json_"
+- **Character classes**: `term="[A-Z][a-z]+Error$", regex=true` - Exception classes
+- **Quantifiers**: `term="get_.{1,10}_config", regex=true` - Getter methods with specific patterns
+
+### Common Use Cases
+```python
+# Find all exception classes
+extract_inventory(source, domain="py", role="class", term=".*Error$", regex=True)
+
+# Find private methods
+extract_inventory(source, domain="py", role="method", term="^_[^_]", regex=True)
+
+# Find configuration functions
+extract_inventory(source, term="(config|settings)", regex=True)
+```
+
 ## Development Workflow Benefits
 
 This reloaderoo-based infrastructure enables:
