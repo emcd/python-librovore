@@ -22,10 +22,255 @@
 
 
 import pytest
+from unittest.mock import Mock, AsyncMock, patch
+from io import StringIO
 
+from . import cache_import_module, PACKAGE_NAME
 from .fixtures import run_cli_command, get_test_inventory_path
 
 
+class MockConsoleDisplay:
+    ''' Mock console display for testing CLI commands. '''
+    
+    def __init__( self ):
+        self.stream = StringIO()
+    
+    async def provide_stream( self ):
+        return self.stream
+
+
+def create_test_auxdata():
+    ''' Create mock auxdata for testing. '''
+    return Mock()
+
+
+@pytest.mark.asyncio
+async def test_000_extract_inventory_command_unit():
+    ''' ExtractInventoryCommand processes arguments correctly. '''
+    cli = cache_import_module( f"{PACKAGE_NAME}.cli" )
+    display = MockConsoleDisplay()
+    auxdata = create_test_auxdata()
+    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    
+    cmd = cli.ExtractInventoryCommand(
+        source = test_inventory_path,
+        domain = 'py'
+    )
+    
+    await cmd( auxdata, display )
+    
+    output = display.stream.getvalue()
+    assert 'project' in output
+    assert 'domain' in output
+    assert 'py' in output
+
+
+@pytest.mark.asyncio
+async def test_010_extract_inventory_command_no_filters():
+    ''' ExtractInventoryCommand works without filters. '''
+    cli = cache_import_module( f"{PACKAGE_NAME}.cli" )
+    display = MockConsoleDisplay()
+    auxdata = create_test_auxdata()
+    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    
+    cmd = cli.ExtractInventoryCommand(
+        source = test_inventory_path
+    )
+    
+    await cmd( auxdata, display )
+    
+    output = display.stream.getvalue()
+    assert 'project' in output
+    assert 'objects' in output
+
+
+@pytest.mark.asyncio
+async def test_020_extract_inventory_command_all_filters():
+    ''' ExtractInventoryCommand handles all filter parameters. '''
+    cli = cache_import_module( f"{PACKAGE_NAME}.cli" )
+    display = MockConsoleDisplay()
+    auxdata = create_test_auxdata()
+    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    
+    cmd = cli.ExtractInventoryCommand(
+        source = test_inventory_path,
+        domain = 'py',
+        role = 'module',
+        term = 'test'
+    )
+    
+    await cmd( auxdata, display )
+    
+    output = display.stream.getvalue()
+    assert 'project' in output
+    # Command should execute without error
+
+
+@pytest.mark.asyncio
+async def test_030_summarize_inventory_command_unit():
+    ''' SummarizeInventoryCommand processes arguments correctly. '''
+    cli = cache_import_module( f"{PACKAGE_NAME}.cli" )
+    display = MockConsoleDisplay()
+    auxdata = create_test_auxdata()
+    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    
+    cmd = cli.SummarizeInventoryCommand(
+        source = test_inventory_path,
+        domain = 'py'
+    )
+    
+    await cmd( auxdata, display )
+    
+    output = display.stream.getvalue()
+    assert 'Sphinx Inventory' in output
+    assert 'py' in output
+
+
+@pytest.mark.asyncio
+async def test_040_summarize_inventory_command_no_filters():
+    ''' SummarizeInventoryCommand works without filters. '''
+    cli = cache_import_module( f"{PACKAGE_NAME}.cli" )
+    display = MockConsoleDisplay()
+    auxdata = create_test_auxdata()
+    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    
+    cmd = cli.SummarizeInventoryCommand(
+        source = test_inventory_path
+    )
+    
+    await cmd( auxdata, display )
+    
+    output = display.stream.getvalue()
+    assert 'Sphinx Inventory' in output
+
+
+@pytest.mark.asyncio
+async def test_050_use_command_extract_delegation():
+    ''' UseCommand delegates to ExtractInventoryCommand correctly. '''
+    cli = cache_import_module( f"{PACKAGE_NAME}.cli" )
+    display = MockConsoleDisplay()
+    auxdata = create_test_auxdata()
+    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    
+    extract_cmd = cli.ExtractInventoryCommand(
+        source = test_inventory_path,
+        domain = 'py'
+    )
+    
+    use_cmd = cli.UseCommand( operation = extract_cmd )
+    await use_cmd( auxdata, display )
+    
+    output = display.stream.getvalue()
+    assert 'project' in output
+    assert 'py' in output
+
+
+@pytest.mark.asyncio
+async def test_060_use_command_summarize_delegation():
+    ''' UseCommand delegates to SummarizeInventoryCommand correctly. '''
+    cli = cache_import_module( f"{PACKAGE_NAME}.cli" )
+    display = MockConsoleDisplay()
+    auxdata = create_test_auxdata()
+    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    
+    summarize_cmd = cli.SummarizeInventoryCommand(
+        source = test_inventory_path,
+        domain = 'py'
+    )
+    
+    use_cmd = cli.UseCommand( operation = summarize_cmd )
+    await use_cmd( auxdata, display )
+    
+    output = display.stream.getvalue()
+    assert 'Sphinx Inventory' in output
+    assert 'py' in output
+
+
+@pytest.mark.asyncio
+async def test_070_serve_command_unit():
+    ''' ServeCommand processes arguments correctly. '''
+    cli = cache_import_module( f"{PACKAGE_NAME}.cli" )
+    display = MockConsoleDisplay()
+    auxdata = create_test_auxdata()
+    
+    # Mock the server.serve function to avoid actual server startup
+    with patch( f"{PACKAGE_NAME}.server.serve" ) as mock_serve:
+        mock_serve.return_value = AsyncMock()
+        
+        cmd = cli.ServeCommand( port = 8080, transport = 'stdio' )
+        await cmd( auxdata, display )
+        
+        # Verify serve was called with correct arguments
+        mock_serve.assert_called_once_with(
+            auxdata, port = 8080, transport = 'stdio'
+        )
+
+
+@pytest.mark.asyncio
+async def test_080_serve_command_defaults():
+    ''' ServeCommand works with default arguments. '''
+    cli = cache_import_module( f"{PACKAGE_NAME}.cli" )
+    display = MockConsoleDisplay()
+    auxdata = create_test_auxdata()
+    
+    # Mock the server.serve function to avoid actual server startup
+    with patch( f"{PACKAGE_NAME}.server.serve" ) as mock_serve:
+        mock_serve.return_value = AsyncMock()
+        
+        cmd = cli.ServeCommand()
+        await cmd( auxdata, display )
+        
+        # Verify serve was called with no additional arguments
+        mock_serve.assert_called_once_with( auxdata )
+
+
+def test_090_cli_prepare_invocation_args():
+    ''' CLI prepare_invocation_args returns correct arguments. '''
+    cli = cache_import_module( f"{PACKAGE_NAME}.cli" )
+    
+    # Create mock application info
+    mock_app = Mock()
+    mock_display = Mock()
+    mock_cmd = Mock()
+    
+    cli_obj = cli.Cli(
+        application = mock_app,
+        display = mock_display,
+        command = mock_cmd,
+        logfile = '/test/log.txt'
+    )
+    
+    args = cli_obj.prepare_invocation_args()
+    
+    assert args[ 'application' ] == mock_app
+    assert args[ 'environment' ] is True
+    assert args[ 'logfile' ] == '/test/log.txt'
+
+
+def test_100_cli_prepare_invocation_args_no_logfile():
+    ''' CLI prepare_invocation_args works without logfile. '''
+    cli = cache_import_module( f"{PACKAGE_NAME}.cli" )
+    
+    # Create mock application info
+    mock_app = Mock()
+    mock_display = Mock()
+    mock_cmd = Mock()
+    
+    cli_obj = cli.Cli(
+        application = mock_app,
+        display = mock_display,
+        command = mock_cmd,
+        logfile = None
+    )
+    
+    args = cli_obj.prepare_invocation_args()
+    
+    assert args[ 'application' ] == mock_app
+    assert args[ 'environment' ] is True
+    assert args[ 'logfile' ] is None
+
+
+# Subprocess-based integration tests (existing)
 
 
 
