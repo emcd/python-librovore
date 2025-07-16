@@ -123,11 +123,12 @@ def test_170_extract_inventory_with_regex_term( ):
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     # Use regex to find objects containing "inventory"
     result = functions_module.extract_inventory(
-        inventory_path, term = '.*inventory.*', regex = True
+        inventory_path, term = '.*inventory.*', 
+        match_mode = functions_module.MatchMode.Regex
     )
     assert 'filters' in result
     assert result[ 'filters' ][ 'term' ] == '.*inventory.*'
-    assert result[ 'filters' ][ 'regex' ] is True
+    assert result[ 'filters' ][ 'match_mode' ] == 'regex'
     assert result[ 'object_count' ] > 0
 
 
@@ -138,10 +139,11 @@ def test_180_extract_inventory_with_regex_anchors( ):
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     # Use regex anchors to find objects starting with specific pattern
     result = functions_module.extract_inventory(
-        inventory_path, term = r'^sphobjinv\.', regex = True
+        inventory_path, term = r'^sphobjinv\.', 
+        match_mode = functions_module.MatchMode.Regex
     )
     assert 'filters' in result
-    assert result[ 'filters' ][ 'regex' ] is True
+    assert result[ 'filters' ][ 'match_mode' ] == 'regex'
     # Should find objects starting with "sphobjinv."
     if result[ 'object_count' ] > 0:
         for domain_objects in result[ 'objects' ].values( ):
@@ -158,7 +160,8 @@ def test_190_extract_inventory_invalid_regex( ):
     # Invalid regex pattern should raise InventoryFilterInvalidity
     with pytest.raises( exceptions_module.InventoryFilterInvalidity ):
         functions_module.extract_inventory(
-            inventory_path, term = '[invalid_regex', regex = True
+            inventory_path, term = '[invalid_regex', 
+            match_mode = functions_module.MatchMode.Regex
         )
 
 
@@ -193,7 +196,8 @@ def test_215_summarize_inventory_with_regex( ):
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     # Summarize with regex filter applied
     result = functions_module.summarize_inventory(
-        inventory_path, term = '.*inventory.*', regex = True
+        inventory_path, term = '.*inventory.*', 
+        match_mode = functions_module.MatchMode.Regex
     )
 
     assert 'objects' in result
@@ -201,7 +205,100 @@ def test_215_summarize_inventory_with_regex( ):
     assert 'regex' in result.lower( )
 
 
-def test_220_summarize_inventory_nonexistent_file( ):
+def test_220_extract_inventory_with_fuzzy_matching( ):
+    ''' Extract inventory applies fuzzy matching correctly. '''
+    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
+
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    # Use fuzzy matching to find objects similar to "DataObj"
+    result = functions_module.extract_inventory(
+        inventory_path, term = 'DataObj', 
+        match_mode = functions_module.MatchMode.Fuzzy,
+        fuzzy_threshold = 50
+    )
+    assert 'filters' in result
+    assert result[ 'filters' ][ 'term' ] == 'DataObj'
+    assert result[ 'filters' ][ 'match_mode' ] == 'fuzzy'
+    assert result[ 'filters' ][ 'fuzzy_threshold' ] == 50
+    assert result[ 'object_count' ] > 0
+
+
+def test_230_extract_inventory_fuzzy_with_high_threshold( ):
+    ''' Extract inventory with high fuzzy threshold finds fewer matches. '''
+    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
+
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    # Use high threshold for stricter matching
+    result_strict = functions_module.extract_inventory(
+        inventory_path, term = 'DataObj', 
+        match_mode = functions_module.MatchMode.Fuzzy,
+        fuzzy_threshold = 80
+    )
+    # Use low threshold for looser matching
+    result_loose = functions_module.extract_inventory(
+        inventory_path, term = 'DataObj', 
+        match_mode = functions_module.MatchMode.Fuzzy,
+        fuzzy_threshold = 30
+    )
+    
+    # Stricter threshold should find fewer or equal matches
+    assert result_strict[ 'object_count' ] <= result_loose[ 'object_count' ]
+    assert result_strict[ 'filters' ][ 'fuzzy_threshold' ] == 80
+    assert result_loose[ 'filters' ][ 'fuzzy_threshold' ] == 30
+
+
+def test_240_extract_inventory_fuzzy_with_domain_filter( ):
+    ''' Extract inventory combines fuzzy matching with domain filtering. '''
+    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
+
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    # Combine fuzzy matching with domain filter
+    result = functions_module.extract_inventory(
+        inventory_path, 
+        domain = 'py',
+        term = 'inventory', 
+        match_mode = functions_module.MatchMode.Fuzzy,
+        fuzzy_threshold = 60
+    )
+    assert 'filters' in result
+    assert result[ 'filters' ][ 'domain' ] == 'py'
+    assert result[ 'filters' ][ 'match_mode' ] == 'fuzzy'
+    
+    # All objects should be from py domain
+    if result[ 'object_count' ] > 0:
+        assert 'py' in result[ 'objects' ]
+        for domain_name in result[ 'objects' ]:
+            assert domain_name == 'py'
+
+
+def test_250_summarize_inventory_with_fuzzy( ):
+    ''' Summarize inventory includes fuzzy filter information. '''
+    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
+
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    # Summarize with fuzzy filter applied
+    result = functions_module.summarize_inventory(
+        inventory_path, term = 'inventory', 
+        match_mode = functions_module.MatchMode.Fuzzy,
+        fuzzy_threshold = 70
+    )
+
+    assert 'objects' in result
+    # Should mention fuzzy filtering was applied
+    assert 'fuzzy' in result.lower( )
+    assert '70' in result  # Should show threshold
+
+
+def test_260_match_mode_enum_values( ):
+    ''' MatchMode enum has correct string values. '''
+    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
+
+    assert functions_module.MatchMode.Exact.value == 'exact'
+    assert functions_module.MatchMode.Regex.value == 'regex'
+    assert functions_module.MatchMode.Fuzzy.value == 'fuzzy'
+
+
+def test_270_summarize_inventory_nonexistent_file( ):
     ''' Summarize inventory raises appropriate exception for missing files. '''
     functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
     exceptions_module = cache_import_module( f"{PACKAGE_NAME}.exceptions" )

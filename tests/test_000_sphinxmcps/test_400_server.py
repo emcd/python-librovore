@@ -65,21 +65,21 @@ def test_010_extract_inventory_wrapper_no_filters():
 
 
 def test_020_extract_inventory_wrapper_with_regex():
-    ''' Server extract_inventory handles regex parameter correctly. '''
+    ''' Server extract_inventory handles match_mode parameter correctly. '''
     server = cache_import_module( f"{PACKAGE_NAME}.server" )
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
     
     result = server.extract_inventory(
         source = test_inventory_path,
         term = 'test.*pattern',
-        regex = True
+        match_mode = 'regex'
     )
     
-    # Verify regex flag is passed through
+    # Verify match_mode is passed through
     assert isinstance( result, dict )
     assert 'filters' in result
     assert result[ 'filters' ][ 'term' ] == 'test.*pattern'
-    assert result[ 'filters' ][ 'regex' ] is True
+    assert result[ 'filters' ][ 'match_mode' ] == 'regex'
 
 
 def test_100_summarize_inventory_wrapper():
@@ -111,19 +111,40 @@ def test_110_summarize_inventory_wrapper_no_filters():
 
 
 def test_120_summarize_inventory_wrapper_with_regex():
-    ''' Server summarize_inventory handles regex parameter correctly. '''
+    ''' Server summarize_inventory handles match_mode parameter correctly. '''
     server = cache_import_module( f"{PACKAGE_NAME}.server" )
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
     
     result = server.summarize_inventory(
         source = test_inventory_path,
         term = 'test.*pattern',
-        regex = True
+        match_mode = 'regex'
     )
     
     # Verify result is a string summary
     assert isinstance( result, str )
     assert 'Sphinx Inventory' in result
+
+
+def test_130_extract_inventory_wrapper_with_fuzzy():
+    ''' Server extract_inventory handles fuzzy matching correctly. '''
+    server = cache_import_module( f"{PACKAGE_NAME}.server" )
+    test_inventory_path = get_test_inventory_path( 'sphobjinv' )
+    
+    result = server.extract_inventory(
+        source = test_inventory_path,
+        term = 'DataObj',
+        match_mode = 'fuzzy',
+        fuzzy_threshold = 60
+    )
+    
+    # Verify fuzzy matching is passed through
+    assert isinstance( result, dict )
+    assert 'filters' in result
+    assert result[ 'filters' ][ 'term' ] == 'DataObj'
+    assert result[ 'filters' ][ 'match_mode' ] == 'fuzzy'
+    assert result[ 'filters' ][ 'fuzzy_threshold' ] == 60
+    assert result[ 'object_count' ] > 0
 
 
 @pytest.mark.asyncio

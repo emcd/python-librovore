@@ -29,45 +29,58 @@ from . import __
 from . import exceptions as _exceptions
 
 
-# Common type aliases for function arguments
 SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
     str,
     __.ddoc.Doc( ''' URL or file path to Sphinx documentation. ''' )
 ]
-
 DomainFilter: __.typx.TypeAlias = __.typx.Annotated[
     __.Absential[ str ],
     __.ddoc.Doc( ''' Filter objects by domain (e.g., 'py', 'std'). ''' )
 ]
-
 RoleFilter: __.typx.TypeAlias = __.typx.Annotated[
     __.Absential[ str ],
     __.ddoc.Doc( ''' Filter objects by role (e.g., 'function'). ''' )
 ]
-
 TermFilter: __.typx.TypeAlias = __.typx.Annotated[
     __.Absential[ str ],
     __.ddoc.Doc( ''' Filter objects by name containing this text. ''' )
 ]
-
 RegexFlag: __.typx.TypeAlias = __.typx.Annotated[
     bool,
     __.ddoc.Doc( ''' Use regex pattern matching for term filter. ''' )
 ]
 
 
-def extract_inventory(
+class MatchMode( str, __.enum.Enum ):
+    ''' Enumeration for different term matching modes. '''
+    Exact = 'exact'
+    Regex = 'regex'
+    Fuzzy = 'fuzzy'
+
+
+MatchModeArgument: __.typx.TypeAlias = __.typx.Annotated[
+    MatchMode,
+    __.ddoc.Doc( ''' Term matching mode: exact, regex, or fuzzy. ''' )
+]
+FuzzyThreshold: __.typx.TypeAlias = __.typx.Annotated[
+    int,
+    __.ddoc.Doc( ''' Fuzzy matching threshold (0-100, higher = stricter). ''' )
+]
+
+
+def extract_inventory( # noqa: PLR0913
     source: SourceArgument, /, *,
     domain: DomainFilter = __.absent,
     role: RoleFilter = __.absent,
     term: TermFilter = __.absent,
-    regex: RegexFlag = False,
+    match_mode: MatchModeArgument = MatchMode.Exact,
+    fuzzy_threshold: FuzzyThreshold = 50,
 ) -> __.typx.Annotated[
     dict[ str, __.typx.Any ],
     __.ddoc.Doc(
         ''' Dictionary containing inventory metadata and filtered objects.
 
-            Contains project info, version, source, object counts, domain 
+            Contains project info, version, source, object counts, domain
             summary, and the actual objects grouped by domain.
         ''' )
 ]:
@@ -76,7 +89,8 @@ def extract_inventory(
     objects, selections_total = (
         _filter_inventory(
             inventory,
-            domain = domain, role = role, term = term, regex = regex
+            domain = domain, role = role, term = term,
+            match_mode = match_mode, fuzzy_threshold = fuzzy_threshold
         )
     )
     domains_summary: dict[ str, int ] = {
@@ -91,7 +105,7 @@ def extract_inventory(
         'domains': domains_summary,
         'objects': objects,
     }
-    if any( ( domain, role, term ) ) or regex:
+    if any( ( domain, role, term ) ) or match_mode != MatchMode.Exact:
         result[ 'filters' ] = { }
         if not __.is_absent( domain ):
             result[ 'filters' ][ 'domain' ] = domain
@@ -99,24 +113,28 @@ def extract_inventory(
             result[ 'filters' ][ 'role' ] = role
         if not __.is_absent( term ):
             result[ 'filters' ][ 'term' ] = term
-        if regex:
-            result[ 'filters' ][ 'regex' ] = True
+        if match_mode != MatchMode.Exact:
+            result[ 'filters' ][ 'match_mode' ] = match_mode.value
+            if match_mode == MatchMode.Fuzzy:
+                result[ 'filters' ][ 'fuzzy_threshold' ] = fuzzy_threshold
     return result
 
 
-def summarize_inventory(
+def summarize_inventory( # noqa: PLR0913
     source: SourceArgument, /, *,
     domain: DomainFilter = __.absent,
     role: RoleFilter = __.absent,
     term: TermFilter = __.absent,
-    regex: RegexFlag = False,
+    match_mode: MatchModeArgument = MatchMode.Exact,
+    fuzzy_threshold: FuzzyThreshold = 50,
 ) -> __.typx.Annotated[
     str,
     __.ddoc.Doc( ''' Human-readable summary of inventory contents. ''' )
 ]:
     ''' Provides human-readable summary of a Sphinx inventory. '''
     data = extract_inventory(
-        source, domain = domain, role = role, term = term, regex = regex )
+        source, domain = domain, role = role, term = term,
+        match_mode = match_mode, fuzzy_threshold = fuzzy_threshold )
     lines = [
         "Sphinx Inventory: {project} v{version}".format(
             project = data[ 'project' ], version = data[ 'version' ]
@@ -178,7 +196,7 @@ def _extract_inventory( source: SourceArgument ) -> __.typx.Annotated[
             url_s, cause = exc ) from exc
 
 
-def _filter_inventory(
+def _filter_inventory( # noqa: PLR0913
     inventory: __.typx.Annotated[
         _sphobjinv.Inventory,
         __.ddoc.Doc( ''' Sphinx inventory object to filter. ''' )
@@ -186,7 +204,8 @@ def _filter_inventory(
     domain: DomainFilter = __.absent,
     role: RoleFilter = __.absent,
     term: TermFilter = __.absent,
-    regex: RegexFlag = False,
+    match_mode: MatchModeArgument = MatchMode.Exact,
+    fuzzy_threshold: FuzzyThreshold = 50,
 ) -> __.typx.Annotated[
     tuple[ dict[ str, __.typx.Any ], int ],
     __.ddoc.Doc(
@@ -197,38 +216,114 @@ def _filter_inventory(
             that matched the filters.
         ''' )
 ]:
-    ''' Filters inventory objects by domain, role, term, and regex. '''
+    ''' Filters inventory objects by domain, role, term, and match mode. '''
+    term_ = '' if __.is_absent( term ) else term
+
+    if term_ and match_mode == MatchMode.Fuzzy:
+        return _filter_fuzzy_matching(
+            inventory, domain, role, term_, fuzzy_threshold )
+
+    return _filter_exact_and_regex_matching(
+        inventory, domain, role, term_, match_mode )
+
+
+def _filter_fuzzy_matching(
+    inventory: _sphobjinv.Inventory,
+    domain: DomainFilter,
+    role: RoleFilter,
+    term: str,
+    fuzzy_threshold: int,
+) -> tuple[ dict[ str, __.typx.Any ], int ]:
+    ''' Filters inventory using fuzzy matching via sphobjinv.suggest(). '''
+    suggestions = inventory.suggest( term, thresh = fuzzy_threshold )
+    fuzzy_names = _extract_names_from_suggestions( suggestions )
+    return _collect_matching_objects(
+        inventory, domain, role, lambda obj: obj.name in fuzzy_names )
+
+
+def _filter_exact_and_regex_matching(
+    inventory: _sphobjinv.Inventory,
+    domain: DomainFilter,
+    role: RoleFilter,
+    term: str,
+    match_mode: MatchMode,
+) -> tuple[ dict[ str, __.typx.Any ], int ]:
+    ''' Filters inventory using exact or regex matching. '''
+    term_matcher = _create_term_matcher( term, match_mode )
+
+    return _collect_matching_objects(
+        inventory, domain, role, term_matcher )
+
+
+def _extract_names_from_suggestions(
+    suggestions: list[ str ]
+) -> set[ str ]:
+    ''' Extracts object names from sphobjinv suggestion format. '''
+    fuzzy_names = set()
+    for suggestion in suggestions:
+        # Extract name from format like ":domain:role:`name`"
+        if '`' in suggestion:
+            name = suggestion.split('`')[1]  # Get text between backticks
+            fuzzy_names.add( name )
+    return fuzzy_names
+
+
+def _create_term_matcher(
+    term: str,
+    match_mode: MatchMode
+) -> __.cabc.Callable[ [ __.typx.Any ], bool ]:
+    ''' Creates a matcher function for term filtering. '''
+    if not term:
+        return lambda obj: True
+
+    if match_mode == MatchMode.Regex:
+        try:
+            pattern = __.re.compile( term, __.re.IGNORECASE )
+            return lambda obj: bool( pattern.search( obj.name ) )
+        except __.re.error as exc:
+            message = f"Invalid regex pattern: {term}"
+            raise _exceptions.InventoryFilterInvalidity( message ) from exc
+
+    # Exact matching (default)
+    term_lower = term.lower( )
+    return lambda obj: term_lower in obj.name.lower( )
+
+
+def _collect_matching_objects(
+    inventory: _sphobjinv.Inventory,
+    domain: DomainFilter,
+    role: RoleFilter,
+    term_matcher: __.cabc.Callable[ [ __.typx.Any ], bool ],
+) -> tuple[ dict[ str, __.typx.Any ], int ]:
+    ''' Collects objects that match all filters. '''
     objects: __.cabc.MutableMapping[
         str, list[ __.cabc.Mapping[ str, __.typx.Any ] ]
     ] = __.collections.defaultdict(
         list[ __.cabc.Mapping[ str, __.typx.Any ] ] )
     selections_total = 0
-    term_ = '' if __.is_absent( term ) else term
-    pattern = None
-    if term_ and regex:
-        try:
-            pattern = __.re.compile( term_, __.re.IGNORECASE )
-        except __.re.error as exc:
-            message = f"Invalid regex pattern: {term_}"
-            raise _exceptions.InventoryFilterInvalidity( message ) from exc
+
     for objct in inventory.objects:
         if domain and objct.domain != domain: continue
         if role and objct.role != role: continue
-        if term_:
-            if regex and pattern:
-                if not pattern.search( objct.name ): continue
-            elif term_.lower( ) not in objct.name.lower( ):
-                continue
-        objects[ objct.domain ].append( {
-            'name': objct.name,
-            'role': objct.role,
-            'priority': objct.priority,
-            'uri': objct.uri,
-            'dispname':
-                objct.dispname if objct.dispname != '-' else objct.name,
-        } )
+        if not term_matcher( objct ): continue
+
+        objects[ objct.domain ].append( _format_inventory_object( objct ) )
         selections_total += 1
+
     return objects, selections_total
+
+
+def _format_inventory_object(
+    objct: __.typx.Any
+) -> __.cabc.Mapping[ str, __.typx.Any ]:
+    ''' Formats an inventory object for output. '''
+    return {
+        'name': objct.name,
+        'role': objct.role,
+        'priority': objct.priority,
+        'uri': objct.uri,
+        'dispname': objct.dispname if objct.dispname != '-' else objct.name,
+    }
 
 
 def _normalize_inventory_source( source: SourceArgument ) -> __.typx.Annotated[
