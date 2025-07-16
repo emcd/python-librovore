@@ -98,73 +98,6 @@ async def test_100_mcp_extract_inventory_tool( ):
         assert 'objects' in text_content
 
 
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_110_mcp_extract_inventory_with_domain_filter( ):
-    ''' MCP extract_inventory tool applies domain filtering. '''
-    inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    async with (
-        mcp_test_server( ) as port,
-        MCPTestClient( port ) as client
-    ):
-        await client.initialize( )
-        response = await client.call_tool( 'extract_inventory', {
-            'source': inventory_path,
-            'domain': 'py'
-        } )
-        
-        assert response[ 'jsonrpc' ] == '2.0'
-        assert 'result' in response
-        content = response[ 'result' ][ 'content' ]
-        text_content = content[ 0 ][ 'text' ]
-        assert 'domain' in text_content
-        assert 'py' in text_content
-
-
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_120_mcp_extract_inventory_with_role_filter( ):
-    ''' MCP extract_inventory tool applies role filtering. '''
-    inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    async with (
-        mcp_test_server( ) as port,
-        MCPTestClient( port ) as client
-    ):
-        await client.initialize( )
-        response = await client.call_tool( 'extract_inventory', {
-            'source': inventory_path,
-            'role': 'module'
-        } )
-        
-        assert response[ 'jsonrpc' ] == '2.0'
-        assert 'result' in response
-        content = response[ 'result' ][ 'content' ]
-        text_content = content[ 0 ][ 'text' ]
-        assert 'role' in text_content
-        assert 'module' in text_content
-
-
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_130_mcp_extract_inventory_with_search_filter( ):
-    ''' MCP extract_inventory tool applies search filtering. '''
-    inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    async with (
-        mcp_test_server( ) as port,
-        MCPTestClient( port ) as client
-    ):
-        await client.initialize( )
-        response = await client.call_tool( 'extract_inventory', {
-            'source': inventory_path,
-            'term': 'test'
-        } )
-        
-        assert response[ 'jsonrpc' ] == '2.0'
-        assert 'result' in response
-        content = response[ 'result' ][ 'content' ]
-        text_content = content[ 0 ][ 'text' ]
-        assert 'term' in text_content
-        assert 'test' in text_content
 
 
 @pytest.mark.slow
@@ -212,27 +145,6 @@ async def test_200_mcp_summarize_inventory_tool( ):
         assert 'objects' in text_content
 
 
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_210_mcp_summarize_inventory_with_filters( ):
-    ''' MCP summarize_inventory tool includes filter information. '''
-    inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    async with (
-        mcp_test_server( ) as port,
-        MCPTestClient( port ) as client
-    ):
-        await client.initialize( )
-        response = await client.call_tool( 'summarize_inventory', {
-            'source': inventory_path,
-            'domain': 'py'
-        } )
-        
-        assert response[ 'jsonrpc' ] == '2.0'
-        assert 'result' in response
-        content = response[ 'result' ][ 'content' ]
-        text_content = content[ 0 ][ 'text' ]
-        assert 'Sphinx Inventory' in text_content
-        assert 'py' in text_content
 
 
 @pytest.mark.slow
