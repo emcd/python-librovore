@@ -30,28 +30,87 @@ from . import __
 from . import functions as _functions
 
 
+McpDomainFilter: __.typx.TypeAlias = __.typx.Annotated[
+    str,
+    _Field(
+        description = "Filter objects by domain (e.g., 'py', 'std')"
+    )
+]
+McpFuzzyThreshold: __.typx.TypeAlias = __.typx.Annotated[
+    int,
+    _Field(
+        description = "Fuzzy matching threshold (0-100, higher = stricter)"
+    )
+]
+McpIncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
+    bool,
+    _Field(
+        description = "Include content snippets in results"
+    )
+]
+McpMatchMode: __.typx.TypeAlias = __.typx.Annotated[
+    str,
+    _Field(
+        description = "Term matching mode: 'exact', 'regex', or 'fuzzy'"
+    )
+]
+McpMaxResults: __.typx.TypeAlias = __.typx.Annotated[
+    int,
+    _Field(
+        description = "Maximum number of results to return"
+    )
+]
+McpObjectName: __.typx.TypeAlias = __.typx.Annotated[
+    str,
+    _Field(
+        description = "Name of the object to extract documentation for"
+    )
+]
+McpOutputFormat: __.typx.TypeAlias = __.typx.Annotated[
+    str,
+    _Field(
+        description = "Output format: 'markdown' or 'text'"
+    )
+]
+McpPriorityFilter: __.typx.TypeAlias = __.typx.Annotated[
+    str,
+    _Field(
+        description = "Filter objects by priority level (e.g., '1', '0')"
+    )
+]
+McpQuery: __.typx.TypeAlias = __.typx.Annotated[
+    str,
+    _Field(
+        description = "Search query for documentation content"
+    )
+]
+McpRoleFilter: __.typx.TypeAlias = __.typx.Annotated[
+    str,
+    _Field(
+        description = "Filter objects by role (e.g., 'function', 'class')"
+    )
+]
+McpSourceArgument: __.typx.TypeAlias = __.typx.Annotated[
+    str,
+    _Field(
+        description = "URL or file path to Sphinx documentation"
+    )
+]
+McpTermFilter: __.typx.TypeAlias = __.typx.Annotated[
+    str,
+    _Field(
+        description = "Filter objects by name (case-insensitive)"
+    )
+]
+
+
 _scribe = __.acquire_scribe( __name__ )
 
 
 async def extract_documentation(
-    source: __.typx.Annotated[
-        str,
-        _Field(
-            description = "URL or file path to Sphinx documentation"
-        )
-    ],
-    object_name: __.typx.Annotated[
-        str,
-        _Field(
-            description = "Name of the object to extract documentation for"
-        )
-    ],
-    output_format: __.typx.Annotated[
-        str,
-        _Field(
-            description = "Output format: 'markdown' or 'text'"
-        )
-    ] = 'markdown',
+    source: McpSourceArgument,
+    object_name: McpObjectName,
+    output_format: McpOutputFormat = 'markdown',
 ) -> __.cabc.Mapping[ str, __.typx.Any ]:
     ''' Extract documentation for a specific object from Sphinx docs. '''
     _scribe.debug(
@@ -70,60 +129,15 @@ async def extract_documentation(
 
 
 async def query_documentation(  # noqa: PLR0913
-    source: __.typx.Annotated[
-        str,
-        _Field(
-            description = "URL or file path to Sphinx documentation"
-        )
-    ],
-    query: __.typx.Annotated[
-        str,
-        _Field(
-            description = "Search query for documentation content"
-        )
-    ],
-    domain: __.typx.Annotated[
-        str,
-        _Field(
-            description = "Filter objects by domain (e.g., 'py', 'std')"
-        )
-    ] = '',
-    role: __.typx.Annotated[
-        str,
-        _Field(
-            description = "Filter objects by role (e.g., 'function', 'class')"
-        )
-    ] = '',
-    priority: __.typx.Annotated[
-        str,
-        _Field(
-            description = "Filter objects by priority level (e.g., '1', '0')"
-        )
-    ] = '',
-    match_mode: __.typx.Annotated[
-        str,
-        _Field(
-            description = "Term matching mode: 'exact', 'regex', or 'fuzzy'"
-        )
-    ] = 'fuzzy',
-    fuzzy_threshold: __.typx.Annotated[
-        int,
-        _Field(
-            description = "Fuzzy matching threshold (0-100, higher = stricter)"
-        )
-    ] = 50,
-    max_results: __.typx.Annotated[
-        int,
-        _Field(
-            description = "Maximum number of results to return"
-        )
-    ] = 10,
-    include_snippets: __.typx.Annotated[
-        bool,
-        _Field(
-            description = "Include content snippets in results"
-        )
-    ] = True,
+    source: McpSourceArgument,
+    query: McpQuery,
+    domain: McpDomainFilter = '',
+    role: McpRoleFilter = '',
+    priority: McpPriorityFilter = '',
+    match_mode: McpMatchMode = 'fuzzy',
+    fuzzy_threshold: McpFuzzyThreshold = 50,
+    max_results: McpMaxResults = 10,
+    include_snippets: McpIncludeSnippets = True,
 ) -> list[ __.cabc.Mapping[ str, __.typx.Any ] ]:
     ''' Query documentation content with relevance ranking. '''
     _scribe.debug(
@@ -155,48 +169,13 @@ async def query_documentation(  # noqa: PLR0913
 
 
 def extract_inventory( # noqa: PLR0913
-    source: __.typx.Annotated[
-        str,
-        _Field(
-            description = "URL or file path to Sphinx documentation"
-        )
-    ],
-    domain: __.typx.Annotated[
-        str,
-        _Field(
-            description = "Filter objects by domain (e.g., 'py', 'std')"
-        )
-    ] = '',
-    role: __.typx.Annotated[
-        str,
-        _Field(
-            description = "Filter objects by role (e.g., 'function', 'class')"
-        )
-    ] = '',
-    term: __.typx.Annotated[
-        str,
-        _Field(
-            description = "Filter objects by name (case-insensitive)"
-        )
-    ] = '',
-    priority: __.typx.Annotated[
-        str,
-        _Field(
-            description = "Filter objects by priority level (e.g., '1', '0')"
-        )
-    ] = '',
-    match_mode: __.typx.Annotated[
-        str, # TODO: Use enum instead of string.
-        _Field(
-            description = "Term matching mode: 'exact', 'regex', or 'fuzzy'"
-        )
-    ] = 'exact',
-    fuzzy_threshold: __.typx.Annotated[
-        int,
-        _Field(
-            description = "Fuzzy matching threshold (0-100, higher = stricter)"
-        )
-    ] = 50,
+    source: McpSourceArgument,
+    domain: McpDomainFilter = '',
+    role: McpRoleFilter = '',
+    term: McpTermFilter = '',
+    priority: McpPriorityFilter = '',
+    match_mode: McpMatchMode = 'exact',
+    fuzzy_threshold: McpFuzzyThreshold = 50,
 ) -> dict[ str, __.typx.Any ]:
     ''' Extracts Sphinx inventory from location with optional filtering. '''
     _scribe.debug(
@@ -220,48 +199,13 @@ def extract_inventory( # noqa: PLR0913
 
 
 def summarize_inventory( # noqa: PLR0913
-    source: __.typx.Annotated[
-        str,
-        _Field(
-            description = "URL or file path to Sphinx documentation"
-        )
-    ],
-    domain: __.typx.Annotated[
-        str,
-        _Field(
-            description = "Filter objects by domain (e.g., 'py', 'std')"
-        )
-    ] = '',
-    role: __.typx.Annotated[
-        str,
-        _Field(
-            description = "Filter objects by role (e.g., 'function', 'class')"
-        )
-    ] = '',
-    term: __.typx.Annotated[
-        str,
-        _Field(
-            description = "Filter objects by name (case-insensitive)"
-        )
-    ] = '',
-    priority: __.typx.Annotated[
-        str,
-        _Field(
-            description = "Filter objects by priority level (e.g., '1', '0')"
-        )
-    ] = '',
-    match_mode: __.typx.Annotated[
-        str, # Use enum instead of string.
-        _Field(
-            description = "Term matching mode: 'exact', 'regex', or 'fuzzy'"
-        )
-    ] = 'exact',
-    fuzzy_threshold: __.typx.Annotated[
-        int,
-        _Field(
-            description = "Fuzzy matching threshold (0-100, higher = stricter)"
-        )
-    ] = 50,
+    source: McpSourceArgument,
+    domain: McpDomainFilter = '',
+    role: McpRoleFilter = '',
+    term: McpTermFilter = '',
+    priority: McpPriorityFilter = '',
+    match_mode: McpMatchMode = 'exact',
+    fuzzy_threshold: McpFuzzyThreshold = 50,
 ) -> str:
     ''' Provides human-readable summary of Sphinx inventory. '''
     _scribe.debug(
