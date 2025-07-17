@@ -31,10 +31,10 @@ from .fixtures import run_cli_command, get_test_inventory_path
 
 class MockConsoleDisplay:
     ''' Mock console display for testing CLI commands. '''
-    
+
     def __init__( self ):
         self.stream = StringIO()
-    
+
     async def provide_stream( self ):
         return self.stream
 
@@ -51,14 +51,14 @@ async def test_000_extract_inventory_command_unit():
     display = MockConsoleDisplay()
     auxdata = create_test_auxdata()
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    
+
     cmd = cli.ExtractInventoryCommand(
         source = test_inventory_path,
         domain = 'py'
     )
-    
+
     await cmd( auxdata, display )
-    
+
     output = display.stream.getvalue()
     assert 'project' in output
     assert 'domain' in output
@@ -72,13 +72,13 @@ async def test_010_extract_inventory_command_no_filters():
     display = MockConsoleDisplay()
     auxdata = create_test_auxdata()
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    
+
     cmd = cli.ExtractInventoryCommand(
         source = test_inventory_path
     )
-    
+
     await cmd( auxdata, display )
-    
+
     output = display.stream.getvalue()
     assert 'project' in output
     assert 'objects' in output
@@ -91,16 +91,16 @@ async def test_020_extract_inventory_command_all_filters():
     display = MockConsoleDisplay()
     auxdata = create_test_auxdata()
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    
+
     cmd = cli.ExtractInventoryCommand(
         source = test_inventory_path,
         domain = 'py',
         role = 'module',
         term = 'test'
     )
-    
+
     await cmd( auxdata, display )
-    
+
     output = display.stream.getvalue()
     assert 'project' in output
     # Command should execute without error
@@ -113,14 +113,14 @@ async def test_030_summarize_inventory_command_unit():
     display = MockConsoleDisplay()
     auxdata = create_test_auxdata()
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    
+
     cmd = cli.SummarizeInventoryCommand(
         source = test_inventory_path,
         domain = 'py'
     )
-    
+
     await cmd( auxdata, display )
-    
+
     output = display.stream.getvalue()
     assert 'Sphinx Inventory' in output
     assert 'py' in output
@@ -133,13 +133,13 @@ async def test_040_summarize_inventory_command_no_filters():
     display = MockConsoleDisplay()
     auxdata = create_test_auxdata()
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    
+
     cmd = cli.SummarizeInventoryCommand(
         source = test_inventory_path
     )
-    
+
     await cmd( auxdata, display )
-    
+
     output = display.stream.getvalue()
     assert 'Sphinx Inventory' in output
 
@@ -151,15 +151,15 @@ async def test_050_use_command_extract_delegation():
     display = MockConsoleDisplay()
     auxdata = create_test_auxdata()
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    
+
     extract_cmd = cli.ExtractInventoryCommand(
         source = test_inventory_path,
         domain = 'py'
     )
-    
+
     use_cmd = cli.UseCommand( operation = extract_cmd )
     await use_cmd( auxdata, display )
-    
+
     output = display.stream.getvalue()
     assert 'project' in output
     assert 'py' in output
@@ -172,15 +172,15 @@ async def test_060_use_command_summarize_delegation():
     display = MockConsoleDisplay()
     auxdata = create_test_auxdata()
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    
+
     summarize_cmd = cli.SummarizeInventoryCommand(
         source = test_inventory_path,
         domain = 'py'
     )
-    
+
     use_cmd = cli.UseCommand( operation = summarize_cmd )
     await use_cmd( auxdata, display )
-    
+
     output = display.stream.getvalue()
     assert 'Sphinx Inventory' in output
     assert 'py' in output
@@ -192,14 +192,14 @@ async def test_070_serve_command_unit():
     cli = cache_import_module( f"{PACKAGE_NAME}.cli" )
     display = MockConsoleDisplay()
     auxdata = create_test_auxdata()
-    
+
     # Mock the server.serve function to avoid actual server startup
     with patch( f"{PACKAGE_NAME}.server.serve" ) as mock_serve:
         mock_serve.return_value = AsyncMock()
-        
+
         cmd = cli.ServeCommand( port = 8080, transport = 'stdio' )
         await cmd( auxdata, display )
-        
+
         # Verify serve was called with correct arguments
         mock_serve.assert_called_once_with(
             auxdata, port = 8080, transport = 'stdio'
@@ -212,14 +212,14 @@ async def test_080_serve_command_defaults():
     cli = cache_import_module( f"{PACKAGE_NAME}.cli" )
     display = MockConsoleDisplay()
     auxdata = create_test_auxdata()
-    
+
     # Mock the server.serve function to avoid actual server startup
     with patch( f"{PACKAGE_NAME}.server.serve" ) as mock_serve:
         mock_serve.return_value = AsyncMock()
-        
+
         cmd = cli.ServeCommand()
         await cmd( auxdata, display )
-        
+
         # Verify serve was called with no additional arguments
         mock_serve.assert_called_once_with( auxdata )
 
@@ -227,22 +227,14 @@ async def test_080_serve_command_defaults():
 def test_090_cli_prepare_invocation_args():
     ''' CLI prepare_invocation_args returns correct arguments. '''
     cli = cache_import_module( f"{PACKAGE_NAME}.cli" )
-    
-    # Create mock application info
-    mock_app = Mock()
     mock_display = Mock()
     mock_cmd = Mock()
-    
     cli_obj = cli.Cli(
-        application = mock_app,
         display = mock_display,
         command = mock_cmd,
         logfile = '/test/log.txt'
     )
-    
     args = cli_obj.prepare_invocation_args()
-    
-    assert args[ 'application' ] == mock_app
     assert args[ 'environment' ] is True
     assert args[ 'logfile' ] == '/test/log.txt'
 
@@ -250,22 +242,14 @@ def test_090_cli_prepare_invocation_args():
 def test_100_cli_prepare_invocation_args_no_logfile():
     ''' CLI prepare_invocation_args works without logfile. '''
     cli = cache_import_module( f"{PACKAGE_NAME}.cli" )
-    
-    # Create mock application info
-    mock_app = Mock()
     mock_display = Mock()
     mock_cmd = Mock()
-    
     cli_obj = cli.Cli(
-        application = mock_app,
         display = mock_display,
         command = mock_cmd,
         logfile = None
     )
-    
     args = cli_obj.prepare_invocation_args()
-    
-    assert args[ 'application' ] == mock_app
     assert args[ 'environment' ] is True
     assert args[ 'logfile' ] is None
 
@@ -378,20 +362,7 @@ async def test_400_cli_main_help( ):
 
 @pytest.mark.slow
 @pytest.mark.asyncio
-async def test_410_cli_main_version( ):
-    ''' CLI main command shows version information via application.version. '''
-    result = await run_cli_command( [ '--help' ] )
-    assert result.returncode == 0
-    # Help should show version-related option
-    assert (
-        'application.version' in result.stdout.lower( ) or
-        'version' in result.stdout.lower( )
-    )
-
-
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_420_cli_invalid_command( ):
+async def test_410_cli_invalid_command( ):
     ''' CLI fails gracefully with invalid command. '''
     result = await run_cli_command( [ 'invalid-command' ] )
     assert result.returncode != 0

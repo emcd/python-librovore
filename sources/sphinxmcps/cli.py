@@ -27,50 +27,38 @@ from . import interfaces as _interfaces
 from . import server as _server
 
 
-# CLI-specific type aliases for command arguments
-CliSourceArgument: __.typx.TypeAlias = __.typx.Annotated[
-    str,
-    __.ddoc.Doc( ''' URL or file path to Sphinx documentation. ''' )
-]
-
 CliDomainFilter: __.typx.TypeAlias = __.typx.Annotated[
     __.typx.Optional[ str ],
     __.ddoc.Doc( ''' Filter objects by domain (e.g., 'py', 'std'). ''' )
 ]
-
-CliRoleFilter: __.typx.TypeAlias = __.typx.Annotated[
-    __.typx.Optional[ str ],
-    __.ddoc.Doc( ''' Filter objects by role (e.g., 'function'). ''' )
-]
-
-CliTermFilter: __.typx.TypeAlias = __.typx.Annotated[
-    __.typx.Optional[ str ],
-    __.ddoc.Doc( ''' Filter objects by name containing this text. ''' )
-]
-
-CliPriorityFilter: __.typx.TypeAlias = __.typx.Annotated[
-    __.typx.Optional[ str ],
-    __.ddoc.Doc( ''' Filter objects by priority level (e.g., '1', '0'). ''' )
-]
-
-CliMatchMode: __.typx.TypeAlias = __.typx.Annotated[
-    _functions.MatchMode,
-    __.ddoc.Doc( ''' Term matching mode: Exact, Regex, or Fuzzy. ''' )
-]
-
 CliFuzzyThreshold: __.typx.TypeAlias = __.typx.Annotated[
     int,
     __.ddoc.Doc( ''' Fuzzy matching threshold (0-100, higher = stricter). ''' )
 ]
-
-CliPortArgument: __.typx.TypeAlias = __.typx.Annotated[
-    __.typx.Optional[ int ],
-    __.ddoc.Doc( ''' TCP port for server. ''' )
+CliMatchMode: __.typx.TypeAlias = __.typx.Annotated[
+    _functions.MatchMode,
+    __.ddoc.Doc( ''' Term matching mode: Exact, Regex, or Fuzzy. ''' )
 ]
-
-CliTransportArgument: __.typx.TypeAlias = __.typx.Annotated[
+CliPortArgument: __.typx.TypeAlias = __.typx.Annotated[
+    __.typx.Optional[ int ], __.ddoc.Doc( ''' TCP port for server. ''' )
+]
+CliPriorityFilter: __.typx.TypeAlias = __.typx.Annotated[
     __.typx.Optional[ str ],
-    __.ddoc.Doc( ''' Transport: stdio or sse. ''' )
+    __.ddoc.Doc( ''' Filter objects by priority level (e.g., '1', '0'). ''' )
+]
+CliRoleFilter: __.typx.TypeAlias = __.typx.Annotated[
+    __.typx.Optional[ str ],
+    __.ddoc.Doc( ''' Filter objects by role (e.g., 'function'). ''' )
+]
+CliSourceArgument: __.typx.TypeAlias = __.typx.Annotated[
+    str, __.ddoc.Doc( ''' URL or file path to Sphinx documentation. ''' )
+]
+CliTermFilter: __.typx.TypeAlias = __.typx.Annotated[
+    __.typx.Optional[ str ],
+    __.ddoc.Doc( ''' Filter objects by name containing this text. ''' )
+]
+CliTransportArgument: __.typx.TypeAlias = __.typx.Annotated[
+    __.typx.Optional[ str ], __.ddoc.Doc( ''' Transport: stdio or sse. ''' )
 ]
 
 
@@ -100,12 +88,12 @@ class ExtractInventoryCommand(
             nomargs[ 'term' ] = self.term
         if self.priority is not None:
             nomargs[ 'priority' ] = self.priority
-        
+
         # Pass through match mode directly
         nomargs[ 'match_mode' ] = self.match_mode
         if self.match_mode == _functions.MatchMode.Fuzzy:
             nomargs[ 'fuzzy_threshold' ] = self.fuzzy_threshold
-            
+
         data = _functions.extract_inventory( self.source, **nomargs )
         print( __.json.dumps( data, indent = 2 ), file = stream )
 
@@ -136,12 +124,12 @@ class SummarizeInventoryCommand(
             nomargs[ 'term' ] = self.term
         if self.priority is not None:
             nomargs[ 'priority' ] = self.priority
-        
+
         # Pass through match mode directly
         nomargs[ 'match_mode' ] = self.match_mode
         if self.match_mode == _functions.MatchMode.Fuzzy:
             nomargs[ 'fuzzy_threshold' ] = self.fuzzy_threshold
-            
+
         result = _functions.summarize_inventory( self.source, **nomargs )
         print( result, file = stream )
 
@@ -196,7 +184,6 @@ class Cli(
 ):
     ''' Sphinx MCP server CLI. '''
 
-    application: __.appcore.ApplicationInformation
     display: _interfaces.ConsoleDisplay
     command: __.typx.Union[
         __.typx.Annotated[
@@ -225,7 +212,6 @@ class Cli(
     ) -> __.cabc.Mapping[ str, __.typx.Any ]:
         ''' Prepares arguments for initial configuration. '''
         args: dict[ str, __.typx.Any ] = dict(
-            application = self.application,
             environment = True,
             logfile = self.logfile,
         )
@@ -246,10 +232,6 @@ def execute( ) -> None:
 
 
 async def _prepare(
-    application: __.typx.Annotated[
-        __.appcore.ApplicationInformation,
-        __.ddoc.Doc( ''' Application information and metadata. ''' )
-    ],
     environment: __.typx.Annotated[
         bool,
         __.ddoc.Doc( ''' Whether to configure environment. ''' )
@@ -268,7 +250,6 @@ async def _prepare(
 ]:
     ''' Configures application based on arguments. '''
     nomargs: __.NominativeArguments = {
-        'application': application,
         'environment': environment,
         'exits': exits,
     }
