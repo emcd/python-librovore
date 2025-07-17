@@ -259,7 +259,7 @@ def _extract_names_from_suggestions(
     suggestions: list[ str ]
 ) -> set[ str ]:
     ''' Extracts object names from sphobjinv suggestion format. '''
-    fuzzy_names = set()
+    fuzzy_names: set[ str ] = set()
     for suggestion in suggestions:
         # Extract name from format like ":domain:role:`name`"
         if '`' in suggestion:

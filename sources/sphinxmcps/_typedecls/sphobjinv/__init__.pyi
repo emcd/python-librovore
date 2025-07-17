@@ -25,3 +25,7 @@ class Inventory:
         fname_zlib: str | None = None,
         **kwargs: Any
     ) -> None: ...
+    
+    def suggest(self, term: str, *, thresh: int = 75) -> list[str]:
+        """Return fuzzy match suggestions for the given term."""
+        ...
