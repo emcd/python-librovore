@@ -411,21 +411,40 @@ async def _fetch_html_content( url: str ) -> __.typx.Annotated[
 
 def _html_to_markdown( html_text: str ) -> str:
     ''' Converts HTML text to clean markdown format. '''
-    # Simple HTML to markdown conversion
-    # Remove common HTML tags and convert to markdown-like format
-    re = __.re
-    # Convert common tags
-    text = re.sub( r'<code[^>]*>(.*?)</code>', r'`\1`', html_text )
-    text = re.sub(
-        r'<pre[^>]*>(.*?)</pre>', r'```\n\1\n```', text, flags = re.DOTALL )
-    text = re.sub( r'<strong[^>]*>(.*?)</strong>', r'**\1**', text )
-    text = re.sub( r'<em[^>]*>(.*?)</em>', r'*\1*', text )
-    text = re.sub( r'<a[^>]*href="([^"]*)"[^>]*>(.*?)</a>', r'[\2](\1)', text )
-    # Remove remaining HTML tags
-    text = re.sub( r'<[^>]+>', '', text )
-    # Clean up whitespace
-    text = re.sub( r'\n\s*\n', '\n\n', text )
-    text = re.sub( r'^\s+|\s+$', '', text, flags = re.MULTILINE )
+    if not html_text.strip( ):
+        return ''
+    
+    try:
+        soup = _BeautifulSoup( html_text, 'lxml' )
+    except Exception:
+        # Fallback to plain text if parsing fails
+        return html_text
+    
+    # Convert common tags to markdown using replace_with
+    for code in soup.find_all( 'code' ):  # type: ignore[attr-defined]
+        code.replace_with( f"`{code.get_text( )}`" )  # type: ignore[arg-type]
+    
+    for pre in soup.find_all( 'pre' ):  # type: ignore[attr-defined]
+        pre.replace_with( f"```\n{pre.get_text( )}\n```" )  # type: ignore[arg-type]
+    
+    for strong in soup.find_all( 'strong' ):  # type: ignore[attr-defined]
+        strong.replace_with( f"**{strong.get_text( )}**" )  # type: ignore[arg-type]
+    
+    for em in soup.find_all( 'em' ):  # type: ignore[attr-defined]
+        em.replace_with( f"*{em.get_text( )}*" )  # type: ignore[arg-type]
+    
+    for link in soup.find_all( 'a' ):  # type: ignore[attr-defined]
+        href = link.get( 'href', '' )  # type: ignore[attr-defined]
+        text = link.get_text( )
+        if href:
+            link.replace_with( f"[{text}]({href})" )  # type: ignore[arg-type]
+        else:
+            link.replace_with( text )  # type: ignore[arg-type]
+    
+    # Get clean text and normalize whitespace
+    text = soup.get_text( )
+    text = __.re.sub( r'\n\s*\n', '\n\n', text )
+    text = __.re.sub( r'^\s+|\s+$', '', text, flags = __.re.MULTILINE )
     return text.strip( )
 
 
@@ -457,45 +476,45 @@ def _parse_documentation_html(
     __.ddoc.Doc( ''' Parsed documentation sections. ''' )
 ]:
     ''' Parses HTML content to extract documentation sections. '''
-
-    def _check_main_content( soup ):
-        ''' Helper to check main content exists. '''
-        main_content = soup.find( 'article', { 'role': 'main' } )
-        if not main_content:
-            raise ValueError( "No content" )  # noqa: TRY003
-        return main_content
-
     try:
         soup = _BeautifulSoup( html_content, 'lxml' )
-        main_content = _check_main_content( soup )
-        # Find the object definition by ID
-        object_element = main_content.find( id = object_name )
-        if not object_element:
-            return { 'error': f"Object '{object_name}' not found in page" }
-        # Extract signature from <dt> element
-        signature_element = object_element
-        if signature_element.name != 'dt':
-            signature_element = object_element.find_parent( 'dt' )
-        signature = (
-            signature_element.get_text( strip = True )
-            if signature_element else '' )
-        # Extract description from following <dd> element
-        description_element = (
-            signature_element.find_next_sibling( 'dd' )
-            if signature_element else None
-        )
-        if description_element:
-            # Remove header links and other navigation elements
-            for header_link in description_element.find_all(
-                'a', class_ = 'headerlink'
-            ): header_link.decompose( )
-            description = description_element.get_text( strip = True )
-        else: description = ''
-        return {  # noqa: TRY300
-            'signature': signature,
-            'description': description,
-            'object_name': object_name,
-        }
     except Exception as exc:
         raise _exceptions.DocumentationParseFailure(
             object_name, exc ) from exc
+    
+    main_content = soup.find( 'article', { 'role': 'main' } )
+    if not main_content:
+        raise _exceptions.DocumentationContentMissing( object_name )
+    
+    # Find the object definition by ID
+    object_element = main_content.find( id = object_name )  # type: ignore[attr-defined]
+    if not object_element:
+        return { 'error': f"Object '{object_name}' not found in page" }
+    
+    # Extract signature from <dt> element
+    signature_element = object_element  # type: ignore[assignment]
+    if signature_element.name != 'dt':  # type: ignore[attr-defined]
+        signature_element = object_element.find_parent( 'dt' )  # type: ignore[attr-defined]
+    
+    signature = (  # type: ignore[assignment]
+        signature_element.get_text( strip = True )  # type: ignore[attr-defined]
+        if signature_element else '' )
+    
+    # Extract description from following <dd> element
+    description_element = (  # type: ignore[assignment]
+        signature_element.find_next_sibling( 'dd' )  # type: ignore[attr-defined]
+        if signature_element else None
+    )
+    if description_element:
+        # Remove header links and other navigation elements
+        for header_link in description_element.find_all(  # type: ignore[attr-defined]
+            'a', class_ = 'headerlink'
+        ): header_link.decompose( )  # type: ignore[attr-defined]
+        description = description_element.get_text( strip = True )  # type: ignore[attr-defined]
+    else: description = ''
+    
+    return {  # type: ignore[return-value]
+        'signature': signature,
+        'description': description,
+        'object_name': object_name,
+    }

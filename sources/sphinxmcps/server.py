@@ -59,8 +59,13 @@ async def extract_documentation(
         source, object_name, output_format
     )
     try:
+        # Ensure output_format is a valid DocumentationFormat
+        format_arg = (
+            output_format if output_format in ( 'markdown', 'text' ) 
+            else 'markdown'
+        )
         return await _functions.extract_object_documentation(
-            source, object_name, output_format = output_format )
+            source, object_name, output_format = format_arg )
     except Exception as exc:
         _scribe.error( "Error extracting documentation: %s", exc )
         return { 'error': str( exc ) }

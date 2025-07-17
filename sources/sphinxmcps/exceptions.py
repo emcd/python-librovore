@@ -56,6 +56,15 @@ class DocumentationParseFailure( Omnierror, ValueError ):
         super( ).__init__( message )
 
 
+class DocumentationContentMissing( Omnierror, ValueError ):
+    ''' Documentation main content container not found. '''
+
+    def __init__( self, url: str ):
+        message = f"No main content found in documentation at '{url}'"
+        self.url = url
+        super( ).__init__( message )
+
+
 class InventoryInaccessibility( Omnierror, RuntimeError ):
     ''' Inventory file or resource absent or inaccessible. '''
 
