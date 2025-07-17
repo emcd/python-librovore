@@ -3,8 +3,6 @@
 ## Immediate Enhancements
 
 ### Advanced Filtering and Search
-- [x] **Regex pattern matching**: Support regex in search functionality ✅ COMPLETED
-- [ ] **Fuzzy matching**: Approximate string matching for typos and variations (sphobjinv uses fuzzywuzzy)
 - [ ] **Priority filtering**: Filter objects by priority levels
 - [ ] **Boolean search operators**: Support `domain=py AND role=class` expressions
 - [ ] **Case-sensitive search**: Option for exact case matching
@@ -25,7 +23,6 @@
 ### Multi-Inventory Operations
 - **Cross-reference tool**: Find objects across multiple inventories
 - **Inventory comparison**: Compare versions or different projects
-- **Dependency mapping**: Map intersphinx dependencies
 - **Unified search**: Search across multiple documentation sites
 
 ### Caching and Performance
@@ -37,8 +34,6 @@
 ### Discovery and Automation
 - **Auto-discovery**: Find `objects.inv` from base documentation URLs
 - **Sitemap parsing**: Extract inventory URLs from sitemaps
-- **Link validation**: Validate object URIs are accessible
-- **Dead link detection**: Find broken cross-references
 
 ## Developer Experience
 
@@ -47,18 +42,6 @@
 - **Shell completion**: Bash/zsh completion for commands
 - **Configuration files**: Store frequently used inventory URLs
 - **Alias support**: Short names for common inventories
-
-### Integration Tools
-- **VS Code extension**: Browse inventories in editor
-- **Sphinx extension**: Enhanced intersphinx with MCP
-- **Documentation validation**: Check doc completeness
-- **API documentation sync**: Verify API docs match code
-
-### Analytics and Insights
-- **Documentation metrics**: Coverage analysis
-- **Popular objects tracking**: Most referenced items
-- **Documentation health**: Missing descriptions, broken links
-- **Version comparison**: Track API changes between versions
 
 ## Protocol Extensions
 
@@ -76,18 +59,6 @@
 
 ## Next Phase Enhancements
 
-### Object Detail and Relationships
-- [ ] **Object detail retrieval**: Get full documentation for specific objects by name/path
-- [ ] **Relationship mapping**: Show inheritance hierarchies and cross-references between objects
-- [ ] **Dependency analysis**: Map intersphinx dependencies between documentation sites
-- [ ] **Cross-reference validation**: Verify that object links are valid and accessible
-
-### Batch Operations and Advanced Search
-- [ ] **Batch processing**: Process multiple documentation sources in one call
-- [ ] **Multi-site search**: Search across multiple inventories simultaneously
-- [ ] **Search result ranking**: Score and rank search results by relevance
-- [ ] **Fuzzy matching**: Find objects with similar names when exact matches fail
-
 ### Sphinx Search Box Emulation
 - [ ] **JavaScript search analysis**: Reverse-engineer Sphinx search.js functionality
 - [ ] **HTML content extraction**: Use BeautifulSoup/Scrapy to extract object documentation
@@ -95,41 +66,20 @@
 - [ ] **Full-text search**: Index and search complete documentation content beyond just objects.inv
 - [ ] **Search suggestion**: Provide auto-complete and search suggestions
 
+### Object Detail and Relationships
+- [ ] **Object detail retrieval**: Get full documentation for specific objects by name/path
+- [ ] **Relationship mapping**: Show inheritance hierarchies and cross-references between objects
+- [ ] **Cross-reference validation**: Verify that object links are valid and accessible
+
+### Batch Operations and Advanced Search
+- [ ] **Batch processing**: Process multiple documentation sources in one call
+- [ ] **Multi-site search**: Search across multiple inventories simultaneously
+- [ ] **Search result ranking**: Score and rank search results by relevance
+
 ### CLI and UX Improvements
 - [ ] **Interactive inventory browser**: Navigate inventories with arrow keys/search
 - [ ] **Configuration files**: Store frequently used inventory sources and filters
 - [ ] **Shell completion**: Bash/zsh auto-completion for commands and parameters
-
-### Testing Infrastructure
-- [ ] **Performance benchmarks**: Track extraction and filtering performance
-- [ ] **Server unit tests**: Direct testing of FastMCP and transport modes
-- [ ] **Coverage improvement**: Address 56% coverage gaps in server/CLI modules
-
-### Process Management Improvements
-- [ ] **Dynamic port discovery**: Avoid parsing port numbers from stderr output
-- [ ] **Shared memory communication**: Use IPC for server-client communication
-- [ ] **Process lifecycle management**: Better subprocess cleanup and monitoring
-- [ ] **Server object introspection**: Direct port number access from server objects
-
-## Real-World Applications
-
-### Documentation Workflows
-- **CI/CD integration**: Validate documentation in pipelines
-- **Documentation linting**: Check cross-reference accuracy
-- **Release automation**: Update inventory dependencies
-- **Documentation analytics**: Track usage patterns
-
-### Developer Tools
-- **IDE plugins**: Integrate with development environments
-- **Code analysis**: Find undocumented APIs
-- **Documentation generation**: Auto-generate cross-references
-- **Migration tools**: Help with documentation platform changes
-
-### Content Management
-- **Documentation search engines**: Power advanced search
-- **Content recommendations**: Suggest related documentation
-- **Translation management**: Track documentation across languages
-- **Accessibility auditing**: Check documentation accessibility
 
 ## Technical Improvements
 
@@ -156,21 +106,7 @@
 ### Integration Ecosystem
 - **Plugin architecture**: Allow community extensions
 - **Template system**: Customizable output formats
-- **Hook system**: Custom processing pipelines
-- **API exposure**: REST API for inventory operations
 
 ### Documentation and Examples
 - **Recipe collection**: Common use case examples
 - **Best practices guide**: Optimal usage patterns
-- **Video tutorials**: Visual learning resources
-- **Community showcase**: Real-world usage examples
-
-### Standards and Compatibility
-- **MCP best practices**: Reference implementation patterns
-- **Inventory format extensions**: Propose enhancements to Sphinx
-- **Cross-tool compatibility**: Work with other documentation tools
-- **Specification contributions**: Help improve MCP protocol
-
----
-
-*These ideas represent potential directions for development based on common documentation workflow needs and MCP protocol capabilities. Implementation priority should be driven by user feedback and real-world usage patterns.*
