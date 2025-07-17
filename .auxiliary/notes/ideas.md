@@ -5,15 +5,25 @@
 ### Advanced Filtering and Search
 - [ ] **Boolean search operators**: Support `domain=py AND role=class` expressions
 - [ ] **Case-sensitive search**: Option for exact case matching
+- [ ] **search_documentation tool**: Full-text search across documentation content with relevance ranking
+- [ ] **Content snippets**: Include relevant content excerpts in search results
 
 ### Enhanced Output Formats
-- **Markdown tables**: For documentation embedding
-- **Tree view**: Hierarchical display of domains/roles
+- [ ] **Signature cleanup**: Remove Sphinx artifacts like `¶` from signatures
+- [ ] **Code examples extraction**: Parse and format code blocks from documentation
+- [ ] **Markdown tables**: For documentation embedding
+- [ ] **Tree view**: Hierarchical display of domains/roles
 
 ### MCP Resources Integration
 - **Inventory resources**: `@mcp.resource("inventory://{url}")` for cached access
 - **Object resources**: `@mcp.resource("object://{url}/{domain}/{name}")` for individual objects
 - **Search resources**: `@mcp.resource("search://{url}?q={query}")` for search results
+
+### Content Quality Improvements
+- [ ] **HTML artifact removal**: Clean up formatting remnants in extracted content
+- [ ] **Link resolution**: Convert relative links to absolute URLs
+- [ ] **Image handling**: Proper handling of images in documentation
+- [ ] **Table formatting**: Better markdown conversion for HTML tables
 
 ## Advanced Features
 
@@ -23,10 +33,11 @@
 - **Unified search**: Search across multiple documentation sites
 
 ### Caching and Performance
-- **Inventory caching**: Cache downloaded inventories with TTL
-- **Incremental updates**: Check inventory freshness
-- **Parallel loading**: Load multiple inventories concurrently
-- **Compression**: Store cached inventories efficiently
+- [ ] **Documentation caching**: Cache fetched HTML content with TTL
+- [ ] **Inventory caching**: Cache downloaded inventories with TTL
+- [ ] **Incremental updates**: Check inventory freshness
+- [ ] **Parallel loading**: Load multiple inventories concurrently
+- [ ] **Compression**: Store cached inventories efficiently
 
 ### Discovery and Automation
 - **Auto-discovery**: Find `objects.inv` from base documentation URLs
@@ -49,22 +60,23 @@
 - **Batch operations**: Process multiple inventories efficiently
 
 ### Custom Data Sources
-- **GitHub API integration**: Extract from repository documentation
-- **ReadTheDocs API**: Direct API access beyond objects.inv
-- **Custom inventory formats**: Support non-Sphinx documentation
-- **API specification parsing**: OpenAPI, AsyncAPI inventory extraction
+- [ ] **Multiple Sphinx themes**: Support themes beyond Furo (alabaster, rtd, etc.)
+- [ ] **GitHub API integration**: Extract from repository documentation
+- [ ] **ReadTheDocs API**: Direct API access beyond objects.inv
+- [ ] **Custom inventory formats**: Support non-Sphinx documentation
+- [ ] **API specification parsing**: OpenAPI, AsyncAPI inventory extraction
 
 ## Next Phase Enhancements
 
 ### Sphinx Search Box Emulation
+- [x] **HTML content extraction**: Use BeautifulSoup to extract object documentation ✅
 - [ ] **JavaScript search analysis**: Reverse-engineer Sphinx search.js functionality
-- [ ] **HTML content extraction**: Use BeautifulSoup/Scrapy to extract object documentation
 - [ ] **Site mapping**: Build complete site maps from Sphinx documentation
 - [ ] **Full-text search**: Index and search complete documentation content beyond just objects.inv
 - [ ] **Search suggestion**: Provide auto-complete and search suggestions
 
 ### Object Detail and Relationships
-- [ ] **Object detail retrieval**: Get full documentation for specific objects by name/path
+- [x] **Object detail retrieval**: Get full documentation for specific objects by name/path ✅
 - [ ] **Relationship mapping**: Show inheritance hierarchies and cross-references between objects
 - [ ] **Cross-reference validation**: Verify that object links are valid and accessible
 

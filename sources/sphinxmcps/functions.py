@@ -94,9 +94,13 @@ async def extract_documentation(
     if not found_object:
         return { 'error': f"Object '{object_name}' not found in inventory" }
     base_url = _extract_base_url( source )
-    doc_url = _build_documentation_url( base_url, found_object.uri )
+    doc_url = _build_documentation_url( 
+        base_url, found_object.uri, object_name )
     html_content = await _fetch_html_content( doc_url )
-    parsed_content = _parse_documentation_html( html_content, object_name )
+    # Extract the anchor from the URL to find the element
+    url_parts = _urlparse.urlparse( doc_url )
+    anchor = url_parts.fragment or object_name
+    parsed_content = _parse_documentation_html( html_content, anchor )
     if 'error' in parsed_content: return parsed_content
     result = {
         'object_name': object_name,
@@ -218,15 +222,17 @@ def summarize_inventory( # noqa: PLR0913
 
 
 def _build_documentation_url(
-    base_url: str, object_uri: str
+    base_url: str, object_uri: str, object_name: str
 ) -> __.typx.Annotated[
     str, __.ddoc.Doc( ''' Full URL to documentation page for object. ''' )
 ]:
     ''' Constructs documentation URL from base URL and object URI. '''
     # Object URI format: "filename.html#anchor"
     # Example: "api.html#sphinxmcps.exceptions.InventoryFilterInvalidity"
+    # Replace $ placeholder with actual object name
+    uri_with_name = object_uri.replace( '$', object_name )
     return "{base_url}/{object_uri}".format(
-        base_url = base_url.rstrip( '/' ), object_uri = object_uri )
+        base_url = base_url.rstrip( '/' ), object_uri = uri_with_name )
 
 
 def _collect_matching_objects(
@@ -280,7 +286,7 @@ def _extract_inventory( source: SourceArgument ) -> __.typx.Annotated[
     nomargs: __.NominativeArguments = { }
     match url.scheme:
         case 'http' | 'https': nomargs[ 'url' ] = url_s
-        case 'file' | '': nomargs[ 'fname_zlib' ] = url_s
+        case 'file': nomargs[ 'fname_zlib' ] = url.path
         case _:
             raise _exceptions.InventoryUrlNoSupport(
                 url, component = 'scheme', value = url.scheme )
@@ -396,14 +402,33 @@ def _extract_base_url( source: SourceArgument ) -> __.typx.Annotated[
 async def _fetch_html_content( url: str ) -> __.typx.Annotated[
     str, __.ddoc.Doc( ''' HTML content from documentation URL. ''' )
 ]:
-    ''' Fetches HTML content from documentation URL. '''
-    try:
-        async with _httpx.AsyncClient( timeout = 30.0 ) as client:
-            response = await client.get( url )
-            response.raise_for_status( )
-            return response.text
-    except Exception as exc:
-        raise _exceptions.DocumentationInaccessibility( url, exc ) from exc
+    ''' Fetches HTML content from documentation URL or local file. '''
+    parsed_url = _urlparse.urlparse( url )
+    
+    match parsed_url.scheme:
+        case 'file':
+            # Read from local filesystem
+            try:
+                file_path = __.Path( parsed_url.path )
+                return file_path.read_text( encoding = 'utf-8' )
+            except Exception as exc:
+                raise _exceptions.DocumentationInaccessibility( 
+                    url, exc ) from exc
+        case 'http' | 'https':
+            # Fetch from web
+            try:
+                async with _httpx.AsyncClient( timeout = 30.0 ) as client:
+                    response = await client.get( url )
+                    response.raise_for_status( )
+                    return response.text
+            except Exception as exc:
+                raise _exceptions.DocumentationInaccessibility( 
+                    url, exc ) from exc
+        case _:
+            raise _exceptions.DocumentationInaccessibility(
+                url, ValueError( 
+                    f"Unsupported URL scheme: {parsed_url.scheme}" )
+            )
 
 
 def _html_to_markdown( html_text: str ) -> str:
@@ -451,12 +476,28 @@ def _normalize_inventory_source( source: SourceArgument ) -> __.typx.Annotated[
         ''' Parsed URL components with objects.inv appended if needed.
 
             Ensures the path component ends with 'objects.inv' filename.
+            Handles both URLs and local filesystem paths.
         ''' )
 ]:
     ''' Parses URL strings and appends objects.inv if needed. '''
     try: url = _urlparse.urlparse( source )
     except Exception as exc:
         raise _exceptions.InventoryUrlInvalidity( source ) from exc
+    
+    # Handle local filesystem paths by converting to file:// URLs
+    match url.scheme:
+        case '':
+            # No scheme means local filesystem path
+            path = __.Path( source ).resolve( )
+            if path.is_dir( ):
+                path = path / 'objects.inv'
+            url = _urlparse.urlparse( path.as_uri( ) )
+        case 'http' | 'https' | 'file':
+            # Already a proper URL
+            pass
+        case _:
+            raise _exceptions.InventoryUrlInvalidity( source )
+    
     filename = 'objects.inv'
     if url.path.endswith( filename ): return url
     return _urlparse.ParseResult(
@@ -467,7 +508,7 @@ def _normalize_inventory_source( source: SourceArgument ) -> __.typx.Annotated[
 
 def _parse_documentation_html(
     html_content: str,
-    object_name: str
+    element_id: str
 ) -> __.typx.Annotated[
     __.cabc.Mapping[ str, str ],
     __.ddoc.Doc( ''' Parsed documentation sections. ''' )
@@ -476,35 +517,41 @@ def _parse_documentation_html(
     try: soup = _BeautifulSoup( html_content, 'lxml' )
     except Exception as exc:
         raise _exceptions.DocumentationParseFailure(
-            object_name, exc ) from exc
+            element_id, exc ) from exc
     main_content = soup.find( 'article', { 'role': 'main' } )
     if not main_content:
-        raise _exceptions.DocumentationContentAbsence( object_name )
+        raise _exceptions.DocumentationContentAbsence( element_id )
     # Find the object definition by ID
-    object_element = main_content.find( id = object_name )
+    object_element = main_content.find( id = element_id )
     if not object_element:
-        return { 'error': f"Object '{object_name}' not found in page" }
-    # Extract signature from <dt> element
-    signature_element = object_element
-    if signature_element.name != 'dt':
-        signature_element = object_element.find_parent( 'dt' )
-    signature = (
-        signature_element.get_text( strip = True )
-        if signature_element else '' )
-    # Extract description from following <dd> element
-    description_element = (
-        signature_element.find_next_sibling( 'dd' )
-        if signature_element else None
-    )
-    if description_element:
-        # Remove header links and other navigation elements
-        for header_link in description_element.find_all(
-            'a', class_ = 'headerlink'
-        ): header_link.decompose( )
-        description = description_element.get_text( strip = True )
-    else: description = ''
+        return { 'error': f"Object '{element_id}' not found in page" }
+    # Extract signature and description based on element type
+    if object_element.name == 'dt':
+        # Function/class definition
+        signature = object_element.get_text( strip = True )
+        description_element = object_element.find_next_sibling( 'dd' )
+        if description_element:
+            # Remove header links and other navigation elements
+            for header_link in description_element.find_all(
+                'a', class_ = 'headerlink'
+            ): header_link.decompose( )
+            description = description_element.get_text( strip = True )
+        else: description = ''
+    elif object_element.name == 'section':
+        # Module/package section
+        header = object_element.find( [ 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' ] )
+        signature = header.get_text( strip = True ) if header else ''
+        # Find the first paragraph after the header
+        description_element = object_element.find( 'p' )
+        if description_element:
+            description = description_element.get_text( strip = True )
+        else: description = ''
+    else:
+        # Generic element
+        signature = object_element.get_text( strip = True )
+        description = ''
     return {
         'signature': signature,
         'description': description,
-        'object_name': object_name,
+        'object_name': element_id,
     }
