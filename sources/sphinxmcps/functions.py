@@ -78,6 +78,37 @@ SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
 ]
 
 
+async def extract_documentation(
+    source: SourceArgument,
+    object_name: str, /, *,
+    include_sections: SectionFilter = __.absent,
+    output_format: DocumentationFormat = 'markdown'
+) -> DocumentationResult:
+    ''' Extracts documentation for a specific object from Sphinx docs. '''
+    inventory = _extract_inventory( source )
+    found_object = None
+    for objct in inventory.objects:
+        if objct.name == object_name:
+            found_object = objct
+            break
+    if not found_object:
+        return { 'error': f"Object '{object_name}' not found in inventory" }
+    base_url = _extract_base_url( source )
+    doc_url = _build_documentation_url( base_url, found_object.uri )
+    html_content = await _fetch_html_content( doc_url )
+    parsed_content = _parse_documentation_html( html_content, object_name )
+    if 'error' in parsed_content: return parsed_content
+    result = {
+        'object_name': object_name,
+        'url': doc_url,
+        'signature': parsed_content[ 'signature' ],
+        'description': parsed_content[ 'description' ],
+    }
+    if output_format == 'markdown':
+        result[ 'description' ] = _html_to_markdown( result[ 'description' ] )
+    return result
+
+
 def extract_inventory( # noqa: PLR0913
     source: SourceArgument, /, *,
     domain: DomainFilter = __.absent,
@@ -101,13 +132,11 @@ def extract_inventory( # noqa: PLR0913
         _filter_inventory(
             inventory,
             domain = domain, role = role, term = term, priority = priority,
-            match_mode = match_mode, fuzzy_threshold = fuzzy_threshold
-        )
+            match_mode = match_mode, fuzzy_threshold = fuzzy_threshold )
     )
     domains_summary: dict[ str, int ] = {
         domain_name: len( objs )
-        for domain_name, objs in objects.items( )
-    }
+        for domain_name, objs in objects.items( ) }
     result: dict[ str, __.typx.Any ] = {
         'project': inventory.project,
         'version': inventory.version,
@@ -131,38 +160,6 @@ def extract_inventory( # noqa: PLR0913
             result[ 'filters' ][ 'match_mode' ] = match_mode.value
             if match_mode == MatchMode.Fuzzy:
                 result[ 'filters' ][ 'fuzzy_threshold' ] = fuzzy_threshold
-    return result
-
-
-async def extract_object_documentation(
-    source: SourceArgument,
-    object_name: str, /, *,
-    include_sections: SectionFilter = __.absent,
-    output_format: DocumentationFormat = 'markdown'
-) -> DocumentationResult:
-    ''' Extracts documentation for a specific object from Sphinx docs. '''
-    inventory = _extract_inventory( source )
-    found_object = None
-    for objct in inventory.objects:
-        if objct.name == object_name:
-            found_object = objct
-            break
-    if not found_object:
-        return { 'error': f"Object '{object_name}' not found in inventory" }
-    base_url = _extract_base_url( source )
-    doc_url = _build_documentation_url( base_url, found_object.uri )
-    html_content = await _fetch_html_content( doc_url )
-    parsed_content = _parse_documentation_html( html_content, object_name )
-    if 'error' in parsed_content:
-        return parsed_content
-    result = {
-        'object_name': object_name,
-        'url': doc_url,
-        'signature': parsed_content[ 'signature' ],
-        'description': parsed_content[ 'description' ],
-    }
-    if output_format == 'markdown':
-        result[ 'description' ] = _html_to_markdown( result[ 'description' ] )
     return result
 
 
@@ -413,26 +410,26 @@ def _html_to_markdown( html_text: str ) -> str:
     ''' Converts HTML text to clean markdown format. '''
     if not html_text.strip( ):
         return ''
-    
+
     try:
         soup = _BeautifulSoup( html_text, 'lxml' )
     except Exception:
         # Fallback to plain text if parsing fails
         return html_text
-    
+
     # Convert common tags to markdown using replace_with
     for code in soup.find_all( 'code' ):  # type: ignore[attr-defined]
         code.replace_with( f"`{code.get_text( )}`" )  # type: ignore[arg-type]
-    
+
     for pre in soup.find_all( 'pre' ):  # type: ignore[attr-defined]
         pre.replace_with( f"```\n{pre.get_text( )}\n```" )  # type: ignore[arg-type]
-    
+
     for strong in soup.find_all( 'strong' ):  # type: ignore[attr-defined]
         strong.replace_with( f"**{strong.get_text( )}**" )  # type: ignore[arg-type]
-    
+
     for em in soup.find_all( 'em' ):  # type: ignore[attr-defined]
         em.replace_with( f"*{em.get_text( )}*" )  # type: ignore[arg-type]
-    
+
     for link in soup.find_all( 'a' ):  # type: ignore[attr-defined]
         href = link.get( 'href', '' )  # type: ignore[attr-defined]
         text = link.get_text( )
@@ -440,7 +437,7 @@ def _html_to_markdown( html_text: str ) -> str:
             link.replace_with( f"[{text}]({href})" )  # type: ignore[arg-type]
         else:
             link.replace_with( text )  # type: ignore[arg-type]
-    
+
     # Get clean text and normalize whitespace
     text = soup.get_text( )
     text = __.re.sub( r'\n\s*\n', '\n\n', text )
@@ -476,30 +473,24 @@ def _parse_documentation_html(
     __.ddoc.Doc( ''' Parsed documentation sections. ''' )
 ]:
     ''' Parses HTML content to extract documentation sections. '''
-    try:
-        soup = _BeautifulSoup( html_content, 'lxml' )
+    try: soup = _BeautifulSoup( html_content, 'lxml' )
     except Exception as exc:
         raise _exceptions.DocumentationParseFailure(
             object_name, exc ) from exc
-    
     main_content = soup.find( 'article', { 'role': 'main' } )
     if not main_content:
-        raise _exceptions.DocumentationContentMissing( object_name )
-    
+        raise _exceptions.DocumentationContentAbsence( object_name )
     # Find the object definition by ID
     object_element = main_content.find( id = object_name )  # type: ignore[attr-defined]
     if not object_element:
         return { 'error': f"Object '{object_name}' not found in page" }
-    
     # Extract signature from <dt> element
     signature_element = object_element  # type: ignore[assignment]
     if signature_element.name != 'dt':  # type: ignore[attr-defined]
         signature_element = object_element.find_parent( 'dt' )  # type: ignore[attr-defined]
-    
     signature = (  # type: ignore[assignment]
         signature_element.get_text( strip = True )  # type: ignore[attr-defined]
         if signature_element else '' )
-    
     # Extract description from following <dd> element
     description_element = (  # type: ignore[assignment]
         signature_element.find_next_sibling( 'dd' )  # type: ignore[attr-defined]
@@ -512,7 +503,6 @@ def _parse_documentation_html(
         ): header_link.decompose( )  # type: ignore[attr-defined]
         description = description_element.get_text( strip = True )  # type: ignore[attr-defined]
     else: description = ''
-    
     return {  # type: ignore[return-value]
         'signature': signature,
         'description': description,

@@ -38,6 +38,15 @@ class Omnierror( Omniexception, Exception ):
     ''' Base for error exceptions raised by package API. '''
 
 
+class DocumentationContentAbsence( Omnierror, ValueError ):
+    ''' Documentation main content container not found. '''
+
+    def __init__( self, url: str ):
+        message = f"No main content found in documentation at '{url}'."
+        self.url = url
+        super( ).__init__( message )
+
+
 class DocumentationInaccessibility( Omnierror, RuntimeError ):
     ''' Documentation file or resource absent or inaccessible. '''
 
@@ -52,15 +61,6 @@ class DocumentationParseFailure( Omnierror, ValueError ):
 
     def __init__( self, url: str, cause: Exception ):
         message = f"Cannot parse documentation at '{url}'. Cause: {cause}"
-        self.url = url
-        super( ).__init__( message )
-
-
-class DocumentationContentMissing( Omnierror, ValueError ):
-    ''' Documentation main content container not found. '''
-
-    def __init__( self, url: str ):
-        message = f"No main content found in documentation at '{url}'"
         self.url = url
         super( ).__init__( message )
 

@@ -56,15 +56,13 @@ async def extract_documentation(
     ''' Extract documentation for a specific object from Sphinx docs. '''
     _scribe.debug(
         "extract_documentation called: source=%s, object_name=%s, format=%s",
-        source, object_name, output_format
+        source, object_name, output_format )
+    format_arg = (
+        output_format if output_format in ( 'markdown', 'text' )
+        else 'markdown'
     )
     try:
-        # Ensure output_format is a valid DocumentationFormat
-        format_arg = (
-            output_format if output_format in ( 'markdown', 'text' ) 
-            else 'markdown'
-        )
-        return await _functions.extract_object_documentation(
+        return await _functions.extract_documentation(
             source, object_name, output_format = format_arg )
     except Exception as exc:
         _scribe.error( "Error extracting documentation: %s", exc )
@@ -103,7 +101,7 @@ def extract_inventory( # noqa: PLR0913
         )
     ] = '',
     match_mode: __.typx.Annotated[
-        str,
+        str, # TODO: Use enum instead of string.
         _Field(
             description = "Term matching mode: 'exact', 'regex', or 'fuzzy'"
         )
@@ -115,35 +113,17 @@ def extract_inventory( # noqa: PLR0913
         )
     ] = 50,
 ) -> dict[ str, __.typx.Any ]:
-    ''' Extracts Sphinx inventory from URL or file path with optional
-    filtering.
-
-        Args:
-            source: URL or file path to Sphinx documentation
-                    (objects.inv auto-appended)
-            domain: Filter objects by domain (e.g., 'py', 'std')
-            role: Filter objects by role (e.g., 'function', 'class', 'method')
-            term: Filter objects by name containing this text
-                    (case-insensitive unless match_mode='regex')
-            match_mode: Term matching mode ('exact', 'regex', or 'fuzzy')
-            fuzzy_threshold: Fuzzy matching threshold (0-100, higher stricter)
-    '''
+    ''' Extracts Sphinx inventory from location with optional filtering. '''
     _scribe.debug(
         "extract_inventory called: source=%s, domain=%s, role=%s, term=%s, "
         "priority=%s, match_mode=%s, fuzzy_threshold=%s",
-        source, domain, role, term, priority, match_mode, fuzzy_threshold
-    )
+        source, domain, role, term, priority, match_mode, fuzzy_threshold )
     _scribe.debug( "Processing extract_inventory request with RELOADEROO!" )
     nomargs: __.NominativeArguments = { }
-    if domain:
-        nomargs[ 'domain' ] = domain
-    if role:
-        nomargs[ 'role' ] = role
-    if term:
-        nomargs[ 'term' ] = term
-    if priority:
-        nomargs[ 'priority' ] = priority
-    # Convert string match_mode to enum
+    if domain: nomargs[ 'domain' ] = domain
+    if role: nomargs[ 'role' ] = role
+    if term: nomargs[ 'term' ] = term
+    if priority: nomargs[ 'priority' ] = priority
     if match_mode == 'fuzzy':
         nomargs[ 'match_mode' ] = _functions.MatchMode.Fuzzy
         nomargs[ 'fuzzy_threshold' ] = fuzzy_threshold
@@ -186,7 +166,7 @@ def summarize_inventory( # noqa: PLR0913
         )
     ] = '',
     match_mode: __.typx.Annotated[
-        str,
+        str, # Use enum instead of string.
         _Field(
             description = "Term matching mode: 'exact', 'regex', or 'fuzzy'"
         )
@@ -198,33 +178,16 @@ def summarize_inventory( # noqa: PLR0913
         )
     ] = 50,
 ) -> str:
-    ''' Provides human-readable summary of Sphinx inventory.
-
-        Args:
-            source: URL or file path to Sphinx documentation
-                    (objects.inv auto-appended)
-            domain: Filter objects by domain (e.g., 'py', 'std')
-            role: Filter objects by role (e.g., 'function', 'class', 'method')
-            term: Filter objects by name containing this text
-                    (case-insensitive unless match_mode='regex')
-            match_mode: Term matching mode ('exact', 'regex', or 'fuzzy')
-            fuzzy_threshold: Fuzzy matching threshold (0-100, higher stricter)
-    '''
+    ''' Provides human-readable summary of Sphinx inventory. '''
     _scribe.debug(
         "summarize_inventory called: source=%s, domain=%s, role=%s, term=%s, "
         "priority=%s, match_mode=%s, fuzzy_threshold=%s",
-        source, domain, role, term, priority, match_mode, fuzzy_threshold
-    )
+        source, domain, role, term, priority, match_mode, fuzzy_threshold )
     nomargs: __.NominativeArguments = { }
-    if domain:
-        nomargs[ 'domain' ] = domain
-    if role:
-        nomargs[ 'role' ] = role
-    if term:
-        nomargs[ 'term' ] = term
-    if priority:
-        nomargs[ 'priority' ] = priority
-    # Convert string match_mode to enum
+    if domain: nomargs[ 'domain' ] = domain
+    if role: nomargs[ 'role' ] = role
+    if term: nomargs[ 'term' ] = term
+    if priority: nomargs[ 'priority' ] = priority
     if match_mode == 'fuzzy':
         nomargs[ 'match_mode' ] = _functions.MatchMode.Fuzzy
         nomargs[ 'fuzzy_threshold' ] = fuzzy_threshold
