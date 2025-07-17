@@ -23,7 +23,9 @@
 
 import urllib.parse as _urlparse
 
+import httpx as _httpx
 import sphobjinv as _sphobjinv
+from bs4 import BeautifulSoup as _BeautifulSoup
 
 from . import __
 from . import exceptions as _exceptions
@@ -70,6 +72,16 @@ FuzzyThreshold: __.typx.TypeAlias = __.typx.Annotated[
     int,
     __.ddoc.Doc( ''' Fuzzy matching threshold (0-100, higher = stricter). ''' )
 ]
+
+
+# Documentation extraction type aliases
+DocumentationFormat: __.typx.TypeAlias = __.typx.Literal[ 'markdown', 'text' ]
+SectionFilter: __.typx.TypeAlias = __.typx.Annotated[
+    __.Absential[ list[ str ] ],
+    __.ddoc.Doc( ''' Sections to include (signature, description). ''' )
+]
+DocumentationResult: __.typx.TypeAlias = __.cabc.Mapping[ str, __.typx.Any ]
+SearchResult: __.typx.TypeAlias = __.cabc.Mapping[ str, __.typx.Any ]
 
 
 def extract_inventory( # noqa: PLR0913
@@ -359,3 +371,178 @@ def _normalize_inventory_source( source: SourceArgument ) -> __.typx.Annotated[
         scheme = url.scheme, netloc = url.netloc,
         path = f"{url.path}/{filename}",
         params = url.params, query = url.query, fragment = url.fragment )
+
+
+def _extract_base_url( source: SourceArgument ) -> __.typx.Annotated[
+    str,
+    __.ddoc.Doc( ''' Base URL for documentation from inventory source. ''' )
+]:
+    ''' Extracts base documentation URL from inventory source. '''
+    url = _normalize_inventory_source( source )
+    # Remove objects.inv from path to get base documentation URL
+    path = url.path.rstrip( '/objects.inv' )
+    if not path.endswith( '/' ): path += '/'
+    return _urlparse.urlunparse(
+        _urlparse.ParseResult(
+            scheme = url.scheme, netloc = url.netloc, path = path,
+            params = '', query = '', fragment = '' ) )
+
+
+def _build_documentation_url(
+    base_url: str,
+    object_uri: str
+) -> __.typx.Annotated[
+    str,
+    __.ddoc.Doc( ''' Full URL to documentation page for object. ''' )
+]:
+    ''' Constructs documentation URL from base URL and object URI. '''
+    # Object URI format: "filename.html#anchor"
+    # Example: "api.html#sphinxmcps.exceptions.InventoryFilterInvalidity"
+    return f"{base_url.rstrip( '/' )}/{object_uri}"
+
+
+async def _fetch_html_content( url: str ) -> __.typx.Annotated[
+    str,
+    __.ddoc.Doc( ''' HTML content from documentation URL. ''' )
+]:
+    ''' Fetches HTML content from documentation URL. '''
+    try:
+        async with _httpx.AsyncClient( timeout = 30.0 ) as client:
+            response = await client.get( url )
+            response.raise_for_status( )
+            return response.text
+    except Exception as exc:
+        raise _exceptions.DocumentationInaccessibility( url, exc ) from exc
+
+
+def _parse_documentation_html(
+    html_content: str,
+    object_name: str
+) -> __.typx.Annotated[
+    __.cabc.Mapping[ str, str ],
+    __.ddoc.Doc( ''' Parsed documentation sections. ''' )
+]:
+    ''' Parses HTML content to extract documentation sections. '''
+    
+    def _check_main_content( soup ):
+        ''' Helper to check main content exists. '''
+        main_content = soup.find( 'article', { 'role': 'main' } )
+        if not main_content:
+            raise ValueError( "No content" )  # noqa: TRY003
+        return main_content
+    
+    try:
+        soup = _BeautifulSoup( html_content, 'lxml' )
+        main_content = _check_main_content( soup )
+        
+        # Find the object definition by ID
+        object_element = main_content.find( id = object_name )
+        if not object_element:
+            return { 'error': f"Object '{object_name}' not found in page" }
+        
+        # Extract signature from <dt> element
+        signature_element = object_element
+        if signature_element.name != 'dt':
+            signature_element = object_element.find_parent( 'dt' )
+        
+        signature = (
+            signature_element.get_text( strip = True ) 
+            if signature_element else ''
+        )
+        
+        # Extract description from following <dd> element
+        description_element = (
+            signature_element.find_next_sibling( 'dd' ) 
+            if signature_element else None
+        )
+        if description_element:
+            # Remove header links and other navigation elements
+            for header_link in description_element.find_all( 
+                'a', class_ = 'headerlink' 
+            ):
+                header_link.decompose( )
+            description = description_element.get_text( strip = True )
+        else:
+            description = ''
+        
+        return {  # noqa: TRY300
+            'signature': signature,
+            'description': description,
+            'object_name': object_name,
+        }
+    
+    except Exception as exc:
+        raise _exceptions.DocumentationParsingError( 
+            object_name, exc 
+        ) from exc
+
+
+def _html_to_markdown( html_text: str ) -> str:
+    ''' Converts HTML text to clean markdown format. '''
+    # Simple HTML to markdown conversion
+    # Remove common HTML tags and convert to markdown-like format
+    import re as _re
+    
+    # Convert common tags
+    text = _re.sub( r'<code[^>]*>(.*?)</code>', r'`\1`', html_text )
+    text = _re.sub( 
+        r'<pre[^>]*>(.*?)</pre>', r'```\n\1\n```', text, flags = _re.DOTALL 
+    )
+    text = _re.sub( r'<strong[^>]*>(.*?)</strong>', r'**\1**', text )
+    text = _re.sub( r'<em[^>]*>(.*?)</em>', r'*\1*', text )
+    text = _re.sub( 
+        r'<a[^>]*href="([^"]*)"[^>]*>(.*?)</a>', r'[\2](\1)', text 
+    )
+    
+    # Remove remaining HTML tags
+    text = _re.sub( r'<[^>]+>', '', text )
+    
+    # Clean up whitespace
+    text = _re.sub( r'\n\s*\n', '\n\n', text )
+    text = _re.sub( r'^\s+|\s+$', '', text, flags = _re.MULTILINE )
+    
+    return text.strip( )
+
+
+async def extract_object_documentation(
+    source: SourceArgument,
+    object_name: str, /, *,
+    include_sections: SectionFilter = __.absent,
+    output_format: DocumentationFormat = 'markdown'
+) -> DocumentationResult:
+    ''' Extracts documentation for a specific object from Sphinx docs. '''
+    # Get inventory and find the object
+    inventory = _extract_inventory( source )
+    found_object = None
+    
+    for objct in inventory.objects:
+        if objct.name == object_name:
+            found_object = objct
+            break
+    
+    if not found_object:
+        return { 'error': f"Object '{object_name}' not found in inventory" }
+    
+    # Construct documentation URL
+    base_url = _extract_base_url( source )
+    doc_url = _build_documentation_url( base_url, found_object.uri )
+    
+    # Fetch and parse HTML content
+    html_content = await _fetch_html_content( doc_url )
+    parsed_content = _parse_documentation_html( html_content, object_name )
+    
+    if 'error' in parsed_content:
+        return parsed_content
+    
+    # Format output based on requested format
+    result = {
+        'object_name': object_name,
+        'url': doc_url,
+        'signature': parsed_content[ 'signature' ],
+        'description': parsed_content[ 'description' ],
+    }
+    
+    if output_format == 'markdown':
+        result[ 'description' ] = _html_to_markdown( result[ 'description' ] )
+    
+    return result

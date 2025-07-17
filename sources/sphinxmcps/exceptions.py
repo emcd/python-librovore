@@ -87,3 +87,21 @@ class InventoryUrlNoSupport( Omnierror, NotImplementedError ):
             else f"{message_c} with value '{value}' {message_i}" )
         self.url = url
         super( ).__init__( message )
+
+
+class DocumentationInaccessibility( Omnierror, RuntimeError ):
+    ''' Documentation file or resource absent or inaccessible. '''
+
+    def __init__( self, url: str, cause: Exception ):
+        message = f"Documentation at '{url}' is inaccessible. Cause: {cause}"
+        self.url = url
+        super( ).__init__( message )
+
+
+class DocumentationParsingError( Omnierror, ValueError ):
+    ''' Documentation HTML parsing failed or content malformed. '''
+
+    def __init__( self, url: str, cause: Exception ):
+        message = f"Documentation at '{url}' parsing failed. Cause: {cause}"
+        self.url = url
+        super( ).__init__( message )

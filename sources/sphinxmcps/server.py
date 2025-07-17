@@ -201,6 +201,47 @@ def summarize_inventory( # noqa: PLR0913
     return _functions.summarize_inventory( source, **nomargs )
 
 
+async def extract_documentation(
+    source: __.typx.Annotated[
+        str,
+        _Field(
+            description = "URL or file path to Sphinx documentation"
+        )
+    ],
+    object_name: __.typx.Annotated[
+        str,
+        _Field(
+            description = "Name of the object to extract documentation for"
+        )
+    ],
+    output_format: __.typx.Annotated[
+        str,
+        _Field(
+            description = "Output format: 'markdown' or 'text'"
+        )
+    ] = 'markdown',
+) -> __.cabc.Mapping[ str, __.typx.Any ]:
+    ''' Extract documentation for a specific object from Sphinx docs.
+    
+        Args:
+            source: URL or file path to Sphinx documentation
+            object_name: Name of the object to extract (e.g., 'module.Class')
+            output_format: Output format ('markdown' or 'text')
+    '''
+    _scribe.debug(
+        "extract_documentation called: source=%s, object_name=%s, format=%s",
+        source, object_name, output_format
+    )
+    
+    try:
+        return await _functions.extract_object_documentation(
+            source, object_name, output_format = output_format
+        )
+    except Exception as exc:
+        _scribe.error( "Error extracting documentation: %s", exc )
+        return { 'error': str( exc ) }
+
+
 async def serve(
     auxdata: __.Globals, /, *,
     port: int = 0,
@@ -213,6 +254,8 @@ async def serve(
     mcp.tool( )( extract_inventory )
     _scribe.debug( "Registering summarize_inventory tool" )
     mcp.tool( )( summarize_inventory )
+    _scribe.debug( "Registering extract_documentation tool" )
+    mcp.tool( )( extract_documentation )
     _scribe.debug( "Tools registered successfully" )
     match transport:
         case 'sse': await mcp.run_sse_async( mount_path = None )
