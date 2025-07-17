@@ -308,3 +308,209 @@ def test_430_summarize_inventory_with_priority( ):
     result = module.summarize_inventory( inventory_path, priority = '1')
     assert 'priority=1' in result
     assert 'Filters:' in result
+
+
+@pytest.mark.asyncio
+async def test_500_query_documentation_basic( ):
+    ''' Query documentation returns relevant results for basic queries. '''
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    results = await module.query_documentation( inventory_path, 'inventory' )
+    assert isinstance( results, list )
+    for result in results:
+        assert 'object_name' in result
+        assert 'object_type' in result
+        assert 'relevance_score' in result
+        assert 'url' in result
+        assert 'signature' in result
+        assert 'description' in result
+
+
+@pytest.mark.asyncio
+async def test_510_query_documentation_with_domain_filter( ):
+    ''' Query documentation applies domain filtering correctly. '''
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    results = await module.query_documentation(
+        inventory_path, 'inventory', domain = 'py' )
+    assert isinstance( results, list )
+    for result in results:
+        assert result[ 'domain' ] == 'py'
+
+
+@pytest.mark.asyncio
+async def test_520_query_documentation_with_role_filter( ):
+    ''' Query documentation applies role filtering correctly. '''
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    results = await module.query_documentation(
+        inventory_path, 'inventory', role = 'function' )
+    assert isinstance( results, list )
+    for result in results:
+        assert result[ 'object_type' ] == 'function'
+
+
+@pytest.mark.asyncio
+async def test_530_query_documentation_with_priority_filter( ):
+    ''' Query documentation applies priority filtering correctly. '''
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    results = await module.query_documentation(
+        inventory_path, 'inventory', priority = '1' )
+    assert isinstance( results, list )
+    for result in results:
+        assert result[ 'priority' ] == '1'
+
+
+@pytest.mark.asyncio
+async def test_540_query_documentation_with_exact_match( ):
+    ''' Query documentation uses exact matching when specified. '''
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    results = await module.query_documentation(
+        inventory_path, 'inventory',
+        match_mode = _interfaces.MatchMode.Exact )
+    assert isinstance( results, list )
+    for result in results:
+        assert 'inventory' in result[ 'object_name' ].lower( )
+
+
+@pytest.mark.asyncio
+async def test_550_query_documentation_with_regex_match( ):
+    ''' Query documentation uses regex matching when specified. '''
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    results = await module.query_documentation(
+        inventory_path, r'.*inventory.*',
+        match_mode = _interfaces.MatchMode.Regex )
+    assert isinstance( results, list )
+    for result in results:
+        assert 'inventory' in result[ 'object_name' ].lower( )
+
+
+@pytest.mark.asyncio
+async def test_560_query_documentation_with_fuzzy_match( ):
+    ''' Query documentation uses fuzzy matching when specified. '''
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    results = await module.query_documentation(
+        inventory_path, 'inventori',
+        match_mode = _interfaces.MatchMode.Fuzzy,
+        fuzzy_threshold = 60 )
+    assert isinstance( results, list )
+    for result in results:
+        assert 'inventory' in result[ 'object_name' ].lower( )
+
+
+@pytest.mark.asyncio
+async def test_570_query_documentation_with_max_results( ):
+    ''' Query documentation respects max_results parameter. '''
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    results = await module.query_documentation(
+        inventory_path, 'inventory', max_results = 3 )
+    assert isinstance( results, list )
+    assert len( results ) <= 3
+
+
+@pytest.mark.asyncio
+async def test_580_query_documentation_with_snippets_disabled( ):
+    ''' Query documentation excludes snippets when disabled. '''
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    results = await module.query_documentation(
+        inventory_path, 'inventory', include_snippets = False )
+    assert isinstance( results, list )
+    for result in results:
+        assert result[ 'content_snippet' ] == ''
+
+
+@pytest.mark.asyncio
+async def test_590_query_documentation_with_snippets_enabled( ):
+    ''' Query documentation includes snippets when enabled. '''
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    results = await module.query_documentation(
+        inventory_path, 'inventory', include_snippets = True )
+    assert isinstance( results, list )
+    for result in results:
+        assert 'content_snippet' in result
+
+
+@pytest.mark.asyncio
+async def test_600_query_documentation_relevance_ranking( ):
+    ''' Query documentation returns results sorted by relevance. '''
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    results = await module.query_documentation(
+        inventory_path, 'inventory', max_results = 5 )
+    assert isinstance( results, list )
+    if len( results ) > 1:
+        prev_score = results[ 0 ][ 'relevance_score' ]
+        for result in results[ 1: ]:
+            assert result[ 'relevance_score' ] <= prev_score
+            prev_score = result[ 'relevance_score' ]
+
+
+@pytest.mark.asyncio
+async def test_610_query_documentation_combined_filters( ):
+    ''' Query documentation applies multiple filters correctly. '''
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    results = await module.query_documentation(
+        inventory_path, 'inventory',
+        domain = 'py',
+        role = 'function',
+        priority = '1',
+        match_mode = _interfaces.MatchMode.Fuzzy,
+        fuzzy_threshold = 70 )
+    assert isinstance( results, list )
+    for result in results:
+        assert result[ 'domain' ] == 'py'
+        assert result[ 'object_type' ] == 'function'
+        assert result[ 'priority' ] == '1'
+
+
+@pytest.mark.asyncio
+async def test_620_query_documentation_empty_query( ):
+    ''' Query documentation handles empty query gracefully. '''
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    results = await module.query_documentation( inventory_path, '' )
+    assert isinstance( results, list )
+
+
+@pytest.mark.asyncio
+async def test_630_query_documentation_no_matches( ):
+    ''' Query documentation returns empty list when no matches found. '''
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    results = await module.query_documentation(
+        inventory_path, 'nonexistent_term_xyz123' )
+    assert isinstance( results, list )
+    assert len( results ) == 0
+
+
+@pytest.mark.asyncio
+async def test_640_query_documentation_nonexistent_file( ):
+    ''' Query documentation handles nonexistent files gracefully. '''
+    with pytest.raises( _exceptions.InventoryInaccessibility ):
+        await module.query_documentation(
+            '/nonexistent/path.inv', 'inventory' )
+
+
+@pytest.mark.asyncio
+async def test_650_query_documentation_match_reasons( ):
+    ''' Query documentation includes match reasons in results. '''
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    results = await module.query_documentation(
+        inventory_path, 'inventory', max_results = 1 )
+    assert isinstance( results, list )
+    for result in results:
+        assert 'match_reasons' in result
+        assert isinstance( result[ 'match_reasons' ], list )
+
+
+@pytest.mark.asyncio
+async def test_660_query_documentation_result_structure( ):
+    ''' Query documentation returns properly structured results. '''
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    results = await module.query_documentation(
+        inventory_path, 'inventory', max_results = 1 )
+    assert isinstance( results, list )
+    if results:
+        result = results[ 0 ]
+        required_keys = {
+            'object_name', 'object_type', 'domain', 'priority',
+            'url', 'signature', 'description', 'content_snippet',
+            'relevance_score', 'match_reasons'
+        }
+        assert all( key in result for key in required_keys )
+        assert isinstance( result[ 'relevance_score' ], float )
+        assert isinstance( result[ 'match_reasons' ], list )
