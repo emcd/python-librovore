@@ -33,6 +33,39 @@ from . import functions as _functions
 _scribe = __.acquire_scribe( __name__ )
 
 
+async def extract_documentation(
+    source: __.typx.Annotated[
+        str,
+        _Field(
+            description = "URL or file path to Sphinx documentation"
+        )
+    ],
+    object_name: __.typx.Annotated[
+        str,
+        _Field(
+            description = "Name of the object to extract documentation for"
+        )
+    ],
+    output_format: __.typx.Annotated[
+        str,
+        _Field(
+            description = "Output format: 'markdown' or 'text'"
+        )
+    ] = 'markdown',
+) -> __.cabc.Mapping[ str, __.typx.Any ]:
+    ''' Extract documentation for a specific object from Sphinx docs. '''
+    _scribe.debug(
+        "extract_documentation called: source=%s, object_name=%s, format=%s",
+        source, object_name, output_format
+    )
+    try:
+        return await _functions.extract_object_documentation(
+            source, object_name, output_format = output_format )
+    except Exception as exc:
+        _scribe.error( "Error extracting documentation: %s", exc )
+        return { 'error': str( exc ) }
+
+
 def extract_inventory( # noqa: PLR0913
     source: __.typx.Annotated[
         str,
@@ -105,7 +138,6 @@ def extract_inventory( # noqa: PLR0913
         nomargs[ 'term' ] = term
     if priority:
         nomargs[ 'priority' ] = priority
-
     # Convert string match_mode to enum
     if match_mode == 'fuzzy':
         nomargs[ 'match_mode' ] = _functions.MatchMode.Fuzzy
@@ -114,7 +146,6 @@ def extract_inventory( # noqa: PLR0913
         nomargs[ 'match_mode' ] = _functions.MatchMode.Regex
     else:  # 'exact' or any other value defaults to exact
         nomargs[ 'match_mode' ] = _functions.MatchMode.Exact
-
     return _functions.extract_inventory( source, **nomargs )
 
 
@@ -188,7 +219,6 @@ def summarize_inventory( # noqa: PLR0913
         nomargs[ 'term' ] = term
     if priority:
         nomargs[ 'priority' ] = priority
-
     # Convert string match_mode to enum
     if match_mode == 'fuzzy':
         nomargs[ 'match_mode' ] = _functions.MatchMode.Fuzzy
@@ -197,49 +227,7 @@ def summarize_inventory( # noqa: PLR0913
         nomargs[ 'match_mode' ] = _functions.MatchMode.Regex
     else:  # 'exact' or any other value defaults to exact
         nomargs[ 'match_mode' ] = _functions.MatchMode.Exact
-
     return _functions.summarize_inventory( source, **nomargs )
-
-
-async def extract_documentation(
-    source: __.typx.Annotated[
-        str,
-        _Field(
-            description = "URL or file path to Sphinx documentation"
-        )
-    ],
-    object_name: __.typx.Annotated[
-        str,
-        _Field(
-            description = "Name of the object to extract documentation for"
-        )
-    ],
-    output_format: __.typx.Annotated[
-        str,
-        _Field(
-            description = "Output format: 'markdown' or 'text'"
-        )
-    ] = 'markdown',
-) -> __.cabc.Mapping[ str, __.typx.Any ]:
-    ''' Extract documentation for a specific object from Sphinx docs.
-    
-        Args:
-            source: URL or file path to Sphinx documentation
-            object_name: Name of the object to extract (e.g., 'module.Class')
-            output_format: Output format ('markdown' or 'text')
-    '''
-    _scribe.debug(
-        "extract_documentation called: source=%s, object_name=%s, format=%s",
-        source, object_name, output_format
-    )
-    
-    try:
-        return await _functions.extract_object_documentation(
-            source, object_name, output_format = output_format
-        )
-    except Exception as exc:
-        _scribe.error( "Error extracting documentation: %s", exc )
-        return { 'error': str( exc ) }
 
 
 async def serve(
@@ -261,4 +249,3 @@ async def serve(
         case 'sse': await mcp.run_sse_async( mount_path = None )
         case 'stdio': await mcp.run_stdio_async( )
         case _: raise ValueError
-

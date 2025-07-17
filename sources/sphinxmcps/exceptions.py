@@ -38,6 +38,24 @@ class Omnierror( Omniexception, Exception ):
     ''' Base for error exceptions raised by package API. '''
 
 
+class DocumentationInaccessibility( Omnierror, RuntimeError ):
+    ''' Documentation file or resource absent or inaccessible. '''
+
+    def __init__( self, url: str, cause: Exception ):
+        message = f"Documentation at '{url}' is inaccessible. Cause: {cause}"
+        self.url = url
+        super( ).__init__( message )
+
+
+class DocumentationParseFailure( Omnierror, ValueError ):
+    ''' Documentation HTML parsing failed or content malformed. '''
+
+    def __init__( self, url: str, cause: Exception ):
+        message = f"Cannot parse documentation at '{url}'. Cause: {cause}"
+        self.url = url
+        super( ).__init__( message )
+
+
 class InventoryInaccessibility( Omnierror, RuntimeError ):
     ''' Inventory file or resource absent or inaccessible. '''
 
@@ -85,23 +103,5 @@ class InventoryUrlNoSupport( Omnierror, NotImplementedError ):
         message = (
             f"{message_c} {message_i}" if __.is_absent( value )
             else f"{message_c} with value '{value}' {message_i}" )
-        self.url = url
-        super( ).__init__( message )
-
-
-class DocumentationInaccessibility( Omnierror, RuntimeError ):
-    ''' Documentation file or resource absent or inaccessible. '''
-
-    def __init__( self, url: str, cause: Exception ):
-        message = f"Documentation at '{url}' is inaccessible. Cause: {cause}"
-        self.url = url
-        super( ).__init__( message )
-
-
-class DocumentationParsingError( Omnierror, ValueError ):
-    ''' Documentation HTML parsing failed or content malformed. '''
-
-    def __init__( self, url: str, cause: Exception ):
-        message = f"Documentation at '{url}' parsing failed. Cause: {cause}"
         self.url = url
         super( ).__init__( message )

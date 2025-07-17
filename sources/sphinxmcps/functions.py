@@ -23,21 +23,31 @@
 
 import urllib.parse as _urlparse
 
+from bs4 import BeautifulSoup as _BeautifulSoup
 import httpx as _httpx
 import sphobjinv as _sphobjinv
-from bs4 import BeautifulSoup as _BeautifulSoup
 
 from . import __
 from . import exceptions as _exceptions
 
 
-SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
-    str,
-    __.ddoc.Doc( ''' URL or file path to Sphinx documentation. ''' )
-]
+class MatchMode( str, __.enum.Enum ):
+    ''' Enumeration for different term matching modes. '''
+
+    Exact = 'exact'
+    Regex = 'regex'
+    Fuzzy = 'fuzzy'
+
+
+DocumentationFormat: __.typx.TypeAlias = __.typx.Literal[ 'markdown', 'text' ]
+DocumentationResult: __.typx.TypeAlias = __.cabc.Mapping[ str, __.typx.Any ]
 DomainFilter: __.typx.TypeAlias = __.typx.Annotated[
     __.Absential[ str ],
     __.ddoc.Doc( ''' Filter objects by domain (e.g., 'py', 'std'). ''' )
+]
+FuzzyThreshold: __.typx.TypeAlias = __.typx.Annotated[
+    int,
+    __.ddoc.Doc( ''' Fuzzy matching threshold (0-100, higher = stricter). ''' )
 ]
 RoleFilter: __.typx.TypeAlias = __.typx.Annotated[
     __.Absential[ str ],
@@ -47,41 +57,25 @@ TermFilter: __.typx.TypeAlias = __.typx.Annotated[
     __.Absential[ str ],
     __.ddoc.Doc( ''' Filter objects by name containing this text. ''' )
 ]
+MatchModeArgument: __.typx.TypeAlias = __.typx.Annotated[
+    MatchMode,
+    __.ddoc.Doc( ''' Term matching mode: exact, regex, or fuzzy. ''' )
+]
 PriorityFilter: __.typx.TypeAlias = __.typx.Annotated[
     __.Absential[ str ],
     __.ddoc.Doc( ''' Filter objects by priority level (e.g., '1', '0'). ''' )
 ]
 RegexFlag: __.typx.TypeAlias = __.typx.Annotated[
-    bool,
-    __.ddoc.Doc( ''' Use regex pattern matching for term filter. ''' )
+    bool, __.ddoc.Doc( ''' Use regex pattern matching for term filter. ''' )
 ]
-
-
-class MatchMode( str, __.enum.Enum ):
-    ''' Enumeration for different term matching modes. '''
-    Exact = 'exact'
-    Regex = 'regex'
-    Fuzzy = 'fuzzy'
-
-
-MatchModeArgument: __.typx.TypeAlias = __.typx.Annotated[
-    MatchMode,
-    __.ddoc.Doc( ''' Term matching mode: exact, regex, or fuzzy. ''' )
-]
-FuzzyThreshold: __.typx.TypeAlias = __.typx.Annotated[
-    int,
-    __.ddoc.Doc( ''' Fuzzy matching threshold (0-100, higher = stricter). ''' )
-]
-
-
-# Documentation extraction type aliases
-DocumentationFormat: __.typx.TypeAlias = __.typx.Literal[ 'markdown', 'text' ]
+SearchResult: __.typx.TypeAlias = __.cabc.Mapping[ str, __.typx.Any ]
 SectionFilter: __.typx.TypeAlias = __.typx.Annotated[
     __.Absential[ list[ str ] ],
     __.ddoc.Doc( ''' Sections to include (signature, description). ''' )
 ]
-DocumentationResult: __.typx.TypeAlias = __.cabc.Mapping[ str, __.typx.Any ]
-SearchResult: __.typx.TypeAlias = __.cabc.Mapping[ str, __.typx.Any ]
+SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
+    str, __.ddoc.Doc( ''' URL or file path to Sphinx documentation. ''' )
+]
 
 
 def extract_inventory( # noqa: PLR0913
@@ -122,7 +116,7 @@ def extract_inventory( # noqa: PLR0913
         'domains': domains_summary,
         'objects': objects,
     }
-    if ( any( ( domain, role, term, priority ) ) 
+    if ( any( ( domain, role, term, priority ) )
          or match_mode != MatchMode.Exact ):
         result[ 'filters' ] = { }
         if not __.is_absent( domain ):
@@ -137,6 +131,38 @@ def extract_inventory( # noqa: PLR0913
             result[ 'filters' ][ 'match_mode' ] = match_mode.value
             if match_mode == MatchMode.Fuzzy:
                 result[ 'filters' ][ 'fuzzy_threshold' ] = fuzzy_threshold
+    return result
+
+
+async def extract_object_documentation(
+    source: SourceArgument,
+    object_name: str, /, *,
+    include_sections: SectionFilter = __.absent,
+    output_format: DocumentationFormat = 'markdown'
+) -> DocumentationResult:
+    ''' Extracts documentation for a specific object from Sphinx docs. '''
+    inventory = _extract_inventory( source )
+    found_object = None
+    for objct in inventory.objects:
+        if objct.name == object_name:
+            found_object = objct
+            break
+    if not found_object:
+        return { 'error': f"Object '{object_name}' not found in inventory" }
+    base_url = _extract_base_url( source )
+    doc_url = _build_documentation_url( base_url, found_object.uri )
+    html_content = await _fetch_html_content( doc_url )
+    parsed_content = _parse_documentation_html( html_content, object_name )
+    if 'error' in parsed_content:
+        return parsed_content
+    result = {
+        'object_name': object_name,
+        'url': doc_url,
+        'signature': parsed_content[ 'signature' ],
+        'description': parsed_content[ 'description' ],
+    }
+    if output_format == 'markdown':
+        result[ 'description' ] = _html_to_markdown( result[ 'description' ] )
     return result
 
 
@@ -194,6 +220,59 @@ def summarize_inventory( # noqa: PLR0913
     return '\n'.join( lines )
 
 
+def _build_documentation_url(
+    base_url: str, object_uri: str
+) -> __.typx.Annotated[
+    str, __.ddoc.Doc( ''' Full URL to documentation page for object. ''' )
+]:
+    ''' Constructs documentation URL from base URL and object URI. '''
+    # Object URI format: "filename.html#anchor"
+    # Example: "api.html#sphinxmcps.exceptions.InventoryFilterInvalidity"
+    return "{base_url}/{object_uri}".format(
+        base_url = base_url.rstrip( '/' ), object_uri = object_uri )
+
+
+def _collect_matching_objects(
+    inventory: _sphobjinv.Inventory,
+    domain: DomainFilter,
+    role: RoleFilter,
+    priority: PriorityFilter,
+    term_matcher: __.cabc.Callable[ [ __.typx.Any ], bool ],
+) -> tuple[ dict[ str, __.typx.Any ], int ]:
+    ''' Collects objects that match all filters. '''
+    objects: __.cabc.MutableMapping[
+        str, list[ __.cabc.Mapping[ str, __.typx.Any ] ]
+    ] = __.collections.defaultdict(
+        list[ __.cabc.Mapping[ str, __.typx.Any ] ] )
+    selections_total = 0
+    for objct in inventory.objects:
+        if domain and objct.domain != domain: continue
+        if role and objct.role != role: continue
+        if priority and objct.priority != priority: continue
+        if not term_matcher( objct ): continue
+        objects[ objct.domain ].append( _format_inventory_object( objct ) )
+        selections_total += 1
+    return objects, selections_total
+
+
+def _create_term_matcher(
+    term: str,
+    match_mode: MatchMode
+) -> __.cabc.Callable[ [ __.typx.Any ], bool ]:
+    ''' Creates a matcher function for term filtering. '''
+    if not term: return lambda obj: True
+    if match_mode == MatchMode.Regex:
+        try:
+            pattern = __.re.compile( term, __.re.IGNORECASE )
+            return lambda obj: bool( pattern.search( obj.name ) )
+        except __.re.error as exc:
+            message = f"Invalid regex pattern: {term}"
+            raise _exceptions.InventoryFilterInvalidity( message ) from exc
+    # Exact matching (default)
+    term_lower = term.lower( )
+    return lambda obj: term_lower in obj.name.lower( )
+
+
 def _extract_inventory( source: SourceArgument ) -> __.typx.Annotated[
     _sphobjinv.Inventory,
     __.ddoc.Doc( ''' Parsed Sphinx inventory object. ''' )
@@ -215,6 +294,49 @@ def _extract_inventory( source: SourceArgument ) -> __.typx.Annotated[
     except Exception as exc:
         raise _exceptions.InventoryInvalidity(
             url_s, cause = exc ) from exc
+
+
+def _extract_names_from_suggestions(
+    suggestions: list[ str ]
+) -> set[ str ]:
+    ''' Extracts object names from sphobjinv suggestion format. '''
+    fuzzy_names: set[ str ] = set( )
+    for suggestion in suggestions:
+        # Extract name from format like ":domain:role:`name`"
+        if '`' in suggestion:
+            name = suggestion.split( '`' )[ 1 ]  # Get text between backticks
+            fuzzy_names.add( name )
+    return fuzzy_names
+
+
+def _filter_exact_and_regex_matching( # noqa: PLR0913
+    inventory: _sphobjinv.Inventory,
+    domain: DomainFilter,
+    role: RoleFilter,
+    priority: PriorityFilter,
+    term: str,
+    match_mode: MatchMode,
+) -> tuple[ dict[ str, __.typx.Any ], int ]:
+    ''' Filters inventory using exact or regex matching. '''
+    term_matcher = _create_term_matcher( term, match_mode )
+    return _collect_matching_objects(
+        inventory, domain, role, priority, term_matcher )
+
+
+def _filter_fuzzy_matching( # noqa: PLR0913
+    inventory: _sphobjinv.Inventory,
+    domain: DomainFilter,
+    role: RoleFilter,
+    priority: PriorityFilter,
+    term: str,
+    fuzzy_threshold: int,
+) -> tuple[ dict[ str, __.typx.Any ], int ]:
+    ''' Filters inventory using fuzzy matching via sphobjinv.suggest(). '''
+    suggestions = inventory.suggest( term, thresh = fuzzy_threshold )
+    fuzzy_names = _extract_names_from_suggestions( suggestions )
+    return _collect_matching_objects(
+        inventory, domain, role, priority,
+        lambda obj: obj.name in fuzzy_names )
 
 
 def _filter_inventory( # noqa: PLR0913
@@ -240,104 +362,11 @@ def _filter_inventory( # noqa: PLR0913
 ]:
     ''' Filters inventory objects by domain, role, term, and match mode. '''
     term_ = '' if __.is_absent( term ) else term
-
     if term_ and match_mode == MatchMode.Fuzzy:
         return _filter_fuzzy_matching(
             inventory, domain, role, priority, term_, fuzzy_threshold )
-
     return _filter_exact_and_regex_matching(
         inventory, domain, role, priority, term_, match_mode )
-
-
-def _filter_fuzzy_matching( # noqa: PLR0913
-    inventory: _sphobjinv.Inventory,
-    domain: DomainFilter,
-    role: RoleFilter,
-    priority: PriorityFilter,
-    term: str,
-    fuzzy_threshold: int,
-) -> tuple[ dict[ str, __.typx.Any ], int ]:
-    ''' Filters inventory using fuzzy matching via sphobjinv.suggest(). '''
-    suggestions = inventory.suggest( term, thresh = fuzzy_threshold )
-    fuzzy_names = _extract_names_from_suggestions( suggestions )
-    return _collect_matching_objects(
-        inventory, domain, role, priority, 
-        lambda obj: obj.name in fuzzy_names )
-
-
-def _filter_exact_and_regex_matching( # noqa: PLR0913
-    inventory: _sphobjinv.Inventory,
-    domain: DomainFilter,
-    role: RoleFilter,
-    priority: PriorityFilter,
-    term: str,
-    match_mode: MatchMode,
-) -> tuple[ dict[ str, __.typx.Any ], int ]:
-    ''' Filters inventory using exact or regex matching. '''
-    term_matcher = _create_term_matcher( term, match_mode )
-
-    return _collect_matching_objects(
-        inventory, domain, role, priority, term_matcher )
-
-
-def _extract_names_from_suggestions(
-    suggestions: list[ str ]
-) -> set[ str ]:
-    ''' Extracts object names from sphobjinv suggestion format. '''
-    fuzzy_names: set[ str ] = set()
-    for suggestion in suggestions:
-        # Extract name from format like ":domain:role:`name`"
-        if '`' in suggestion:
-            name = suggestion.split('`')[1]  # Get text between backticks
-            fuzzy_names.add( name )
-    return fuzzy_names
-
-
-def _create_term_matcher(
-    term: str,
-    match_mode: MatchMode
-) -> __.cabc.Callable[ [ __.typx.Any ], bool ]:
-    ''' Creates a matcher function for term filtering. '''
-    if not term:
-        return lambda obj: True
-
-    if match_mode == MatchMode.Regex:
-        try:
-            pattern = __.re.compile( term, __.re.IGNORECASE )
-            return lambda obj: bool( pattern.search( obj.name ) )
-        except __.re.error as exc:
-            message = f"Invalid regex pattern: {term}"
-            raise _exceptions.InventoryFilterInvalidity( message ) from exc
-
-    # Exact matching (default)
-    term_lower = term.lower( )
-    return lambda obj: term_lower in obj.name.lower( )
-
-
-def _collect_matching_objects(
-    inventory: _sphobjinv.Inventory,
-    domain: DomainFilter,
-    role: RoleFilter,
-    priority: PriorityFilter,
-    term_matcher: __.cabc.Callable[ [ __.typx.Any ], bool ],
-) -> tuple[ dict[ str, __.typx.Any ], int ]:
-    ''' Collects objects that match all filters. '''
-    objects: __.cabc.MutableMapping[
-        str, list[ __.cabc.Mapping[ str, __.typx.Any ] ]
-    ] = __.collections.defaultdict(
-        list[ __.cabc.Mapping[ str, __.typx.Any ] ] )
-    selections_total = 0
-
-    for objct in inventory.objects:
-        if domain and objct.domain != domain: continue
-        if role and objct.role != role: continue
-        if priority and objct.priority != priority: continue
-        if not term_matcher( objct ): continue
-
-        objects[ objct.domain ].append( _format_inventory_object( objct ) )
-        selections_total += 1
-
-    return objects, selections_total
 
 
 def _format_inventory_object(
@@ -351,6 +380,53 @@ def _format_inventory_object(
         'uri': objct.uri,
         'dispname': objct.dispname if objct.dispname != '-' else objct.name,
     }
+
+
+def _extract_base_url( source: SourceArgument ) -> __.typx.Annotated[
+    str,
+    __.ddoc.Doc( ''' Base URL for documentation from inventory source. ''' )
+]:
+    ''' Extracts base documentation URL from inventory source. '''
+    url = _normalize_inventory_source( source )
+    path = url.path.rstrip( '/objects.inv' )
+    if not path.endswith( '/' ): path += '/'
+    return _urlparse.urlunparse(
+        _urlparse.ParseResult(
+            scheme = url.scheme, netloc = url.netloc, path = path,
+            params = '', query = '', fragment = '' ) )
+
+
+async def _fetch_html_content( url: str ) -> __.typx.Annotated[
+    str, __.ddoc.Doc( ''' HTML content from documentation URL. ''' )
+]:
+    ''' Fetches HTML content from documentation URL. '''
+    try:
+        async with _httpx.AsyncClient( timeout = 30.0 ) as client:
+            response = await client.get( url )
+            response.raise_for_status( )
+            return response.text
+    except Exception as exc:
+        raise _exceptions.DocumentationInaccessibility( url, exc ) from exc
+
+
+def _html_to_markdown( html_text: str ) -> str:
+    ''' Converts HTML text to clean markdown format. '''
+    # Simple HTML to markdown conversion
+    # Remove common HTML tags and convert to markdown-like format
+    re = __.re
+    # Convert common tags
+    text = re.sub( r'<code[^>]*>(.*?)</code>', r'`\1`', html_text )
+    text = re.sub(
+        r'<pre[^>]*>(.*?)</pre>', r'```\n\1\n```', text, flags = re.DOTALL )
+    text = re.sub( r'<strong[^>]*>(.*?)</strong>', r'**\1**', text )
+    text = re.sub( r'<em[^>]*>(.*?)</em>', r'*\1*', text )
+    text = re.sub( r'<a[^>]*href="([^"]*)"[^>]*>(.*?)</a>', r'[\2](\1)', text )
+    # Remove remaining HTML tags
+    text = re.sub( r'<[^>]+>', '', text )
+    # Clean up whitespace
+    text = re.sub( r'\n\s*\n', '\n\n', text )
+    text = re.sub( r'^\s+|\s+$', '', text, flags = re.MULTILINE )
+    return text.strip( )
 
 
 def _normalize_inventory_source( source: SourceArgument ) -> __.typx.Annotated[
@@ -373,48 +449,6 @@ def _normalize_inventory_source( source: SourceArgument ) -> __.typx.Annotated[
         params = url.params, query = url.query, fragment = url.fragment )
 
 
-def _extract_base_url( source: SourceArgument ) -> __.typx.Annotated[
-    str,
-    __.ddoc.Doc( ''' Base URL for documentation from inventory source. ''' )
-]:
-    ''' Extracts base documentation URL from inventory source. '''
-    url = _normalize_inventory_source( source )
-    # Remove objects.inv from path to get base documentation URL
-    path = url.path.rstrip( '/objects.inv' )
-    if not path.endswith( '/' ): path += '/'
-    return _urlparse.urlunparse(
-        _urlparse.ParseResult(
-            scheme = url.scheme, netloc = url.netloc, path = path,
-            params = '', query = '', fragment = '' ) )
-
-
-def _build_documentation_url(
-    base_url: str,
-    object_uri: str
-) -> __.typx.Annotated[
-    str,
-    __.ddoc.Doc( ''' Full URL to documentation page for object. ''' )
-]:
-    ''' Constructs documentation URL from base URL and object URI. '''
-    # Object URI format: "filename.html#anchor"
-    # Example: "api.html#sphinxmcps.exceptions.InventoryFilterInvalidity"
-    return f"{base_url.rstrip( '/' )}/{object_uri}"
-
-
-async def _fetch_html_content( url: str ) -> __.typx.Annotated[
-    str,
-    __.ddoc.Doc( ''' HTML content from documentation URL. ''' )
-]:
-    ''' Fetches HTML content from documentation URL. '''
-    try:
-        async with _httpx.AsyncClient( timeout = 30.0 ) as client:
-            response = await client.get( url )
-            response.raise_for_status( )
-            return response.text
-    except Exception as exc:
-        raise _exceptions.DocumentationInaccessibility( url, exc ) from exc
-
-
 def _parse_documentation_html(
     html_content: str,
     object_name: str
@@ -423,126 +457,45 @@ def _parse_documentation_html(
     __.ddoc.Doc( ''' Parsed documentation sections. ''' )
 ]:
     ''' Parses HTML content to extract documentation sections. '''
-    
+
     def _check_main_content( soup ):
         ''' Helper to check main content exists. '''
         main_content = soup.find( 'article', { 'role': 'main' } )
         if not main_content:
             raise ValueError( "No content" )  # noqa: TRY003
         return main_content
-    
+
     try:
         soup = _BeautifulSoup( html_content, 'lxml' )
         main_content = _check_main_content( soup )
-        
         # Find the object definition by ID
         object_element = main_content.find( id = object_name )
         if not object_element:
             return { 'error': f"Object '{object_name}' not found in page" }
-        
         # Extract signature from <dt> element
         signature_element = object_element
         if signature_element.name != 'dt':
             signature_element = object_element.find_parent( 'dt' )
-        
         signature = (
-            signature_element.get_text( strip = True ) 
-            if signature_element else ''
-        )
-        
+            signature_element.get_text( strip = True )
+            if signature_element else '' )
         # Extract description from following <dd> element
         description_element = (
-            signature_element.find_next_sibling( 'dd' ) 
+            signature_element.find_next_sibling( 'dd' )
             if signature_element else None
         )
         if description_element:
             # Remove header links and other navigation elements
-            for header_link in description_element.find_all( 
-                'a', class_ = 'headerlink' 
-            ):
-                header_link.decompose( )
+            for header_link in description_element.find_all(
+                'a', class_ = 'headerlink'
+            ): header_link.decompose( )
             description = description_element.get_text( strip = True )
-        else:
-            description = ''
-        
+        else: description = ''
         return {  # noqa: TRY300
             'signature': signature,
             'description': description,
             'object_name': object_name,
         }
-    
     except Exception as exc:
-        raise _exceptions.DocumentationParsingError( 
-            object_name, exc 
-        ) from exc
-
-
-def _html_to_markdown( html_text: str ) -> str:
-    ''' Converts HTML text to clean markdown format. '''
-    # Simple HTML to markdown conversion
-    # Remove common HTML tags and convert to markdown-like format
-    import re as _re
-    
-    # Convert common tags
-    text = _re.sub( r'<code[^>]*>(.*?)</code>', r'`\1`', html_text )
-    text = _re.sub( 
-        r'<pre[^>]*>(.*?)</pre>', r'```\n\1\n```', text, flags = _re.DOTALL 
-    )
-    text = _re.sub( r'<strong[^>]*>(.*?)</strong>', r'**\1**', text )
-    text = _re.sub( r'<em[^>]*>(.*?)</em>', r'*\1*', text )
-    text = _re.sub( 
-        r'<a[^>]*href="([^"]*)"[^>]*>(.*?)</a>', r'[\2](\1)', text 
-    )
-    
-    # Remove remaining HTML tags
-    text = _re.sub( r'<[^>]+>', '', text )
-    
-    # Clean up whitespace
-    text = _re.sub( r'\n\s*\n', '\n\n', text )
-    text = _re.sub( r'^\s+|\s+$', '', text, flags = _re.MULTILINE )
-    
-    return text.strip( )
-
-
-async def extract_object_documentation(
-    source: SourceArgument,
-    object_name: str, /, *,
-    include_sections: SectionFilter = __.absent,
-    output_format: DocumentationFormat = 'markdown'
-) -> DocumentationResult:
-    ''' Extracts documentation for a specific object from Sphinx docs. '''
-    # Get inventory and find the object
-    inventory = _extract_inventory( source )
-    found_object = None
-    
-    for objct in inventory.objects:
-        if objct.name == object_name:
-            found_object = objct
-            break
-    
-    if not found_object:
-        return { 'error': f"Object '{object_name}' not found in inventory" }
-    
-    # Construct documentation URL
-    base_url = _extract_base_url( source )
-    doc_url = _build_documentation_url( base_url, found_object.uri )
-    
-    # Fetch and parse HTML content
-    html_content = await _fetch_html_content( doc_url )
-    parsed_content = _parse_documentation_html( html_content, object_name )
-    
-    if 'error' in parsed_content:
-        return parsed_content
-    
-    # Format output based on requested format
-    result = {
-        'object_name': object_name,
-        'url': doc_url,
-        'signature': parsed_content[ 'signature' ],
-        'description': parsed_content[ 'description' ],
-    }
-    
-    if output_format == 'markdown':
-        result[ 'description' ] = _html_to_markdown( result[ 'description' ] )
-    
-    return result
+        raise _exceptions.DocumentationParseFailure(
+            object_name, exc ) from exc
