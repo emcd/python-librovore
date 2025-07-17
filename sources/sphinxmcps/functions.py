@@ -418,25 +418,25 @@ def _html_to_markdown( html_text: str ) -> str:
         return html_text
 
     # Convert common tags to markdown using replace_with
-    for code in soup.find_all( 'code' ):  # type: ignore[attr-defined]
-        code.replace_with( f"`{code.get_text( )}`" )  # type: ignore[arg-type]
+    for code in soup.find_all( 'code' ):
+        code.replace_with( f"`{code.get_text( )}`" )
 
-    for pre in soup.find_all( 'pre' ):  # type: ignore[attr-defined]
-        pre.replace_with( f"```\n{pre.get_text( )}\n```" )  # type: ignore[arg-type]
+    for pre in soup.find_all( 'pre' ):
+        pre.replace_with( f"```\n{pre.get_text( )}\n```" )
 
-    for strong in soup.find_all( 'strong' ):  # type: ignore[attr-defined]
-        strong.replace_with( f"**{strong.get_text( )}**" )  # type: ignore[arg-type]
+    for strong in soup.find_all( 'strong' ):
+        strong.replace_with( f"**{strong.get_text( )}**" )
 
-    for em in soup.find_all( 'em' ):  # type: ignore[attr-defined]
-        em.replace_with( f"*{em.get_text( )}*" )  # type: ignore[arg-type]
+    for em in soup.find_all( 'em' ):
+        em.replace_with( f"*{em.get_text( )}*" )
 
-    for link in soup.find_all( 'a' ):  # type: ignore[attr-defined]
-        href = link.get( 'href', '' )  # type: ignore[attr-defined]
+    for link in soup.find_all( 'a' ):
+        href = link.get( 'href', '' )
         text = link.get_text( )
         if href:
-            link.replace_with( f"[{text}]({href})" )  # type: ignore[arg-type]
+            link.replace_with( f"[{text}]({href})" )
         else:
-            link.replace_with( text )  # type: ignore[arg-type]
+            link.replace_with( text )
 
     # Get clean text and normalize whitespace
     text = soup.get_text( )
@@ -481,29 +481,29 @@ def _parse_documentation_html(
     if not main_content:
         raise _exceptions.DocumentationContentAbsence( object_name )
     # Find the object definition by ID
-    object_element = main_content.find( id = object_name )  # type: ignore[attr-defined]
+    object_element = main_content.find( id = object_name )
     if not object_element:
         return { 'error': f"Object '{object_name}' not found in page" }
     # Extract signature from <dt> element
-    signature_element = object_element  # type: ignore[assignment]
-    if signature_element.name != 'dt':  # type: ignore[attr-defined]
-        signature_element = object_element.find_parent( 'dt' )  # type: ignore[attr-defined]
-    signature = (  # type: ignore[assignment]
-        signature_element.get_text( strip = True )  # type: ignore[attr-defined]
+    signature_element = object_element
+    if signature_element.name != 'dt':
+        signature_element = object_element.find_parent( 'dt' )
+    signature = (
+        signature_element.get_text( strip = True )
         if signature_element else '' )
     # Extract description from following <dd> element
-    description_element = (  # type: ignore[assignment]
-        signature_element.find_next_sibling( 'dd' )  # type: ignore[attr-defined]
+    description_element = (
+        signature_element.find_next_sibling( 'dd' )
         if signature_element else None
     )
     if description_element:
         # Remove header links and other navigation elements
-        for header_link in description_element.find_all(  # type: ignore[attr-defined]
+        for header_link in description_element.find_all(
             'a', class_ = 'headerlink'
-        ): header_link.decompose( )  # type: ignore[attr-defined]
-        description = description_element.get_text( strip = True )  # type: ignore[attr-defined]
+        ): header_link.decompose( )
+        description = description_element.get_text( strip = True )
     else: description = ''
-    return {  # type: ignore[return-value]
+    return {
         'signature': signature,
         'description': description,
         'object_name': object_name,
