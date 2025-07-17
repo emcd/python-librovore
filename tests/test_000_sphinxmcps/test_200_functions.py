@@ -335,3 +335,76 @@ def test_320_url_detection_edge_cases( ):
     if hasattr( functions_module, '_is_url' ):
         assert not functions_module._is_url( "" )
         assert functions_module._is_url( "file://" )  # Local file URL
+
+
+def test_400_extract_inventory_with_priority_filter( ):
+    ''' Extract inventory filters objects by priority level. '''
+    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
+
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    result = functions_module.extract_inventory(
+        inventory_path, priority='1'
+    )
+    assert 'filters' in result
+    assert result[ 'filters' ][ 'priority' ] == '1'
+    assert result[ 'object_count' ] > 0
+    
+    # All returned objects should have priority '1'
+    for domain_objects in result[ 'objects' ].values( ):
+        for obj in domain_objects:
+            assert obj[ 'priority' ] == '1'
+
+
+def test_410_extract_inventory_priority_filter_different_values( ):
+    ''' Extract inventory works with different priority values. '''
+    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
+
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    
+    # Test priority '0' 
+    result_0 = functions_module.extract_inventory(
+        inventory_path, priority='0'
+    )
+    assert result_0[ 'filters' ][ 'priority' ] == '0'
+    
+    # Test priority '1'
+    result_1 = functions_module.extract_inventory(
+        inventory_path, priority='1'
+    )
+    assert result_1[ 'filters' ][ 'priority' ] == '1'
+    
+    # Should have different counts (based on our exploration data)
+    assert result_0[ 'object_count' ] != result_1[ 'object_count' ]
+
+
+def test_420_extract_inventory_priority_with_domain_filter( ):
+    ''' Extract inventory combines priority and domain filtering. '''
+    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
+
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    result = functions_module.extract_inventory(
+        inventory_path, domain='py', priority='1'
+    )
+    assert 'filters' in result
+    assert result[ 'filters' ][ 'domain' ] == 'py'
+    assert result[ 'filters' ][ 'priority' ] == '1'
+    
+    # All objects should be from py domain with priority 1
+    if result[ 'object_count' ] > 0:
+        assert 'py' in result[ 'objects' ]
+        for domain_name in result[ 'objects' ]:
+            assert domain_name == 'py'
+        for obj in result[ 'objects' ][ 'py' ]:
+            assert obj[ 'priority' ] == '1'
+
+
+def test_430_summarize_inventory_with_priority( ):
+    ''' Summarize inventory includes priority filter information. '''
+    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
+
+    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    result = functions_module.summarize_inventory(
+        inventory_path, priority='1'
+    )
+    assert 'priority=1' in result
+    assert 'Filters:' in result

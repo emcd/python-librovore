@@ -45,6 +45,10 @@ TermFilter: __.typx.TypeAlias = __.typx.Annotated[
     __.Absential[ str ],
     __.ddoc.Doc( ''' Filter objects by name containing this text. ''' )
 ]
+PriorityFilter: __.typx.TypeAlias = __.typx.Annotated[
+    __.Absential[ str ],
+    __.ddoc.Doc( ''' Filter objects by priority level (e.g., '1', '0'). ''' )
+]
 RegexFlag: __.typx.TypeAlias = __.typx.Annotated[
     bool,
     __.ddoc.Doc( ''' Use regex pattern matching for term filter. ''' )
@@ -73,6 +77,7 @@ def extract_inventory( # noqa: PLR0913
     domain: DomainFilter = __.absent,
     role: RoleFilter = __.absent,
     term: TermFilter = __.absent,
+    priority: PriorityFilter = __.absent,
     match_mode: MatchModeArgument = MatchMode.Exact,
     fuzzy_threshold: FuzzyThreshold = 50,
 ) -> __.typx.Annotated[
@@ -89,7 +94,7 @@ def extract_inventory( # noqa: PLR0913
     objects, selections_total = (
         _filter_inventory(
             inventory,
-            domain = domain, role = role, term = term,
+            domain = domain, role = role, term = term, priority = priority,
             match_mode = match_mode, fuzzy_threshold = fuzzy_threshold
         )
     )
@@ -105,7 +110,8 @@ def extract_inventory( # noqa: PLR0913
         'domains': domains_summary,
         'objects': objects,
     }
-    if any( ( domain, role, term ) ) or match_mode != MatchMode.Exact:
+    if ( any( ( domain, role, term, priority ) ) 
+         or match_mode != MatchMode.Exact ):
         result[ 'filters' ] = { }
         if not __.is_absent( domain ):
             result[ 'filters' ][ 'domain' ] = domain
@@ -113,6 +119,8 @@ def extract_inventory( # noqa: PLR0913
             result[ 'filters' ][ 'role' ] = role
         if not __.is_absent( term ):
             result[ 'filters' ][ 'term' ] = term
+        if not __.is_absent( priority ):
+            result[ 'filters' ][ 'priority' ] = priority
         if match_mode != MatchMode.Exact:
             result[ 'filters' ][ 'match_mode' ] = match_mode.value
             if match_mode == MatchMode.Fuzzy:
@@ -125,6 +133,7 @@ def summarize_inventory( # noqa: PLR0913
     domain: DomainFilter = __.absent,
     role: RoleFilter = __.absent,
     term: TermFilter = __.absent,
+    priority: PriorityFilter = __.absent,
     match_mode: MatchModeArgument = MatchMode.Exact,
     fuzzy_threshold: FuzzyThreshold = 50,
 ) -> __.typx.Annotated[
@@ -133,7 +142,7 @@ def summarize_inventory( # noqa: PLR0913
 ]:
     ''' Provides human-readable summary of a Sphinx inventory. '''
     data = extract_inventory(
-        source, domain = domain, role = role, term = term,
+        source, domain = domain, role = role, term = term, priority = priority,
         match_mode = match_mode, fuzzy_threshold = fuzzy_threshold )
     lines = [
         "Sphinx Inventory: {project} v{version}".format(
@@ -204,6 +213,7 @@ def _filter_inventory( # noqa: PLR0913
     domain: DomainFilter = __.absent,
     role: RoleFilter = __.absent,
     term: TermFilter = __.absent,
+    priority: PriorityFilter = __.absent,
     match_mode: MatchModeArgument = MatchMode.Exact,
     fuzzy_threshold: FuzzyThreshold = 50,
 ) -> __.typx.Annotated[
@@ -221,16 +231,17 @@ def _filter_inventory( # noqa: PLR0913
 
     if term_ and match_mode == MatchMode.Fuzzy:
         return _filter_fuzzy_matching(
-            inventory, domain, role, term_, fuzzy_threshold )
+            inventory, domain, role, priority, term_, fuzzy_threshold )
 
     return _filter_exact_and_regex_matching(
-        inventory, domain, role, term_, match_mode )
+        inventory, domain, role, priority, term_, match_mode )
 
 
-def _filter_fuzzy_matching(
+def _filter_fuzzy_matching( # noqa: PLR0913
     inventory: _sphobjinv.Inventory,
     domain: DomainFilter,
     role: RoleFilter,
+    priority: PriorityFilter,
     term: str,
     fuzzy_threshold: int,
 ) -> tuple[ dict[ str, __.typx.Any ], int ]:
@@ -238,13 +249,15 @@ def _filter_fuzzy_matching(
     suggestions = inventory.suggest( term, thresh = fuzzy_threshold )
     fuzzy_names = _extract_names_from_suggestions( suggestions )
     return _collect_matching_objects(
-        inventory, domain, role, lambda obj: obj.name in fuzzy_names )
+        inventory, domain, role, priority, 
+        lambda obj: obj.name in fuzzy_names )
 
 
-def _filter_exact_and_regex_matching(
+def _filter_exact_and_regex_matching( # noqa: PLR0913
     inventory: _sphobjinv.Inventory,
     domain: DomainFilter,
     role: RoleFilter,
+    priority: PriorityFilter,
     term: str,
     match_mode: MatchMode,
 ) -> tuple[ dict[ str, __.typx.Any ], int ]:
@@ -252,7 +265,7 @@ def _filter_exact_and_regex_matching(
     term_matcher = _create_term_matcher( term, match_mode )
 
     return _collect_matching_objects(
-        inventory, domain, role, term_matcher )
+        inventory, domain, role, priority, term_matcher )
 
 
 def _extract_names_from_suggestions(
@@ -293,6 +306,7 @@ def _collect_matching_objects(
     inventory: _sphobjinv.Inventory,
     domain: DomainFilter,
     role: RoleFilter,
+    priority: PriorityFilter,
     term_matcher: __.cabc.Callable[ [ __.typx.Any ], bool ],
 ) -> tuple[ dict[ str, __.typx.Any ], int ]:
     ''' Collects objects that match all filters. '''
@@ -305,6 +319,7 @@ def _collect_matching_objects(
     for objct in inventory.objects:
         if domain and objct.domain != domain: continue
         if role and objct.role != role: continue
+        if priority and objct.priority != priority: continue
         if not term_matcher( objct ): continue
 
         objects[ objct.domain ].append( _format_inventory_object( objct ) )

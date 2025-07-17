@@ -58,6 +58,12 @@ def extract_inventory( # noqa: PLR0913
             description = "Filter objects by name (case-insensitive)"
         )
     ] = '',
+    priority: __.typx.Annotated[
+        str,
+        _Field(
+            description = "Filter objects by priority level (e.g., '1', '0')"
+        )
+    ] = '',
     match_mode: __.typx.Annotated[
         str,
         _Field(
@@ -86,8 +92,8 @@ def extract_inventory( # noqa: PLR0913
     '''
     _scribe.debug(
         "extract_inventory called: source=%s, domain=%s, role=%s, term=%s, "
-        "match_mode=%s, fuzzy_threshold=%s",
-        source, domain, role, term, match_mode, fuzzy_threshold
+        "priority=%s, match_mode=%s, fuzzy_threshold=%s",
+        source, domain, role, term, priority, match_mode, fuzzy_threshold
     )
     _scribe.debug( "Processing extract_inventory request with RELOADEROO!" )
     nomargs: __.NominativeArguments = { }
@@ -97,6 +103,8 @@ def extract_inventory( # noqa: PLR0913
         nomargs[ 'role' ] = role
     if term:
         nomargs[ 'term' ] = term
+    if priority:
+        nomargs[ 'priority' ] = priority
 
     # Convert string match_mode to enum
     if match_mode == 'fuzzy':
@@ -135,6 +143,12 @@ def summarize_inventory( # noqa: PLR0913
             description = "Filter objects by name (case-insensitive)"
         )
     ] = '',
+    priority: __.typx.Annotated[
+        str,
+        _Field(
+            description = "Filter objects by priority level (e.g., '1', '0')"
+        )
+    ] = '',
     match_mode: __.typx.Annotated[
         str,
         _Field(
@@ -162,8 +176,8 @@ def summarize_inventory( # noqa: PLR0913
     '''
     _scribe.debug(
         "summarize_inventory called: source=%s, domain=%s, role=%s, term=%s, "
-        "match_mode=%s, fuzzy_threshold=%s",
-        source, domain, role, term, match_mode, fuzzy_threshold
+        "priority=%s, match_mode=%s, fuzzy_threshold=%s",
+        source, domain, role, term, priority, match_mode, fuzzy_threshold
     )
     nomargs: __.NominativeArguments = { }
     if domain:
@@ -172,6 +186,8 @@ def summarize_inventory( # noqa: PLR0913
         nomargs[ 'role' ] = role
     if term:
         nomargs[ 'term' ] = term
+    if priority:
+        nomargs[ 'priority' ] = priority
 
     # Convert string match_mode to enum
     if match_mode == 'fuzzy':

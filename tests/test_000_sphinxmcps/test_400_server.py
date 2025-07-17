@@ -218,3 +218,41 @@ async def test_230_serve_default_transport():
         except ValueError:
             # Should not get ValueError for default transport
             pytest.fail( "ValueError raised for default transport" )
+
+
+def test_140_extract_inventory_wrapper_with_priority( ):
+    ''' Server extract_inventory handles priority filtering correctly. '''
+    server = cache_import_module( f"{PACKAGE_NAME}.server" )
+    test_inventory_path = get_test_inventory_path( 'sphobjinv' )
+    
+    result = server.extract_inventory(
+        source = test_inventory_path,
+        priority = '1'
+    )
+    
+    # Verify priority filter is passed through correctly
+    assert isinstance( result, dict )
+    assert 'filters' in result
+    assert result[ 'filters' ][ 'priority' ] == '1'
+    assert result[ 'object_count' ] > 0
+    
+    # Verify all returned objects have correct priority
+    for domain_objects in result[ 'objects' ].values( ):
+        for obj in domain_objects:
+            assert obj[ 'priority' ] == '1'
+
+
+def test_150_summarize_inventory_wrapper_with_priority( ):
+    ''' Server summarize_inventory handles priority filtering correctly. '''
+    server = cache_import_module( f"{PACKAGE_NAME}.server" )
+    test_inventory_path = get_test_inventory_path( 'sphobjinv' )
+    
+    result = server.summarize_inventory(
+        source = test_inventory_path,
+        priority = '0'
+    )
+    
+    # Verify priority filter appears in summary
+    assert isinstance( result, str )
+    assert 'priority=0' in result
+    assert 'Filters:' in result

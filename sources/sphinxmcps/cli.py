@@ -48,6 +48,11 @@ CliTermFilter: __.typx.TypeAlias = __.typx.Annotated[
     __.ddoc.Doc( ''' Filter objects by name containing this text. ''' )
 ]
 
+CliPriorityFilter: __.typx.TypeAlias = __.typx.Annotated[
+    __.typx.Optional[ str ],
+    __.ddoc.Doc( ''' Filter objects by priority level (e.g., '1', '0'). ''' )
+]
+
 CliMatchMode: __.typx.TypeAlias = __.typx.Annotated[
     _functions.MatchMode,
     __.ddoc.Doc( ''' Term matching mode: Exact, Regex, or Fuzzy. ''' )
@@ -78,6 +83,7 @@ class ExtractInventoryCommand(
     domain: CliDomainFilter = None
     role: CliRoleFilter = None
     term: CliTermFilter = None
+    priority: CliPriorityFilter = None
     match_mode: CliMatchMode = _functions.MatchMode.Exact
     fuzzy_threshold: CliFuzzyThreshold = 50
 
@@ -92,6 +98,8 @@ class ExtractInventoryCommand(
             nomargs[ 'role' ] = self.role
         if self.term is not None:
             nomargs[ 'term' ] = self.term
+        if self.priority is not None:
+            nomargs[ 'priority' ] = self.priority
         
         # Pass through match mode directly
         nomargs[ 'match_mode' ] = self.match_mode
@@ -111,6 +119,7 @@ class SummarizeInventoryCommand(
     domain: CliDomainFilter = None
     role: CliRoleFilter = None
     term: CliTermFilter = None
+    priority: CliPriorityFilter = None
     match_mode: CliMatchMode = _functions.MatchMode.Exact
     fuzzy_threshold: CliFuzzyThreshold = 50
 
@@ -125,6 +134,8 @@ class SummarizeInventoryCommand(
             nomargs[ 'role' ] = self.role
         if self.term is not None:
             nomargs[ 'term' ] = self.term
+        if self.priority is not None:
+            nomargs[ 'priority' ] = self.priority
         
         # Pass through match mode directly
         nomargs[ 'match_mode' ] = self.match_mode

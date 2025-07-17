@@ -3,13 +3,10 @@
 ## Immediate Enhancements
 
 ### Advanced Filtering and Search
-- [ ] **Priority filtering**: Filter objects by priority levels
 - [ ] **Boolean search operators**: Support `domain=py AND role=class` expressions
 - [ ] **Case-sensitive search**: Option for exact case matching
 
 ### Enhanced Output Formats
-- **YAML output**: Add `--format yaml` option
-- **CSV export**: For spreadsheet analysis
 - **Markdown tables**: For documentation embedding
 - **Tree view**: Hierarchical display of domains/roles
 
