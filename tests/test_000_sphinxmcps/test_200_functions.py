@@ -24,68 +24,52 @@
 import pytest
 from pathlib import Path
 
-from . import PACKAGE_NAME, cache_import_module
+import sphinxmcps.functions as module
+import sphinxmcps.exceptions as exceptions_module
+
 from .fixtures import get_test_inventory_path
 
 
 
 def test_100_extract_inventory_local_file( ):
     ''' Extract inventory processes local inventory files. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = functions_module.extract_inventory( inventory_path )
+    result = module.extract_inventory( inventory_path )
     assert 'project' in result
     assert 'objects' in result
 
 
 def test_110_extract_inventory_with_domain_filter( ):
     ''' Extract inventory applies domain filtering correctly. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = functions_module.extract_inventory(
-        inventory_path, domain = 'py'
-    )
+    result = module.extract_inventory( inventory_path, domain = 'py' )
     assert 'filters' in result
     assert result[ 'filters' ][ 'domain' ] == 'py'
 
 
 def test_120_extract_inventory_with_role_filter( ):
     ''' Extract inventory applies role filtering correctly. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = functions_module.extract_inventory(
-        inventory_path, role = 'module'
-    )
+    result = module.extract_inventory(
+        inventory_path, role = 'module' )
     assert 'filters' in result
     assert result[ 'filters' ][ 'role' ] == 'module'
 
 
 def test_130_extract_inventory_with_search_filter( ):
     ''' Extract inventory applies search filtering correctly. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = functions_module.extract_inventory(
-        inventory_path, term = 'test'
-    )
+    result = module.extract_inventory(
+        inventory_path, term = 'test' )
     assert 'filters' in result
     assert result[ 'filters' ][ 'term' ] == 'test'
 
 
 def test_140_extract_inventory_with_all_filters( ):
     ''' Extract inventory applies multiple filters correctly. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = functions_module.extract_inventory(
-        inventory_path,
-        domain = 'py',
-        role = 'module',
-        term = 'test'
-    )
+    result = module.extract_inventory(
+        inventory_path, domain = 'py', role = 'module', term = 'test' )
     assert 'filters' in result
     filters = result[ 'filters' ]
     assert filters[ 'domain' ] == 'py'
@@ -95,37 +79,27 @@ def test_140_extract_inventory_with_all_filters( ):
 
 def test_150_extract_inventory_nonexistent_file( ):
     ''' Extract inventory raises appropriate exception for missing files. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-    exceptions_module = cache_import_module( f"{PACKAGE_NAME}.exceptions" )
-
     with pytest.raises( exceptions_module.InventoryInaccessibility ):
-        functions_module.extract_inventory( "/nonexistent/path.inv" )
+        module.extract_inventory( "/nonexistent/path.inv" )
 
 
 def test_160_extract_inventory_auto_append_objects_inv( ):
     ''' Extract inventory auto-appends objects.inv to URLs/paths. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
-    # Get real inventory directory path
     real_inventory_path = get_test_inventory_path( 'sphinxmcps' )
     inventory_dir = str( Path( real_inventory_path ).parent )
-
     # Test without objects.inv suffix
-    result = functions_module.extract_inventory( inventory_dir )
+    result = module.extract_inventory( inventory_dir )
     assert 'project' in result
     assert 'objects' in result
 
 
 def test_170_extract_inventory_with_regex_term( ):
     ''' Extract inventory applies regex term filtering correctly. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     # Use regex to find objects containing "inventory"
-    result = functions_module.extract_inventory(
-        inventory_path, term = '.*inventory.*', 
-        match_mode = functions_module.MatchMode.Regex
-    )
+    result = module.extract_inventory(
+        inventory_path, term = '.*inventory.*',
+        match_mode = module.MatchMode.Regex )
     assert 'filters' in result
     assert result[ 'filters' ][ 'term' ] == '.*inventory.*'
     assert result[ 'filters' ][ 'match_mode' ] == 'regex'
@@ -134,17 +108,13 @@ def test_170_extract_inventory_with_regex_term( ):
 
 def test_180_extract_inventory_with_regex_anchors( ):
     ''' Extract inventory handles regex anchor patterns correctly. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     # Use regex anchors to find objects starting with specific pattern
-    result = functions_module.extract_inventory(
-        inventory_path, term = r'^sphobjinv\.', 
-        match_mode = functions_module.MatchMode.Regex
-    )
+    result = module.extract_inventory(
+        inventory_path, term = r'^sphobjinv\.',
+        match_mode = module.MatchMode.Regex )
     assert 'filters' in result
     assert result[ 'filters' ][ 'match_mode' ] == 'regex'
-    # Should find objects starting with "sphobjinv."
     if result[ 'object_count' ] > 0:
         for domain_objects in result[ 'objects' ].values( ):
             for obj in domain_objects:
@@ -153,37 +123,24 @@ def test_180_extract_inventory_with_regex_anchors( ):
 
 def test_190_extract_inventory_invalid_regex( ):
     ''' Extract inventory raises exception for invalid regex patterns. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-    exceptions_module = cache_import_module( f"{PACKAGE_NAME}.exceptions" )
-
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    # Invalid regex pattern should raise InventoryFilterInvalidity
     with pytest.raises( exceptions_module.InventoryFilterInvalidity ):
-        functions_module.extract_inventory(
-            inventory_path, term = '[invalid_regex', 
-            match_mode = functions_module.MatchMode.Regex
-        )
+        module.extract_inventory(
+            inventory_path, term = '[invalid_regex',
+            match_mode = module.MatchMode.Regex )
 
 
 def test_200_summarize_inventory_basic( ):
     ''' Summarize inventory provides human-readable summary. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = functions_module.summarize_inventory( inventory_path )
+    result = module.summarize_inventory( inventory_path )
     assert 'objects' in result
 
 
 def test_210_summarize_inventory_with_filters( ):
     ''' Summarize inventory includes filter information when provided. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    # Summarize with domain filter applied
-    result = functions_module.summarize_inventory(
-        inventory_path, domain = 'py'
-    )
-
+    result = module.summarize_inventory( inventory_path, domain = 'py' )
     assert 'objects' in result
     # Should mention filtering was applied
     assert 'filter' in result.lower( ) or 'domain' in result.lower( )
@@ -191,15 +148,11 @@ def test_210_summarize_inventory_with_filters( ):
 
 def test_215_summarize_inventory_with_regex( ):
     ''' Summarize inventory includes regex filter information. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     # Summarize with regex filter applied
-    result = functions_module.summarize_inventory(
-        inventory_path, term = '.*inventory.*', 
-        match_mode = functions_module.MatchMode.Regex
-    )
-
+    result = module.summarize_inventory(
+        inventory_path, term = '.*inventory.*',
+        match_mode = module.MatchMode.Regex )
     assert 'objects' in result
     # Should mention regex filtering was applied
     assert 'regex' in result.lower( )
@@ -207,15 +160,12 @@ def test_215_summarize_inventory_with_regex( ):
 
 def test_220_extract_inventory_with_fuzzy_matching( ):
     ''' Extract inventory applies fuzzy matching correctly. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     # Use fuzzy matching to find objects similar to "DataObj"
-    result = functions_module.extract_inventory(
-        inventory_path, term = 'DataObj', 
-        match_mode = functions_module.MatchMode.Fuzzy,
-        fuzzy_threshold = 50
-    )
+    result = module.extract_inventory(
+        inventory_path, term = 'DataObj',
+        match_mode = module.MatchMode.Fuzzy,
+        fuzzy_threshold = 50 )
     assert 'filters' in result
     assert result[ 'filters' ][ 'term' ] == 'DataObj'
     assert result[ 'filters' ][ 'match_mode' ] == 'fuzzy'
@@ -225,22 +175,17 @@ def test_220_extract_inventory_with_fuzzy_matching( ):
 
 def test_230_extract_inventory_fuzzy_with_high_threshold( ):
     ''' Extract inventory with high fuzzy threshold finds fewer matches. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     # Use high threshold for stricter matching
-    result_strict = functions_module.extract_inventory(
-        inventory_path, term = 'DataObj', 
-        match_mode = functions_module.MatchMode.Fuzzy,
-        fuzzy_threshold = 80
-    )
+    result_strict = module.extract_inventory(
+        inventory_path, term = 'DataObj',
+        match_mode = module.MatchMode.Fuzzy,
+        fuzzy_threshold = 80 )
     # Use low threshold for looser matching
-    result_loose = functions_module.extract_inventory(
-        inventory_path, term = 'DataObj', 
-        match_mode = functions_module.MatchMode.Fuzzy,
-        fuzzy_threshold = 30
-    )
-    
+    result_loose = module.extract_inventory(
+        inventory_path, term = 'DataObj',
+        match_mode = module.MatchMode.Fuzzy,
+        fuzzy_threshold = 30 )
     # Stricter threshold should find fewer or equal matches
     assert result_strict[ 'object_count' ] <= result_loose[ 'object_count' ]
     assert result_strict[ 'filters' ][ 'fuzzy_threshold' ] == 80
@@ -249,21 +194,17 @@ def test_230_extract_inventory_fuzzy_with_high_threshold( ):
 
 def test_240_extract_inventory_fuzzy_with_domain_filter( ):
     ''' Extract inventory combines fuzzy matching with domain filtering. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     # Combine fuzzy matching with domain filter
-    result = functions_module.extract_inventory(
-        inventory_path, 
+    result = module.extract_inventory(
+        inventory_path,
         domain = 'py',
-        term = 'inventory', 
-        match_mode = functions_module.MatchMode.Fuzzy,
-        fuzzy_threshold = 60
-    )
+        term = 'inventory',
+        match_mode = module.MatchMode.Fuzzy,
+        fuzzy_threshold = 60 )
     assert 'filters' in result
     assert result[ 'filters' ][ 'domain' ] == 'py'
     assert result[ 'filters' ][ 'match_mode' ] == 'fuzzy'
-    
     # All objects should be from py domain
     if result[ 'object_count' ] > 0:
         assert 'py' in result[ 'objects' ]
@@ -273,16 +214,12 @@ def test_240_extract_inventory_fuzzy_with_domain_filter( ):
 
 def test_250_summarize_inventory_with_fuzzy( ):
     ''' Summarize inventory includes fuzzy filter information. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     # Summarize with fuzzy filter applied
-    result = functions_module.summarize_inventory(
-        inventory_path, term = 'inventory', 
-        match_mode = functions_module.MatchMode.Fuzzy,
-        fuzzy_threshold = 70
-    )
-
+    result = module.summarize_inventory(
+        inventory_path, term = 'inventory',
+        match_mode = module.MatchMode.Fuzzy,
+        fuzzy_threshold = 70 )
     assert 'objects' in result
     # Should mention fuzzy filtering was applied
     assert 'fuzzy' in result.lower( )
@@ -291,65 +228,46 @@ def test_250_summarize_inventory_with_fuzzy( ):
 
 def test_260_match_mode_enum_values( ):
     ''' MatchMode enum has correct string values. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
-    assert functions_module.MatchMode.Exact.value == 'exact'
-    assert functions_module.MatchMode.Regex.value == 'regex'
-    assert functions_module.MatchMode.Fuzzy.value == 'fuzzy'
+    assert module.MatchMode.Exact.value == 'exact'
+    assert module.MatchMode.Regex.value == 'regex'
+    assert module.MatchMode.Fuzzy.value == 'fuzzy'
 
 
 def test_270_summarize_inventory_nonexistent_file( ):
     ''' Summarize inventory raises appropriate exception for missing files. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-    exceptions_module = cache_import_module( f"{PACKAGE_NAME}.exceptions" )
-
     with pytest.raises( exceptions_module.InventoryInaccessibility ):
-        functions_module.summarize_inventory( "/nonexistent/path.inv" )
+        module.summarize_inventory( "/nonexistent/path.inv" )
 
 
 def test_300_url_detection_http( ):
     ''' URL detection correctly identifies HTTP URLs. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
-    # Access the _is_url helper function if it exists
-    if hasattr( functions_module, '_is_url' ):
-        assert functions_module._is_url( "http://example.com" )
-        assert functions_module._is_url( "https://example.com" )
+    if hasattr( module, '_is_url' ):
+        assert module._is_url( "http://example.com" )
+        assert module._is_url( "https://example.com" )
 
 
 def test_310_url_detection_file_paths( ):
     ''' URL detection correctly identifies file paths as non-URLs. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
-    # Access the _is_url helper function if it exists
-    if hasattr( functions_module, '_is_url' ):
-        assert not functions_module._is_url( "/path/to/file.inv" )
-        assert not functions_module._is_url( "relative/path.inv" )
+    if hasattr( module, '_is_url' ):
+        assert not module._is_url( "/path/to/file.inv" )
+        assert not module._is_url( "relative/path.inv" )
 
 
 def test_320_url_detection_edge_cases( ):
     ''' URL detection handles edge cases correctly. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
-    # Access the _is_url helper function if it exists
-    if hasattr( functions_module, '_is_url' ):
-        assert not functions_module._is_url( "" )
-        assert functions_module._is_url( "file://" )  # Local file URL
+    if hasattr( module, '_is_url' ):
+        assert not module._is_url( "" )
+        assert module._is_url( "file://" )  # Local file URL
 
 
 def test_400_extract_inventory_with_priority_filter( ):
     ''' Extract inventory filters objects by priority level. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = functions_module.extract_inventory(
-        inventory_path, priority='1'
-    )
+    result = module.extract_inventory(
+        inventory_path, priority = '1' )
     assert 'filters' in result
     assert result[ 'filters' ][ 'priority' ] == '1'
     assert result[ 'object_count' ] > 0
-    
-    # All returned objects should have priority '1'
     for domain_objects in result[ 'objects' ].values( ):
         for obj in domain_objects:
             assert obj[ 'priority' ] == '1'
@@ -357,39 +275,24 @@ def test_400_extract_inventory_with_priority_filter( ):
 
 def test_410_extract_inventory_priority_filter_different_values( ):
     ''' Extract inventory works with different priority values. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    
-    # Test priority '0' 
-    result_0 = functions_module.extract_inventory(
-        inventory_path, priority='0'
-    )
+    result_0 = module.extract_inventory(
+        inventory_path, priority = '0')
     assert result_0[ 'filters' ][ 'priority' ] == '0'
-    
-    # Test priority '1'
-    result_1 = functions_module.extract_inventory(
-        inventory_path, priority='1'
-    )
+    result_1 = module.extract_inventory(
+        inventory_path, priority = '1' )
     assert result_1[ 'filters' ][ 'priority' ] == '1'
-    
-    # Should have different counts (based on our exploration data)
     assert result_0[ 'object_count' ] != result_1[ 'object_count' ]
 
 
 def test_420_extract_inventory_priority_with_domain_filter( ):
     ''' Extract inventory combines priority and domain filtering. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = functions_module.extract_inventory(
-        inventory_path, domain='py', priority='1'
-    )
+    result = module.extract_inventory(
+        inventory_path, domain = 'py', priority = '1' )
     assert 'filters' in result
     assert result[ 'filters' ][ 'domain' ] == 'py'
     assert result[ 'filters' ][ 'priority' ] == '1'
-    
-    # All objects should be from py domain with priority 1
     if result[ 'object_count' ] > 0:
         assert 'py' in result[ 'objects' ]
         for domain_name in result[ 'objects' ]:
@@ -400,11 +303,7 @@ def test_420_extract_inventory_priority_with_domain_filter( ):
 
 def test_430_summarize_inventory_with_priority( ):
     ''' Summarize inventory includes priority filter information. '''
-    functions_module = cache_import_module( f"{PACKAGE_NAME}.functions" )
-
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = functions_module.summarize_inventory(
-        inventory_path, priority='1'
-    )
+    result = module.summarize_inventory( inventory_path, priority = '1')
     assert 'priority=1' in result
     assert 'Filters:' in result
