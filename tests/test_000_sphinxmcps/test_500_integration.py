@@ -24,10 +24,7 @@
 import pytest
 
 from .fixtures import (
-    mcp_test_server, 
-    MCPTestClient, 
-    get_test_inventory_path
-)
+    MCPTestClient, get_test_inventory_path, mcp_test_server )
 
 
 @pytest.mark.slow
@@ -43,7 +40,7 @@ async def test_000_mcp_server_startup_and_initialization( ):
         assert 'result' in response
         assert 'serverInfo' in response[ 'result' ]
         assert (
-            response[ 'result' ][ 'serverInfo' ][ 'name' ] == 
+            response[ 'result' ][ 'serverInfo' ][ 'name' ] ==
             'Sphinx MCP Server'
         )
 
@@ -58,18 +55,13 @@ async def test_010_mcp_tools_list( ):
     ):
         await client.initialize( )
         response = await client.list_tools( )
-        
         assert response[ 'jsonrpc' ] == '2.0'
         assert 'result' in response
         assert 'tools' in response[ 'result' ]
-        
         tools = response[ 'result' ][ 'tools' ]
         tool_names = [ tool[ 'name' ] for tool in tools ]
-        
         assert 'extract_inventory' in tool_names
         assert 'summarize_inventory' in tool_names
-
-
 
 
 @pytest.mark.slow
@@ -85,24 +77,19 @@ async def test_100_mcp_extract_inventory_tool( ):
         response = await client.call_tool( 'extract_inventory', {
             'source': inventory_path
         } )
-        
         assert response[ 'jsonrpc' ] == '2.0'
         assert 'result' in response
         content = response[ 'result' ][ 'content' ]
         assert len( content ) > 0
         assert content[ 0 ][ 'type' ] == 'text'
-        
-        # Response should be JSON containing inventory data
         text_content = content[ 0 ][ 'text' ]
         assert 'project' in text_content
         assert 'objects' in text_content
 
 
-
-
 @pytest.mark.slow
 @pytest.mark.asyncio
-async def test_140_mcp_extract_inventory_nonexistent_file( ):
+async def test_110_mcp_extract_inventory_nonexistent_file( ):
     ''' MCP extract_inventory tool handles nonexistent files gracefully. '''
     async with (
         mcp_test_server( ) as port,
@@ -112,9 +99,7 @@ async def test_140_mcp_extract_inventory_nonexistent_file( ):
         response = await client.call_tool( 'extract_inventory', {
             'source': '/nonexistent/path.inv'
         } )
-        
         assert response[ 'jsonrpc' ] == '2.0'
-        # Should return error for nonexistent file
         assert 'result' in response
         assert 'isError' in response[ 'result' ]
         assert response[ 'result' ][ 'isError' ]
@@ -133,23 +118,19 @@ async def test_200_mcp_summarize_inventory_tool( ):
         response = await client.call_tool( 'summarize_inventory', {
             'source': inventory_path
         } )
-        
         assert response[ 'jsonrpc' ] == '2.0'
         assert 'result' in response
         content = response[ 'result' ][ 'content' ]
         assert len( content ) > 0
         assert content[ 0 ][ 'type' ] == 'text'
-        
         text_content = content[ 0 ][ 'text' ]
         assert 'Sphinx Inventory' in text_content
         assert 'objects' in text_content
 
 
-
-
 @pytest.mark.slow
 @pytest.mark.asyncio
-async def test_220_mcp_summarize_inventory_nonexistent_file( ):
+async def test_210_mcp_summarize_inventory_nonexistent_file( ):
     ''' MCP summarize_inventory tool handles nonexistent files gracefully. '''
     async with (
         mcp_test_server( ) as port,
@@ -159,9 +140,7 @@ async def test_220_mcp_summarize_inventory_nonexistent_file( ):
         response = await client.call_tool( 'summarize_inventory', {
             'source': '/nonexistent/path.inv'
         } )
-        
         assert response[ 'jsonrpc' ] == '2.0'
-        # Should return error for nonexistent file
         assert 'result' in response
         assert 'isError' in response[ 'result' ]
         assert response[ 'result' ][ 'isError' ]
@@ -177,7 +156,6 @@ async def test_300_mcp_invalid_tool_name( ):
     ):
         await client.initialize( )
         response = await client.call_tool( 'nonexistent_tool', { } )
-        
         assert response[ 'jsonrpc' ] == '2.0'
         assert 'result' in response
         assert 'isError' in response[ 'result' ]
@@ -193,15 +171,12 @@ async def test_310_mcp_protocol_error_handling( ):
         MCPTestClient( port ) as client
     ):
         await client.initialize( )
-        
-        # Send malformed request
         malformed_request = {
             "jsonrpc": "2.0",
             "method": "tools/call",
             # Missing required params
             "id": 1
         }
-        
         response = await client.send_request( malformed_request )
         assert response[ 'jsonrpc' ] == '2.0'
         assert 'error' in response
@@ -217,19 +192,13 @@ async def test_400_mcp_stdio_transport( ):
         mcp_test_server( ) as process,
         MCPTestClient( process ) as client
     ):
-        # Verify we can connect via stdio
         assert client.process == process
-        
-        # Verify MCP protocol works over stdio
         response = await client.initialize( )
         assert response[ 'jsonrpc' ] == '2.0'
         assert 'result' in response
-        
-        # Verify tool calls work over stdio using inventory tools
         inventory_path = get_test_inventory_path( 'sphinxmcps' )
         response = await client.call_tool(
-            'summarize_inventory', { 'source': inventory_path }
-        )
+            'summarize_inventory', { 'source': inventory_path } )
         assert response[ 'jsonrpc' ] == '2.0'
         assert 'result' in response
         content = response[ 'result' ][ 'content' ]
@@ -246,35 +215,22 @@ async def test_410_mcp_multiple_requests( ):
         mcp_test_server( ) as process,
         MCPTestClient( process ) as client
     ):
-        # Initialize once
         await client.initialize( )
-        
-        # Make multiple tool calls sequentially
         inventory_path = get_test_inventory_path( 'sphinxmcps' )
-        
-        # First call
         response1 = await client.call_tool(
-            'summarize_inventory', { 'source': inventory_path }
-        )
+            'summarize_inventory', { 'source': inventory_path } )
         assert response1[ 'jsonrpc' ] == '2.0'
         assert 'result' in response1
-        
-        # Second call with different parameters
         response2 = await client.call_tool(
-            'extract_inventory', { 'source': inventory_path }
-        )
+            'extract_inventory', { 'source': inventory_path } )
         assert response2[ 'jsonrpc' ] == '2.0'
         assert 'result' in response2
-        
-        # Both should have valid content
         assert (
-            'Sphinx Inventory' in 
-            response1[ 'result' ][ 'content' ][ 0 ][ 'text' ]
-        )
+            'Sphinx Inventory' in
+            response1[ 'result' ][ 'content' ][ 0 ][ 'text' ] )
         assert (
-            'project' in 
-            response2[ 'result' ][ 'content' ][ 0 ][ 'text' ]
-        )
+            'project' in
+            response2[ 'result' ][ 'content' ][ 0 ][ 'text' ] )
 
 
 @pytest.mark.slow
@@ -289,15 +245,9 @@ async def test_500_mcp_server_shutdown_cleanup( ):
         await client.initialize( )
         inventory_path = get_test_inventory_path( 'sphinxmcps' )
         response = await client.call_tool(
-            'summarize_inventory', { 'source': inventory_path }
-        )
+            'summarize_inventory', { 'source': inventory_path } )
         assert (
-            'Sphinx Inventory' in 
-            response[ 'result' ][ 'content' ][ 0 ][ 'text' ]
-        )
-        
+            'Sphinx Inventory' in
+            response[ 'result' ][ 'content' ][ 0 ][ 'text' ] )
         # Client connection should close cleanly
-        
     # Server should shut down cleanly (tested by context manager)
-    # If we get here without hanging, cleanup worked
-    assert True

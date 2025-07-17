@@ -25,8 +25,8 @@ import pytest
 from pathlib import Path
 
 import sphinxmcps.functions as module
-import sphinxmcps.exceptions as exceptions_module
-import sphinxmcps.interfaces as interfaces_module
+import sphinxmcps.exceptions as _exceptions
+import sphinxmcps.interfaces as _interfaces
 
 from .fixtures import get_test_inventory_path
 
@@ -80,7 +80,7 @@ def test_140_extract_inventory_with_all_filters( ):
 
 def test_150_extract_inventory_nonexistent_file( ):
     ''' Extract inventory raises appropriate exception for missing files. '''
-    with pytest.raises( exceptions_module.InventoryInaccessibility ):
+    with pytest.raises( _exceptions.InventoryInaccessibility ):
         module.extract_inventory( "/nonexistent/path.inv" )
 
 
@@ -100,7 +100,7 @@ def test_170_extract_inventory_with_regex_term( ):
     # Use regex to find objects containing "inventory"
     result = module.extract_inventory(
         inventory_path, term = '.*inventory.*',
-        match_mode = interfaces_module.MatchMode.Regex )
+        match_mode = _interfaces.MatchMode.Regex )
     assert 'filters' in result
     assert result[ 'filters' ][ 'term' ] == '.*inventory.*'
     assert result[ 'filters' ][ 'match_mode' ] == 'regex'
@@ -113,7 +113,7 @@ def test_180_extract_inventory_with_regex_anchors( ):
     # Use regex anchors to find objects starting with specific pattern
     result = module.extract_inventory(
         inventory_path, term = r'^sphobjinv\.',
-        match_mode = interfaces_module.MatchMode.Regex )
+        match_mode = _interfaces.MatchMode.Regex )
     assert 'filters' in result
     assert result[ 'filters' ][ 'match_mode' ] == 'regex'
     if result[ 'object_count' ] > 0:
@@ -125,10 +125,10 @@ def test_180_extract_inventory_with_regex_anchors( ):
 def test_190_extract_inventory_invalid_regex( ):
     ''' Extract inventory raises exception for invalid regex patterns. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    with pytest.raises( exceptions_module.InventoryFilterInvalidity ):
+    with pytest.raises( _exceptions.InventoryFilterInvalidity ):
         module.extract_inventory(
             inventory_path, term = '[invalid_regex',
-            match_mode = interfaces_module.MatchMode.Regex )
+            match_mode = _interfaces.MatchMode.Regex )
 
 
 def test_200_summarize_inventory_basic( ):
@@ -153,7 +153,7 @@ def test_215_summarize_inventory_with_regex( ):
     # Summarize with regex filter applied
     result = module.summarize_inventory(
         inventory_path, term = '.*inventory.*',
-        match_mode = interfaces_module.MatchMode.Regex )
+        match_mode = _interfaces.MatchMode.Regex )
     assert 'objects' in result
     # Should mention regex filtering was applied
     assert 'regex' in result.lower( )
@@ -165,7 +165,7 @@ def test_220_extract_inventory_with_fuzzy_matching( ):
     # Use fuzzy matching to find objects similar to "DataObj"
     result = module.extract_inventory(
         inventory_path, term = 'DataObj',
-        match_mode = interfaces_module.MatchMode.Fuzzy,
+        match_mode = _interfaces.MatchMode.Fuzzy,
         fuzzy_threshold = 50 )
     assert 'filters' in result
     assert result[ 'filters' ][ 'term' ] == 'DataObj'
@@ -180,12 +180,12 @@ def test_230_extract_inventory_fuzzy_with_high_threshold( ):
     # Use high threshold for stricter matching
     result_strict = module.extract_inventory(
         inventory_path, term = 'DataObj',
-        match_mode = interfaces_module.MatchMode.Fuzzy,
+        match_mode = _interfaces.MatchMode.Fuzzy,
         fuzzy_threshold = 80 )
     # Use low threshold for looser matching
     result_loose = module.extract_inventory(
         inventory_path, term = 'DataObj',
-        match_mode = interfaces_module.MatchMode.Fuzzy,
+        match_mode = _interfaces.MatchMode.Fuzzy,
         fuzzy_threshold = 30 )
     # Stricter threshold should find fewer or equal matches
     assert result_strict[ 'object_count' ] <= result_loose[ 'object_count' ]
@@ -201,7 +201,7 @@ def test_240_extract_inventory_fuzzy_with_domain_filter( ):
         inventory_path,
         domain = 'py',
         term = 'inventory',
-        match_mode = interfaces_module.MatchMode.Fuzzy,
+        match_mode = _interfaces.MatchMode.Fuzzy,
         fuzzy_threshold = 60 )
     assert 'filters' in result
     assert result[ 'filters' ][ 'domain' ] == 'py'
@@ -219,7 +219,7 @@ def test_250_summarize_inventory_with_fuzzy( ):
     # Summarize with fuzzy filter applied
     result = module.summarize_inventory(
         inventory_path, term = 'inventory',
-        match_mode = interfaces_module.MatchMode.Fuzzy,
+        match_mode = _interfaces.MatchMode.Fuzzy,
         fuzzy_threshold = 70 )
     assert 'objects' in result
     # Should mention fuzzy filtering was applied
@@ -229,14 +229,14 @@ def test_250_summarize_inventory_with_fuzzy( ):
 
 def test_260_match_mode_enum_values( ):
     ''' MatchMode enum has correct string values. '''
-    assert interfaces_module.MatchMode.Exact.value == 'exact'
-    assert interfaces_module.MatchMode.Regex.value == 'regex'
-    assert interfaces_module.MatchMode.Fuzzy.value == 'fuzzy'
+    assert _interfaces.MatchMode.Exact.value == 'exact'
+    assert _interfaces.MatchMode.Regex.value == 'regex'
+    assert _interfaces.MatchMode.Fuzzy.value == 'fuzzy'
 
 
 def test_270_summarize_inventory_nonexistent_file( ):
     ''' Summarize inventory raises appropriate exception for missing files. '''
-    with pytest.raises( exceptions_module.InventoryInaccessibility ):
+    with pytest.raises( _exceptions.InventoryInaccessibility ):
         module.summarize_inventory( "/nonexistent/path.inv" )
 
 

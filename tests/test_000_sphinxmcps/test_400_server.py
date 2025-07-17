@@ -24,22 +24,17 @@
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 
-from . import cache_import_module, PACKAGE_NAME
+import sphinxmcps.server as module
+import sphinxmcps.interfaces as _interfaces
+
 from .fixtures import get_test_inventory_path
 
 
-def test_000_extract_inventory_wrapper():
+def test_000_extract_inventory_wrapper( ):
     ''' Server extract_inventory delegates to functions correctly. '''
-    server = cache_import_module( f"{PACKAGE_NAME}.server" )
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    
-    result = server.extract_inventory(
-        source = test_inventory_path,
-        domain = 'py',
-        role = 'function'
-    )
-    
-    # Verify structure and filtering
+    result = module.extract_inventory(
+        source = test_inventory_path, domain = 'py', role = 'function' )
     assert isinstance( result, dict )
     assert 'project' in result
     assert 'filters' in result
@@ -47,101 +42,68 @@ def test_000_extract_inventory_wrapper():
     assert result[ 'filters' ][ 'role' ] == 'function'
 
 
-def test_010_extract_inventory_wrapper_no_filters():
+def test_010_extract_inventory_wrapper_no_filters( ):
     ''' Server extract_inventory works without filters. '''
-    server = cache_import_module( f"{PACKAGE_NAME}.server" )
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    
-    result = server.extract_inventory( source = test_inventory_path )
-    
-    # Verify structure without filters (no filters key when no filters applied)
+    result = module.extract_inventory( source = test_inventory_path )
     assert isinstance( result, dict )
     assert 'project' in result
     assert 'domains' in result
     assert 'objects' in result
     assert 'object_count' in result
-    # No 'filters' key should be present when no filters applied
     assert 'filters' not in result
 
 
-def test_020_extract_inventory_wrapper_with_regex():
+def test_020_extract_inventory_wrapper_with_regex( ):
     ''' Server extract_inventory handles match_mode parameter correctly. '''
-    server = cache_import_module( f"{PACKAGE_NAME}.server" )
-    interfaces = cache_import_module( f"{PACKAGE_NAME}.interfaces" )
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    
-    result = server.extract_inventory(
+    result = module.extract_inventory(
         source = test_inventory_path,
         term = 'test.*pattern',
-        match_mode = interfaces.MatchMode.Regex
-    )
-    
-    # Verify match_mode is passed through
+        match_mode = _interfaces.MatchMode.Regex )
     assert isinstance( result, dict )
     assert 'filters' in result
     assert result[ 'filters' ][ 'term' ] == 'test.*pattern'
     assert result[ 'filters' ][ 'match_mode' ] == 'regex'
 
 
-def test_100_summarize_inventory_wrapper():
+def test_100_summarize_inventory_wrapper( ):
     ''' Server summarize_inventory delegates to functions correctly. '''
-    server = cache_import_module( f"{PACKAGE_NAME}.server" )
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    
-    result = server.summarize_inventory(
-        source = test_inventory_path,
-        domain = 'py'
-    )
-    
-    # Verify result is a string summary
+    result = module.summarize_inventory(
+        source = test_inventory_path, domain = 'py' )
     assert isinstance( result, str )
     assert 'Sphinx Inventory' in result
     assert 'py' in result
 
 
-def test_110_summarize_inventory_wrapper_no_filters():
+def test_110_summarize_inventory_wrapper_no_filters( ):
     ''' Server summarize_inventory works without filters. '''
-    server = cache_import_module( f"{PACKAGE_NAME}.server" )
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    
-    result = server.summarize_inventory( source = test_inventory_path )
-    
-    # Verify result is a string summary
+    result = module.summarize_inventory( source = test_inventory_path )
     assert isinstance( result, str )
     assert 'Sphinx Inventory' in result
 
 
-def test_120_summarize_inventory_wrapper_with_regex():
+def test_120_summarize_inventory_wrapper_with_regex( ):
     ''' Server summarize_inventory handles match_mode parameter correctly. '''
-    server = cache_import_module( f"{PACKAGE_NAME}.server" )
-    interfaces = cache_import_module( f"{PACKAGE_NAME}.interfaces" )
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    
-    result = server.summarize_inventory(
+    result = module.summarize_inventory(
         source = test_inventory_path,
         term = 'test.*pattern',
-        match_mode = interfaces.MatchMode.Regex
-    )
-    
-    # Verify result is a string summary
+        match_mode = _interfaces.MatchMode.Regex )
     assert isinstance( result, str )
     assert 'Sphinx Inventory' in result
 
 
-def test_130_extract_inventory_wrapper_with_fuzzy():
+def test_130_extract_inventory_wrapper_with_fuzzy( ):
     ''' Server extract_inventory handles fuzzy matching correctly. '''
-    server = cache_import_module( f"{PACKAGE_NAME}.server" )
-    interfaces = cache_import_module( f"{PACKAGE_NAME}.interfaces" )
     test_inventory_path = get_test_inventory_path( 'sphobjinv' )
-    
-    result = server.extract_inventory(
+    result = module.extract_inventory(
         source = test_inventory_path,
         term = 'DataObj',
-        match_mode = interfaces.MatchMode.Fuzzy,
-        fuzzy_threshold = 60
-    )
-    
-    # Verify fuzzy matching is passed through
+        match_mode = _interfaces.MatchMode.Fuzzy,
+        fuzzy_threshold = 60 )
     assert isinstance( result, dict )
     assert 'filters' in result
     assert result[ 'filters' ][ 'term' ] == 'DataObj'
@@ -151,95 +113,55 @@ def test_130_extract_inventory_wrapper_with_fuzzy():
 
 
 @pytest.mark.asyncio
-async def test_200_serve_transport_validation():
+async def test_200_serve_transport_validation( ):
     ''' Serve function validates transport parameter correctly. '''
-    server = cache_import_module( f"{PACKAGE_NAME}.server" )
-    
-    # Create mock auxdata
-    mock_auxdata = Mock()
-    
-    # Test invalid transport raises ValueError (no message in actual code)
+    mock_auxdata = Mock( )
     with pytest.raises( ValueError ):
-        await server.serve( mock_auxdata, transport = 'invalid' )
+        await module.serve( mock_auxdata, transport = 'invalid' )
 
 
 @pytest.mark.asyncio
-async def test_210_serve_stdio_transport():
+async def test_210_serve_stdio_transport( ):
     ''' Serve function accepts stdio transport without error. '''
-    server = cache_import_module( f"{PACKAGE_NAME}.server" )
-    
-    # Create mock auxdata
-    mock_auxdata = Mock()
-    
-    # Mock the FastMCP run_stdio_async method to avoid actual server startup
+    mock_auxdata = Mock( )
     with patch( 'mcp.server.fastmcp.FastMCP.run_stdio_async' ) as mock_run:
-        mock_run.return_value = AsyncMock()
-        
-        # Should not raise ValueError for valid transport
-        try:
-            await server.serve( mock_auxdata, transport = 'stdio' )
+        mock_run.return_value = AsyncMock( )
+        try: await module.serve( mock_auxdata, transport = 'stdio' )
         except ValueError:
-            # Should not get ValueError for valid transport
             pytest.fail( "ValueError raised for valid transport 'stdio'" )
 
 
 @pytest.mark.asyncio
-async def test_220_serve_sse_transport():
+async def test_220_serve_sse_transport( ):
     ''' Serve function accepts sse transport without error. '''
-    server = cache_import_module( f"{PACKAGE_NAME}.server" )
-    
-    # Create mock auxdata
-    mock_auxdata = Mock()
-    
-    # Mock the FastMCP run_sse_async method to avoid actual server startup
+    mock_auxdata = Mock( )
     with patch( 'mcp.server.fastmcp.FastMCP.run_sse_async' ) as mock_run:
-        mock_run.return_value = AsyncMock()
-        
-        # Should not raise ValueError for valid transport
-        try:
-            await server.serve( mock_auxdata, transport = 'sse' )
+        mock_run.return_value = AsyncMock( )
+        try: await module.serve( mock_auxdata, transport = 'sse' )
         except ValueError:
-            # Should not get ValueError for valid transport
             pytest.fail( "ValueError raised for valid transport 'sse'" )
 
 
 @pytest.mark.asyncio
-async def test_230_serve_default_transport():
+async def test_230_serve_default_transport( ):
     ''' Serve function uses default transport when none specified. '''
-    server = cache_import_module( f"{PACKAGE_NAME}.server" )
-    
-    # Create mock auxdata
-    mock_auxdata = Mock()
-    
-    # Mock the FastMCP run_stdio_async method (default transport)
+    mock_auxdata = Mock( )
     with patch( 'mcp.server.fastmcp.FastMCP.run_stdio_async' ) as mock_run:
-        mock_run.return_value = AsyncMock()
-        
-        # Should not raise ValueError when no transport specified
-        try:
-            await server.serve( mock_auxdata )
+        mock_run.return_value = AsyncMock( )
+        try: await module.serve( mock_auxdata )
         except ValueError:
-            # Should not get ValueError for default transport
             pytest.fail( "ValueError raised for default transport" )
 
 
 def test_140_extract_inventory_wrapper_with_priority( ):
     ''' Server extract_inventory handles priority filtering correctly. '''
-    server = cache_import_module( f"{PACKAGE_NAME}.server" )
     test_inventory_path = get_test_inventory_path( 'sphobjinv' )
-    
-    result = server.extract_inventory(
-        source = test_inventory_path,
-        priority = '1'
-    )
-    
-    # Verify priority filter is passed through correctly
+    result = module.extract_inventory(
+        source = test_inventory_path, priority = '1' )
     assert isinstance( result, dict )
     assert 'filters' in result
     assert result[ 'filters' ][ 'priority' ] == '1'
     assert result[ 'object_count' ] > 0
-    
-    # Verify all returned objects have correct priority
     for domain_objects in result[ 'objects' ].values( ):
         for obj in domain_objects:
             assert obj[ 'priority' ] == '1'
@@ -247,15 +169,9 @@ def test_140_extract_inventory_wrapper_with_priority( ):
 
 def test_150_summarize_inventory_wrapper_with_priority( ):
     ''' Server summarize_inventory handles priority filtering correctly. '''
-    server = cache_import_module( f"{PACKAGE_NAME}.server" )
     test_inventory_path = get_test_inventory_path( 'sphobjinv' )
-    
-    result = server.summarize_inventory(
-        source = test_inventory_path,
-        priority = '0'
-    )
-    
-    # Verify priority filter appears in summary
+    result = module.summarize_inventory(
+        source = test_inventory_path, priority = '0' )
     assert isinstance( result, str )
     assert 'priority=0' in result
     assert 'Filters:' in result
