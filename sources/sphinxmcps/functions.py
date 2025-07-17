@@ -113,6 +113,143 @@ async def extract_documentation(
     return result
 
 
+def _calculate_relevance_score(
+    query_lower: str, candidate: __.cabc.Mapping[ str, __.typx.Any ], 
+    doc_result: __.cabc.Mapping[ str, __.typx.Any ]
+) -> __.typx.Annotated[
+    tuple[ float, list[ str ] ],
+    __.ddoc.Doc( ''' Relevance score and match reasons for a result. ''' )
+]:
+    ''' Calculate relevance score and match reasons for doc result. '''
+    score = 0.0
+    match_reasons: list[ str ] = []
+    
+    # Name matching (highest weight)
+    if query_lower in candidate['name'].lower():
+        score += 10.0
+        match_reasons.append('name match')
+    
+    # Signature matching
+    if query_lower in doc_result['signature'].lower():
+        score += 5.0
+        match_reasons.append('signature match')
+    
+    # Description matching
+    if query_lower in doc_result['description'].lower():
+        score += 3.0
+        match_reasons.append('description match')
+    
+    # Priority boost
+    if candidate['priority'] == '1':
+        score += 2.0
+    elif candidate['priority'] == '0':
+        score += 1.0
+    
+    return score, match_reasons
+
+
+def _extract_content_snippet(
+    query_lower: str, query: str, description: str
+) -> __.typx.Annotated[
+    str, __.ddoc.Doc( ''' Content snippet around the query match. ''' )
+]:
+    ''' Extract content snippet around query match in description. '''
+    if not description or query_lower not in description.lower():
+        return ''
+    
+    # Find query in description and extract surrounding context
+    query_pos = description.lower().find(query_lower)
+    start = max(0, query_pos - 50)
+    end = min(len(description), query_pos + len(query) + 50)
+    content_snippet = description[start:end]
+    
+    if start > 0:
+        content_snippet = '...' + content_snippet
+    if end < len(description):
+        content_snippet = content_snippet + '...'
+    
+    return content_snippet
+
+
+async def query_documentation(  # noqa: PLR0913
+    source: SourceArgument,
+    query: str, /, *,
+    domain: DomainFilter = __.absent,
+    role: RoleFilter = __.absent,
+    priority: PriorityFilter = __.absent,
+    match_mode: MatchMode = MatchMode.Fuzzy,
+    fuzzy_threshold: int = 50,
+    max_results: int = 10,
+    include_snippets: bool = True
+) -> __.typx.Annotated[
+    list[ __.cabc.Mapping[ str, __.typx.Any ] ],
+    __.ddoc.Doc( ''' List of query results with relevance ranking. ''' )
+]:
+    ''' Queries documentation content with relevance ranking. '''
+    # Step 1: Use inventory filtering to find candidate objects
+    inventory_results = extract_inventory(
+        source,
+        domain=domain,
+        role=role,
+        term=query,
+        priority=priority,
+        match_mode=match_mode,
+        fuzzy_threshold=fuzzy_threshold
+    )
+    
+    if 'objects' not in inventory_results:
+        return []
+    
+    # Step 2: Extract documentation for each candidate object
+    candidates = [
+        obj for domain_objects in inventory_results['objects'].values()
+        for obj in domain_objects
+    ]
+    
+    # Step 3: Fetch documentation content and calculate relevance
+    results: list[ __.cabc.Mapping[ str, __.typx.Any ] ] = []
+    query_lower = query.lower()
+    
+    for candidate in candidates:
+        try:
+            doc_result = await extract_documentation(
+                source, candidate['name']
+            )
+            if 'error' in doc_result:
+                continue
+            
+            # Calculate relevance score
+            score, match_reasons = _calculate_relevance_score(
+                query_lower, candidate, doc_result )
+            
+            # Extract content snippet if requested
+            content_snippet = ''
+            if include_snippets:
+                content_snippet = _extract_content_snippet(
+                    query_lower, query, doc_result['description'] )
+            
+            results.append({
+                'object_name': candidate['name'],
+                'object_type': candidate['role'],
+                'domain': candidate.get('domain', ''),
+                'priority': candidate['priority'],
+                'url': doc_result['url'],
+                'signature': doc_result['signature'],
+                'description': doc_result['description'],
+                'content_snippet': content_snippet,
+                'relevance_score': score,
+                'match_reasons': match_reasons
+            })
+            
+        except Exception:  # noqa: S112
+            # Skip objects that can't be processed
+            continue
+    
+    # Step 4: Sort by relevance and return top results
+    results.sort(key=lambda x: x['relevance_score'], reverse=True)
+    return results[:max_results]
+
+
 def extract_inventory( # noqa: PLR0913
     source: SourceArgument, /, *,
     domain: DomainFilter = __.absent,

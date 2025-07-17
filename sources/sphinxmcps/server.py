@@ -69,6 +69,91 @@ async def extract_documentation(
         return { 'error': str( exc ) }
 
 
+async def query_documentation(  # noqa: PLR0913
+    source: __.typx.Annotated[
+        str,
+        _Field(
+            description = "URL or file path to Sphinx documentation"
+        )
+    ],
+    query: __.typx.Annotated[
+        str,
+        _Field(
+            description = "Search query for documentation content"
+        )
+    ],
+    domain: __.typx.Annotated[
+        str,
+        _Field(
+            description = "Filter objects by domain (e.g., 'py', 'std')"
+        )
+    ] = '',
+    role: __.typx.Annotated[
+        str,
+        _Field(
+            description = "Filter objects by role (e.g., 'function', 'class')"
+        )
+    ] = '',
+    priority: __.typx.Annotated[
+        str,
+        _Field(
+            description = "Filter objects by priority level (e.g., '1', '0')"
+        )
+    ] = '',
+    match_mode: __.typx.Annotated[
+        str,
+        _Field(
+            description = "Term matching mode: 'exact', 'regex', or 'fuzzy'"
+        )
+    ] = 'fuzzy',
+    fuzzy_threshold: __.typx.Annotated[
+        int,
+        _Field(
+            description = "Fuzzy matching threshold (0-100, higher = stricter)"
+        )
+    ] = 50,
+    max_results: __.typx.Annotated[
+        int,
+        _Field(
+            description = "Maximum number of results to return"
+        )
+    ] = 10,
+    include_snippets: __.typx.Annotated[
+        bool,
+        _Field(
+            description = "Include content snippets in results"
+        )
+    ] = True,
+) -> list[ __.cabc.Mapping[ str, __.typx.Any ] ]:
+    ''' Query documentation content with relevance ranking. '''
+    _scribe.debug(
+        "query_documentation called: source=%s, query=%s", source, query )
+    
+    # Convert string match_mode to enum
+    match_mode_enum = _functions.MatchMode.Exact
+    if match_mode == 'regex':
+        match_mode_enum = _functions.MatchMode.Regex
+    elif match_mode == 'fuzzy':
+        match_mode_enum = _functions.MatchMode.Fuzzy
+    
+    nomargs: __.NominativeArguments = { }
+    if domain: nomargs[ 'domain' ] = domain
+    if role: nomargs[ 'role' ] = role
+    if priority: nomargs[ 'priority' ] = priority
+    
+    nomargs[ 'match_mode' ] = match_mode_enum
+    nomargs[ 'fuzzy_threshold' ] = fuzzy_threshold
+    nomargs[ 'max_results' ] = max_results
+    nomargs[ 'include_snippets' ] = include_snippets
+    
+    try:
+        return await _functions.query_documentation(
+            source, query, **nomargs )
+    except Exception as exc:
+        _scribe.error( "Error querying documentation: %s", exc )
+        return [ { 'error': str( exc ) } ]
+
+
 def extract_inventory( # noqa: PLR0913
     source: __.typx.Annotated[
         str,
@@ -212,6 +297,8 @@ async def serve(
     mcp.tool( )( summarize_inventory )
     _scribe.debug( "Registering extract_documentation tool" )
     mcp.tool( )( extract_documentation )
+    _scribe.debug( "Registering query_documentation tool" )
+    mcp.tool( )( query_documentation )
     _scribe.debug( "Tools registered successfully" )
     match transport:
         case 'sse': await mcp.run_sse_async( mount_path = None )

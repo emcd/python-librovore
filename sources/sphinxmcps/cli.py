@@ -60,6 +60,18 @@ CliTermFilter: __.typx.TypeAlias = __.typx.Annotated[
 CliTransportArgument: __.typx.TypeAlias = __.typx.Annotated[
     __.typx.Optional[ str ], __.ddoc.Doc( ''' Transport: stdio or sse. ''' )
 ]
+CliQueryArgument: __.typx.TypeAlias = __.typx.Annotated[
+    str,
+    __.ddoc.Doc( ''' Search query for documentation content. ''' )
+]
+CliMaxResults: __.typx.TypeAlias = __.typx.Annotated[
+    int,
+    __.ddoc.Doc( ''' Maximum number of results to return. ''' )
+]
+CliIncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
+    bool,
+    __.ddoc.Doc( ''' Include content snippets in results. ''' )
+]
 
 
 class ExtractInventoryCommand(
@@ -134,6 +146,65 @@ class SummarizeInventoryCommand(
         print( result, file = stream )
 
 
+class ExtractDocumentationCommand(
+    _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
+):
+    ''' Extracts documentation for a specific object from Sphinx docs. '''
+
+    source: CliSourceArgument
+    object_name: __.typx.Annotated[
+        str, __.ddoc.Doc( 
+            ''' Name of the object to extract documentation for. ''' )
+    ]
+
+    async def __call__(
+        self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
+    ) -> None:
+        stream = await display.provide_stream( )
+        
+        result = await _functions.extract_documentation(
+            self.source, self.object_name )
+        print( __.json.dumps( result, indent = 2 ), file = stream )
+
+
+class QueryDocumentationCommand(
+    _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
+):
+    ''' Queries documentation content with relevance ranking. '''
+
+    source: CliSourceArgument
+    query: CliQueryArgument
+    domain: CliDomainFilter = None
+    role: CliRoleFilter = None
+    priority: CliPriorityFilter = None
+    match_mode: CliMatchMode = _functions.MatchMode.Fuzzy
+    fuzzy_threshold: CliFuzzyThreshold = 50
+    max_results: CliMaxResults = 10
+    include_snippets: CliIncludeSnippets = True
+
+    async def __call__(
+        self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
+    ) -> None:
+        stream = await display.provide_stream( )
+        nomargs: __.NominativeArguments = { }
+        
+        if self.domain is not None:
+            nomargs[ 'domain' ] = self.domain
+        if self.role is not None:
+            nomargs[ 'role' ] = self.role
+        if self.priority is not None:
+            nomargs[ 'priority' ] = self.priority
+        
+        nomargs[ 'match_mode' ] = self.match_mode
+        nomargs[ 'fuzzy_threshold' ] = self.fuzzy_threshold
+        nomargs[ 'max_results' ] = self.max_results
+        nomargs[ 'include_snippets' ] = self.include_snippets
+        
+        result = await _functions.query_documentation(
+            self.source, self.query, **nomargs )
+        print( __.json.dumps( result, indent = 2 ), file = stream )
+
+
 class UseCommand(
     _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
@@ -150,6 +221,18 @@ class UseCommand(
             SummarizeInventoryCommand,
             __.tyro.conf.subcommand(
                 'summarize-inventory', prefix_name = False
+            ),
+        ],
+        __.typx.Annotated[
+            ExtractDocumentationCommand,
+            __.tyro.conf.subcommand(
+                'extract-documentation', prefix_name = False
+            ),
+        ],
+        __.typx.Annotated[
+            QueryDocumentationCommand,
+            __.tyro.conf.subcommand(
+                'query-documentation', prefix_name = False
             ),
         ],
     ]
