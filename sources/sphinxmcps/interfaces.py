@@ -24,6 +24,14 @@
 from . import __
 
 
+class MatchMode( str, __.enum.Enum ):
+    ''' Enumeration for different term matching modes. '''
+
+    Exact = 'exact'
+    Regex = 'regex'
+    Fuzzy = 'fuzzy'
+
+
 class DisplayStreams( __.enum.Enum ):
     ''' Stream upon which to place output. '''
 

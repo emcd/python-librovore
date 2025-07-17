@@ -28,6 +28,7 @@ from pydantic import Field as _Field
 
 from . import __
 from . import functions as _functions
+from . import interfaces as _interfaces
 
 
 McpDomainFilter: __.typx.TypeAlias = __.typx.Annotated[
@@ -49,7 +50,7 @@ McpIncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
     )
 ]
 McpMatchMode: __.typx.TypeAlias = __.typx.Annotated[
-    str,
+    _interfaces.MatchMode,
     _Field(
         description = "Term matching mode: 'exact', 'regex', or 'fuzzy'"
     )
@@ -64,12 +65,6 @@ McpObjectName: __.typx.TypeAlias = __.typx.Annotated[
     str,
     _Field(
         description = "Name of the object to extract documentation for"
-    )
-]
-McpOutputFormat: __.typx.TypeAlias = __.typx.Annotated[
-    str,
-    _Field(
-        description = "Output format: 'markdown' or 'text'"
     )
 ]
 McpPriorityFilter: __.typx.TypeAlias = __.typx.Annotated[
@@ -110,19 +105,14 @@ _scribe = __.acquire_scribe( __name__ )
 async def extract_documentation(
     source: McpSourceArgument,
     object_name: McpObjectName,
-    output_format: McpOutputFormat = 'markdown',
 ) -> __.cabc.Mapping[ str, __.typx.Any ]:
     ''' Extract documentation for a specific object from Sphinx docs. '''
     _scribe.debug(
-        "extract_documentation called: source=%s, object_name=%s, format=%s",
-        source, object_name, output_format )
-    format_arg = (
-        output_format if output_format in ( 'markdown', 'text' )
-        else 'markdown'
-    )
+        "extract_documentation called: source=%s, object_name=%s",
+        source, object_name )
     try:
         return await _functions.extract_documentation(
-            source, object_name, output_format = format_arg )
+            source, object_name )
     except Exception as exc:
         _scribe.error( "Error extracting documentation: %s", exc )
         return { 'error': str( exc ) }
@@ -134,7 +124,7 @@ async def query_documentation(  # noqa: PLR0913
     domain: McpDomainFilter = '',
     role: McpRoleFilter = '',
     priority: McpPriorityFilter = '',
-    match_mode: McpMatchMode = 'fuzzy',
+    match_mode: McpMatchMode = _interfaces.MatchMode.Fuzzy,
     fuzzy_threshold: McpFuzzyThreshold = 50,
     max_results: McpMaxResults = 10,
     include_snippets: McpIncludeSnippets = True,
@@ -143,19 +133,14 @@ async def query_documentation(  # noqa: PLR0913
     _scribe.debug(
         "query_documentation called: source=%s, query=%s", source, query )
     
-    # Convert string match_mode to enum
-    match_mode_enum = _functions.MatchMode.Exact
-    if match_mode == 'regex':
-        match_mode_enum = _functions.MatchMode.Regex
-    elif match_mode == 'fuzzy':
-        match_mode_enum = _functions.MatchMode.Fuzzy
+    # match_mode is already an enum
     
     nomargs: __.NominativeArguments = { }
     if domain: nomargs[ 'domain' ] = domain
     if role: nomargs[ 'role' ] = role
     if priority: nomargs[ 'priority' ] = priority
     
-    nomargs[ 'match_mode' ] = match_mode_enum
+    nomargs[ 'match_mode' ] = match_mode
     nomargs[ 'fuzzy_threshold' ] = fuzzy_threshold
     nomargs[ 'max_results' ] = max_results
     nomargs[ 'include_snippets' ] = include_snippets
@@ -174,7 +159,7 @@ def extract_inventory( # noqa: PLR0913
     role: McpRoleFilter = '',
     term: McpTermFilter = '',
     priority: McpPriorityFilter = '',
-    match_mode: McpMatchMode = 'exact',
+    match_mode: McpMatchMode = _interfaces.MatchMode.Exact,
     fuzzy_threshold: McpFuzzyThreshold = 50,
 ) -> dict[ str, __.typx.Any ]:
     ''' Extracts Sphinx inventory from location with optional filtering. '''
@@ -188,13 +173,9 @@ def extract_inventory( # noqa: PLR0913
     if role: nomargs[ 'role' ] = role
     if term: nomargs[ 'term' ] = term
     if priority: nomargs[ 'priority' ] = priority
-    if match_mode == 'fuzzy':
-        nomargs[ 'match_mode' ] = _functions.MatchMode.Fuzzy
+    nomargs[ 'match_mode' ] = match_mode
+    if match_mode == _interfaces.MatchMode.Fuzzy:
         nomargs[ 'fuzzy_threshold' ] = fuzzy_threshold
-    elif match_mode == 'regex':
-        nomargs[ 'match_mode' ] = _functions.MatchMode.Regex
-    else:  # 'exact' or any other value defaults to exact
-        nomargs[ 'match_mode' ] = _functions.MatchMode.Exact
     return _functions.extract_inventory( source, **nomargs )
 
 
@@ -204,7 +185,7 @@ def summarize_inventory( # noqa: PLR0913
     role: McpRoleFilter = '',
     term: McpTermFilter = '',
     priority: McpPriorityFilter = '',
-    match_mode: McpMatchMode = 'exact',
+    match_mode: McpMatchMode = _interfaces.MatchMode.Exact,
     fuzzy_threshold: McpFuzzyThreshold = 50,
 ) -> str:
     ''' Provides human-readable summary of Sphinx inventory. '''
@@ -217,13 +198,9 @@ def summarize_inventory( # noqa: PLR0913
     if role: nomargs[ 'role' ] = role
     if term: nomargs[ 'term' ] = term
     if priority: nomargs[ 'priority' ] = priority
-    if match_mode == 'fuzzy':
-        nomargs[ 'match_mode' ] = _functions.MatchMode.Fuzzy
+    nomargs[ 'match_mode' ] = match_mode
+    if match_mode == _interfaces.MatchMode.Fuzzy:
         nomargs[ 'fuzzy_threshold' ] = fuzzy_threshold
-    elif match_mode == 'regex':
-        nomargs[ 'match_mode' ] = _functions.MatchMode.Regex
-    else:  # 'exact' or any other value defaults to exact
-        nomargs[ 'match_mode' ] = _functions.MatchMode.Exact
     return _functions.summarize_inventory( source, **nomargs )
 
 

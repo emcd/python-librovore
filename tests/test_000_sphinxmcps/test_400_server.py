@@ -67,12 +67,13 @@ def test_010_extract_inventory_wrapper_no_filters():
 def test_020_extract_inventory_wrapper_with_regex():
     ''' Server extract_inventory handles match_mode parameter correctly. '''
     server = cache_import_module( f"{PACKAGE_NAME}.server" )
+    interfaces = cache_import_module( f"{PACKAGE_NAME}.interfaces" )
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
     
     result = server.extract_inventory(
         source = test_inventory_path,
         term = 'test.*pattern',
-        match_mode = 'regex'
+        match_mode = interfaces.MatchMode.Regex
     )
     
     # Verify match_mode is passed through
@@ -113,12 +114,13 @@ def test_110_summarize_inventory_wrapper_no_filters():
 def test_120_summarize_inventory_wrapper_with_regex():
     ''' Server summarize_inventory handles match_mode parameter correctly. '''
     server = cache_import_module( f"{PACKAGE_NAME}.server" )
+    interfaces = cache_import_module( f"{PACKAGE_NAME}.interfaces" )
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
     
     result = server.summarize_inventory(
         source = test_inventory_path,
         term = 'test.*pattern',
-        match_mode = 'regex'
+        match_mode = interfaces.MatchMode.Regex
     )
     
     # Verify result is a string summary
@@ -129,12 +131,13 @@ def test_120_summarize_inventory_wrapper_with_regex():
 def test_130_extract_inventory_wrapper_with_fuzzy():
     ''' Server extract_inventory handles fuzzy matching correctly. '''
     server = cache_import_module( f"{PACKAGE_NAME}.server" )
+    interfaces = cache_import_module( f"{PACKAGE_NAME}.interfaces" )
     test_inventory_path = get_test_inventory_path( 'sphobjinv' )
     
     result = server.extract_inventory(
         source = test_inventory_path,
         term = 'DataObj',
-        match_mode = 'fuzzy',
+        match_mode = interfaces.MatchMode.Fuzzy,
         fuzzy_threshold = 60
     )
     

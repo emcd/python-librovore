@@ -26,6 +26,7 @@ from pathlib import Path
 
 import sphinxmcps.functions as module
 import sphinxmcps.exceptions as exceptions_module
+import sphinxmcps.interfaces as interfaces_module
 
 from .fixtures import get_test_inventory_path
 
@@ -99,7 +100,7 @@ def test_170_extract_inventory_with_regex_term( ):
     # Use regex to find objects containing "inventory"
     result = module.extract_inventory(
         inventory_path, term = '.*inventory.*',
-        match_mode = module.MatchMode.Regex )
+        match_mode = interfaces_module.MatchMode.Regex )
     assert 'filters' in result
     assert result[ 'filters' ][ 'term' ] == '.*inventory.*'
     assert result[ 'filters' ][ 'match_mode' ] == 'regex'
@@ -112,7 +113,7 @@ def test_180_extract_inventory_with_regex_anchors( ):
     # Use regex anchors to find objects starting with specific pattern
     result = module.extract_inventory(
         inventory_path, term = r'^sphobjinv\.',
-        match_mode = module.MatchMode.Regex )
+        match_mode = interfaces_module.MatchMode.Regex )
     assert 'filters' in result
     assert result[ 'filters' ][ 'match_mode' ] == 'regex'
     if result[ 'object_count' ] > 0:
@@ -127,7 +128,7 @@ def test_190_extract_inventory_invalid_regex( ):
     with pytest.raises( exceptions_module.InventoryFilterInvalidity ):
         module.extract_inventory(
             inventory_path, term = '[invalid_regex',
-            match_mode = module.MatchMode.Regex )
+            match_mode = interfaces_module.MatchMode.Regex )
 
 
 def test_200_summarize_inventory_basic( ):
@@ -152,7 +153,7 @@ def test_215_summarize_inventory_with_regex( ):
     # Summarize with regex filter applied
     result = module.summarize_inventory(
         inventory_path, term = '.*inventory.*',
-        match_mode = module.MatchMode.Regex )
+        match_mode = interfaces_module.MatchMode.Regex )
     assert 'objects' in result
     # Should mention regex filtering was applied
     assert 'regex' in result.lower( )
@@ -164,7 +165,7 @@ def test_220_extract_inventory_with_fuzzy_matching( ):
     # Use fuzzy matching to find objects similar to "DataObj"
     result = module.extract_inventory(
         inventory_path, term = 'DataObj',
-        match_mode = module.MatchMode.Fuzzy,
+        match_mode = interfaces_module.MatchMode.Fuzzy,
         fuzzy_threshold = 50 )
     assert 'filters' in result
     assert result[ 'filters' ][ 'term' ] == 'DataObj'
@@ -179,12 +180,12 @@ def test_230_extract_inventory_fuzzy_with_high_threshold( ):
     # Use high threshold for stricter matching
     result_strict = module.extract_inventory(
         inventory_path, term = 'DataObj',
-        match_mode = module.MatchMode.Fuzzy,
+        match_mode = interfaces_module.MatchMode.Fuzzy,
         fuzzy_threshold = 80 )
     # Use low threshold for looser matching
     result_loose = module.extract_inventory(
         inventory_path, term = 'DataObj',
-        match_mode = module.MatchMode.Fuzzy,
+        match_mode = interfaces_module.MatchMode.Fuzzy,
         fuzzy_threshold = 30 )
     # Stricter threshold should find fewer or equal matches
     assert result_strict[ 'object_count' ] <= result_loose[ 'object_count' ]
@@ -200,7 +201,7 @@ def test_240_extract_inventory_fuzzy_with_domain_filter( ):
         inventory_path,
         domain = 'py',
         term = 'inventory',
-        match_mode = module.MatchMode.Fuzzy,
+        match_mode = interfaces_module.MatchMode.Fuzzy,
         fuzzy_threshold = 60 )
     assert 'filters' in result
     assert result[ 'filters' ][ 'domain' ] == 'py'
@@ -218,7 +219,7 @@ def test_250_summarize_inventory_with_fuzzy( ):
     # Summarize with fuzzy filter applied
     result = module.summarize_inventory(
         inventory_path, term = 'inventory',
-        match_mode = module.MatchMode.Fuzzy,
+        match_mode = interfaces_module.MatchMode.Fuzzy,
         fuzzy_threshold = 70 )
     assert 'objects' in result
     # Should mention fuzzy filtering was applied
@@ -228,9 +229,9 @@ def test_250_summarize_inventory_with_fuzzy( ):
 
 def test_260_match_mode_enum_values( ):
     ''' MatchMode enum has correct string values. '''
-    assert module.MatchMode.Exact.value == 'exact'
-    assert module.MatchMode.Regex.value == 'regex'
-    assert module.MatchMode.Fuzzy.value == 'fuzzy'
+    assert interfaces_module.MatchMode.Exact.value == 'exact'
+    assert interfaces_module.MatchMode.Regex.value == 'regex'
+    assert interfaces_module.MatchMode.Fuzzy.value == 'fuzzy'
 
 
 def test_270_summarize_inventory_nonexistent_file( ):

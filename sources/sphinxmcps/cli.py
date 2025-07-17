@@ -36,7 +36,7 @@ CliFuzzyThreshold: __.typx.TypeAlias = __.typx.Annotated[
     __.ddoc.Doc( ''' Fuzzy matching threshold (0-100, higher = stricter). ''' )
 ]
 CliMatchMode: __.typx.TypeAlias = __.typx.Annotated[
-    _functions.MatchMode,
+    _interfaces.MatchMode,
     __.ddoc.Doc( ''' Term matching mode: Exact, Regex, or Fuzzy. ''' )
 ]
 CliPortArgument: __.typx.TypeAlias = __.typx.Annotated[
@@ -84,7 +84,7 @@ class ExtractInventoryCommand(
     role: CliRoleFilter = None
     term: CliTermFilter = None
     priority: CliPriorityFilter = None
-    match_mode: CliMatchMode = _functions.MatchMode.Exact
+    match_mode: CliMatchMode = _interfaces.MatchMode.Exact
     fuzzy_threshold: CliFuzzyThreshold = 50
 
     async def __call__(
@@ -103,7 +103,7 @@ class ExtractInventoryCommand(
 
         # Pass through match mode directly
         nomargs[ 'match_mode' ] = self.match_mode
-        if self.match_mode == _functions.MatchMode.Fuzzy:
+        if self.match_mode == _interfaces.MatchMode.Fuzzy:
             nomargs[ 'fuzzy_threshold' ] = self.fuzzy_threshold
 
         data = _functions.extract_inventory( self.source, **nomargs )
@@ -120,7 +120,7 @@ class SummarizeInventoryCommand(
     role: CliRoleFilter = None
     term: CliTermFilter = None
     priority: CliPriorityFilter = None
-    match_mode: CliMatchMode = _functions.MatchMode.Exact
+    match_mode: CliMatchMode = _interfaces.MatchMode.Exact
     fuzzy_threshold: CliFuzzyThreshold = 50
 
     async def __call__(
@@ -139,7 +139,7 @@ class SummarizeInventoryCommand(
 
         # Pass through match mode directly
         nomargs[ 'match_mode' ] = self.match_mode
-        if self.match_mode == _functions.MatchMode.Fuzzy:
+        if self.match_mode == _interfaces.MatchMode.Fuzzy:
             nomargs[ 'fuzzy_threshold' ] = self.fuzzy_threshold
 
         result = _functions.summarize_inventory( self.source, **nomargs )
@@ -177,7 +177,7 @@ class QueryDocumentationCommand(
     domain: CliDomainFilter = None
     role: CliRoleFilter = None
     priority: CliPriorityFilter = None
-    match_mode: CliMatchMode = _functions.MatchMode.Fuzzy
+    match_mode: CliMatchMode = _interfaces.MatchMode.Fuzzy
     fuzzy_threshold: CliFuzzyThreshold = 50
     max_results: CliMaxResults = 10
     include_snippets: CliIncludeSnippets = True

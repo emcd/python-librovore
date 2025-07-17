@@ -29,14 +29,7 @@ import sphobjinv as _sphobjinv
 
 from . import __
 from . import exceptions as _exceptions
-
-
-class MatchMode( str, __.enum.Enum ):
-    ''' Enumeration for different term matching modes. '''
-
-    Exact = 'exact'
-    Regex = 'regex'
-    Fuzzy = 'fuzzy'
+from . import interfaces as _interfaces
 
 
 DocumentationFormat: __.typx.TypeAlias = __.typx.Literal[ 'markdown', 'text' ]
@@ -58,7 +51,7 @@ TermFilter: __.typx.TypeAlias = __.typx.Annotated[
     __.ddoc.Doc( ''' Filter objects by name containing this text. ''' )
 ]
 MatchModeArgument: __.typx.TypeAlias = __.typx.Annotated[
-    MatchMode,
+    _interfaces.MatchMode,
     __.ddoc.Doc( ''' Term matching mode: exact, regex, or fuzzy. ''' )
 ]
 PriorityFilter: __.typx.TypeAlias = __.typx.Annotated[
@@ -177,7 +170,8 @@ async def query_documentation(  # noqa: PLR0913
     domain: DomainFilter = __.absent,
     role: RoleFilter = __.absent,
     priority: PriorityFilter = __.absent,
-    match_mode: MatchMode = MatchMode.Fuzzy,
+    match_mode: _interfaces.MatchMode = (
+        _interfaces.MatchMode.Fuzzy ),
     fuzzy_threshold: int = 50,
     max_results: int = 10,
     include_snippets: bool = True
@@ -256,7 +250,7 @@ def extract_inventory( # noqa: PLR0913
     role: RoleFilter = __.absent,
     term: TermFilter = __.absent,
     priority: PriorityFilter = __.absent,
-    match_mode: MatchModeArgument = MatchMode.Exact,
+    match_mode: MatchModeArgument = _interfaces.MatchMode.Exact,
     fuzzy_threshold: FuzzyThreshold = 50,
 ) -> __.typx.Annotated[
     dict[ str, __.typx.Any ],
@@ -287,7 +281,7 @@ def extract_inventory( # noqa: PLR0913
         'objects': objects,
     }
     if ( any( ( domain, role, term, priority ) )
-         or match_mode != MatchMode.Exact ):
+         or match_mode != _interfaces.MatchMode.Exact ):
         result[ 'filters' ] = { }
         if not __.is_absent( domain ):
             result[ 'filters' ][ 'domain' ] = domain
@@ -297,9 +291,9 @@ def extract_inventory( # noqa: PLR0913
             result[ 'filters' ][ 'term' ] = term
         if not __.is_absent( priority ):
             result[ 'filters' ][ 'priority' ] = priority
-        if match_mode != MatchMode.Exact:
+        if match_mode != _interfaces.MatchMode.Exact:
             result[ 'filters' ][ 'match_mode' ] = match_mode.value
-            if match_mode == MatchMode.Fuzzy:
+            if match_mode == _interfaces.MatchMode.Fuzzy:
                 result[ 'filters' ][ 'fuzzy_threshold' ] = fuzzy_threshold
     return result
 
@@ -310,7 +304,7 @@ def summarize_inventory( # noqa: PLR0913
     role: RoleFilter = __.absent,
     term: TermFilter = __.absent,
     priority: PriorityFilter = __.absent,
-    match_mode: MatchModeArgument = MatchMode.Exact,
+    match_mode: MatchModeArgument = _interfaces.MatchMode.Exact,
     fuzzy_threshold: FuzzyThreshold = 50,
 ) -> __.typx.Annotated[
     str,
@@ -397,11 +391,11 @@ def _collect_matching_objects(
 
 def _create_term_matcher(
     term: str,
-    match_mode: MatchMode
+    match_mode: _interfaces.MatchMode
 ) -> __.cabc.Callable[ [ __.typx.Any ], bool ]:
     ''' Creates a matcher function for term filtering. '''
     if not term: return lambda obj: True
-    if match_mode == MatchMode.Regex:
+    if match_mode == _interfaces.MatchMode.Regex:
         try:
             pattern = __.re.compile( term, __.re.IGNORECASE )
             return lambda obj: bool( pattern.search( obj.name ) )
@@ -455,7 +449,7 @@ def _filter_exact_and_regex_matching( # noqa: PLR0913
     role: RoleFilter,
     priority: PriorityFilter,
     term: str,
-    match_mode: MatchMode,
+    match_mode: _interfaces.MatchMode,
 ) -> tuple[ dict[ str, __.typx.Any ], int ]:
     ''' Filters inventory using exact or regex matching. '''
     term_matcher = _create_term_matcher( term, match_mode )
@@ -488,7 +482,7 @@ def _filter_inventory( # noqa: PLR0913
     role: RoleFilter = __.absent,
     term: TermFilter = __.absent,
     priority: PriorityFilter = __.absent,
-    match_mode: MatchModeArgument = MatchMode.Exact,
+    match_mode: MatchModeArgument = _interfaces.MatchMode.Exact,
     fuzzy_threshold: FuzzyThreshold = 50,
 ) -> __.typx.Annotated[
     tuple[ dict[ str, __.typx.Any ], int ],
@@ -502,7 +496,7 @@ def _filter_inventory( # noqa: PLR0913
 ]:
     ''' Filters inventory objects by domain, role, term, and match mode. '''
     term_ = '' if __.is_absent( term ) else term
-    if term_ and match_mode == MatchMode.Fuzzy:
+    if term_ and match_mode == _interfaces.MatchMode.Fuzzy:
         return _filter_fuzzy_matching(
             inventory, domain, role, priority, term_, fuzzy_threshold )
     return _filter_exact_and_regex_matching(
