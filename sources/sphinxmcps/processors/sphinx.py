@@ -33,168 +33,390 @@ from .. import interfaces as _interfaces
 from .. import exceptions as _exceptions
 
 
+def _extract_inventory( source: str ) -> _sphobjinv.Inventory:
+    ''' Extracts and parses Sphinx inventory from URL or file path. '''
+    url = _functions.normalize_inventory_source( source )
+    url_s = _urlparse.urlunparse( url )
+    nomargs: __.NominativeArguments = { }
+    match url.scheme:
+        case 'http' | 'https': nomargs[ 'url' ] = url_s
+        case 'file': nomargs[ 'fname_zlib' ] = url.path
+        case _:
+            raise _exceptions.InventoryUrlNoSupport(
+                url, component='scheme', value=url.scheme )
+    try:
+        return _sphobjinv.Inventory( **nomargs )
+    except ( ConnectionError, OSError, TimeoutError ) as exc:
+        raise _exceptions.InventoryInaccessibility(
+            url_s, cause=exc ) from exc
+    except Exception as exc:
+        raise _exceptions.InventoryInvalidity(
+            url_s, cause=exc ) from exc
+
+
+def _filter_inventory( # noqa: PLR0913
+    inventory: _sphobjinv.Inventory,
+    domain: __.Absential[ str ] = __.absent,
+    role: __.Absential[ str ] = __.absent,
+    term: __.Absential[ str ] = __.absent,
+    priority: __.Absential[ str ] = __.absent,
+    match_mode: _interfaces.MatchMode = _interfaces.MatchMode.Exact,
+    fuzzy_threshold: int = 50,
+) -> tuple[ dict[ str, __.typx.Any ], int ]:
+    ''' Filters inventory objects by domain, role, term, match mode. '''
+    term_ = '' if __.is_absent( term ) else term
+    if term_ and match_mode == _interfaces.MatchMode.Fuzzy:
+        return _filter_fuzzy_matching(
+            inventory, domain, role, priority, term_, fuzzy_threshold )
+    return _filter_exact_and_regex_matching(
+        inventory, domain, role, priority, term_, match_mode )
+
+
+def _collect_matching_objects(
+    inventory: _sphobjinv.Inventory,
+    domain: __.Absential[ str ],
+    role: __.Absential[ str ],
+    priority: __.Absential[ str ],
+    term_matcher: __.cabc.Callable[ [ __.typx.Any ], bool ],
+) -> tuple[ dict[ str, __.typx.Any ], int ]:
+    ''' Collects objects that match all filters. '''
+    objects: __.cabc.MutableMapping[
+        str, list[ __.cabc.Mapping[ str, __.typx.Any ] ]
+    ] = __.collections.defaultdict(
+        list[ __.cabc.Mapping[ str, __.typx.Any ] ] )
+    selections_total = 0
+    for objct in inventory.objects:
+        if domain and objct.domain != domain: continue
+        if role and objct.role != role: continue
+        if priority and objct.priority != priority: continue
+        if not term_matcher( objct ): continue
+        objects[ objct.domain ].append( _format_inventory_object( objct ) )
+        selections_total += 1
+    return objects, selections_total
+
+
+def _create_term_matcher(
+    term: str,
+    match_mode: _interfaces.MatchMode
+) -> __.cabc.Callable[ [ __.typx.Any ], bool ]:
+    ''' Creates a matcher function for term filtering. '''
+    if not term: return lambda obj: True
+    if match_mode == _interfaces.MatchMode.Regex:
+        try:
+            pattern = __.re.compile( term, __.re.IGNORECASE )
+        except __.re.error as exc:
+            message = f"Invalid regex pattern: {term}"
+            raise _exceptions.InventoryFilterInvalidity( message ) from exc
+        return lambda obj: bool( pattern.search( obj.name ) )
+    term_lower = term.lower( )
+    return lambda obj: term_lower in obj.name.lower( )
+
+
+def _filter_exact_and_regex_matching( # noqa: PLR0913
+    inventory: _sphobjinv.Inventory,
+    domain: __.Absential[ str ],
+    role: __.Absential[ str ],
+    priority: __.Absential[ str ],
+    term: str,
+    match_mode: _interfaces.MatchMode,
+) -> tuple[ dict[ str, __.typx.Any ], int ]:
+    ''' Filters inventory using exact or regex matching. '''
+    term_matcher = _create_term_matcher( term, match_mode )
+    return _collect_matching_objects(
+        inventory, domain, role, priority, term_matcher )
+
+
+def _filter_fuzzy_matching( # noqa: PLR0913
+    inventory: _sphobjinv.Inventory,
+    domain: __.Absential[ str ],
+    role: __.Absential[ str ],
+    priority: __.Absential[ str ],
+    term: str,
+    fuzzy_threshold: int,
+) -> tuple[ dict[ str, __.typx.Any ], int ]:
+    ''' Filters inventory using fuzzy matching via sphobjinv.suggest(). '''
+    suggestions = inventory.suggest( term, thresh=fuzzy_threshold )
+    fuzzy_names = _extract_names_from_suggestions( suggestions )
+    return _collect_matching_objects(
+        inventory, domain, role, priority,
+        lambda obj: obj.name in fuzzy_names )
+
+
+def _extract_names_from_suggestions(
+    suggestions: list[ str ]
+) -> set[ str ]:
+    ''' Extracts object names from sphobjinv suggestion format. '''
+    fuzzy_names: set[ str ] = set( )
+    for suggestion in suggestions:
+        if '`' in suggestion:
+            name = suggestion.split( '`' )[ 1 ]
+            fuzzy_names.add( name )
+    return fuzzy_names
+
+
+def _format_inventory_object(
+    objct: __.typx.Any
+) -> __.cabc.Mapping[ str, __.typx.Any ]:
+    ''' Formats an inventory object for output. '''
+    return {
+        'name': objct.name,
+        'role': objct.role,
+        'priority': objct.priority,
+        'uri': objct.uri,
+        'dispname': (
+            objct.dispname if objct.dispname != '-' else objct.name
+        ),
+    }
+
+
+def _extract_base_url( source: str ) -> str:
+    ''' Extracts base documentation URL from inventory source. '''
+    url = _functions.normalize_inventory_source( source )
+    path = url.path.rstrip( '/objects.inv' )
+    if not path.endswith( '/' ): path += '/'
+    return _urlparse.urlunparse(
+        _urlparse.ParseResult(
+            scheme=url.scheme, netloc=url.netloc, path=path,
+            params='', query='', fragment='' ) )
+
+
+def _build_documentation_url(
+    base_url: str, object_uri: str, object_name: str
+) -> str:
+    ''' Constructs documentation URL from base URL and object URI. '''
+    uri_with_name = object_uri.replace( '$', object_name )
+    return "{base_url}/{object_uri}".format(
+        base_url=base_url.rstrip( '/' ), object_uri=uri_with_name )
+
+
+def _parse_documentation_html(
+    html_content: str, element_id: str
+) -> __.cabc.Mapping[ str, str ]:
+    ''' Parses HTML content to extract documentation sections. '''
+    try:
+        soup = _BeautifulSoup( html_content, 'lxml' )
+    except Exception as exc:
+        raise _exceptions.DocumentationParseFailure(
+            element_id, exc ) from exc
+    main_content = soup.find( 'article', { 'role': 'main' } )
+    if not main_content:
+        raise _exceptions.DocumentationContentAbsence( element_id )
+    object_element = main_content.find( id=element_id )
+    if not object_element:
+        return { 'error': f"Object '{element_id}' not found in page" }
+    if object_element.name == 'dt':
+        signature = object_element.get_text( strip = True )
+        description_element = object_element.find_next_sibling( 'dd' )
+        if description_element:
+            for header_link in description_element.find_all(
+                'a', class_ = 'headerlink'
+            ): header_link.decompose( )
+            description = description_element.get_text( strip = True )
+        else: description = ''
+    elif object_element.name == 'section':
+        header = object_element.find( [ 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' ] )
+        signature = header.get_text( strip = True ) if header else ''
+        description_element = object_element.find( 'p' )
+        if description_element:
+            description = description_element.get_text( strip = True )
+        else: description = ''
+    else:
+        signature = object_element.get_text( strip = True )
+        description = ''
+    return {
+        'signature': signature,
+        'description': description,
+        'object_name': element_id,
+    }
+
+
+async def _fetch_html_content( url: str ) -> str:
+    ''' Fetches HTML content from documentation URL or local file. '''
+    parsed_url = _urlparse.urlparse( url )
+    match parsed_url.scheme:
+        case 'file':
+            try:
+                file_path = __.Path( parsed_url.path )
+                return file_path.read_text( encoding = 'utf-8' )
+            except Exception as exc:
+                raise _exceptions.DocumentationInaccessibility(
+                    url, exc ) from exc
+        case 'http' | 'https':
+            try:
+                async with _httpx.AsyncClient( timeout = 30.0 ) as client:
+                    response = await client.get( url )
+                    response.raise_for_status( )
+                    return response.text
+            except Exception as exc:
+                raise _exceptions.DocumentationInaccessibility(
+                    url, exc ) from exc
+        case _:
+            raise _exceptions.DocumentationInaccessibility(
+                url, ValueError(
+                    f"Unsupported URL scheme: {parsed_url.scheme}" )
+            )
+
+
+def _html_to_markdown( html_text: str ) -> str:
+    ''' Converts HTML text to clean markdown format. '''
+    if not html_text.strip( ):
+        return ''
+    try:
+        soup = _BeautifulSoup( html_text, 'lxml' )
+    except Exception:
+        return html_text
+    for code in soup.find_all( 'code' ):
+        code.replace_with( f"`{code.get_text( )}`" )
+    for pre in soup.find_all( 'pre' ):
+        pre.replace_with( f"```\n{pre.get_text( )}\n```" )
+    for strong in soup.find_all( 'strong' ):
+        strong.replace_with( f"**{strong.get_text( )}**" )
+    for em in soup.find_all( 'em' ):
+        em.replace_with( f"*{em.get_text( )}*" )
+    for link in soup.find_all( 'a' ):
+        href = link.get( 'href', '' )
+        text = link.get_text( )
+        if href:
+            link.replace_with( f"[{text}]({href})" )
+        else:
+            link.replace_with( text )
+    text = soup.get_text( )
+    text = __.re.sub( r'\n\s*\n', '\n\n', text )
+    text = __.re.sub( r'^\s+|\s+$', '', text, flags=__.re.MULTILINE )
+    return text.strip( )
+
+
+def _build_searchindex_url(
+    normalized_source: _urlparse.ParseResult
+) -> _urlparse.ParseResult:
+    ''' Build searchindex.js URL from objects.inv URL. '''
+    path = normalized_source.path
+    if path.endswith( '/objects.inv' ):
+        base_path = path[ :-12 ]
+    elif path.endswith( 'objects.inv' ):
+        base_path = path[ :-11 ]
+    else:
+        base_path = path
+    normalized_base = base_path.rstrip( '/' ) + '/'
+    searchindex_path = normalized_base + 'searchindex.js'
+    return normalized_source._replace( path=searchindex_path )
+
+
+def _build_html_url(
+    normalized_source: _urlparse.ParseResult
+) -> _urlparse.ParseResult:
+    ''' Build main HTML URL from objects.inv URL. '''
+    path = normalized_source.path
+    if path.endswith( '/objects.inv' ):
+        base_path = path[ :-12 ]
+    elif path.endswith( 'objects.inv' ):
+        base_path = path[ :-11 ]
+    else:
+        base_path = path
+    normalized_base = base_path.rstrip( '/' ) + '/'
+    html_path = normalized_base + 'index.html'
+    return normalized_source._replace( path=html_path )
+
+
+async def _check_objects_inv(
+    normalized_source: _urlparse.ParseResult
+) -> bool:
+    ''' Check if objects.inv exists at the source. '''
+    if normalized_source.scheme in ( 'file', '' ):
+        try:
+            objects_inv_path = __.Path( normalized_source.path )
+            return objects_inv_path.exists( )
+        except Exception:
+            return False
+    try:
+        async with _httpx.AsyncClient( timeout = 10.0 ) as client:
+            response = await client.head( normalized_source.geturl( ) )
+            return response.status_code == _http.HTTPStatus.OK
+    except Exception:
+        return False
+
+
+async def _check_searchindex(
+    normalized_source: _urlparse.ParseResult
+) -> bool:
+    ''' Check if searchindex.js exists (indicates full Sphinx site). '''
+    searchindex_url = _build_searchindex_url( normalized_source )
+    if searchindex_url.scheme in ( 'file', '' ):
+        try:
+            searchindex_path = __.Path( searchindex_url.path )
+            return searchindex_path.exists( )
+        except Exception:
+            return False
+    try:
+        async with _httpx.AsyncClient( timeout = 10.0 ) as client:
+            response = await client.head( searchindex_url.geturl( ) )
+            return response.status_code == _http.HTTPStatus.OK
+    except Exception:
+        return False
+
+
+async def _detect_theme(
+    normalized_source: _urlparse.ParseResult
+) -> dict[ str, __.typx.Any ]:
+    ''' Detect Sphinx theme and other metadata. '''
+    theme_metadata: dict[ str, __.typx.Any ] = { }
+    html_url = _build_html_url( normalized_source )
+    try:
+        async with _httpx.AsyncClient( timeout = 10.0 ) as client:
+            response = await client.get( html_url.geturl( ) )
+            if response.status_code == _http.HTTPStatus.OK:
+                html_content = response.text
+                if 'furo' in html_content.lower( ):
+                    theme_metadata[ 'theme' ] = 'furo'
+                elif 'alabaster' in html_content.lower( ):
+                    theme_metadata[ 'theme' ] = 'alabaster'
+                elif 'sphinx_rtd_theme' in html_content.lower( ):
+                    theme_metadata[ 'theme' ] = 'sphinx_rtd_theme'
+                else:
+                    theme_metadata[ 'theme' ] = 'unknown'
+    except Exception:
+        theme_metadata[ 'theme' ] = 'unknown'
+    return theme_metadata
+
+
 class SphinxProcessor( _interfaces.Processor ):
     ''' Processor for Sphinx documentation sources. '''
-    
     name: str = 'sphinx'
-    ''' Detector for Sphinx documentation sources. '''
 
     async def detect( self, source: str ) -> _interfaces.Detection:
         ''' Detect if can process documentation from source. '''
-        # Normalize source to get base URL
         try:
-            normalized_source = _functions.normalize_inventory_source(
-                source
-            )
+            normalized_source = _functions.normalize_inventory_source( source )
         except Exception:
             return SphinxDetection(
-                processor = self, confidence = 0.0, source = source
+                processor=self, confidence=0.0, source=source
             )
-
-        # Check for objects.inv
-        has_objects_inv = await self._check_objects_inv( normalized_source )
+        has_objects_inv = await _check_objects_inv( normalized_source )
         if not has_objects_inv:
             return SphinxDetection(
-                processor = self, confidence = 0.0, source = source
+                processor=self, confidence=0.0, source=source
             )
-
-        # Check for searchindex.js (indicates full Sphinx site)
-        has_searchindex = await self._check_searchindex( normalized_source )
-
-        # Calculate confidence based on what we found
+        has_searchindex = await _check_searchindex( normalized_source )
         confidence = 0.95 if has_searchindex else 0.7
-            
-        # Build metadata
         metadata: dict[ str, __.typx.Any ] = {
             'has_objects_inv': has_objects_inv,
             'has_searchindex': has_searchindex,
             'normalized_source': normalized_source.geturl( ),
         }
-        
-        # Try to detect theme and other metadata
         if has_searchindex:
             try:
-                theme_metadata = await self._detect_theme( normalized_source )
+                theme_metadata = await _detect_theme( normalized_source )
                 metadata.update( theme_metadata )
             except Exception as exc:
                 metadata[ 'theme_error' ] = str( exc )
-        
         return SphinxDetection(
-            processor = self,
-            confidence = confidence,
-            source = source,
-            metadata = metadata
+            processor=self,
+            confidence=confidence,
+            source=source,
+            metadata=metadata
         )
 
-    async def _check_objects_inv(
-        self, normalized_source: _urlparse.ParseResult
-    ) -> bool:
-        ''' Check if objects.inv exists at the source. '''
-        try:
-            if normalized_source.scheme in ( 'file', '' ):
-                # Local file system
-                objects_inv_path = __.Path( normalized_source.path )
-                return objects_inv_path.exists( )
-            # HTTP/HTTPS - try to fetch with HEAD request
-            async with _httpx.AsyncClient( timeout = 10.0 ) as client:
-                response = await client.head( normalized_source.geturl( ) )
-                return response.status_code == _http.HTTPStatus.OK
-        except Exception:
-            return False
-
-    async def _check_searchindex(
-        self, normalized_source: _urlparse.ParseResult
-    ) -> bool:
-        ''' Check if searchindex.js exists (indicates full Sphinx site). '''
-        try:
-            # Build searchindex.js URL from objects.inv URL
-            searchindex_url = self._build_searchindex_url( normalized_source )
-
-            if searchindex_url.scheme in ( 'file', '' ):
-                # Local file system
-                searchindex_path = __.Path( searchindex_url.path )
-                return searchindex_path.exists( )
-            # HTTP/HTTPS - try to fetch with HEAD request
-            async with _httpx.AsyncClient( timeout = 10.0 ) as client:
-                response = await client.head( searchindex_url.geturl( ) )
-                return response.status_code == _http.HTTPStatus.OK
-        except Exception:
-            return False
-
-    def _build_searchindex_url(
-        self, normalized_source: _urlparse.ParseResult
-    ) -> _urlparse.ParseResult:
-        ''' Build searchindex.js URL from objects.inv URL. '''
-        # Remove 'objects.inv' from path and add 'searchindex.js'
-        path = normalized_source.path
-        if path.endswith( '/objects.inv' ):
-            base_path = path[ :-12 ]  # Remove '/objects.inv'
-        elif path.endswith( 'objects.inv' ):
-            base_path = path[ :-11 ]  # Remove 'objects.inv'
-        else:
-            base_path = path
-
-        # Add searchindex.js
-        # Normalize base_path by ensuring it ends with '/'
-        normalized_base = base_path.rstrip( '/' ) + '/'
-        searchindex_path = normalized_base + 'searchindex.js'
-
-        return normalized_source._replace( path=searchindex_path )
-
-    async def _detect_theme(
-        self, normalized_source: _urlparse.ParseResult
-    ) -> dict[ str, __.typx.Any ]:
-        ''' Detect Sphinx theme and other metadata. '''
-        theme_metadata: dict[ str, __.typx.Any ] = { }
-
-        try:
-            # Try to fetch the main HTML page to detect theme
-            html_url = self._build_html_url( normalized_source )
-
-            async with _httpx.AsyncClient( timeout = 10.0 ) as client:
-                response = await client.get( html_url.geturl( ) )
-                if response.status_code == _http.HTTPStatus.OK:
-                    html_content = response.text
-
-                    # Simple theme detection based on HTML content
-                    if 'furo' in html_content.lower( ):
-                        theme_metadata[ 'theme' ] = 'furo'
-                    elif 'alabaster' in html_content.lower( ):
-                        theme_metadata[ 'theme' ] = 'alabaster'
-                    elif 'sphinx_rtd_theme' in html_content.lower( ):
-                        theme_metadata[ 'theme' ] = 'sphinx_rtd_theme'
-                    else:
-                        theme_metadata[ 'theme' ] = 'unknown'
-
-        except Exception:
-            theme_metadata[ 'theme' ] = 'unknown'
-
-        return theme_metadata
-
-    def _build_html_url(
-        self, normalized_source: _urlparse.ParseResult
-    ) -> _urlparse.ParseResult:
-        ''' Build main HTML URL from objects.inv URL. '''
-        # Remove 'objects.inv' from path and add 'index.html'
-        path = normalized_source.path
-        if path.endswith( '/objects.inv' ):
-            base_path = path[ :-12 ]  # Remove '/objects.inv'
-        elif path.endswith( 'objects.inv' ):
-            base_path = path[ :-11 ]  # Remove 'objects.inv'
-        else:
-            base_path = path
-
-        # Add index.html
-        # Normalize base_path by ensuring it ends with '/'
-        normalized_base = base_path.rstrip( '/' ) + '/'
-        html_path = normalized_base + 'index.html'
-
-        return normalized_source._replace( path=html_path )
-
-    # Processor methods for handling Sphinx documentation
-    
-    def extract_inventory(  # noqa: PLR0913
-        self, source: str, /, *,
+    def extract_inventory( self, source: str, /, *, # noqa: PLR0913
         domain: __.Absential[ str ] = __.absent,
         role: __.Absential[ str ] = __.absent,
         term: __.Absential[ str ] = __.absent,
@@ -203,38 +425,32 @@ class SphinxProcessor( _interfaces.Processor ):
         fuzzy_threshold: int = 50
     ) -> dict[ str, __.typx.Any ]:
         ''' Extract inventory from Sphinx documentation source. '''
-        inventory = self._extract_inventory(source)
-        filtered_objects, object_count = self._filter_inventory(
-            inventory, domain=domain, role=role, term=term, priority=priority,
-            match_mode=match_mode, fuzzy_threshold=fuzzy_threshold
+        inventory = _extract_inventory( source )
+        filtered_objects, object_count = _filter_inventory(
+            inventory, domain = domain, role = role, term = term,
+            priority = priority,
+            match_mode = match_mode, fuzzy_threshold = fuzzy_threshold
         )
-        
-        # Build result structure matching original API
-        result: dict[str, __.typx.Any] = {
+        result: dict[ str, __.typx.Any ] = {
             'project': inventory.project,
             'version': inventory.version,
             'objects': filtered_objects,
             'object_count': object_count,
         }
-        
-        # Add filters information
-        filters: dict[str, __.typx.Any] = {}
-        if not __.is_absent(domain): filters['domain'] = domain
-        if not __.is_absent(role): filters['role'] = role
-        if not __.is_absent(term): filters['term'] = term
-        if not __.is_absent(priority): filters['priority'] = priority
+        filters: dict[ str, __.typx.Any ] = { }
+        if not __.is_absent( domain ): filters[ 'domain' ] = domain
+        if not __.is_absent( role ): filters[ 'role' ] = role
+        if not __.is_absent( term ): filters[ 'term' ] = term
+        if not __.is_absent( priority ): filters[ 'priority' ] = priority
         if match_mode != _interfaces.MatchMode.Exact:
-            filters['match_mode'] = match_mode.value
+            filters[ 'match_mode' ] = match_mode.value
         if match_mode == _interfaces.MatchMode.Fuzzy:
-            filters['fuzzy_threshold'] = fuzzy_threshold
-        
+            filters[ 'fuzzy_threshold' ] = fuzzy_threshold
         if filters:
-            result['filters'] = filters
-            
+            result[ 'filters' ] = filters
         return result
-    
-    def summarize_inventory(  # noqa: PLR0913
-        self, source: str, /, *,
+
+    def summarize_inventory( self, source: str, /, *, # noqa: PLR0913
         domain: __.Absential[ str ] = __.absent,
         role: __.Absential[ str ] = __.absent,
         term: __.Absential[ str ] = __.absent,
@@ -243,85 +459,75 @@ class SphinxProcessor( _interfaces.Processor ):
         fuzzy_threshold: int = 50
     ) -> str:
         ''' Summarize inventory from Sphinx documentation source. '''
-        inventory = self._extract_inventory(source)
-        filtered_objects, object_count = self._filter_inventory(
-            inventory, domain=domain, role=role, term=term, priority=priority,
-            match_mode=match_mode, fuzzy_threshold=fuzzy_threshold
+        inventory = _extract_inventory( source )
+        filtered_objects, object_count = _filter_inventory(
+            inventory, domain = domain, role = role, term = term,
+            priority = priority,
+            match_mode = match_mode, fuzzy_threshold = fuzzy_threshold
         )
-        
-        # Build summary text matching original format
-        summary_lines: list[str] = [
+        summary_lines: list[ str ] = [
             f"Project: {inventory.project}",
             f"Version: {inventory.version}",
             f"Objects: {object_count}",
         ]
-        
-        # Add filter information
-        filters: list[str] = []
-        if not __.is_absent(domain): filters.append(f"domain={domain}")
-        if not __.is_absent(role): filters.append(f"role={role}")
-        if not __.is_absent(term): filters.append(f"term={term}")
-        if not __.is_absent(priority): filters.append(f"priority={priority}")
+        filters: list[ str ] = [ ]
+        if not __.is_absent( domain ): filters.append( f"domain={domain}" )
+        if not __.is_absent( role ): filters.append( f"role={role}" )
+        if not __.is_absent( term ): filters.append( f"term={term}" )
+        if not __.is_absent( priority ):
+            filters.append( f"priority={priority}" )
         if match_mode != _interfaces.MatchMode.Exact:
-            filters.append(f"match_mode={match_mode.value}")
+            filters.append( f"match_mode={match_mode.value}" )
         if match_mode == _interfaces.MatchMode.Fuzzy:
-            filters.append(f"fuzzy_threshold={fuzzy_threshold}")
-        
+            filters.append( f"fuzzy_threshold={fuzzy_threshold}" )
         if filters:
-            summary_lines.append(f"Filters: {', '.join(filters)}")
-        
-        # Add domain breakdown
+            summary_lines.append( f"Filters: {', '.join( filters )}" )
         if filtered_objects:
-            summary_lines.append("\nDomain breakdown:")
-            for domain_name, objects in filtered_objects.items():
+            summary_lines.append( "\nDomain breakdown:" )
+            for domain_name, objects in filtered_objects.items( ):
                 summary_lines.append(
-                    f"  {domain_name}: {len(objects)} objects"
+                    f"  {domain_name}: {len( objects )} objects"
                 )
-        
-        return "\n".join(summary_lines)
-    
+        return "\n".join( summary_lines )
+
     async def extract_documentation(
         self, source: str, object_name: str, /, *,
         include_sections: __.Absential[ list[ str ] ] = __.absent,
         output_format: str = 'markdown'
     ) -> __.cabc.Mapping[ str, __.typx.Any ]:
         ''' Extract documentation for specific object from Sphinx source. '''
-        inventory = self._extract_inventory(source)
+        inventory = _extract_inventory( source )
         found_object = None
         for objct in inventory.objects:
             if objct.name == object_name:
                 found_object = objct
                 break
         if not found_object:
-            return {'error': f"Object '{object_name}' not found in inventory"}
-        
-        base_url = self._extract_base_url(source)
-        doc_url = self._build_documentation_url(
-            base_url, found_object.uri, object_name)
-        html_content = await self._fetch_html_content(doc_url)
-        
-        # Extract the anchor from the URL to find the element
-        url_parts = _urlparse.urlparse(doc_url)
+            return {
+                'error': f"Object '{object_name}' not found in inventory"
+            }
+        base_url = _extract_base_url( source )
+        doc_url = _build_documentation_url(
+            base_url, found_object.uri, object_name )
+        html_content = await _fetch_html_content( doc_url )
+        url_parts = _urlparse.urlparse( doc_url )
         anchor = url_parts.fragment or object_name
-        parsed_content = self._parse_documentation_html(html_content, anchor)
+        parsed_content = _parse_documentation_html( html_content, anchor )
         if 'error' in parsed_content:
             return parsed_content
-            
         result = {
             'object_name': object_name,
             'url': doc_url,
-            'signature': parsed_content['signature'],
-            'description': parsed_content['description'],
+            'signature': parsed_content[ 'signature' ],
+            'description': parsed_content[ 'description' ],
         }
-        
         if output_format == 'markdown':
-            result['description'] = self._html_to_markdown(
-                result['description']
+            result[ 'description' ] = _html_to_markdown(
+                result[ 'description' ]
             )
         return result
-    
-    async def query_documentation(  # noqa: PLR0913
-        self, source: str, query: str, /, *,
+
+    async def query_documentation( self, source: str, query: str, /, *, # noqa: PLR0913,PLR0915
         domain: __.Absential[ str ] = __.absent,
         role: __.Absential[ str ] = __.absent,
         priority: __.Absential[ str ] = __.absent,
@@ -331,370 +537,77 @@ class SphinxProcessor( _interfaces.Processor ):
         include_snippets: bool = True
     ) -> list[ __.cabc.Mapping[ str, __.typx.Any ] ]:
         ''' Query documentation content from Sphinx source. '''
-        inventory = self._extract_inventory(source)
-        filtered_objects, _ = self._filter_inventory(
-            inventory, domain=domain, role=role, priority=priority,
-            match_mode=match_mode, fuzzy_threshold=fuzzy_threshold
+        inventory = _extract_inventory( source )
+        filtered_objects, _ = _filter_inventory(
+            inventory, domain = domain, role = role,
+            priority = priority,
+            match_mode = match_mode, fuzzy_threshold = fuzzy_threshold
         )
-        
-        # Flatten objects from all domains and collect candidates
-        candidates: list[__.cabc.Mapping[str, __.typx.Any]] = []
-        for domain_objects in filtered_objects.values():
-            candidates.extend(domain_objects)
-        
+        candidates: list[ __.cabc.Mapping[ str, __.typx.Any ] ] = [ ]
+        for domain_objects in filtered_objects.values( ):
+            candidates.extend( domain_objects )
         if not candidates:
-            return []
-        
-        # Get base URL for documentation fetching
-        base_url = self._extract_base_url(source)
-        query_lower = query.lower()
-        results: list[__.cabc.Mapping[str, __.typx.Any]] = []
-        
-        # Process each candidate to get documentation and calculate relevance
+            return [ ]
+        base_url = _extract_base_url( source )
+        query_lower = query.lower( )
+        results: list[ __.cabc.Mapping[ str, __.typx.Any ] ] = [ ]
         for candidate in candidates:
+            doc_url = _build_documentation_url(
+                base_url, candidate[ 'uri' ], candidate[ 'name' ]
+            )
             try:
-                # Build documentation URL
-                doc_url = self._build_documentation_url(
-                    base_url, candidate['uri'], candidate['name']
-                )
-                
-                # Fetch and parse documentation
-                html_content = await self._fetch_html_content(doc_url)
-                url_parts = _urlparse.urlparse(doc_url)
-                anchor = url_parts.fragment or str(candidate['name'])
-                parsed_content = self._parse_documentation_html(
+                html_content = await _fetch_html_content( doc_url )
+            except Exception: # noqa: S112
+                continue
+            url_parts = _urlparse.urlparse( doc_url )
+            anchor = url_parts.fragment or str( candidate[ 'name' ] )
+            try:
+                parsed_content = _parse_documentation_html(
                     html_content, anchor
                 )
-                
-                if 'error' in parsed_content:
-                    continue
-                
-                # Convert to markdown for processing
-                description = self._html_to_markdown(
-                    parsed_content['description']
-                )
-                
-                doc_result = {
-                    'signature': parsed_content['signature'],
-                    'description': description,
-                }
-                
-                # Calculate relevance score using core function
-                score, match_reasons = _functions._calculate_relevance_score(  # noqa: SLF001
-                    query_lower, candidate, doc_result
-                )
-                
-                if score > 0:
-                    # Extract content snippet using core function
-                    content_snippet = ''
-                    if include_snippets:
-                        content_snippet = _functions._extract_content_snippet(  # noqa: SLF001
-                            query_lower, query, description
-                        )
-                    
-                    results.append({
-                        'object_name': candidate['name'],
-                        'object_type': candidate['role'],
-                        'domain': candidate['domain'],
-                        'priority': candidate['priority'],
-                        'url': doc_url,
-                        'signature': parsed_content['signature'],
-                        'description': description,
-                        'content_snippet': content_snippet,
-                        'relevance_score': score,
-                        'match_reasons': match_reasons,
-                    })
-                    
-            except Exception:  # noqa: S112
-                # Skip candidates that fail to process
+            except Exception: # noqa: S112
                 continue
-        
-        # Sort by relevance score (descending) and limit results
-        results.sort(key=lambda x: x['relevance_score'], reverse=True)
-        return results[:max_results]
-
-    # Sphinx-specific helper methods moved from functions.py
-    
-    def _extract_inventory(self, source: str) -> _sphobjinv.Inventory:
-        ''' Extracts and parses Sphinx inventory from URL or file path. '''
-        url = _functions.normalize_inventory_source(source)
-        url_s = _urlparse.urlunparse(url)
-        nomargs: __.NominativeArguments = {}
-        match url.scheme:
-            case 'http' | 'https': nomargs['url'] = url_s
-            case 'file': nomargs['fname_zlib'] = url.path
-            case _:
-                raise _exceptions.InventoryUrlNoSupport(
-                    url, component='scheme', value=url.scheme)
-        try: return _sphobjinv.Inventory(**nomargs)
-        except (ConnectionError, OSError, TimeoutError) as exc:
-            raise _exceptions.InventoryInaccessibility(
-                url_s, cause=exc) from exc
-        except Exception as exc:
-            raise _exceptions.InventoryInvalidity(
-                url_s, cause=exc) from exc
-
-    def _filter_inventory(  # noqa: PLR0913
-        self, 
-        inventory: _sphobjinv.Inventory,
-        domain: __.Absential[str] = __.absent,
-        role: __.Absential[str] = __.absent,
-        term: __.Absential[str] = __.absent,
-        priority: __.Absential[str] = __.absent,
-        match_mode: _interfaces.MatchMode = _interfaces.MatchMode.Exact,
-        fuzzy_threshold: int = 50,
-    ) -> tuple[dict[str, __.typx.Any], int]:
-        ''' Filters inventory objects by domain, role, term, match mode. '''
-        term_ = '' if __.is_absent(term) else term
-        if term_ and match_mode == _interfaces.MatchMode.Fuzzy:
-            return self._filter_fuzzy_matching(
-                inventory, domain, role, priority, term_, fuzzy_threshold)
-        return self._filter_exact_and_regex_matching(
-            inventory, domain, role, priority, term_, match_mode)
-
-    def _collect_matching_objects(
-        self,
-        inventory: _sphobjinv.Inventory,
-        domain: __.Absential[str],
-        role: __.Absential[str],
-        priority: __.Absential[str],
-        term_matcher: __.cabc.Callable[[__.typx.Any], bool],
-    ) -> tuple[dict[str, __.typx.Any], int]:
-        ''' Collects objects that match all filters. '''
-        objects: __.cabc.MutableMapping[
-            str, list[__.cabc.Mapping[str, __.typx.Any]]
-        ] = __.collections.defaultdict(
-            list[__.cabc.Mapping[str, __.typx.Any]])
-        selections_total = 0
-        for objct in inventory.objects:
-            if domain and objct.domain != domain: continue
-            if role and objct.role != role: continue
-            if priority and objct.priority != priority: continue
-            if not term_matcher(objct): continue
-            objects[objct.domain].append(self._format_inventory_object(objct))
-            selections_total += 1
-        return objects, selections_total
-
-    def _create_term_matcher(
-        self,
-        term: str,
-        match_mode: _interfaces.MatchMode
-    ) -> __.cabc.Callable[[__.typx.Any], bool]:
-        ''' Creates a matcher function for term filtering. '''
-        if not term: return lambda obj: True
-        if match_mode == _interfaces.MatchMode.Regex:
-            try:
-                pattern = __.re.compile(term, __.re.IGNORECASE)
-                return lambda obj: bool(pattern.search(obj.name))
-            except __.re.error as exc:
-                message = f"Invalid regex pattern: {term}"
-                raise _exceptions.InventoryFilterInvalidity(message) from exc
-        # Exact matching (default)
-        term_lower = term.lower()
-        return lambda obj: term_lower in obj.name.lower()
-
-    def _filter_exact_and_regex_matching(  # noqa: PLR0913
-        self,
-        inventory: _sphobjinv.Inventory,
-        domain: __.Absential[str],
-        role: __.Absential[str],
-        priority: __.Absential[str],
-        term: str,
-        match_mode: _interfaces.MatchMode,
-    ) -> tuple[dict[str, __.typx.Any], int]:
-        ''' Filters inventory using exact or regex matching. '''
-        term_matcher = self._create_term_matcher(term, match_mode)
-        return self._collect_matching_objects(
-            inventory, domain, role, priority, term_matcher)
-
-    def _filter_fuzzy_matching(  # noqa: PLR0913
-        self,
-        inventory: _sphobjinv.Inventory,
-        domain: __.Absential[str],
-        role: __.Absential[str],
-        priority: __.Absential[str],
-        term: str,
-        fuzzy_threshold: int,
-    ) -> tuple[dict[str, __.typx.Any], int]:
-        ''' Filters inventory using fuzzy matching via sphobjinv.suggest(). '''
-        suggestions = inventory.suggest(term, thresh=fuzzy_threshold)
-        fuzzy_names = self._extract_names_from_suggestions(suggestions)
-        return self._collect_matching_objects(
-            inventory, domain, role, priority,
-            lambda obj: obj.name in fuzzy_names)
-
-    def _extract_names_from_suggestions(
-        self,
-        suggestions: list[str]
-    ) -> set[str]:
-        ''' Extracts object names from sphobjinv suggestion format. '''
-        fuzzy_names: set[str] = set()
-        for suggestion in suggestions:
-            # Extract name from format like ":domain:role:`name`"
-            if '`' in suggestion:
-                name = suggestion.split('`')[1]  # Get text between backticks
-                fuzzy_names.add(name)
-        return fuzzy_names
-
-    def _format_inventory_object(
-        self,
-        objct: __.typx.Any
-    ) -> __.cabc.Mapping[str, __.typx.Any]:
-        ''' Formats an inventory object for output. '''
-        return {
-            'name': objct.name,
-            'role': objct.role,
-            'priority': objct.priority,
-            'uri': objct.uri,
-            'dispname': (
-                objct.dispname if objct.dispname != '-' else objct.name
-            ),
-        }
-
-    def _extract_base_url(self, source: str) -> str:
-        ''' Extracts base documentation URL from inventory source. '''
-        url = _functions.normalize_inventory_source(source)
-        path = url.path.rstrip('/objects.inv')
-        if not path.endswith('/'): path += '/'
-        return _urlparse.urlunparse(
-            _urlparse.ParseResult(
-                scheme=url.scheme, netloc=url.netloc, path=path,
-                params='', query='', fragment=''))
-
-    def _build_documentation_url(
-        self, base_url: str, object_uri: str, object_name: str
-    ) -> str:
-        ''' Constructs documentation URL from base URL and object URI. '''
-        # Object URI format: "filename.html#anchor"
-        # Example: "api.html#sphinxmcps.exceptions.InventoryFilterInvalidity"
-        # Replace $ placeholder with actual object name
-        uri_with_name = object_uri.replace('$', object_name)
-        return "{base_url}/{object_uri}".format(
-            base_url=base_url.rstrip('/'), object_uri=uri_with_name)
-
-    def _parse_documentation_html(
-        self, html_content: str, element_id: str
-    ) -> __.cabc.Mapping[str, str]:
-        ''' Parses HTML content to extract documentation sections. '''
-        try: 
-            soup = _BeautifulSoup(html_content, 'lxml')
-        except Exception as exc:
-            raise _exceptions.DocumentationParseFailure(
-                element_id, exc) from exc
-        main_content = soup.find('article', {'role': 'main'})
-        if not main_content:
-            raise _exceptions.DocumentationContentAbsence(element_id)
-        # Find the object definition by ID
-        object_element = main_content.find(id=element_id)
-        if not object_element:
-            return {'error': f"Object '{element_id}' not found in page"}
-        # Extract signature and description based on element type
-        if object_element.name == 'dt':
-            # Function/class definition
-            signature = object_element.get_text(strip=True)
-            description_element = object_element.find_next_sibling('dd')
-            if description_element:
-                # Remove header links and other navigation elements
-                for header_link in description_element.find_all(
-                    'a', class_='headerlink'
-                ): header_link.decompose()
-                description = description_element.get_text(strip=True)
-            else: description = ''
-        elif object_element.name == 'section':
-            # Module/package section
-            header = object_element.find(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
-            signature = header.get_text(strip=True) if header else ''
-            # Find the first paragraph after the header
-            description_element = object_element.find('p')
-            if description_element:
-                description = description_element.get_text(strip=True)
-            else: description = ''
-        else:
-            # Generic element
-            signature = object_element.get_text(strip=True)
-            description = ''
-        return {
-            'signature': signature,
-            'description': description,
-            'object_name': element_id,
-        }
-
-    async def _fetch_html_content(self, url: str) -> str:
-        ''' Fetches HTML content from documentation URL or local file. '''
-        parsed_url = _urlparse.urlparse(url)
-        
-        match parsed_url.scheme:
-            case 'file':
-                # Read from local filesystem
-                try:
-                    file_path = __.Path(parsed_url.path)
-                    return file_path.read_text(encoding='utf-8')
-                except Exception as exc:
-                    raise _exceptions.DocumentationInaccessibility(
-                        url, exc) from exc
-            case 'http' | 'https':
-                # Fetch from web
-                try:
-                    async with _httpx.AsyncClient(timeout=30.0) as client:
-                        response = await client.get(url)
-                        response.raise_for_status()
-                        return response.text
-                except Exception as exc:
-                    raise _exceptions.DocumentationInaccessibility(
-                        url, exc) from exc
-            case _:
-                raise _exceptions.DocumentationInaccessibility(
-                    url, ValueError(
-                        f"Unsupported URL scheme: {parsed_url.scheme}")
-                )
-
-    def _html_to_markdown(self, html_text: str) -> str:
-        ''' Converts HTML text to clean markdown format. '''
-        if not html_text.strip():
-            return ''
-
-        try:
-            soup = _BeautifulSoup(html_text, 'lxml')
-        except Exception:
-            # Fallback to plain text if parsing fails
-            return html_text
-
-        # Convert common tags to markdown using replace_with
-        for code in soup.find_all('code'):
-            code.replace_with(f"`{code.get_text()}`")
-
-        for pre in soup.find_all('pre'):
-            pre.replace_with(f"```\n{pre.get_text()}\n```")
-
-        for strong in soup.find_all('strong'):
-            strong.replace_with(f"**{strong.get_text()}**")
-
-        for em in soup.find_all('em'):
-            em.replace_with(f"*{em.get_text()}*")
-
-        for link in soup.find_all('a'):
-            href = link.get('href', '')
-            text = link.get_text()
-            if href:
-                link.replace_with(f"[{text}]({href})")
-            else:
-                link.replace_with(text)
-
-        # Get clean text and normalize whitespace
-        text = soup.get_text()
-        text = __.re.sub(r'\n\s*\n', '\n\n', text)
-        text = __.re.sub(r'^\s+|\s+$', '', text, flags=__.re.MULTILINE)
-        return text.strip()
+            if 'error' in parsed_content:
+                continue
+            description = _html_to_markdown(
+                parsed_content[ 'description' ]
+            )
+            doc_result = {
+                'signature': parsed_content[ 'signature' ],
+                'description': description,
+            }
+            score, match_reasons = _functions._calculate_relevance_score( # noqa: SLF001
+                query_lower, candidate, doc_result
+            )
+            if score > 0:
+                content_snippet = ''
+                if include_snippets:
+                    content_snippet = _functions._extract_content_snippet( # noqa: SLF001
+                        query_lower, query, description
+                    )
+                results.append( {
+                    'object_name': candidate[ 'name' ],
+                    'object_type': candidate[ 'role' ],
+                    'domain': candidate[ 'domain' ],
+                    'priority': candidate[ 'priority' ],
+                    'url': doc_url,
+                    'signature': parsed_content[ 'signature' ],
+                    'description': description,
+                    'content_snippet': content_snippet,
+                    'relevance_score': score,
+                    'match_reasons': match_reasons,
+                } )
+        results.sort( key=lambda x: x[ 'relevance_score' ], reverse=True )
+        return results[ :max_results ]
 
 
 class SphinxDetection( _interfaces.Detection ):
     ''' Detection result for Sphinx documentation sources. '''
-    
     source: str
-    metadata: dict[ str, __.typx.Any ] = __.dcls.field( 
+    metadata: dict[ str, __.typx.Any ] = __.dcls.field(
         default_factory=lambda: __.typx.cast( dict[ str, __.typx.Any ], { } )
     )
-    
+
     @classmethod
     async def from_source(
         cls, processor: _interfaces.Processor, source: str
@@ -706,7 +619,7 @@ class SphinxDetection( _interfaces.Detection ):
             )
         detection = await processor.detect( source )
         return __.typx.cast( __.typx.Self, detection )
-    
+
     @property
     def specifics( self ) -> _interfaces.DetectionSpecifics:
         ''' Returns metadata associated with detection as dictionary. '''
@@ -717,7 +630,6 @@ class SphinxDetection( _interfaces.Detection ):
         }
 
 
-# Global processor instance
 _sphinx_processor = SphinxProcessor( )
 
 
