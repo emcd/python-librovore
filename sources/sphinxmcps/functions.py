@@ -32,7 +32,6 @@ from . import exceptions as _exceptions
 from . import interfaces as _interfaces
 
 
-DocumentationFormat: __.typx.TypeAlias = __.typx.Literal[ 'markdown', 'text' ]
 DocumentationResult: __.typx.TypeAlias = __.cabc.Mapping[ str, __.typx.Any ]
 DomainFilter: __.typx.TypeAlias = __.typx.Annotated[
     __.Absential[ str ],
@@ -75,7 +74,6 @@ async def extract_documentation(
     source: SourceArgument,
     object_name: str, /, *,
     include_sections: SectionFilter = __.absent,
-    output_format: DocumentationFormat = 'markdown'
 ) -> DocumentationResult:
     ''' Extracts documentation for a specific object from Sphinx docs. '''
     inventory = _extract_inventory( source )
@@ -87,7 +85,7 @@ async def extract_documentation(
     if not found_object:
         return { 'error': f"Object '{object_name}' not found in inventory" }
     base_url = _extract_base_url( source )
-    doc_url = _build_documentation_url( 
+    doc_url = _build_documentation_url(
         base_url, found_object.uri, object_name )
     html_content = await _fetch_html_content( doc_url )
     # Extract the anchor from the URL to find the element
@@ -101,13 +99,12 @@ async def extract_documentation(
         'signature': parsed_content[ 'signature' ],
         'description': parsed_content[ 'description' ],
     }
-    if output_format == 'markdown':
-        result[ 'description' ] = _html_to_markdown( result[ 'description' ] )
+    result[ 'description' ] = _html_to_markdown( result[ 'description' ] )
     return result
 
 
 def _calculate_relevance_score(
-    query_lower: str, candidate: __.cabc.Mapping[ str, __.typx.Any ], 
+    query_lower: str, candidate: __.cabc.Mapping[ str, __.typx.Any ],
     doc_result: __.cabc.Mapping[ str, __.typx.Any ]
 ) -> __.typx.Annotated[
     tuple[ float, list[ str ] ],
@@ -116,28 +113,28 @@ def _calculate_relevance_score(
     ''' Calculate relevance score and match reasons for doc result. '''
     score = 0.0
     match_reasons: list[ str ] = []
-    
+
     # Name matching (highest weight)
-    if query_lower in candidate['name'].lower():
+    if query_lower in candidate['name'].lower( ):
         score += 10.0
         match_reasons.append('name match')
-    
+
     # Signature matching
-    if query_lower in doc_result['signature'].lower():
+    if query_lower in doc_result['signature'].lower( ):
         score += 5.0
         match_reasons.append('signature match')
-    
+
     # Description matching
-    if query_lower in doc_result['description'].lower():
+    if query_lower in doc_result['description'].lower( ):
         score += 3.0
-        match_reasons.append('description match')
-    
+        match_reasons.append( 'description match' )
+
     # Priority boost
     if candidate['priority'] == '1':
         score += 2.0
     elif candidate['priority'] == '0':
         score += 1.0
-    
+
     return score, match_reasons
 
 
@@ -147,20 +144,20 @@ def _extract_content_snippet(
     str, __.ddoc.Doc( ''' Content snippet around the query match. ''' )
 ]:
     ''' Extract content snippet around query match in description. '''
-    if not description or query_lower not in description.lower():
+    if not description or query_lower not in description.lower( ):
         return ''
-    
+
     # Find query in description and extract surrounding context
-    query_pos = description.lower().find(query_lower)
+    query_pos = description.lower( ).find(query_lower)
     start = max(0, query_pos - 50)
     end = min(len(description), query_pos + len(query) + 50)
     content_snippet = description[start:end]
-    
+
     if start > 0:
         content_snippet = '...' + content_snippet
     if end < len(description):
         content_snippet = content_snippet + '...'
-    
+
     return content_snippet
 
 
@@ -170,8 +167,7 @@ async def query_documentation(  # noqa: PLR0913
     domain: DomainFilter = __.absent,
     role: RoleFilter = __.absent,
     priority: PriorityFilter = __.absent,
-    match_mode: _interfaces.MatchMode = (
-        _interfaces.MatchMode.Fuzzy ),
+    match_mode: _interfaces.MatchMode = _interfaces.MatchMode.Fuzzy,
     fuzzy_threshold: int = 50,
     max_results: int = 10,
     include_snippets: bool = True
@@ -183,45 +179,34 @@ async def query_documentation(  # noqa: PLR0913
     # Step 1: Use inventory filtering to find candidate objects
     inventory_results = extract_inventory(
         source,
-        domain=domain,
-        role=role,
-        term=query,
-        priority=priority,
-        match_mode=match_mode,
-        fuzzy_threshold=fuzzy_threshold
-    )
-    
-    if 'objects' not in inventory_results:
-        return []
-    
+        domain = domain,
+        role = role,
+        term = query,
+        priority = priority,
+        match_mode = match_mode,
+        fuzzy_threshold = fuzzy_threshold )
+    if 'objects' not in inventory_results: return [ ]
     # Step 2: Extract documentation for each candidate object
     candidates = [
-        obj for domain_objects in inventory_results['objects'].values()
-        for obj in domain_objects
-    ]
-    
+        obj for domain_objects in inventory_results['objects'].values( )
+        for obj in domain_objects ]
     # Step 3: Fetch documentation content and calculate relevance
-    results: list[ __.cabc.Mapping[ str, __.typx.Any ] ] = []
-    query_lower = query.lower()
-    
+    results: list[ __.cabc.Mapping[ str, __.typx.Any ] ] = [ ]
+    query_lower = query.lower( )
     for candidate in candidates:
         try:
             doc_result = await extract_documentation(
-                source, candidate['name']
-            )
+                source, candidate['name'] )
             if 'error' in doc_result:
                 continue
-            
             # Calculate relevance score
             score, match_reasons = _calculate_relevance_score(
                 query_lower, candidate, doc_result )
-            
             # Extract content snippet if requested
             content_snippet = ''
             if include_snippets:
                 content_snippet = _extract_content_snippet(
                     query_lower, query, doc_result['description'] )
-            
             results.append({
                 'object_name': candidate['name'],
                 'object_type': candidate['role'],
@@ -234,14 +219,12 @@ async def query_documentation(  # noqa: PLR0913
                 'relevance_score': score,
                 'match_reasons': match_reasons
             })
-            
         except Exception:  # noqa: S112
             # Skip objects that can't be processed
             continue
-    
     # Step 4: Sort by relevance and return top results
-    results.sort(key=lambda x: x['relevance_score'], reverse=True)
-    return results[:max_results]
+    results.sort( key = lambda x: x[ 'relevance_score' ], reverse = True )
+    return results[ : max_results ]
 
 
 def extract_inventory( # noqa: PLR0913
@@ -465,7 +448,7 @@ def _filter_fuzzy_matching( # noqa: PLR0913
     term: str,
     fuzzy_threshold: int,
 ) -> tuple[ dict[ str, __.typx.Any ], int ]:
-    ''' Filters inventory using fuzzy matching via sphobjinv.suggest(). '''
+    ''' Filters inventory using fuzzy matching via sphobjinv.suggest( ). '''
     suggestions = inventory.suggest( term, thresh = fuzzy_threshold )
     fuzzy_names = _extract_names_from_suggestions( suggestions )
     return _collect_matching_objects(
@@ -535,7 +518,7 @@ async def _fetch_html_content( url: str ) -> __.typx.Annotated[
 ]:
     ''' Fetches HTML content from documentation URL or local file. '''
     parsed_url = _urlparse.urlparse( url )
-    
+
     match parsed_url.scheme:
         case 'file':
             # Read from local filesystem
@@ -543,7 +526,7 @@ async def _fetch_html_content( url: str ) -> __.typx.Annotated[
                 file_path = __.Path( parsed_url.path )
                 return file_path.read_text( encoding = 'utf-8' )
             except Exception as exc:
-                raise _exceptions.DocumentationInaccessibility( 
+                raise _exceptions.DocumentationInaccessibility(
                     url, exc ) from exc
         case 'http' | 'https':
             # Fetch from web
@@ -553,11 +536,11 @@ async def _fetch_html_content( url: str ) -> __.typx.Annotated[
                     response.raise_for_status( )
                     return response.text
             except Exception as exc:
-                raise _exceptions.DocumentationInaccessibility( 
+                raise _exceptions.DocumentationInaccessibility(
                     url, exc ) from exc
         case _:
             raise _exceptions.DocumentationInaccessibility(
-                url, ValueError( 
+                url, ValueError(
                     f"Unsupported URL scheme: {parsed_url.scheme}" )
             )
 
@@ -614,7 +597,7 @@ def normalize_inventory_source( source: SourceArgument ) -> __.typx.Annotated[
     try: url = _urlparse.urlparse( source )
     except Exception as exc:
         raise _exceptions.InventoryUrlInvalidity( source ) from exc
-    
+
     # Handle local filesystem paths by converting to file:// URLs
     match url.scheme:
         case '':
@@ -628,7 +611,7 @@ def normalize_inventory_source( source: SourceArgument ) -> __.typx.Annotated[
             pass
         case _:
             raise _exceptions.InventoryUrlInvalidity( source )
-    
+
     filename = 'objects.inv'
     if url.path.endswith( filename ): return url
     return _urlparse.ParseResult(

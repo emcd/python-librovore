@@ -526,28 +526,7 @@ async def test_700_extract_documentation_with_object_not_found( ):
     assert 'not found in inventory' in result[ 'error' ]
 
 
-@pytest.mark.asyncio
-async def test_710_extract_documentation_with_text_format( ):
-    ''' Extract documentation returns text format when requested. '''
-    inventory_path = get_test_inventory_path( 'sphobjinv' )
-    # Find an object that exists
-    inventory_results = module.extract_inventory( inventory_path )
-    if inventory_results[ 'object_count' ] > 0:
-        objects = next( iter( inventory_results[ 'objects' ].values( ) ) )
-        first_obj = objects[ 0 ]
-        # This will likely fail due to missing HTML files, which is expected
-        # and tests the error handling path
-        try:
-            result = await module.extract_documentation(
-                inventory_path, first_obj[ 'name' ], output_format = 'text' )
-            if 'error' not in result:
-                assert 'description' in result
-        except _exceptions.DocumentationInaccessibility:
-            # Expected behavior when HTML files don't exist
-            pass
-
-
-def test_720_calculate_relevance_score_name_match( ):
+def test_710_calculate_relevance_score_name_match( ):
     ''' Relevance scoring gives points for name matches. '''
     candidate = { 'name': 'test_function', 'priority': '1' }
     doc_result = { 'signature': 'def test()', 'description': 'A test func' }
@@ -557,7 +536,7 @@ def test_720_calculate_relevance_score_name_match( ):
     assert 'name match' in reasons
 
 
-def test_730_calculate_relevance_score_signature_match( ):
+def test_720_calculate_relevance_score_signature_match( ):
     ''' Relevance scoring gives points for signature matches. '''
     candidate = { 'name': 'function', 'priority': '1' }
     doc_result = { 'signature': 'def test_func()', 'description': 'A func' }
@@ -567,7 +546,7 @@ def test_730_calculate_relevance_score_signature_match( ):
     assert 'signature match' in reasons
 
 
-def test_740_calculate_relevance_score_description_match( ):
+def test_730_calculate_relevance_score_description_match( ):
     ''' Relevance scoring gives points for description matches. '''
     candidate = { 'name': 'function', 'priority': '1' }
     doc_result = { 'signature': 'def func()', 'description': 'A test func' }
@@ -577,7 +556,7 @@ def test_740_calculate_relevance_score_description_match( ):
     assert 'description match' in reasons
 
 
-def test_750_calculate_relevance_score_priority_bonus( ):
+def test_740_calculate_relevance_score_priority_bonus( ):
     ''' Relevance scoring gives priority bonuses. '''
     candidate_p1 = { 'name': 'function', 'priority': '1' }
     candidate_p0 = { 'name': 'function', 'priority': '0' }
@@ -589,14 +568,14 @@ def test_750_calculate_relevance_score_priority_bonus( ):
     assert score_p1 > score_p0
 
 
-def test_760_extract_content_snippet_basic( ):
+def test_750_extract_content_snippet_basic( ):
     ''' Content snippet extraction finds query in description. '''
     snippet = module._extract_content_snippet(
         'test', 'test', 'This is a test function for testing' )
     assert 'test' in snippet.lower( )
 
 
-def test_770_extract_content_snippet_with_ellipsis( ):
+def test_760_extract_content_snippet_with_ellipsis( ):
     ''' Content snippet extraction adds ellipsis for long text. '''
     long_text = 'x' * 100 + 'test' + 'y' * 100
     snippet = module._extract_content_snippet( 'test', 'test', long_text )
@@ -604,14 +583,14 @@ def test_770_extract_content_snippet_with_ellipsis( ):
     assert 'test' in snippet
 
 
-def test_780_extract_content_snippet_no_match( ):
+def test_770_extract_content_snippet_no_match( ):
     ''' Content snippet extraction returns empty for no match. '''
     snippet = module._extract_content_snippet(
         'xyz', 'xyz', 'This is a test function' )
     assert snippet == ''
 
 
-def test_790_extract_content_snippet_empty_description( ):
+def test_780_extract_content_snippet_empty_description( ):
     ''' Content snippet extraction handles empty description. '''
     snippet = module._extract_content_snippet( 'test', 'test', '' )
     assert snippet == ''

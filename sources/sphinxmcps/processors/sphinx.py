@@ -21,10 +21,12 @@
 ''' Sphinx documentation source detector and processor. '''
 
 
-import urllib.parse as _urlparse
-import httpx as _httpx
 import http as _http
+import urllib.parse as _urlparse
+
+import httpx as _httpx
 import sphobjinv as _sphobjinv
+
 from bs4 import BeautifulSoup as _BeautifulSoup
 
 from . import __
@@ -43,15 +45,15 @@ def _extract_inventory( source: str ) -> _sphobjinv.Inventory:
         case 'file': nomargs[ 'fname_zlib' ] = url.path
         case _:
             raise _exceptions.InventoryUrlNoSupport(
-                url, component='scheme', value=url.scheme )
+                url, component='scheme', value = url.scheme )
     try:
         return _sphobjinv.Inventory( **nomargs )
     except ( ConnectionError, OSError, TimeoutError ) as exc:
         raise _exceptions.InventoryInaccessibility(
-            url_s, cause=exc ) from exc
+            url_s, cause = exc ) from exc
     except Exception as exc:
         raise _exceptions.InventoryInvalidity(
-            url_s, cause=exc ) from exc
+            url_s, cause = exc ) from exc
 
 
 def _filter_inventory( # noqa: PLR0913
@@ -135,7 +137,7 @@ def _filter_fuzzy_matching( # noqa: PLR0913
     fuzzy_threshold: int,
 ) -> tuple[ dict[ str, __.typx.Any ], int ]:
     ''' Filters inventory using fuzzy matching via sphobjinv.suggest(). '''
-    suggestions = inventory.suggest( term, thresh=fuzzy_threshold )
+    suggestions = inventory.suggest( term, thresh = fuzzy_threshold )
     fuzzy_names = _extract_names_from_suggestions( suggestions )
     return _collect_matching_objects(
         inventory, domain, role, priority,
@@ -176,7 +178,7 @@ def _extract_base_url( source: str ) -> str:
     if not path.endswith( '/' ): path += '/'
     return _urlparse.urlunparse(
         _urlparse.ParseResult(
-            scheme=url.scheme, netloc=url.netloc, path=path,
+            scheme = url.scheme, netloc = url.netloc, path = path,
             params='', query='', fragment='' ) )
 
 
@@ -186,7 +188,7 @@ def _build_documentation_url(
     ''' Constructs documentation URL from base URL and object URI. '''
     uri_with_name = object_uri.replace( '$', object_name )
     return "{base_url}/{object_uri}".format(
-        base_url=base_url.rstrip( '/' ), object_uri=uri_with_name )
+        base_url = base_url.rstrip( '/' ), object_uri = uri_with_name )
 
 
 def _parse_documentation_html(
@@ -201,7 +203,7 @@ def _parse_documentation_html(
     main_content = soup.find( 'article', { 'role': 'main' } )
     if not main_content:
         raise _exceptions.DocumentationContentAbsence( element_id )
-    object_element = main_content.find( id=element_id )
+    object_element = main_content.find( id = element_id )
     if not object_element:
         return { 'error': f"Object '{element_id}' not found in page" }
     if object_element.name == 'dt':
@@ -282,7 +284,7 @@ def _html_to_markdown( html_text: str ) -> str:
             link.replace_with( text )
     text = soup.get_text( )
     text = __.re.sub( r'\n\s*\n', '\n\n', text )
-    text = __.re.sub( r'^\s+|\s+$', '', text, flags=__.re.MULTILINE )
+    text = __.re.sub( r'^\s+|\s+$', '', text, flags = __.re.MULTILINE )
     return text.strip( )
 
 
@@ -299,7 +301,7 @@ def _build_searchindex_url(
         base_path = path
     normalized_base = base_path.rstrip( '/' ) + '/'
     searchindex_path = normalized_base + 'searchindex.js'
-    return normalized_source._replace( path=searchindex_path )
+    return normalized_source._replace( path = searchindex_path )
 
 
 def _build_html_url(
@@ -315,7 +317,7 @@ def _build_html_url(
         base_path = path
     normalized_base = base_path.rstrip( '/' ) + '/'
     html_path = normalized_base + 'index.html'
-    return normalized_source._replace( path=html_path )
+    return normalized_source._replace( path = html_path )
 
 
 async def _check_objects_inv(
@@ -389,12 +391,12 @@ class SphinxProcessor( _interfaces.Processor ):
             normalized_source = _functions.normalize_inventory_source( source )
         except Exception:
             return SphinxDetection(
-                processor=self, confidence=0.0, source=source
+                processor = self, confidence = 0.0, source = source
             )
         has_objects_inv = await _check_objects_inv( normalized_source )
         if not has_objects_inv:
             return SphinxDetection(
-                processor=self, confidence=0.0, source=source
+                processor = self, confidence = 0.0, source = source
             )
         has_searchindex = await _check_searchindex( normalized_source )
         confidence = 0.95 if has_searchindex else 0.7
@@ -410,11 +412,10 @@ class SphinxProcessor( _interfaces.Processor ):
             except Exception as exc:
                 metadata[ 'theme_error' ] = str( exc )
         return SphinxDetection(
-            processor=self,
-            confidence=confidence,
-            source=source,
-            metadata=metadata
-        )
+            processor = self,
+            confidence = confidence,
+            source = source,
+            metadata = metadata )
 
     def extract_inventory( self, source: str, /, *, # noqa: PLR0913
         domain: __.Absential[ str ] = __.absent,
@@ -597,7 +598,7 @@ class SphinxProcessor( _interfaces.Processor ):
                     'relevance_score': score,
                     'match_reasons': match_reasons,
                 } )
-        results.sort( key=lambda x: x[ 'relevance_score' ], reverse=True )
+        results.sort( key = lambda x: x[ 'relevance_score' ], reverse = True )
         return results[ :max_results ]
 
 
@@ -605,8 +606,7 @@ class SphinxDetection( _interfaces.Detection ):
     ''' Detection result for Sphinx documentation sources. '''
     source: str
     metadata: dict[ str, __.typx.Any ] = __.dcls.field(
-        default_factory=lambda: __.typx.cast( dict[ str, __.typx.Any ], { } )
-    )
+        default_factory = dict[ str, __.typx.Any ] )
 
     @classmethod
     async def from_source(
