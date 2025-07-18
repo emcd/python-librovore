@@ -24,12 +24,10 @@
 from . import __
 
 
-class MatchMode( str, __.enum.Enum ):
-    ''' Enumeration for different term matching modes. '''
-
-    Exact = 'exact'
-    Regex = 'regex'
-    Fuzzy = 'fuzzy'
+DetectionSpecifics: __.typx.TypeAlias = __.typx.Annotated[
+    dict[ str, __.typx.Any ],
+    __.typx.Doc( ''' Metadata specific to a detection. ''' ),
+]
 
 
 class DisplayStreams( __.enum.Enum ):
@@ -76,4 +74,48 @@ class CliCommand(
         self, auxdata: __.Globals, display: ConsoleDisplay
     ) -> None:
         ''' Executes command with global state. '''
+        raise NotImplementedError
+
+
+class MatchMode( str, __.enum.Enum ):
+    ''' Enumeration for different term matching modes. '''
+
+    Exact = 'exact'
+    Regex = 'regex'
+    Fuzzy = 'fuzzy'
+
+
+class Processor( __.immut.DataclassProtocol ):
+    ''' Abstract base class for documentation source detectors. '''
+
+    name: str
+
+    @__.abc.abstractmethod
+    async def detect( self, source: str ) -> 'Detection':
+        ''' Detects if can process documentation from source. '''
+        raise NotImplementedError
+
+    # TODO: query_inventory
+
+    # TODO: query_documentation
+
+
+class Detection( __.immut.DataclassProtocol ):
+    ''' Abstract base class for documentation detector selections. '''
+
+    processor: Processor
+    confidence: float
+
+    @classmethod
+    @__.abc.abstractmethod
+    async def from_source(
+        selfclass, processor: Processor, source: str
+    ) -> __.typx.Self:
+        ''' Constructs detection from source location. '''
+        raise NotImplementedError
+
+    @property
+    @__.abc.abstractmethod
+    def specifics( self ) -> DetectionSpecifics:
+        ''' Returns metadata associated with detection as dictionary. '''
         raise NotImplementedError

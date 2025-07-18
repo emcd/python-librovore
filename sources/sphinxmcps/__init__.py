@@ -27,6 +27,14 @@ from . import exceptions
 # --- END: Injected by Copier ---
 
 
+from .xtnsapi import *
+
+
+# TODO: Maybe register at runtime rather than load time.
+#       Would allow us to register mocks for testing.
+register_intrinsic_processors( )
+
+
 __version__ = '1.0a0'
 
 

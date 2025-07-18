@@ -18,40 +18,28 @@
 #============================================================================#
 
 
-''' Common imports used throughout the package. '''
+''' Interface for extension development. '''
 
-# ruff: noqa: F401
-
-
-import                      abc
-import                      asyncio
-import collections.abc as   cabc
-import                      collections
-import contextlib as        ctxl
-import dataclasses as       dcls
-import                      enum
-import                      io
-import                      json
-import                      re
-import                      sys
-import                      time
-import                      types
-
-from logging import getLogger as acquire_scribe
-from pathlib import Path
-
-import                      appcore
-import accretive as         accret
-import dynadoc as           ddoc
-import frigid as            immut
-import typing_extensions as typx
-# --- BEGIN: Injected by Copier ---
-import tyro
-# --- END: Injected by Copier ---
-
-from absence import Absential, absent, is_absent
-from appcore.state import Globals
+# ruff: noqa: F403,F405
 
 
-simple_tyro_class = tyro.conf.configure( )
-standard_tyro_class = tyro.conf.configure( tyro.conf.OmitArgPrefixes )
+from . import __
+
+from .exceptions import *
+from .interfaces import *
+
+
+def _validator( name: str, value: Processor ) -> bool:
+    return isinstance( value, Processor )
+
+
+processors: __.accret.ValidatorDictionary[ str, Processor ] = (
+    __.accret.ValidatorDictionary( _validator ) )
+
+
+def register_intrinsic_processors( ):
+    ''' Registers processors which come with package. '''
+    from .processors.sphinx import register
+    
+    # Register sphinx processor
+    register( )

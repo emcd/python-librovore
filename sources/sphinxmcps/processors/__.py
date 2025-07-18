@@ -18,40 +18,9 @@
 #============================================================================#
 
 
-''' Common imports used throughout the package. '''
+''' Internals for intrinsic processors. '''
 
-# ruff: noqa: F401
+# ruff: noqa: F403
 
-
-import                      abc
-import                      asyncio
-import collections.abc as   cabc
-import                      collections
-import contextlib as        ctxl
-import dataclasses as       dcls
-import                      enum
-import                      io
-import                      json
-import                      re
-import                      sys
-import                      time
-import                      types
-
-from logging import getLogger as acquire_scribe
-from pathlib import Path
-
-import                      appcore
-import accretive as         accret
-import dynadoc as           ddoc
-import frigid as            immut
-import typing_extensions as typx
-# --- BEGIN: Injected by Copier ---
-import tyro
-# --- END: Injected by Copier ---
-
-from absence import Absential, absent, is_absent
-from appcore.state import Globals
-
-
-simple_tyro_class = tyro.conf.configure( )
-standard_tyro_class = tyro.conf.configure( tyro.conf.OmitArgPrefixes )
+from ..__ import *
+from ..xtnsapi import *

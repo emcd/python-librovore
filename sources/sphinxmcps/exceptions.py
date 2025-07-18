@@ -65,6 +65,14 @@ class DocumentationParseFailure( Omnierror, ValueError ):
         super( ).__init__( message )
 
 
+class ExtensionRegisterFailure( Omnierror, TypeError ):
+    ''' Invalid plugin could not be registered. '''
+
+    def __init__( self, message: str ):
+        # TODO: Canned message with extension name as argument.
+        super( ).__init__( message )
+
+
 class InventoryInaccessibility( Omnierror, RuntimeError ):
     ''' Inventory file or resource absent or inaccessible. '''
 
