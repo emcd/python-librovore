@@ -73,6 +73,16 @@ class ExtensionRegisterFailure( Omnierror, TypeError ):
         super( ).__init__( message )
 
 
+class ProcessorTypeError( Omnierror, TypeError ):
+    ''' Processor has wrong type. '''
+
+    def __init__( self, expected_type: str, actual_type: type ):
+        message = f"Expected {expected_type}, got {actual_type}"
+        self.expected_type = expected_type
+        self.actual_type = actual_type
+        super( ).__init__( message )
+
+
 class InventoryInaccessibility( Omnierror, RuntimeError ):
     ''' Inventory file or resource absent or inaccessible. '''
 

@@ -412,7 +412,7 @@ def _extract_inventory( source: SourceArgument ) -> __.typx.Annotated[
     __.ddoc.Doc( ''' Parsed Sphinx inventory object. ''' )
 ]:
     ''' Extracts and parses Sphinx inventory from URL or file path. '''
-    url = _normalize_inventory_source( source )
+    url = normalize_inventory_source( source )
     url_s = _urlparse.urlunparse( url )
     nomargs: __.NominativeArguments = { }
     match url.scheme:
@@ -521,7 +521,7 @@ def _extract_base_url( source: SourceArgument ) -> __.typx.Annotated[
     __.ddoc.Doc( ''' Base URL for documentation from inventory source. ''' )
 ]:
     ''' Extracts base documentation URL from inventory source. '''
-    url = _normalize_inventory_source( source )
+    url = normalize_inventory_source( source )
     path = url.path.rstrip( '/objects.inv' )
     if not path.endswith( '/' ): path += '/'
     return _urlparse.urlunparse(
@@ -601,7 +601,7 @@ def _html_to_markdown( html_text: str ) -> str:
     return text.strip( )
 
 
-def _normalize_inventory_source( source: SourceArgument ) -> __.typx.Annotated[
+def normalize_inventory_source( source: SourceArgument ) -> __.typx.Annotated[
     _urlparse.ParseResult,
     __.ddoc.Doc(
         ''' Parsed URL components with objects.inv appended if needed.

@@ -23,10 +23,12 @@
 
 import urllib.parse as _urlparse
 import httpx as _httpx
+import http as _http
 
 from . import __
 from .. import functions as _functions
 from .. import interfaces as _interfaces
+from .. import exceptions as _exceptions
 
 
 class SphinxProcessor( _interfaces.Processor ):
@@ -39,23 +41,26 @@ class SphinxProcessor( _interfaces.Processor ):
         ''' Detect if can process documentation from source. '''
         # Normalize source to get base URL
         try:
-            normalized_source = _functions._normalize_inventory_source( source )
+            normalized_source = _functions.normalize_inventory_source(
+                source
+            )
         except Exception:
-            return SphinxDetection( processor=self, confidence=0.0, source=source )
+            return SphinxDetection(
+                processor = self, confidence = 0.0, source = source
+            )
 
         # Check for objects.inv
         has_objects_inv = await self._check_objects_inv( normalized_source )
         if not has_objects_inv:
-            return SphinxDetection( processor=self, confidence=0.0, source=source )
+            return SphinxDetection(
+                processor = self, confidence = 0.0, source = source
+            )
 
         # Check for searchindex.js (indicates full Sphinx site)
         has_searchindex = await self._check_searchindex( normalized_source )
 
         # Calculate confidence based on what we found
-        if has_searchindex:
-            confidence = 0.95  # High confidence - full Sphinx site
-        else:
-            confidence = 0.7   # Medium confidence - objects.inv only
+        confidence = 0.95 if has_searchindex else 0.7
             
         # Build metadata
         metadata = {
@@ -72,29 +77,32 @@ class SphinxProcessor( _interfaces.Processor ):
             except Exception as exc:
                 metadata[ 'theme_error' ] = str( exc )
         
-        return SphinxDetection( 
-            processor=self, 
-            confidence=confidence, 
-            source=source,
-            metadata=metadata
+        return SphinxDetection(
+            processor = self,
+            confidence = confidence,
+            source = source,
+            metadata = metadata
         )
 
-    async def _check_objects_inv( self, normalized_source: _urlparse.ParseResult ) -> bool:
+    async def _check_objects_inv(
+        self, normalized_source: _urlparse.ParseResult
+    ) -> bool:
         ''' Check if objects.inv exists at the source. '''
         try:
             if normalized_source.scheme in ( 'file', '' ):
                 # Local file system
                 objects_inv_path = __.Path( normalized_source.path )
                 return objects_inv_path.exists( )
-            else:
-                # HTTP/HTTPS - try to fetch with HEAD request
-                async with _httpx.AsyncClient( timeout=10.0 ) as client:
-                    response = await client.head( normalized_source.geturl( ) )
-                    return response.status_code == 200
+            # HTTP/HTTPS - try to fetch with HEAD request
+            async with _httpx.AsyncClient( timeout = 10.0 ) as client:
+                response = await client.head( normalized_source.geturl( ) )
+                return response.status_code == _http.HTTPStatus.OK
         except Exception:
             return False
 
-    async def _check_searchindex( self, normalized_source: _urlparse.ParseResult ) -> bool:
+    async def _check_searchindex(
+        self, normalized_source: _urlparse.ParseResult
+    ) -> bool:
         ''' Check if searchindex.js exists (indicates full Sphinx site). '''
         try:
             # Build searchindex.js URL from objects.inv URL
@@ -104,15 +112,16 @@ class SphinxProcessor( _interfaces.Processor ):
                 # Local file system
                 searchindex_path = __.Path( searchindex_url.path )
                 return searchindex_path.exists( )
-            else:
-                # HTTP/HTTPS - try to fetch with HEAD request
-                async with _httpx.AsyncClient( timeout=10.0 ) as client:
-                    response = await client.head( searchindex_url.geturl( ) )
-                    return response.status_code == 200
+            # HTTP/HTTPS - try to fetch with HEAD request
+            async with _httpx.AsyncClient( timeout = 10.0 ) as client:
+                response = await client.head( searchindex_url.geturl( ) )
+                return response.status_code == _http.HTTPStatus.OK
         except Exception:
             return False
 
-    def _build_searchindex_url( self, normalized_source: _urlparse.ParseResult ) -> _urlparse.ParseResult:
+    def _build_searchindex_url(
+        self, normalized_source: _urlparse.ParseResult
+    ) -> _urlparse.ParseResult:
         ''' Build searchindex.js URL from objects.inv URL. '''
         # Remove 'objects.inv' from path and add 'searchindex.js'
         path = normalized_source.path
@@ -124,11 +133,15 @@ class SphinxProcessor( _interfaces.Processor ):
             base_path = path
 
         # Add searchindex.js
-        searchindex_path = base_path + ( '' if base_path.endswith( '/' ) else '/' ) + 'searchindex.js'
+        # Normalize base_path by ensuring it ends with '/'
+        normalized_base = base_path.rstrip( '/' ) + '/'
+        searchindex_path = normalized_base + 'searchindex.js'
 
         return normalized_source._replace( path=searchindex_path )
 
-    async def _detect_theme( self, normalized_source: _urlparse.ParseResult ) -> dict[ str, __.typx.Any ]:
+    async def _detect_theme(
+        self, normalized_source: _urlparse.ParseResult
+    ) -> dict[ str, __.typx.Any ]:
         ''' Detect Sphinx theme and other metadata. '''
         theme_metadata = { }
 
@@ -136,9 +149,9 @@ class SphinxProcessor( _interfaces.Processor ):
             # Try to fetch the main HTML page to detect theme
             html_url = self._build_html_url( normalized_source )
 
-            async with _httpx.AsyncClient( timeout=10.0 ) as client:
+            async with _httpx.AsyncClient( timeout = 10.0 ) as client:
                 response = await client.get( html_url.geturl( ) )
-                if response.status_code == 200:
+                if response.status_code == _http.HTTPStatus.OK:
                     html_content = response.text
 
                     # Simple theme detection based on HTML content
@@ -156,7 +169,9 @@ class SphinxProcessor( _interfaces.Processor ):
 
         return theme_metadata
 
-    def _build_html_url( self, normalized_source: _urlparse.ParseResult ) -> _urlparse.ParseResult:
+    def _build_html_url(
+        self, normalized_source: _urlparse.ParseResult
+    ) -> _urlparse.ParseResult:
         ''' Build main HTML URL from objects.inv URL. '''
         # Remove 'objects.inv' from path and add 'index.html'
         path = normalized_source.path
@@ -168,7 +183,9 @@ class SphinxProcessor( _interfaces.Processor ):
             base_path = path
 
         # Add index.html
-        html_path = base_path + ( '' if base_path.endswith( '/' ) else '/' ) + 'index.html'
+        # Normalize base_path by ensuring it ends with '/'
+        normalized_base = base_path.rstrip( '/' ) + '/'
+        html_path = normalized_base + 'index.html'
 
         return normalized_source._replace( path=html_path )
 
@@ -180,10 +197,14 @@ class SphinxDetection( _interfaces.Detection ):
     metadata: dict[ str, __.typx.Any ] = __.dcls.field( default_factory=dict )
     
     @classmethod
-    async def from_source( cls, processor: _interfaces.Processor, source: str ) -> __.typx.Self:
+    async def from_source(
+        cls, processor: _interfaces.Processor, source: str
+    ) -> __.typx.Self:
         ''' Constructs detection from source location. '''
         if not isinstance( processor, SphinxProcessor ):
-            raise TypeError( f"Expected SphinxProcessor, got {type( processor )}" )
+            raise _exceptions.ProcessorTypeError(
+                "SphinxProcessor", type( processor )
+            )
         return await processor.detect( source )
     
     @property

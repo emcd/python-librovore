@@ -68,6 +68,9 @@ async def detect_source(
     ''' Detect which processor can best handle the source. '''
     from . import xtnsapi as _xtnsapi
     
+    # Ensure intrinsic processors are registered
+    _xtnsapi.ensure_intrinsic_processors_registered( )
+    
     # Check cache first
     cached_result = _get_cached_result( source, cache_ttl )
     if cached_result is not None:
@@ -124,7 +127,7 @@ async def _run_processors(
                 'detector_name': processor.name,
                 'timestamp': current_time,
             }
-        except Exception as exc:
+        except Exception as exc:  # noqa: PERF203
             # Log error but continue with other processors
             results[ processor.name ] = {
                 'confidence': 0.0,
@@ -151,7 +154,7 @@ def _select_best_processor(
     results: dict[ str, DetectionResult ],
     processors: __.accret.ValidatorDictionary
 ) -> DetectionResult | None:
-    ''' Select the best processor based on confidence and registration order. '''
+    ''' Select best processor based on confidence and registration order. '''
     if not results: return None
     # Filter out zero confidence results
     valid_results = [

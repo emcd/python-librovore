@@ -666,14 +666,14 @@ def test_850_inventory_url_normalization( ):
     ''' Test URL normalization for inventory sources. '''
     # Test directory path auto-appends objects.inv
     test_dir = '/path/to/directory'
-    normalized = module._normalize_inventory_source( test_dir )
+    normalized = module.normalize_inventory_source( test_dir )
     assert normalized.path.endswith( '/objects.inv' )
 
 
 def test_860_inventory_url_normalization_with_objects_inv( ):
     ''' Test URL normalization when objects.inv already present. '''
     test_path = '/path/to/objects.inv'
-    normalized = module._normalize_inventory_source( test_path )
+    normalized = module.normalize_inventory_source( test_path )
     assert normalized.path == test_path
 
 

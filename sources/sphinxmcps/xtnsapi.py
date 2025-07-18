@@ -43,3 +43,10 @@ def register_intrinsic_processors( ):
     
     # Register sphinx processor
     register( )
+
+
+def ensure_intrinsic_processors_registered( ):
+    ''' Ensures intrinsic processors are registered (idempotent). '''
+    # Use the processor registry itself to check if registration has occurred
+    if not processors:
+        register_intrinsic_processors( )
