@@ -30,6 +30,7 @@ import sphobjinv as _sphobjinv
 from . import __
 from . import exceptions as _exceptions
 from . import interfaces as _interfaces
+from . import xtnsapi as _xtnsapi
 
 
 DocumentationResult: __.typx.TypeAlias = __.cabc.Mapping[ str, __.typx.Any ]
@@ -76,31 +77,11 @@ async def extract_documentation(
     include_sections: SectionFilter = __.absent,
 ) -> DocumentationResult:
     ''' Extracts documentation for a specific object from Sphinx docs. '''
-    inventory = _extract_inventory( source )
-    found_object = None
-    for objct in inventory.objects:
-        if objct.name == object_name:
-            found_object = objct
-            break
-    if not found_object:
-        return { 'error': f"Object '{object_name}' not found in inventory" }
-    base_url = _extract_base_url( source )
-    doc_url = _build_documentation_url(
-        base_url, found_object.uri, object_name )
-    html_content = await _fetch_html_content( doc_url )
-    # Extract the anchor from the URL to find the element
-    url_parts = _urlparse.urlparse( doc_url )
-    anchor = url_parts.fragment or object_name
-    parsed_content = _parse_documentation_html( html_content, anchor )
-    if 'error' in parsed_content: return parsed_content
-    result = {
-        'object_name': object_name,
-        'url': doc_url,
-        'signature': parsed_content[ 'signature' ],
-        'description': parsed_content[ 'description' ],
-    }
-    result[ 'description' ] = _html_to_markdown( result[ 'description' ] )
-    return result
+    processor = await _select_processor_for_source( source )
+    from .processors.sphinx import SphinxProcessor
+    sphinx_processor = __.typx.cast( SphinxProcessor, processor )
+    return await sphinx_processor.extract_documentation(
+        source, object_name, include_sections = include_sections )
 
 
 def _calculate_relevance_score(
@@ -112,29 +93,24 @@ def _calculate_relevance_score(
 ]:
     ''' Calculate relevance score and match reasons for doc result. '''
     score = 0.0
-    match_reasons: list[ str ] = []
-
+    match_reasons: list[ str ] = [ ]
     # Name matching (highest weight)
-    if query_lower in candidate['name'].lower( ):
+    if query_lower in candidate[ 'name' ].lower( ):
         score += 10.0
-        match_reasons.append('name match')
-
+        match_reasons.append( 'name match' )
     # Signature matching
-    if query_lower in doc_result['signature'].lower( ):
+    if query_lower in doc_result[ 'signature' ].lower( ):
         score += 5.0
-        match_reasons.append('signature match')
-
+        match_reasons.append( 'signature match' )
     # Description matching
-    if query_lower in doc_result['description'].lower( ):
+    if query_lower in doc_result[ 'description' ].lower( ):
         score += 3.0
         match_reasons.append( 'description match' )
-
     # Priority boost
-    if candidate['priority'] == '1':
+    if candidate[ 'priority' ] == '1':
         score += 2.0
-    elif candidate['priority'] == '0':
+    elif candidate[ 'priority' ] == '0':
         score += 1.0
-
     return score, match_reasons
 
 
@@ -146,18 +122,15 @@ def _extract_content_snippet(
     ''' Extract content snippet around query match in description. '''
     if not description or query_lower not in description.lower( ):
         return ''
-
     # Find query in description and extract surrounding context
     query_pos = description.lower( ).find(query_lower)
     start = max(0, query_pos - 50)
     end = min(len(description), query_pos + len(query) + 50)
     content_snippet = description[start:end]
-
     if start > 0:
         content_snippet = '...' + content_snippet
     if end < len(description):
         content_snippet = content_snippet + '...'
-
     return content_snippet
 
 
@@ -176,55 +149,13 @@ async def query_documentation(  # noqa: PLR0913
     __.ddoc.Doc( ''' List of query results with relevance ranking. ''' )
 ]:
     ''' Queries documentation content with relevance ranking. '''
-    # Step 1: Use inventory filtering to find candidate objects
-    inventory_results = extract_inventory(
-        source,
-        domain = domain,
-        role = role,
-        term = query,
-        priority = priority,
-        match_mode = match_mode,
-        fuzzy_threshold = fuzzy_threshold )
-    if 'objects' not in inventory_results: return [ ]
-    # Step 2: Extract documentation for each candidate object
-    candidates = [
-        obj for domain_objects in inventory_results['objects'].values( )
-        for obj in domain_objects ]
-    # Step 3: Fetch documentation content and calculate relevance
-    results: list[ __.cabc.Mapping[ str, __.typx.Any ] ] = [ ]
-    query_lower = query.lower( )
-    for candidate in candidates:
-        try:
-            doc_result = await extract_documentation(
-                source, candidate['name'] )
-            if 'error' in doc_result:
-                continue
-            # Calculate relevance score
-            score, match_reasons = _calculate_relevance_score(
-                query_lower, candidate, doc_result )
-            # Extract content snippet if requested
-            content_snippet = ''
-            if include_snippets:
-                content_snippet = _extract_content_snippet(
-                    query_lower, query, doc_result['description'] )
-            results.append({
-                'object_name': candidate['name'],
-                'object_type': candidate['role'],
-                'domain': candidate.get('domain', ''),
-                'priority': candidate['priority'],
-                'url': doc_result['url'],
-                'signature': doc_result['signature'],
-                'description': doc_result['description'],
-                'content_snippet': content_snippet,
-                'relevance_score': score,
-                'match_reasons': match_reasons
-            })
-        except Exception:  # noqa: S112
-            # Skip objects that can't be processed
-            continue
-    # Step 4: Sort by relevance and return top results
-    results.sort( key = lambda x: x[ 'relevance_score' ], reverse = True )
-    return results[ : max_results ]
+    processor = await _select_processor_for_source( source )
+    from .processors.sphinx import SphinxProcessor
+    sphinx_processor = __.typx.cast( SphinxProcessor, processor )
+    return await sphinx_processor.query_documentation(
+        source, query, domain = domain, role = role, priority = priority,
+        match_mode = match_mode, fuzzy_threshold = fuzzy_threshold,
+        max_results = max_results, include_snippets = include_snippets )
 
 
 def extract_inventory( # noqa: PLR0913
@@ -245,39 +176,19 @@ def extract_inventory( # noqa: PLR0913
         ''' )
 ]:
     ''' Extracts Sphinx inventory from source with optional filtering. '''
-    inventory = _extract_inventory( source )
-    objects, selections_total = (
-        _filter_inventory(
-            inventory,
-            domain = domain, role = role, term = term, priority = priority,
-            match_mode = match_mode, fuzzy_threshold = fuzzy_threshold )
-    )
+    _xtnsapi.ensure_intrinsic_processors_registered( )
+    processor = _get_sphinx_processor( )
+    from .processors.sphinx import SphinxProcessor
+    sphinx_processor = __.typx.cast( SphinxProcessor, processor )
+    result = sphinx_processor.extract_inventory(
+        source, domain = domain, role = role, term = term,
+        priority = priority, match_mode = match_mode,
+        fuzzy_threshold = fuzzy_threshold )
+    result[ 'source' ] = source
     domains_summary: dict[ str, int ] = {
         domain_name: len( objs )
-        for domain_name, objs in objects.items( ) }
-    result: dict[ str, __.typx.Any ] = {
-        'project': inventory.project,
-        'version': inventory.version,
-        'source': source,
-        'object_count': selections_total,
-        'domains': domains_summary,
-        'objects': objects,
-    }
-    if ( any( ( domain, role, term, priority ) )
-         or match_mode != _interfaces.MatchMode.Exact ):
-        result[ 'filters' ] = { }
-        if not __.is_absent( domain ):
-            result[ 'filters' ][ 'domain' ] = domain
-        if not __.is_absent( role ):
-            result[ 'filters' ][ 'role' ] = role
-        if not __.is_absent( term ):
-            result[ 'filters' ][ 'term' ] = term
-        if not __.is_absent( priority ):
-            result[ 'filters' ][ 'priority' ] = priority
-        if match_mode != _interfaces.MatchMode.Exact:
-            result[ 'filters' ][ 'match_mode' ] = match_mode.value
-            if match_mode == _interfaces.MatchMode.Fuzzy:
-                result[ 'filters' ][ 'fuzzy_threshold' ] = fuzzy_threshold
+        for domain_name, objs in result[ 'objects' ].items( ) }
+    result[ 'domains' ] = domains_summary
     return result
 
 
@@ -294,45 +205,14 @@ def summarize_inventory( # noqa: PLR0913
     __.ddoc.Doc( ''' Human-readable summary of inventory contents. ''' )
 ]:
     ''' Provides human-readable summary of a Sphinx inventory. '''
-    data = extract_inventory(
-        source, domain = domain, role = role, term = term, priority = priority,
-        match_mode = match_mode, fuzzy_threshold = fuzzy_threshold )
-    lines = [
-        "Sphinx Inventory: {project} v{version}".format(
-            project = data[ 'project' ], version = data[ 'version' ]
-        ),
-        "Source: {source}".format( source = data[ 'source' ] ),
-        "Total Objects: {count}".format( count = data[ 'object_count' ] ),
-    ]
-    filters = data.get( 'filters' )
-    # Show filter information if present
-    if filters and any( filters.values( ) ):
-        filter_parts: list[ str ] = [ ]
-        for filter_name, filter_value in filters.items( ):
-            if filter_value:
-                filter_parts.append( "{name}={value}".format(
-                    name = filter_name, value = filter_value ) )
-        if filter_parts:
-            lines.append( "Filters: {parts}".format(
-                parts = ', '.join( filter_parts ) ) )
-    lines.extend( [ "", "Domains:" ] )
-    for domain_, count in sorted( data[ 'domains' ].items( ) ):
-        lines.append( "  {domain}: {count} objects".format(
-            domain = domain_, count = count ) )
-    # Show sample objects from largest domain
-    if data[ 'objects' ]:
-        largest_domain = max(
-            data[ 'domains' ].items( ), key = lambda x: x[ 1 ] )[ 0 ]
-        sample_objects = data[ 'objects' ][ largest_domain ][ :5 ]
-        lines.extend( [
-            "",
-            "Sample {domain} objects:".format( domain = largest_domain ),
-        ] )
-        lines.extend(
-            "  {role}: {name}".format(
-                role = obj[ 'role' ], name = obj[ 'name' ] )
-            for obj in sample_objects )
-    return '\n'.join( lines )
+    _xtnsapi.ensure_intrinsic_processors_registered( )
+    processor = _get_sphinx_processor( )
+    from .processors.sphinx import SphinxProcessor
+    sphinx_processor = __.typx.cast( SphinxProcessor, processor )
+    return sphinx_processor.summarize_inventory(
+        source, domain = domain, role = role, term = term,
+        priority = priority, match_mode = match_mode,
+        fuzzy_threshold = fuzzy_threshold )
 
 
 def _build_documentation_url(
@@ -618,6 +498,32 @@ def normalize_inventory_source( source: SourceArgument ) -> __.typx.Annotated[
         scheme = url.scheme, netloc = url.netloc,
         path = f"{url.path}/{filename}",
         params = url.params, query = url.query, fragment = url.fragment )
+
+
+async def _select_processor_for_source(
+    source: SourceArgument
+) -> _interfaces.Processor:
+    ''' Selects best processor for source via detection. '''
+    _xtnsapi.ensure_intrinsic_processors_registered( )
+    best_processor: _interfaces.Processor | None = None
+    best_confidence = 0.0
+    for processor in _xtnsapi.processors.values( ):
+        detection = await processor.detect( source )
+        if detection.confidence > best_confidence:
+            best_confidence = detection.confidence
+            best_processor = processor
+    if not best_processor:
+        raise _exceptions.ProcessorNotFound( source )
+    return best_processor
+
+
+def _get_sphinx_processor( ) -> _interfaces.Processor:
+    ''' Gets Sphinx processor directly (for backward compatibility). '''
+    _xtnsapi.ensure_intrinsic_processors_registered( )
+    processor = _xtnsapi.processors.get( 'sphinx' )
+    if not processor:
+        raise _exceptions.ProcessorNotFound( 'sphinx' )
+    return processor
 
 
 def _parse_documentation_html(

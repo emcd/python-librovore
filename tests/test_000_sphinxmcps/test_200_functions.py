@@ -480,7 +480,7 @@ async def test_630_query_documentation_no_matches( ):
 @pytest.mark.asyncio
 async def test_640_query_documentation_nonexistent_file( ):
     ''' Query documentation handles nonexistent files gracefully. '''
-    with pytest.raises( _exceptions.InventoryInaccessibility ):
+    with pytest.raises( _exceptions.ProcessorNotFound ):
         await module.query_documentation(
             '/nonexistent/path.inv', 'inventory' )
 

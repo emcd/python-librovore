@@ -132,3 +132,14 @@ class InventoryUrlNoSupport( Omnierror, NotImplementedError ):
             else f"{message_c} with value '{value}' {message_i}" )
         self.url = url
         super( ).__init__( message )
+
+
+class ProcessorNotFound( Omnierror, RuntimeError ):
+    ''' No processor found to handle source. '''
+
+    def __init__( self, source: str ):
+        message = f"No processor found to handle source: {source}"
+        self.source = source
+        super( ).__init__( message )
+
+

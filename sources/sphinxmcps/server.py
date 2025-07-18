@@ -111,8 +111,7 @@ async def extract_documentation(
         "extract_documentation called: source=%s, object_name=%s",
         source, object_name )
     try:
-        return await _functions.extract_documentation(
-            source, object_name )
+        return await _functions.extract_documentation( source, object_name )
     except Exception as exc:
         _scribe.error( "Error extracting documentation: %s", exc )
         return { 'error': str( exc ) }
@@ -132,19 +131,19 @@ async def query_documentation(  # noqa: PLR0913
     ''' Query documentation content with relevance ranking. '''
     _scribe.debug(
         "query_documentation called: source=%s, query=%s", source, query )
-    
+
     # match_mode is already an enum
-    
+
     nomargs: __.NominativeArguments = { }
     if domain: nomargs[ 'domain' ] = domain
     if role: nomargs[ 'role' ] = role
     if priority: nomargs[ 'priority' ] = priority
-    
+
     nomargs[ 'match_mode' ] = match_mode
     nomargs[ 'fuzzy_threshold' ] = fuzzy_threshold
     nomargs[ 'max_results' ] = max_results
     nomargs[ 'include_snippets' ] = include_snippets
-    
+
     try:
         return await _functions.query_documentation(
             source, query, **nomargs )

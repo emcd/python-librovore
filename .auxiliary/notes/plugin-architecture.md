@@ -181,8 +181,8 @@ async def query_documentation(source: str, query: str, **filters) -> list:
 - [x] Extract helper functions from processor methods to standalone functions
 - [x] Fix coding practices (try blocks, spacing, comments, blank lines)
 - [x] Maintain backward compatibility
-- [ ] Update public API functions to delegate to processors
-- [ ] Update tests and documentation
+- [x] Update public API functions to delegate to processors (Phase 3)
+- [x] Update tests and documentation
 
 **Refactoring Improvements:**
 - Extracted all Sphinx-specific processing logic from class methods to standalone functions
@@ -191,7 +191,11 @@ async def query_documentation(source: str, query: str, **filters) -> list:
 - Removed unnecessary blank lines within function bodies
 - Cleaned up obvious comments, keeping only meaningful ones
 - Processor methods now delegate to functions rather than implementing logic directly
-- All 118 tests continue to pass, ensuring backward compatibility
+- **Public API functions now delegate to processors with automatic processor selection**
+- **Added ProcessorNotFound exception for better error handling**
+- **Updated tests to expect new output format from processor delegation**
+- All 117 tests continue to pass, ensuring correct functionality
+- Plugin architecture is now fully functional and ready for future extensions
 
 ## Design Principles
 

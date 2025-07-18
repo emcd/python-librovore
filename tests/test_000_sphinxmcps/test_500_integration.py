@@ -124,7 +124,7 @@ async def test_200_mcp_summarize_inventory_tool( ):
         assert len( content ) > 0
         assert content[ 0 ][ 'type' ] == 'text'
         text_content = content[ 0 ][ 'text' ]
-        assert 'Sphinx Inventory' in text_content
+        assert 'Project:' in text_content
         assert 'objects' in text_content
 
 
@@ -202,7 +202,7 @@ async def test_400_mcp_stdio_transport( ):
         assert response[ 'jsonrpc' ] == '2.0'
         assert 'result' in response
         content = response[ 'result' ][ 'content' ]
-        assert 'Sphinx Inventory' in content[ 0 ][ 'text' ]
+        assert 'Project:' in content[ 0 ][ 'text' ]
 
 
 @pytest.mark.slow
@@ -226,7 +226,7 @@ async def test_410_mcp_multiple_requests( ):
         assert response2[ 'jsonrpc' ] == '2.0'
         assert 'result' in response2
         assert (
-            'Sphinx Inventory' in
+            'Project:' in
             response1[ 'result' ][ 'content' ][ 0 ][ 'text' ] )
         assert (
             'project' in
@@ -247,7 +247,7 @@ async def test_500_mcp_server_shutdown_cleanup( ):
         response = await client.call_tool(
             'summarize_inventory', { 'source': inventory_path } )
         assert (
-            'Sphinx Inventory' in
+            'Project:' in
             response[ 'result' ][ 'content' ][ 0 ][ 'text' ] )
         # Client connection should close cleanly
     # Server should shut down cleanly (tested by context manager)

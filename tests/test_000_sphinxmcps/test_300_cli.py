@@ -98,7 +98,7 @@ async def test_030_summarize_inventory_command_unit( ):
         source = test_inventory_path, domain = 'py' )
     await cmd( auxdata, display )
     output = display.stream.getvalue( )
-    assert 'Sphinx Inventory' in output
+    assert 'Project:' in output
     assert 'py' in output
 
 
@@ -111,7 +111,7 @@ async def test_040_summarize_inventory_command_no_filters( ):
     cmd = module.SummarizeInventoryCommand( source = test_inventory_path )
     await cmd( auxdata, display )
     output = display.stream.getvalue( )
-    assert 'Sphinx Inventory' in output
+    assert 'Project:' in output
 
 
 @pytest.mark.asyncio
@@ -140,7 +140,7 @@ async def test_060_use_command_summarize_delegation( ):
     use_cmd = module.UseCommand( operation = summarize_cmd )
     await use_cmd( auxdata, display )
     output = display.stream.getvalue( )
-    assert 'Sphinx Inventory' in output
+    assert 'Project:' in output
     assert 'py' in output
 
 
@@ -232,8 +232,8 @@ async def test_600_cli_summarize_inventory_local_file( ):
     ] )
     assert result.returncode == 0
     assert (
-            'Sphinx Inventory' in result.stdout
-        or  'Sphinx Inventory' in result.stderr )
+            'Project:' in result.stdout
+        or  'Project:' in result.stderr )
     assert 'objects' in result.stdout or 'objects' in result.stderr
 
 

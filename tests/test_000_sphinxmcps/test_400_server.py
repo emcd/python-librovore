@@ -73,7 +73,7 @@ def test_100_summarize_inventory_wrapper( ):
     result = module.summarize_inventory(
         source = test_inventory_path, domain = 'py' )
     assert isinstance( result, str )
-    assert 'Sphinx Inventory' in result
+    assert 'Project:' in result
     assert 'py' in result
 
 
@@ -82,7 +82,7 @@ def test_110_summarize_inventory_wrapper_no_filters( ):
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
     result = module.summarize_inventory( source = test_inventory_path )
     assert isinstance( result, str )
-    assert 'Sphinx Inventory' in result
+    assert 'Project:' in result
 
 
 def test_120_summarize_inventory_wrapper_with_regex( ):
@@ -93,7 +93,7 @@ def test_120_summarize_inventory_wrapper_with_regex( ):
         term = 'test.*pattern',
         match_mode = _interfaces.MatchMode.Regex )
     assert isinstance( result, str )
-    assert 'Sphinx Inventory' in result
+    assert 'Project:' in result
 
 
 def test_130_extract_inventory_wrapper_with_fuzzy( ):
