@@ -1,11 +1,74 @@
 # Future Development Ideas - Sphinx MCP Server
 
+## Plugin Architecture Concepts
+
+### Core Plugin System
+- **Abstract base classes**: `InventoryProvider`, `DocumentationExtractor`, `SearchProvider`
+- **Plugin discovery**: Auto-discovery from entry points or explicit registration
+- **Plugin lifecycle**: Initialize, configure, validate, execute, cleanup
+- **Plugin dependencies**: Allow plugins to depend on other plugins or services
+- **Plugin metadata**: Version compatibility, capabilities, configuration schema
+
+### Built-in Plugins (Post-1.0)
+- **Sphinx plugin**: Current functionality retrofitted as reference implementation
+- **OpenAPI plugin**: Extract documentation from OpenAPI/Swagger specifications
+- **Rust docs plugin**: Support for rustdoc-generated documentation
+- **JSDoc plugin**: JavaScript documentation extraction
+- **GitHub plugin**: Extract documentation from GitHub repositories
+- **ReadTheDocs API plugin**: Direct API integration beyond objects.inv
+
+### Plugin Configuration System
+- **Plugin-specific parameters**: Each plugin defines its own parameter schema
+- **Configuration inheritance**: Global settings with plugin-specific overrides
+- **Dynamic configuration**: Runtime configuration changes without restart
+- **Configuration validation**: Schema-based validation with helpful error messages
+
+## Advanced Caching Strategies
+
+### Multi-Level Caching
+- **Memory cache**: Hot data in memory with LRU eviction
+- **Disk cache**: Persistent storage with TTL and size management
+- **Distributed cache**: Redis/Memcached support for multi-instance deployments
+- **Cache hierarchy**: Memory → Disk → Network with intelligent promotion
+
+### Smart Cache Invalidation
+- **ETag support**: Use HTTP ETags for efficient cache validation
+- **Last-modified tracking**: Monitor documentation source changes
+- **Dependency tracking**: Invalidate dependent content when sources change
+- **Incremental updates**: Partial cache updates instead of full replacement
+
+### Cache Analytics
+- **Hit/miss ratios**: Monitor cache effectiveness
+- **Performance metrics**: Track latency improvements from caching
+- **Size monitoring**: Track cache growth and storage usage
+- **Eviction reporting**: Understand what gets evicted and why
+
+## Advanced Documentation Features
+
+### Content Relationship Mapping
+- **Inheritance hierarchies**: Track class inheritance trees
+- **Cross-references**: Map all internal and external links
+- **Usage examples**: Find and extract example code from documentation
+- **See-also networks**: Build graphs of related objects
+
+### Enhanced Content Extraction
+- **Multi-theme support**: Adapt parsing for different Sphinx themes (Alabaster, RTD, Book, etc.)
+- **Rich media handling**: Extract diagrams, charts, and embedded content
+- **Code example extraction**: Parse and validate code examples from documentation
+- **Version comparison**: Compare documentation across different versions
+
+### Full-Text Search Engine
+- **Search index building**: Build comprehensive search indices from documentation content
+- **Relevance scoring**: Advanced scoring algorithms beyond simple text matching
+- **Faceted search**: Filter by object type, module, topic, etc.
+- **Search suggestions**: Auto-complete and query suggestions
+- **Search analytics**: Track popular queries and improve results
+
 ## Immediate Enhancements
 
 ### Advanced Filtering and Search
 - [ ] **Boolean search operators**: Support `domain=py AND role=class` expressions
 - [ ] **Case-sensitive search**: Option for exact case matching
-- [ ] **search_documentation tool**: Full-text search across documentation content with relevance ranking
 - [ ] **Content snippets**: Include relevant content excerpts in search results
 
 ### Enhanced Output Formats
@@ -24,6 +87,31 @@
 - [ ] **Link resolution**: Convert relative links to absolute URLs
 - [ ] **Image handling**: Proper handling of images in documentation
 - [ ] **Table formatting**: Better markdown conversion for HTML tables
+
+## Technical Implementation Notes
+
+### Fuzzy Matching Implementation (Reference)
+Current implementation uses `sphobjinv.suggest()` which provides:
+- Built-in fuzzy matching via fuzzywuzzy internally
+- Configurable threshold (0-100, default 50)
+- No additional dependencies required
+- Optimized for inventory object names specifically
+- Battle-tested in sphobjinv CLI
+
+**Future enhancement**: Consider `rapidfuzz` for better performance if needed.
+
+### HTML Processing Architecture (Reference)
+Current documentation extraction implementation:
+- **Multi-format parsing**: Handles section elements (modules) and dt/dd pairs (functions/classes)
+- **URL construction**: Supports $ placeholder replacement, file:// and http/https schemes
+- **BeautifulSoup integration**: Custom minimal type stubs for clean type checking
+- **Markdown conversion**: HTML to markdown with tag cleanup and formatting
+
+### Documentation Structure Analysis (Reference)
+Understanding of Sphinx search mechanisms:
+- **searchindex.js structure**: Document mapping, object locations, URL construction
+- **HTML patterns**: `<article role="main">`, `<dl class="py exception">`, `<dt class="sig">` elements
+- **Theme compatibility**: Designed for Furo but extensible to other themes
 
 ## Advanced Features
 
