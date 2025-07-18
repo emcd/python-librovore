@@ -189,6 +189,72 @@ class SphinxProcessor( _interfaces.Processor ):
 
         return normalized_source._replace( path=html_path )
 
+    # Processor methods for handling Sphinx documentation
+    
+    def extract_inventory(  # noqa: PLR0913
+        self, source: str, /, *,
+        domain: __.Absential[ str ] = __.absent,
+        role: __.Absential[ str ] = __.absent,
+        term: __.Absential[ str ] = __.absent,
+        priority: __.Absential[ str ] = __.absent,
+        match_mode: _interfaces.MatchMode = _interfaces.MatchMode.Exact,
+        fuzzy_threshold: int = 50
+    ) -> dict[ str, __.typx.Any ]:
+        ''' Extract inventory from Sphinx documentation source. '''
+        # TODO: Implement using moved helper functions
+        return _functions.extract_inventory(
+            source, domain=domain, role=role, term=term, priority=priority,
+            match_mode=match_mode, fuzzy_threshold=fuzzy_threshold
+        )
+    
+    def summarize_inventory(  # noqa: PLR0913
+        self, source: str, /, *,
+        domain: __.Absential[ str ] = __.absent,
+        role: __.Absential[ str ] = __.absent,
+        term: __.Absential[ str ] = __.absent,
+        priority: __.Absential[ str ] = __.absent,
+        match_mode: _interfaces.MatchMode = _interfaces.MatchMode.Exact,
+        fuzzy_threshold: int = 50
+    ) -> str:
+        ''' Summarize inventory from Sphinx documentation source. '''
+        # TODO: Implement using moved helper functions
+        return _functions.summarize_inventory(
+            source, domain=domain, role=role, term=term, priority=priority,
+            match_mode=match_mode, fuzzy_threshold=fuzzy_threshold
+        )
+    
+    async def extract_documentation(
+        self, source: str, object_name: str, /, *,
+        include_sections: __.Absential[ list[ str ] ] = __.absent,
+        output_format: str = 'markdown'
+    ) -> __.cabc.Mapping[ str, __.typx.Any ]:
+        ''' Extract documentation for specific object from Sphinx source. '''
+        # TODO: Implement using moved helper functions
+        return await _functions.extract_documentation(
+            source, object_name, include_sections=include_sections,
+            output_format=__.typx.cast( 
+                __.typx.Literal[ 'markdown', 'text' ], output_format
+            )
+        )
+    
+    async def query_documentation(  # noqa: PLR0913
+        self, source: str, query: str, /, *,
+        domain: __.Absential[ str ] = __.absent,
+        role: __.Absential[ str ] = __.absent,
+        priority: __.Absential[ str ] = __.absent,
+        match_mode: _interfaces.MatchMode = _interfaces.MatchMode.Fuzzy,
+        fuzzy_threshold: int = 50,
+        max_results: int = 10,
+        include_snippets: bool = True
+    ) -> list[ __.cabc.Mapping[ str, __.typx.Any ] ]:
+        ''' Query documentation content from Sphinx source. '''
+        # TODO: Implement using moved helper functions
+        return await _functions.query_documentation(
+            source, query, domain=domain, role=role, priority=priority,
+            match_mode=match_mode, fuzzy_threshold=fuzzy_threshold,
+            max_results=max_results, include_snippets=include_snippets
+        )
+
 
 class SphinxDetection( _interfaces.Detection ):
     ''' Detection result for Sphinx documentation sources. '''

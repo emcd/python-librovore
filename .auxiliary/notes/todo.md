@@ -3,11 +3,12 @@
 ## Core Architecture (High Priority)
 
 ### 🔌 Plugin/Extensions Architecture
-- [ ] **Design plugin interface**: Define abstract base classes for inventory and documentation providers
-- [ ] **Retrofit Sphinx support**: Convert current Sphinx inventory/documentation extraction to plugin
-- [ ] **Plugin discovery system**: Mechanism to register and load plugins
-- [ ] **Plugin API stability**: Ensure backwards compatibility for plugins
+- [x] **Design plugin interface**: Define abstract base classes for inventory and documentation providers
+- [x] **Retrofit Sphinx support**: Convert current Sphinx inventory/documentation extraction to plugin
+- [x] **Plugin discovery system**: Mechanism to register and load plugins
+- [x] **Plugin API stability**: Ensure backwards compatibility for plugins
 - [ ] **Plugin configuration**: Allow plugins to define their own parameters and options
+- [ ] **Refactor Sphinx code**: Move Sphinx-specific functions from `functions.py` to `processors/sphinx.py`
 
 ### 💾 Caching System
 - [ ] **Inventory caching**: Cache downloaded `objects.inv` files with TTL

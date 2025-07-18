@@ -146,35 +146,41 @@ async def query_documentation(source: str, query: str, **filters) -> list:
 
 ## Implementation Phases
 
-### Phase 1: Core Sniffer System
-- [ ] Define `DocumentationSniffer` interface
-- [ ] Implement sniff result caching with platformdirs
-- [ ] Create plugin selection algorithm
-- [ ] Build basic Sphinx sniffer as proof of concept
+### Phase 1: Core Sniffer System ✅ COMPLETED
+- [x] Define `DocumentationSniffer` interface (now `Processor` protocol)
+- [x] Implement sniff result caching with TTL
+- [x] Create plugin selection algorithm
+- [x] Build basic Sphinx sniffer as proof of concept
 
-### Phase 2: Plugin Registry
-- [ ] Add `accretive` dependency
-- [ ] Implement plugin registry with `ValidatorDictionary`
-- [ ] Create plugin registration system
-- [ ] Register built-in Sphinx plugin
+### Phase 2: Plugin Registry ✅ COMPLETED
+- [x] Add `accretive` dependency
+- [x] Implement plugin registry with `ValidatorDictionary`
+- [x] Create plugin registration system
+- [x] Register built-in Sphinx plugin
 
-### Phase 3: External Plugin Loading
+### Phase 3: External Plugin Loading ⏸️ DEFERRED
 - [ ] Adapt package loading logic from another unreleased package
 - [ ] Implement isolated cache management
 - [ ] Add support for PEP 508/440 specifications
 - [ ] Create plugin loading and validation system
 
-### Phase 4: Configuration Integration
+### Phase 4: Configuration Integration ⏸️ DEFERRED
 - [ ] Implement TOML `[[extensions]]` parsing
 - [ ] Add plugin-specific argument handling
 - [ ] Create enable/disable controls
 - [ ] Validate configuration schema
 
-### Phase 5: Plugin Interface Design
-- [ ] Define minimal plugin interface based on learnings
-- [ ] Retrofit existing Sphinx functionality as plugin
-- [ ] Implement plugin lifecycle management
-- [ ] Add error handling and fallback mechanisms
+### Phase 5: Plugin Interface Design ✅ COMPLETED
+- [x] Define minimal plugin interface based on learnings
+- [x] Retrofit existing Sphinx functionality as plugin
+- [x] Implement plugin lifecycle management
+- [x] Add error handling and fallback mechanisms
+
+### Phase 6: Sphinx Code Refactoring 🚧 IN PROGRESS
+- [ ] Move Sphinx-specific code from `functions.py` to `processors/sphinx.py`
+- [ ] Update public API functions to delegate to processors
+- [ ] Maintain backward compatibility
+- [ ] Update tests and documentation
 
 ## Design Principles
 
