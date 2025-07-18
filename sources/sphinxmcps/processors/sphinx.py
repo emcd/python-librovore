@@ -63,7 +63,7 @@ class SphinxProcessor( _interfaces.Processor ):
         confidence = 0.95 if has_searchindex else 0.7
             
         # Build metadata
-        metadata = {
+        metadata: dict[ str, __.typx.Any ] = {
             'has_objects_inv': has_objects_inv,
             'has_searchindex': has_searchindex,
             'normalized_source': normalized_source.geturl( ),
@@ -143,7 +143,7 @@ class SphinxProcessor( _interfaces.Processor ):
         self, normalized_source: _urlparse.ParseResult
     ) -> dict[ str, __.typx.Any ]:
         ''' Detect Sphinx theme and other metadata. '''
-        theme_metadata = { }
+        theme_metadata: dict[ str, __.typx.Any ] = { }
 
         try:
             # Try to fetch the main HTML page to detect theme
@@ -194,7 +194,9 @@ class SphinxDetection( _interfaces.Detection ):
     ''' Detection result for Sphinx documentation sources. '''
     
     source: str
-    metadata: dict[ str, __.typx.Any ] = __.dcls.field( default_factory=dict )
+    metadata: dict[ str, __.typx.Any ] = __.dcls.field( 
+        default_factory=lambda: __.typx.cast( dict[ str, __.typx.Any ], { } )
+    )
     
     @classmethod
     async def from_source(
@@ -205,7 +207,8 @@ class SphinxDetection( _interfaces.Detection ):
             raise _exceptions.ProcessorTypeError(
                 "SphinxProcessor", type( processor )
             )
-        return await processor.detect( source )
+        detection = await processor.detect( source )
+        return __.typx.cast( __.typx.Self, detection )
     
     @property
     def specifics( self ) -> _interfaces.DetectionSpecifics:

@@ -22,6 +22,7 @@
 
 
 from . import __
+from . import interfaces as _interfaces
 
 
 DetectionCache: __.typx.TypeAlias = __.typx.Annotated[
@@ -111,10 +112,11 @@ def _get_cached_result(
 
 
 async def _run_processors(
-    source: str, processors: __.accret.ValidatorDictionary
+    source: str,
+    processors: __.accret.ValidatorDictionary[ str, _interfaces.Processor ]
 ) -> dict[ str, DetectionResult ]:
     ''' Run all processors on the source. '''
-    results = { }
+    results: dict[ str, DetectionResult ] = { }
     current_time = __.time.time( )
 
     for processor in processors.values( ):
@@ -152,7 +154,7 @@ def _cache_results(
 
 def _select_best_processor(
     results: dict[ str, DetectionResult ],
-    processors: __.accret.ValidatorDictionary
+    processors: __.accret.ValidatorDictionary[ str, _interfaces.Processor ]
 ) -> DetectionResult | None:
     ''' Select best processor based on confidence and registration order. '''
     if not results: return None
