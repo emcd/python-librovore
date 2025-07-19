@@ -9,8 +9,13 @@ import re
 import sys
 
 
-# Compile regex once for efficiency
-_PYTHON_PATTERN = re.compile( r'\b(?:python|python3|python3\.\d+)\b' )
+# Compile regex patterns once for efficiency - match python as command only
+_PYTHON_PATTERN = re.compile(
+    r'(?:^|(?:;|&|&&|\|\|)\s*)(?:python|python3|python3\.\d+)(?:\s|$)'
+)
+_PYTHON_C_PATTERN = re.compile(
+    r'(?:^|(?:;|&|&&|\|\|)\s*)(?:python|python3|python3\.\d+)\s+.*-c'
+)
 
 
 def main( ):
@@ -30,6 +35,23 @@ def main( ):
     # Get the command from tool input
     tool_input = event_data.get( 'tool_input', { } )
     command = tool_input.get( 'command', '' )
+    
+    # Check for multi-line python -c scripts (only for -c commands)
+    if _PYTHON_C_PATTERN.search( command ):
+        # Look for indicators of multi-line scripts within python -c context
+        # Extract the -c argument area to check for multi-line indicators
+        c_match = re.search( r'-c\s*(["\'])([^"\']*)\1', command )
+        if c_match and ( ';' in c_match.group(2) or '\n' in c_match.group(2) ):
+            suggestion = (".auxiliary/scribbles/ with 'hatch run python'" 
+                         if 'hatch' not in command 
+                         else ".auxiliary/scribbles/")
+            print(
+                f"Warning: Multi-line Python script detected in command\n"
+                f"Consider writing the script to a file under {suggestion} "
+                f"instead of using python -c with multi-line code.",
+                file = sys.stderr
+            )
+            sys.exit( 2 )
     
     # Check for direct python usage patterns
     if _PYTHON_PATTERN.search( command ):
