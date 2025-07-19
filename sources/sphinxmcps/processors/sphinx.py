@@ -223,12 +223,12 @@ class SphinxProcessor( _interfaces.Processor ):
                 'signature': parsed_content[ 'signature' ],
                 'description': description,
             }
-            score, match_reasons = _functions._calculate_relevance_score( # noqa: SLF001
+            score, match_reasons = _calculate_relevance_score(
                 query_lower, candidate, doc_result )
             if score > 0:
                 content_snippet = ''
                 if include_snippets:
-                    content_snippet = _functions._extract_content_snippet( # noqa: SLF001
+                    content_snippet = _extract_content_snippet(
                         query_lower, query, description )
                 results.append( {
                     'object_name': candidate[ 'name' ],
@@ -281,6 +281,29 @@ def _build_documentation_url(
     uri_with_name = object_uri.replace( '$', object_name )
     return "{base_url}/{object_uri}".format(
         base_url = base_url.rstrip( '/' ), object_uri = uri_with_name )
+
+
+def _calculate_relevance_score(
+    query_lower: str, candidate: __.cabc.Mapping[ str, __.typx.Any ],
+    doc_result: __.cabc.Mapping[ str, __.typx.Any ]
+) -> tuple[ float, list[ str ] ]:
+    ''' Calculate relevance score and match reasons for doc result. '''
+    score = 0.0
+    match_reasons: list[ str ] = [ ]
+    if query_lower in candidate[ 'name' ].lower( ):
+        score += 10.0
+        match_reasons.append( 'name match' )
+    if query_lower in doc_result[ 'signature' ].lower( ):
+        score += 5.0
+        match_reasons.append( 'signature match' )
+    if query_lower in doc_result[ 'description' ].lower( ):
+        score += 3.0
+        match_reasons.append( 'description match' )
+    if candidate[ 'priority' ] == '1':
+        score += 2.0
+    elif candidate[ 'priority' ] == '0':
+        score += 1.0
+    return score, match_reasons
 
 
 def _build_html_url(
@@ -419,6 +442,23 @@ def _extract_base_url( source: str ) -> str:
         _urlparse.ParseResult(
             scheme = url.scheme, netloc = url.netloc, path = path,
             params='', query='', fragment='' ) )
+
+
+def _extract_content_snippet(
+    query_lower: str, query: str, description: str
+) -> str:
+    ''' Extract content snippet around query match in description. '''
+    if not description or query_lower not in description.lower( ):
+        return ''
+    query_pos = description.lower( ).find( query_lower )
+    start = max( 0, query_pos - 50 )
+    end = min( len( description ), query_pos + len( query ) + 50 )
+    content_snippet = description[ start:end ]
+    if start > 0:
+        content_snippet = '...' + content_snippet
+    if end < len( description ):
+        content_snippet = content_snippet + '...'
+    return content_snippet
 
 
 def _extract_inventory( source: str ) -> _sphobjinv.Inventory:
