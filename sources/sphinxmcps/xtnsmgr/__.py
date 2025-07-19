@@ -22,21 +22,9 @@
 
 # ruff: noqa: F403,F401
 
-# Additional imports for extension management (must be at top)
-import asyncio
-import datetime
 import hashlib
-import json
-import platform
-import subprocess
-import sys
 
-# Re-export parent internals
-from ..__ import *
-
-# Additional typing for extension manager  
-from ..__ import typx, appcore
-from ..configuration import ExtensionConfig
-
-# Import asyncf submodule for async utilities
 from appcore import asyncf
+
+from ..__ import *
+from ..configuration import ExtensionConfig

@@ -18,10 +18,9 @@
 #============================================================================#
 
 
-''' Extension manager for async package installation and import isolation. '''
+''' Extension manager with async package installation. '''
 
 
-# Public API exports
 from .installation import (
     install_package,
     install_packages_parallel,
@@ -29,10 +28,9 @@ from .installation import (
 from .isolation import (
     add_to_import_path,
     cleanup_import_paths,
-    import_builtin_processor,
-    import_external_processor,
+    import_processor_module,
     get_module_info,
-    list_imported_processors,
+    list_registered_processors,
     reload_processor_module,
     remove_from_import_path,
 )

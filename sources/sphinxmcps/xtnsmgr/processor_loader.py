@@ -75,12 +75,12 @@ def _register_processor(
     try:
         # Check if this is a builtin or external processor
         if ext_config in builtin_extensions:
-            # Builtin processor - construct path dynamically
-            base_package = _xtnsapi.__name__.rsplit( '.', 1 )[ 0 ]
-            module = isolation.import_builtin_processor( base_package, name )
+            # Builtin processor - construct path using package_name
+            module_name = f"{__.package_name}.processors.{name}"
+            module = isolation.import_processor_module( module_name )
         else:
             # External processor - import by name
-            module = isolation.import_external_processor( name )
+            module = isolation.import_processor_module( name )
         
         processor = module.register( arguments )
         _xtnsapi.processors[ name ] = processor
