@@ -30,8 +30,9 @@ _scribe = __.acquire_scribe( __name__ )
 
 
 async def _install_external_packages( 
-    external_extensions: list, scribe 
-) -> list:
+    external_extensions: list[ __.ExtensionConfig ], 
+    scribe: __.typx.Any
+) -> list[ __.Path | Exception ]:
     ''' Install external packages and update import paths. '''
     from . import installation
     from . import isolation
@@ -60,7 +61,11 @@ async def _install_external_packages(
     return install_results
 
 
-def _register_processor( ext_config: dict, builtin_extensions: list, scribe ):
+def _register_processor( 
+    ext_config: __.ExtensionConfig, 
+    builtin_extensions: list[ __.ExtensionConfig ], 
+    scribe: __.typx.Any
+) -> None:
     ''' Register a single processor from configuration. '''
     from . import isolation
     
@@ -111,7 +116,7 @@ async def load_and_register_processors( auxdata: __.typx.Any = None ):
             external_extensions, scribe )
         
         # Load all processors (builtin + successfully installed external)
-        successful_external = [
+        successful_external: list[ __.ExtensionConfig ] = [
             ext for ext, result in zip( external_extensions, install_results )
             if isinstance( result, __.Path )
         ] if external_extensions else [ ]

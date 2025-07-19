@@ -33,3 +33,10 @@ import sys
 
 # Re-export parent internals
 from ..__ import *
+
+# Additional typing for extension manager  
+from ..__ import typx, appcore
+from ..configuration import ExtensionConfig
+
+# Import asyncf submodule for async utilities
+from appcore import asyncf

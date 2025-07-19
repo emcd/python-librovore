@@ -1,6 +1,7 @@
 import shutil
 from pathlib import Path
 import pytest
+import pytest_asyncio
 
 
 @pytest.fixture( scope = 'session' )
@@ -54,6 +55,18 @@ def fake_fs_with_inventories( fs, cached_inventories ):
                         dst.write( src.read( ) )
     
     return fs
+
+
+@pytest_asyncio.fixture( scope = 'session', autouse = True )
+async def load_processors( ):
+    ''' Auto-load builtin processors for tests. '''
+    # Directly load sphinx processor for tests - bypass configuration system
+    import sphinxmcps.xtnsapi as _xtnsapi
+    import sphinxmcps.processors.sphinx as _sphinx_processor
+    
+    # Register sphinx processor directly
+    processor = _sphinx_processor.register( { } )
+    _xtnsapi.processors[ 'sphinx' ] = processor
 
 
 def pytest_sessionfinish( session, exitstatus ):

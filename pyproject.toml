@@ -26,6 +26,7 @@ dependencies = [
   'mcp',
   'sphobjinv',
   'typing-extensions',
+  'uv',
   # --- BEGIN: Injected by Copier ---
   'tyro',
   # --- END: Injected by Copier ---

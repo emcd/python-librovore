@@ -127,7 +127,7 @@ def save_cache_info( cache_info: CacheInfo ) -> None:
     metadata_file = cache_info.cache_path / '.cache_metadata.json'
     metadata_file.parent.mkdir( parents = True, exist_ok = True )
     
-    metadata = {
+    metadata: dict[ str, str | int ] = {
         'package_spec': cache_info.package_spec,
         'installed_at': cache_info.installed_at.isoformat( ),
         'ttl_hours': cache_info.ttl_hours,

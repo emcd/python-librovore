@@ -91,9 +91,10 @@ async def _install_with_uv(
             package_spec, f"uv not available: {exc}"
         ) from exc
     
-    # Install package using uv
-    command = [
-        str( uv_executable ), 'pip',
+    # Install package using uv  
+    uv_exec_str: str = str( uv_executable )
+    command: list[ str ] = [
+        uv_exec_str, 'pip',
         'install', '--target', str( cache_path ),
         package_spec
     ]
@@ -163,10 +164,11 @@ async def install_packages_parallel(
     
     _scribe.info( f"Installing {len( package_specs )} packages in parallel" )
     
-    results = await __.asyncf.gather_async(
+    results_tuple = await __.asyncf.gather_async(
         *install_tasks,
         return_exceptions = True
     )
+    results: list[ __.Path | Exception ] = list( results_tuple )
     
     # Log results
     successes = sum( 1 for result in results if isinstance( result, __.Path ) )
@@ -177,4 +179,4 @@ async def install_packages_parallel(
         f"{failures} failed"
     )
     
-    return list( results )
+    return results
