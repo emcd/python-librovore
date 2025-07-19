@@ -63,7 +63,7 @@ SectionFilter: __.typx.TypeAlias = __.typx.Annotated[
     __.ddoc.Doc( ''' Sections to include (signature, description). ''' )
 ]
 SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
-    str, __.ddoc.Doc( ''' URL or file path to Sphinx documentation. ''' )
+    str, __.ddoc.Doc( ''' URL or file path to documentation source. ''' )
 ]
 
 
@@ -72,11 +72,9 @@ async def extract_documentation(
     object_name: str, /, *,
     include_sections: SectionFilter = __.absent,
 ) -> DocumentationResult:
-    ''' Extracts documentation for a specific object from Sphinx docs. '''
+    ''' Extracts documentation for a specific object from source. '''
     processor = await _select_processor_for_source( source )
-    from .processors.sphinx import SphinxProcessor
-    sphinx_processor = __.typx.cast( SphinxProcessor, processor )
-    return await sphinx_processor.extract_documentation(
+    return await processor.extract_documentation(
         source, object_name, include_sections = include_sections )
 
 
@@ -96,15 +94,13 @@ async def query_documentation(  # noqa: PLR0913
 ]:
     ''' Queries documentation content with relevance ranking. '''
     processor = await _select_processor_for_source( source )
-    from .processors.sphinx import SphinxProcessor
-    sphinx_processor = __.typx.cast( SphinxProcessor, processor )
-    return await sphinx_processor.query_documentation(
+    return await processor.query_documentation(
         source, query, domain = domain, role = role, priority = priority,
         match_mode = match_mode, fuzzy_threshold = fuzzy_threshold,
         max_results = max_results, include_snippets = include_snippets )
 
 
-def extract_inventory( # noqa: PLR0913
+async def extract_inventory( # noqa: PLR0913
     source: SourceArgument, /, *,
     domain: DomainFilter = __.absent,
     role: RoleFilter = __.absent,
@@ -121,15 +117,14 @@ def extract_inventory( # noqa: PLR0913
             summary, and the actual objects grouped by domain.
         ''' )
 ]:
-    ''' Extracts Sphinx inventory from source with optional filtering. '''
-    _xtnsapi.ensure_intrinsic_processors_registered( )
-    processor = _get_sphinx_processor( )
-    from .processors.sphinx import SphinxProcessor
-    sphinx_processor = __.typx.cast( SphinxProcessor, processor )
-    result = sphinx_processor.extract_inventory(
+    ''' Extracts inventory from source with optional filtering. '''
+    processor = await _select_processor_for_source( source )
+    result_mapping = processor.extract_inventory(
         source, domain = domain, role = role, term = term,
         priority = priority, match_mode = match_mode,
         fuzzy_threshold = fuzzy_threshold )
+    # Convert to mutable dict so we can add fields
+    result = dict( result_mapping )
     result[ 'source' ] = source
     domains_summary: dict[ str, int ] = {
         domain_name: len( objs )
@@ -138,7 +133,7 @@ def extract_inventory( # noqa: PLR0913
     return result
 
 
-def summarize_inventory( # noqa: PLR0913
+async def summarize_inventory( # noqa: PLR0913
     source: SourceArgument, /, *,
     domain: DomainFilter = __.absent,
     role: RoleFilter = __.absent,
@@ -150,12 +145,9 @@ def summarize_inventory( # noqa: PLR0913
     str,
     __.ddoc.Doc( ''' Human-readable summary of inventory contents. ''' )
 ]:
-    ''' Provides human-readable summary of a Sphinx inventory. '''
-    _xtnsapi.ensure_intrinsic_processors_registered( )
-    processor = _get_sphinx_processor( )
-    from .processors.sphinx import SphinxProcessor
-    sphinx_processor = __.typx.cast( SphinxProcessor, processor )
-    return sphinx_processor.summarize_inventory(
+    ''' Provides human-readable summary of inventory. '''
+    processor = await _select_processor_for_source( source )
+    return processor.summarize_inventory(
         source, domain = domain, role = role, term = term,
         priority = priority, match_mode = match_mode,
         fuzzy_threshold = fuzzy_threshold )
@@ -214,12 +206,5 @@ async def _select_processor_for_source(
     return best_processor
 
 
-def _get_sphinx_processor( ) -> _interfaces.Processor:
-    ''' Gets Sphinx processor directly (for backward compatibility). '''
-    _xtnsapi.ensure_intrinsic_processors_registered( )
-    processor = _xtnsapi.processors.get( 'sphinx' )
-    if not processor:
-        raise _exceptions.ProcessorNotFound( 'sphinx' )
-    return processor
 
 

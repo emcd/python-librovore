@@ -38,10 +38,20 @@ processors: __.accret.ValidatorDictionary[ str, Processor ] = (
     __.accret.ValidatorDictionary( _validator ) )
 
 
-def register_intrinsic_processors( ):
-    ''' Registers processors which come with package. '''
-    # Load configuration from global state and register only enabled built-in
-    # processors
+# Built-in processor modules mapping
+_BUILTIN_PROCESSORS = {
+    'sphinx': 'sphinxmcps.processors.sphinx',
+}
+
+
+def _import_processor_module( module_path: str ):
+    ''' Import a processor module by path. '''
+    import importlib
+    return importlib.import_module( module_path )
+
+
+def load_and_register_processors( ):
+    ''' Load and register processors based on configuration. '''
     try:
         extensions = _configuration.load_global_extensions_config( )
         enabled_extensions = _configuration.get_enabled_extensions(
@@ -53,26 +63,36 @@ def register_intrinsic_processors( ):
             name = ext_config[ 'name' ]
             arguments = _configuration.get_extension_arguments( ext_config )
             
-            if name == 'sphinx':
-                from .processors.sphinx import register
-                register( arguments )
-            else:
-                # Log warning about unknown built-in processor
+            # Look up built-in processor module
+            module_path = _BUILTIN_PROCESSORS.get( name )
+            if not module_path:
+                # TODO: Log warning about unknown built-in processor
+                continue
+            
+            # Import module and call register function
+            try:
+                module = _import_processor_module( module_path )
+                processor = module.register( arguments )
+                processors[ name ] = processor
+            except Exception:  # noqa: S110
+                # TODO: Log error loading processor
                 pass
         
         # If no configuration found at all, register default sphinx as fallback
         if not extensions:
             from .processors.sphinx import register
-            register( )
+            processor = register( )
+            processors[ 'sphinx' ] = processor
             
     except Exception:
         # Fallback: Register default processors if configuration fails
         from .processors.sphinx import register
-        register( )
+        processor = register( )
+        processors[ 'sphinx' ] = processor
 
 
 def ensure_intrinsic_processors_registered( ):
     ''' Ensures intrinsic processors are registered (idempotent). '''
     # Use the processor registry itself to check if registration has occurred
     if not processors:
-        register_intrinsic_processors( )
+        load_and_register_processors( )

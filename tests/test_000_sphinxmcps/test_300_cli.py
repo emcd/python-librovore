@@ -219,7 +219,8 @@ async def test_510_cli_extract_inventory_nonexistent_file( ):
     assert (
             'inaccessible' in result.stderr.lower( )
         or  'not found' in result.stderr.lower( )
-        or  'no such file' in result.stderr.lower( ) )
+        or  'no such file' in result.stderr.lower( )
+        or  'no processor found' in result.stderr.lower( ) )
 
 
 @pytest.mark.slow
@@ -248,6 +249,7 @@ async def test_610_cli_summarize_inventory_nonexistent_file( ):
     assert (
         'inaccessible' in result.stderr.lower( )
         or 'not found' in result.stderr.lower( )
+        or 'no processor found' in result.stderr.lower( )
         or 'no such file' in result.stderr.lower( ) )
 
 

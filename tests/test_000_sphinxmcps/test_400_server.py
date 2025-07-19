@@ -30,10 +30,11 @@ import sphinxmcps.interfaces as _interfaces
 from .fixtures import get_test_inventory_path
 
 
-def test_000_extract_inventory_wrapper( ):
+@pytest.mark.asyncio
+async def test_000_extract_inventory_wrapper( ):
     ''' Server extract_inventory delegates to functions correctly. '''
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = module.extract_inventory(
+    result = await module.extract_inventory(
         source = test_inventory_path, domain = 'py', role = 'function' )
     assert isinstance( result, dict )
     assert 'project' in result
@@ -42,10 +43,11 @@ def test_000_extract_inventory_wrapper( ):
     assert result[ 'filters' ][ 'role' ] == 'function'
 
 
-def test_010_extract_inventory_wrapper_no_filters( ):
+@pytest.mark.asyncio
+async def test_010_extract_inventory_wrapper_no_filters( ):
     ''' Server extract_inventory works without filters. '''
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = module.extract_inventory( source = test_inventory_path )
+    result = await module.extract_inventory( source = test_inventory_path )
     assert isinstance( result, dict )
     assert 'project' in result
     assert 'domains' in result
@@ -54,10 +56,11 @@ def test_010_extract_inventory_wrapper_no_filters( ):
     assert 'filters' not in result
 
 
-def test_020_extract_inventory_wrapper_with_regex( ):
+@pytest.mark.asyncio
+async def test_020_extract_inventory_wrapper_with_regex( ):
     ''' Server extract_inventory handles match_mode parameter correctly. '''
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = module.extract_inventory(
+    result = await module.extract_inventory(
         source = test_inventory_path,
         term = 'test.*pattern',
         match_mode = _interfaces.MatchMode.Regex )
@@ -67,28 +70,31 @@ def test_020_extract_inventory_wrapper_with_regex( ):
     assert result[ 'filters' ][ 'match_mode' ] == 'regex'
 
 
-def test_100_summarize_inventory_wrapper( ):
+@pytest.mark.asyncio
+async def test_100_summarize_inventory_wrapper( ):
     ''' Server summarize_inventory delegates to functions correctly. '''
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = module.summarize_inventory(
+    result = await module.summarize_inventory(
         source = test_inventory_path, domain = 'py' )
     assert isinstance( result, str )
     assert 'Project:' in result
     assert 'py' in result
 
 
-def test_110_summarize_inventory_wrapper_no_filters( ):
+@pytest.mark.asyncio
+async def test_110_summarize_inventory_wrapper_no_filters( ):
     ''' Server summarize_inventory works without filters. '''
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = module.summarize_inventory( source = test_inventory_path )
+    result = await module.summarize_inventory( source = test_inventory_path )
     assert isinstance( result, str )
     assert 'Project:' in result
 
 
-def test_120_summarize_inventory_wrapper_with_regex( ):
+@pytest.mark.asyncio
+async def test_120_summarize_inventory_wrapper_with_regex( ):
     ''' Server summarize_inventory handles match_mode parameter correctly. '''
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = module.summarize_inventory(
+    result = await module.summarize_inventory(
         source = test_inventory_path,
         term = 'test.*pattern',
         match_mode = _interfaces.MatchMode.Regex )
@@ -96,10 +102,11 @@ def test_120_summarize_inventory_wrapper_with_regex( ):
     assert 'Project:' in result
 
 
-def test_130_extract_inventory_wrapper_with_fuzzy( ):
+@pytest.mark.asyncio
+async def test_130_extract_inventory_wrapper_with_fuzzy( ):
     ''' Server extract_inventory handles fuzzy matching correctly. '''
     test_inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = module.extract_inventory(
+    result = await module.extract_inventory(
         source = test_inventory_path,
         term = 'DataObj',
         match_mode = _interfaces.MatchMode.Fuzzy,
@@ -153,10 +160,11 @@ async def test_230_serve_default_transport( ):
             pytest.fail( "ValueError raised for default transport" )
 
 
-def test_140_extract_inventory_wrapper_with_priority( ):
+@pytest.mark.asyncio
+async def test_140_extract_inventory_wrapper_with_priority( ):
     ''' Server extract_inventory handles priority filtering correctly. '''
     test_inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = module.extract_inventory(
+    result = await module.extract_inventory(
         source = test_inventory_path, priority = '1' )
     assert isinstance( result, dict )
     assert 'filters' in result
@@ -167,10 +175,11 @@ def test_140_extract_inventory_wrapper_with_priority( ):
             assert obj[ 'priority' ] == '1'
 
 
-def test_150_summarize_inventory_wrapper_with_priority( ):
+@pytest.mark.asyncio
+async def test_150_summarize_inventory_wrapper_with_priority( ):
     ''' Server summarize_inventory handles priority filtering correctly. '''
     test_inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = module.summarize_inventory(
+    result = await module.summarize_inventory(
         source = test_inventory_path, priority = '0' )
     assert isinstance( result, str )
     assert 'priority=0' in result

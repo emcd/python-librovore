@@ -106,7 +106,7 @@ class ExtractInventoryCommand(
         if self.match_mode == _interfaces.MatchMode.Fuzzy:
             nomargs[ 'fuzzy_threshold' ] = self.fuzzy_threshold
 
-        data = _functions.extract_inventory( self.source, **nomargs )
+        data = await _functions.extract_inventory( self.source, **nomargs )
         print( __.json.dumps( data, indent = 2 ), file = stream )
 
 
@@ -142,7 +142,7 @@ class SummarizeInventoryCommand(
         if self.match_mode == _interfaces.MatchMode.Fuzzy:
             nomargs[ 'fuzzy_threshold' ] = self.fuzzy_threshold
 
-        result = _functions.summarize_inventory( self.source, **nomargs )
+        result = await _functions.summarize_inventory( self.source, **nomargs )
         print( result, file = stream )
 
 

@@ -152,7 +152,7 @@ async def query_documentation(  # noqa: PLR0913
         return [ { 'error': str( exc ) } ]
 
 
-def extract_inventory( # noqa: PLR0913
+async def extract_inventory( # noqa: PLR0913
     source: McpSourceArgument,
     domain: McpDomainFilter = '',
     role: McpRoleFilter = '',
@@ -175,10 +175,10 @@ def extract_inventory( # noqa: PLR0913
     nomargs[ 'match_mode' ] = match_mode
     if match_mode == _interfaces.MatchMode.Fuzzy:
         nomargs[ 'fuzzy_threshold' ] = fuzzy_threshold
-    return _functions.extract_inventory( source, **nomargs )
+    return await _functions.extract_inventory( source, **nomargs )
 
 
-def summarize_inventory( # noqa: PLR0913
+async def summarize_inventory( # noqa: PLR0913
     source: McpSourceArgument,
     domain: McpDomainFilter = '',
     role: McpRoleFilter = '',
@@ -200,7 +200,7 @@ def summarize_inventory( # noqa: PLR0913
     nomargs[ 'match_mode' ] = match_mode
     if match_mode == _interfaces.MatchMode.Fuzzy:
         nomargs[ 'fuzzy_threshold' ] = fuzzy_threshold
-    return _functions.summarize_inventory( source, **nomargs )
+    return await _functions.summarize_inventory( source, **nomargs )
 
 
 async def serve(

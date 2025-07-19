@@ -32,44 +32,49 @@ from .fixtures import get_test_inventory_path
 
 
 
-def test_100_extract_inventory_local_file( ):
+@pytest.mark.asyncio
+async def test_100_extract_inventory_local_file( ):
     ''' Extract inventory processes local inventory files. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = module.extract_inventory( inventory_path )
+    result = await module.extract_inventory( inventory_path )
     assert 'project' in result
     assert 'objects' in result
 
 
-def test_110_extract_inventory_with_domain_filter( ):
+@pytest.mark.asyncio
+async def test_110_extract_inventory_with_domain_filter( ):
     ''' Extract inventory applies domain filtering correctly. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = module.extract_inventory( inventory_path, domain = 'py' )
+    result = await module.extract_inventory( inventory_path, domain = 'py' )
     assert 'filters' in result
     assert result[ 'filters' ][ 'domain' ] == 'py'
 
 
-def test_120_extract_inventory_with_role_filter( ):
+@pytest.mark.asyncio
+async def test_120_extract_inventory_with_role_filter( ):
     ''' Extract inventory applies role filtering correctly. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = module.extract_inventory(
+    result = await module.extract_inventory(
         inventory_path, role = 'module' )
     assert 'filters' in result
     assert result[ 'filters' ][ 'role' ] == 'module'
 
 
-def test_130_extract_inventory_with_search_filter( ):
+@pytest.mark.asyncio
+async def test_130_extract_inventory_with_search_filter( ):
     ''' Extract inventory applies search filtering correctly. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = module.extract_inventory(
+    result = await module.extract_inventory(
         inventory_path, term = 'test' )
     assert 'filters' in result
     assert result[ 'filters' ][ 'term' ] == 'test'
 
 
-def test_140_extract_inventory_with_all_filters( ):
+@pytest.mark.asyncio
+async def test_140_extract_inventory_with_all_filters( ):
     ''' Extract inventory applies multiple filters correctly. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = module.extract_inventory(
+    result = await module.extract_inventory(
         inventory_path, domain = 'py', role = 'module', term = 'test' )
     assert 'filters' in result
     filters = result[ 'filters' ]
@@ -78,27 +83,30 @@ def test_140_extract_inventory_with_all_filters( ):
     assert filters[ 'term' ] == 'test'
 
 
-def test_150_extract_inventory_nonexistent_file( ):
+@pytest.mark.asyncio
+async def test_150_extract_inventory_nonexistent_file( ):
     ''' Extract inventory raises appropriate exception for missing files. '''
-    with pytest.raises( _exceptions.InventoryInaccessibility ):
-        module.extract_inventory( "/nonexistent/path.inv" )
+    with pytest.raises( _exceptions.ProcessorNotFound ):
+        await module.extract_inventory( "/nonexistent/path.inv" )
 
 
-def test_160_extract_inventory_auto_append_objects_inv( ):
+@pytest.mark.asyncio
+async def test_160_extract_inventory_auto_append_objects_inv( ):
     ''' Extract inventory auto-appends objects.inv to URLs/paths. '''
     real_inventory_path = get_test_inventory_path( 'sphinxmcps' )
     inventory_dir = str( Path( real_inventory_path ).parent )
     # Test without objects.inv suffix
-    result = module.extract_inventory( inventory_dir )
+    result = await module.extract_inventory( inventory_dir )
     assert 'project' in result
     assert 'objects' in result
 
 
-def test_170_extract_inventory_with_regex_term( ):
+@pytest.mark.asyncio
+async def test_170_extract_inventory_with_regex_term( ):
     ''' Extract inventory applies regex term filtering correctly. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     # Use regex to find objects containing "inventory"
-    result = module.extract_inventory(
+    result = await module.extract_inventory(
         inventory_path, term = '.*inventory.*',
         match_mode = _interfaces.MatchMode.Regex )
     assert 'filters' in result
@@ -107,11 +115,12 @@ def test_170_extract_inventory_with_regex_term( ):
     assert result[ 'object_count' ] > 0
 
 
-def test_180_extract_inventory_with_regex_anchors( ):
+@pytest.mark.asyncio
+async def test_180_extract_inventory_with_regex_anchors( ):
     ''' Extract inventory handles regex anchor patterns correctly. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     # Use regex anchors to find objects starting with specific pattern
-    result = module.extract_inventory(
+    result = await module.extract_inventory(
         inventory_path, term = r'^sphobjinv\.',
         match_mode = _interfaces.MatchMode.Regex )
     assert 'filters' in result
@@ -122,36 +131,40 @@ def test_180_extract_inventory_with_regex_anchors( ):
                 assert obj[ 'name' ].startswith( 'sphobjinv.' )
 
 
-def test_190_extract_inventory_invalid_regex( ):
+@pytest.mark.asyncio
+async def test_190_extract_inventory_invalid_regex( ):
     ''' Extract inventory raises exception for invalid regex patterns. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     with pytest.raises( _exceptions.InventoryFilterInvalidity ):
-        module.extract_inventory(
+        await module.extract_inventory(
             inventory_path, term = '[invalid_regex',
             match_mode = _interfaces.MatchMode.Regex )
 
 
-def test_200_summarize_inventory_basic( ):
+@pytest.mark.asyncio
+async def test_200_summarize_inventory_basic( ):
     ''' Summarize inventory provides human-readable summary. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = module.summarize_inventory( inventory_path )
+    result = await module.summarize_inventory( inventory_path )
     assert 'objects' in result
 
 
-def test_210_summarize_inventory_with_filters( ):
+@pytest.mark.asyncio
+async def test_210_summarize_inventory_with_filters( ):
     ''' Summarize inventory includes filter information when provided. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = module.summarize_inventory( inventory_path, domain = 'py' )
+    result = await module.summarize_inventory( inventory_path, domain = 'py' )
     assert 'objects' in result
     # Should mention filtering was applied
     assert 'filter' in result.lower( ) or 'domain' in result.lower( )
 
 
-def test_215_summarize_inventory_with_regex( ):
+@pytest.mark.asyncio
+async def test_215_summarize_inventory_with_regex( ):
     ''' Summarize inventory includes regex filter information. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     # Summarize with regex filter applied
-    result = module.summarize_inventory(
+    result = await module.summarize_inventory(
         inventory_path, term = '.*inventory.*',
         match_mode = _interfaces.MatchMode.Regex )
     assert 'objects' in result
@@ -159,11 +172,12 @@ def test_215_summarize_inventory_with_regex( ):
     assert 'regex' in result.lower( )
 
 
-def test_220_extract_inventory_with_fuzzy_matching( ):
+@pytest.mark.asyncio
+async def test_220_extract_inventory_with_fuzzy_matching( ):
     ''' Extract inventory applies fuzzy matching correctly. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     # Use fuzzy matching to find objects similar to "DataObj"
-    result = module.extract_inventory(
+    result = await module.extract_inventory(
         inventory_path, term = 'DataObj',
         match_mode = _interfaces.MatchMode.Fuzzy,
         fuzzy_threshold = 50 )
@@ -174,16 +188,17 @@ def test_220_extract_inventory_with_fuzzy_matching( ):
     assert result[ 'object_count' ] > 0
 
 
-def test_230_extract_inventory_fuzzy_with_high_threshold( ):
+@pytest.mark.asyncio
+async def test_230_extract_inventory_fuzzy_with_high_threshold( ):
     ''' Extract inventory with high fuzzy threshold finds fewer matches. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     # Use high threshold for stricter matching
-    result_strict = module.extract_inventory(
+    result_strict = await module.extract_inventory(
         inventory_path, term = 'DataObj',
         match_mode = _interfaces.MatchMode.Fuzzy,
         fuzzy_threshold = 80 )
     # Use low threshold for looser matching
-    result_loose = module.extract_inventory(
+    result_loose = await module.extract_inventory(
         inventory_path, term = 'DataObj',
         match_mode = _interfaces.MatchMode.Fuzzy,
         fuzzy_threshold = 30 )
@@ -193,11 +208,12 @@ def test_230_extract_inventory_fuzzy_with_high_threshold( ):
     assert result_loose[ 'filters' ][ 'fuzzy_threshold' ] == 30
 
 
-def test_240_extract_inventory_fuzzy_with_domain_filter( ):
+@pytest.mark.asyncio
+async def test_240_extract_inventory_fuzzy_with_domain_filter( ):
     ''' Extract inventory combines fuzzy matching with domain filtering. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     # Combine fuzzy matching with domain filter
-    result = module.extract_inventory(
+    result = await module.extract_inventory(
         inventory_path,
         domain = 'py',
         term = 'inventory',
@@ -213,11 +229,12 @@ def test_240_extract_inventory_fuzzy_with_domain_filter( ):
             assert domain_name == 'py'
 
 
-def test_250_summarize_inventory_with_fuzzy( ):
+@pytest.mark.asyncio
+async def test_250_summarize_inventory_with_fuzzy( ):
     ''' Summarize inventory includes fuzzy filter information. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     # Summarize with fuzzy filter applied
-    result = module.summarize_inventory(
+    result = await module.summarize_inventory(
         inventory_path, term = 'inventory',
         match_mode = _interfaces.MatchMode.Fuzzy,
         fuzzy_threshold = 70 )
@@ -227,25 +244,28 @@ def test_250_summarize_inventory_with_fuzzy( ):
     assert '70' in result  # Should show threshold
 
 
-def test_260_match_mode_enum_values( ):
+@pytest.mark.asyncio
+async def test_260_match_mode_enum_values( ):
     ''' MatchMode enum has correct string values. '''
     assert _interfaces.MatchMode.Exact.value == 'exact'
     assert _interfaces.MatchMode.Regex.value == 'regex'
     assert _interfaces.MatchMode.Fuzzy.value == 'fuzzy'
 
 
-def test_270_summarize_inventory_nonexistent_file( ):
+@pytest.mark.asyncio
+async def test_270_summarize_inventory_nonexistent_file( ):
     ''' Summarize inventory raises appropriate exception for missing files. '''
-    with pytest.raises( _exceptions.InventoryInaccessibility ):
-        module.summarize_inventory( "/nonexistent/path.inv" )
+    with pytest.raises( _exceptions.ProcessorNotFound ):
+        await module.summarize_inventory( "/nonexistent/path.inv" )
 
 
 
 
-def test_400_extract_inventory_with_priority_filter( ):
+@pytest.mark.asyncio
+async def test_400_extract_inventory_with_priority_filter( ):
     ''' Extract inventory filters objects by priority level. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = module.extract_inventory(
+    result = await module.extract_inventory(
         inventory_path, priority = '1' )
     assert 'filters' in result
     assert result[ 'filters' ][ 'priority' ] == '1'
@@ -255,22 +275,24 @@ def test_400_extract_inventory_with_priority_filter( ):
             assert obj[ 'priority' ] == '1'
 
 
-def test_410_extract_inventory_priority_filter_different_values( ):
+@pytest.mark.asyncio
+async def test_410_extract_inventory_priority_filter_different_values( ):
     ''' Extract inventory works with different priority values. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result_0 = module.extract_inventory(
+    result_0 = await module.extract_inventory(
         inventory_path, priority = '0')
     assert result_0[ 'filters' ][ 'priority' ] == '0'
-    result_1 = module.extract_inventory(
+    result_1 = await module.extract_inventory(
         inventory_path, priority = '1' )
     assert result_1[ 'filters' ][ 'priority' ] == '1'
     assert result_0[ 'object_count' ] != result_1[ 'object_count' ]
 
 
-def test_420_extract_inventory_priority_with_domain_filter( ):
+@pytest.mark.asyncio
+async def test_420_extract_inventory_priority_with_domain_filter( ):
     ''' Extract inventory combines priority and domain filtering. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = module.extract_inventory(
+    result = await module.extract_inventory(
         inventory_path, domain = 'py', priority = '1' )
     assert 'filters' in result
     assert result[ 'filters' ][ 'domain' ] == 'py'
@@ -283,10 +305,11 @@ def test_420_extract_inventory_priority_with_domain_filter( ):
             assert obj[ 'priority' ] == '1'
 
 
-def test_430_summarize_inventory_with_priority( ):
+@pytest.mark.asyncio
+async def test_430_summarize_inventory_with_priority( ):
     ''' Summarize inventory includes priority filter information. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = module.summarize_inventory( inventory_path, priority = '1')
+    result = await module.summarize_inventory( inventory_path, priority = '1')
     assert 'priority=1' in result
     assert 'Filters:' in result
 
@@ -507,7 +530,8 @@ async def test_700_extract_documentation_with_object_not_found( ):
     assert 'not found in inventory' in result[ 'error' ]
 
 
-def test_850_inventory_url_normalization( ):
+@pytest.mark.asyncio
+async def test_850_inventory_url_normalization( ):
     ''' URL normalization works correctly for inventory paths. '''
     # This tests public behavior, not private function
     test_path = '/home/user/test.inv'
@@ -515,7 +539,8 @@ def test_850_inventory_url_normalization( ):
     assert result.path.endswith( 'objects.inv' )
 
 
-def test_860_inventory_url_normalization_with_objects_inv( ):
+@pytest.mark.asyncio
+async def test_860_inventory_url_normalization_with_objects_inv( ):
     ''' URL normalization doesn't double-append objects.inv. '''
     test_path = '/home/user/objects.inv'
     result = module.normalize_inventory_source( test_path )
@@ -524,7 +549,8 @@ def test_860_inventory_url_normalization_with_objects_inv( ):
     assert not result.path.endswith( 'objects.inv/objects.inv' )
 
 
-def test_870_extract_inventory_unsupported_url_scheme( ):
+@pytest.mark.asyncio
+async def test_870_extract_inventory_unsupported_url_scheme( ):
     ''' Extract inventory handles unsupported URL schemes gracefully. '''
-    with pytest.raises( _exceptions.InventoryUrlInvalidity ):
-        module.extract_inventory( 'ftp://invalid.com/objects.inv' )
+    with pytest.raises( _exceptions.ProcessorNotFound ):
+        await module.extract_inventory( 'ftp://invalid.com/objects.inv' )

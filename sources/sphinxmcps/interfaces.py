@@ -95,9 +95,49 @@ class Processor( __.immut.DataclassProtocol ):
         ''' Detects if can process documentation from source. '''
         raise NotImplementedError
 
-    # TODO: query_inventory
+    @__.abc.abstractmethod
+    def extract_inventory( self, source: str, /, *, # noqa: PLR0913
+        domain: __.Absential[ str ] = __.absent,
+        role: __.Absential[ str ] = __.absent,
+        term: __.Absential[ str ] = __.absent,
+        priority: __.Absential[ str ] = __.absent,
+        match_mode: MatchMode = MatchMode.Exact,
+        fuzzy_threshold: int = 50,
+    ) -> __.cabc.Mapping[ str, __.typx.Any ]:
+        ''' Extracts inventory from source with optional filtering. '''
+        raise NotImplementedError
 
-    # TODO: query_documentation
+    @__.abc.abstractmethod
+    def summarize_inventory( self, source: str, /, *, # noqa: PLR0913
+        domain: __.Absential[ str ] = __.absent,
+        role: __.Absential[ str ] = __.absent,
+        term: __.Absential[ str ] = __.absent,
+        priority: __.Absential[ str ] = __.absent,
+        match_mode: MatchMode = MatchMode.Exact,
+        fuzzy_threshold: int = 50,
+    ) -> str:
+        ''' Provides human-readable summary of inventory. '''
+        raise NotImplementedError
+
+    @__.abc.abstractmethod
+    async def extract_documentation( self, source: str, object_name: str, /, *,
+        include_sections: __.Absential[ list[ str ] ] = __.absent,
+    ) -> __.cabc.Mapping[ str, __.typx.Any ]:
+        ''' Extracts documentation for a specific object from source. '''
+        raise NotImplementedError
+
+    @__.abc.abstractmethod
+    async def query_documentation( self, source: str, query: str, /, *, # noqa: PLR0913
+        domain: __.Absential[ str ] = __.absent,
+        role: __.Absential[ str ] = __.absent,
+        priority: __.Absential[ str ] = __.absent,
+        match_mode: MatchMode = MatchMode.Fuzzy,
+        fuzzy_threshold: int = 50,
+        max_results: int = 10,
+        include_snippets: bool = True,
+    ) -> list[ __.cabc.Mapping[ str, __.typx.Any ] ]:
+        ''' Queries documentation content with relevance ranking. '''
+        raise NotImplementedError
 
 
 class Detection( __.immut.DataclassProtocol ):
