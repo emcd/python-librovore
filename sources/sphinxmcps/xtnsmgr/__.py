@@ -18,24 +18,18 @@
 #============================================================================#
 
 
-''' Interface for extension development. '''
+''' Internal imports rollup for extension manager. '''
 
-# ruff: noqa: F403,F405
+# ruff: noqa: F403,F401
 
+# Additional imports for extension management (must be at top)
+import asyncio
+import datetime
+import hashlib
+import json
+import platform
+import subprocess
+import sys
 
-from . import __
-
-from .exceptions import *
-from .interfaces import *
-
-
-def _validator( name: str, value: Processor ) -> bool:
-    return isinstance( value, Processor )
-
-
-processors: __.accret.ValidatorDictionary[ str, Processor ] = (
-    __.accret.ValidatorDictionary( _validator ) )
-
-
-
-
+# Re-export parent internals
+from ..__ import *

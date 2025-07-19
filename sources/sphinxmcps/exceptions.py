@@ -151,3 +151,32 @@ class ExtensionConfigError( Omnierror, ValueError ):
         super( ).__init__( f"Extension '{extension_name}': {message}" )
 
 
+class ExtensionInstallationError( Omnierror, RuntimeError ):
+    ''' Extension package installation failed. '''
+    
+    def __init__( self, package_spec: str, message: str ):
+        self.package_spec = package_spec
+        super( ).__init__( f"Failed to install '{package_spec}': {message}" )
+
+
+class ExtensionCacheError( Omnierror, RuntimeError ):
+    ''' Extension cache operation failed. '''
+    
+    def __init__( self, cache_path: __.Path, message: str ):
+        self.cache_path = cache_path
+        super( ).__init__( f"Cache error at '{cache_path}': {message}" )
+
+
+class ExtensionVersionConflictError( Omnierror, ImportError ):
+    ''' Extension has incompatible version requirements. '''
+    
+    def __init__( self, package_name: str, required: str, available: str ):
+        self.package_name = package_name
+        self.required = required
+        self.available = available
+        super( ).__init__(
+            f"Version conflict for '{package_name}': "
+            f"required {required}, available {available}"
+        )
+
+

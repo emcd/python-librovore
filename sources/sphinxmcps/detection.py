@@ -69,9 +69,6 @@ async def detect_source(
     ''' Detect which processor can best handle the source. '''
     from . import xtnsapi as _xtnsapi
     
-    # Ensure intrinsic processors are registered
-    _xtnsapi.ensure_intrinsic_processors_registered( )
-    
     # Check cache first
     cached_result = _get_cached_result( source, cache_ttl )
     if cached_result is not None:

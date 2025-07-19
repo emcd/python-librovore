@@ -6,6 +6,7 @@
 
 import json
 import re
+import shlex
 import sys
 
 
@@ -13,65 +14,102 @@ import sys
 _PYTHON_PATTERN = re.compile(
     r'(?:^|(?:;|&|&&|\|\|)\s*)(?:python|python3|python3\.\d+)(?:\s|$)'
 )
-_PYTHON_C_PATTERN = re.compile(
-    r'(?:^|(?:;|&|&&|\|\|)\s*)(?:python|python3|python3\.\d+)\s+.*-c'
-)
+
+
+def _load_event_data( ):
+    ''' Load and validate hook event data from stdin. '''
+    try: 
+        return json.load( sys.stdin )
+    except json.JSONDecodeError:
+        print( "Hook Failure: Invalid JSON input", file = sys.stderr )
+        sys.exit( 1 )
+
+
+def _extract_command( event_data ):
+    ''' Extract command from event data, exit if not Bash tool. '''
+    tool_name = event_data.get( 'tool_name', '' )
+    if tool_name != 'Bash': 
+        raise SystemExit( 0 )
+    tool_input = event_data.get( 'tool_input', { } )
+    return tool_input.get( 'command', '' )
+
+
+def _is_python_command( token ):
+    ''' Check if token is a Python command. '''
+    return ( 
+        token in ( 'python', 'python3' ) or token.startswith( 'python3.' )
+    )
+
+
+def _check_python_c_argument( tokens, python_index ):
+    ''' Check if Python -c argument contains multiline code. '''
+    for j in range( python_index + 1, len( tokens ) ):
+        if tokens[ j ] == '-c' and j + 1 < len( tokens ):
+            c_argument = tokens[ j + 1 ]
+            return '\n' in c_argument
+        if not tokens[ j ].startswith( '-' ):
+            # Non-option argument, stop looking for -c
+            break
+    return False
+
+
+def _check_multiline_python_c( command ):
+    ''' Check for multi-line python -c scripts using shlex parsing. '''
+    if not ( 'python' in command and '-c' in command ):
+        return
+    
+    emessage = (
+        "Warning: Multi-line Python script detected in command.\n"
+        "Consider writing the script to a file "
+        "in the .auxiliary/scribbles directory "
+        "instead of using python -c with multi-line code." )
+    
+    try: 
+        tokens = shlex.split( command )
+    except ValueError:
+        # shlex.split failed (unmatched quotes, etc.)
+        # Fall back to basic check for multiline content
+        if '\npython' in command or ';\npython' in command:
+            _error( emessage )
+        return
+    
+    # Find python commands and check their -c arguments
+    for i, token in enumerate( tokens ):
+        if ( _is_python_command( token ) and 
+             _check_python_c_argument( tokens, i ) ):
+            _error( emessage )
+
+
+def _check_direct_python_usage( command ):
+    ''' Check for direct python usage patterns. '''
+    if not _PYTHON_PATTERN.search( command ):
+        return
+    
+    if 'hatch' in command: 
+        raise SystemExit( 0 )
+    
+    emessage = (
+        f"Warning: Direct Python usage detected in command: {command}\n"
+        f"Consider using 'hatch run python' or "
+        f"'hatch --env develop run python' to ensure dependencies "
+        f"are available." )
+    _error( emessage )
 
 
 def main( ):
     ''' Main entry point for the Python usage check hook. '''
-    # Read hook event JSON from stdin
-    try:
-        event_data = json.load( sys.stdin )
-    except json.JSONDecodeError:
-        print( "Error: Invalid JSON input", file = sys.stderr )
-        sys.exit( 2 )
+    event_data = _load_event_data( )
+    command = _extract_command( event_data )
     
-    # Only check Bash tool usage
-    tool_name = event_data.get( 'tool_name', '' )
-    if tool_name != 'Bash':
-        sys.exit( 0 )
+    _check_multiline_python_c( command )
+    _check_direct_python_usage( command )
     
-    # Get the command from tool input
-    tool_input = event_data.get( 'tool_input', { } )
-    command = tool_input.get( 'command', '' )
-    
-    # Check for multi-line python -c scripts (only for -c commands)
-    if _PYTHON_C_PATTERN.search( command ):
-        # Look for indicators of multi-line scripts within python -c context
-        # Extract the -c argument area to check for multi-line indicators
-        c_match = re.search( r'-c\s*(["\'])([^"\']*)\1', command )
-        if c_match and ( ';' in c_match.group(2) or '\n' in c_match.group(2) ):
-            suggestion = (".auxiliary/scribbles/ with 'hatch run python'" 
-                         if 'hatch' not in command 
-                         else ".auxiliary/scribbles/")
-            print(
-                f"Warning: Multi-line Python script detected in command\n"
-                f"Consider writing the script to a file under {suggestion} "
-                f"instead of using python -c with multi-line code.",
-                file = sys.stderr
-            )
-            sys.exit( 2 )
-    
-    # Check for direct python usage patterns
-    if _PYTHON_PATTERN.search( command ):
-        # Check if it's already using hatch
-        if 'hatch' in command:
-            sys.exit( 0 )
-        
-        print(
-            f"Warning: Direct Python usage detected in command: {command}\n"
-            f"Consider using 'hatch run python' or "
-            f"'hatch --env develop run python' to ensure dependencies "
-            f"are available.",
-            file = sys.stderr
-        )
-        # Exit with code 2 to show warning to Claude
-        sys.exit( 2 )
-    
-    # No issues found
-    sys.exit( 0 )
+    raise SystemExit( 0 )
 
 
-if __name__ == '__main__':
-    main()
+def _error( message: str ):
+    print( message, file = sys.stderr )
+    raise SystemExit( 2 )
+
+
+if __name__ == '__main__': main()

@@ -153,7 +153,7 @@ class ExtractDocumentationCommand(
 
     source: CliSourceArgument
     object_name: __.typx.Annotated[
-        str, __.ddoc.Doc( 
+        str, __.ddoc.Doc(
             ''' Name of the object to extract documentation for. ''' )
     ]
 
@@ -161,7 +161,7 @@ class ExtractDocumentationCommand(
         self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
-        
+
         result = await _functions.extract_documentation(
             self.source, self.object_name )
         print( __.json.dumps( result, indent = 2 ), file = stream )
@@ -187,19 +187,19 @@ class QueryDocumentationCommand(
     ) -> None:
         stream = await display.provide_stream( )
         nomargs: __.NominativeArguments = { }
-        
+
         if self.domain is not None:
             nomargs[ 'domain' ] = self.domain
         if self.role is not None:
             nomargs[ 'role' ] = self.role
         if self.priority is not None:
             nomargs[ 'priority' ] = self.priority
-        
+
         nomargs[ 'match_mode' ] = self.match_mode
         nomargs[ 'fuzzy_threshold' ] = self.fuzzy_threshold
         nomargs[ 'max_results' ] = self.max_results
         nomargs[ 'include_snippets' ] = self.include_snippets
-        
+
         result = await _functions.query_documentation(
             self.source, self.query, **nomargs )
         print( __.json.dumps( result, indent = 2 ), file = stream )
@@ -288,6 +288,9 @@ class Cli(
         nomargs = self.prepare_invocation_args( )
         async with __.ctxl.AsyncExitStack( ) as exits:
             auxdata = await _prepare( exits = exits, **nomargs )
+            # Load processors for CLI operations
+            from . import xtnsmgr
+            await xtnsmgr.load_and_register_processors( auxdata )
             await self.command( auxdata = auxdata, display = self.display )
 
     def prepare_invocation_args(
@@ -343,11 +346,11 @@ async def _prepare(
         inscription = __.appcore.inscription.Control(
             level = 'debug', target = logstream )
         nomargs[ 'inscription' ] = inscription
-    
+
     auxdata = await __.appcore.prepare( **nomargs )
-    
+
     # Initialize configuration system with auxdata
     from . import configuration as _configuration
     _configuration.initialize_configuration( auxdata )
-    
+
     return auxdata

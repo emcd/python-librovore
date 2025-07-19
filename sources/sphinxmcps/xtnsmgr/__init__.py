@@ -18,24 +18,33 @@
 #============================================================================#
 
 
-''' Interface for extension development. '''
-
-# ruff: noqa: F403,F405
+''' Extension manager for async package installation and import isolation. '''
 
 
-from . import __
-
-from .exceptions import *
-from .interfaces import *
-
-
-def _validator( name: str, value: Processor ) -> bool:
-    return isinstance( value, Processor )
-
-
-processors: __.accret.ValidatorDictionary[ str, Processor ] = (
-    __.accret.ValidatorDictionary( _validator ) )
-
-
-
-
+# Public API exports
+from .installation import (
+    install_package,
+    install_packages_parallel,
+)
+from .isolation import (
+    add_to_import_path,
+    cleanup_import_paths,
+    import_builtin_processor,
+    import_external_processor,
+    get_module_info,
+    list_imported_processors,
+    reload_processor_module,
+    remove_from_import_path,
+)
+from .cachemgr import (
+    CacheInfo,
+    calculate_cache_path,
+    calculate_platform_id,
+    cleanup_expired_caches,
+    clear_package_cache,
+    get_cache_info,
+    save_cache_info,
+)
+from .processor_loader import (
+    load_and_register_processors,
+)

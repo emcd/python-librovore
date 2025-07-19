@@ -193,7 +193,6 @@ async def _select_processor_for_source(
     source: SourceArgument
 ) -> _interfaces.Processor:
     ''' Selects best processor for source via detection. '''
-    _xtnsapi.ensure_intrinsic_processors_registered( )
     best_processor: _interfaces.Processor | None = None
     best_confidence = 0.0
     for processor in _xtnsapi.processors.values( ):
