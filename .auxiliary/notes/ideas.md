@@ -1,4 +1,85 @@
-# Future Development Ideas - Sphinx MCP Server
+# Future Development Ideas - Documentation MCP Server
+
+## Project Rebranding
+
+### Proposed Name Change: `librovore`
+**Current limitation**: `sphinx-mcp-server` name no longer fits the expanded vision with plugin/extension architecture supporting multiple documentation systems.
+
+**Proposed name**: `librovore` (from Latin *librovorus* - "book devourer")
+- **Perfect metaphor**: Captures how LLMs "devour" and process documentation
+- **Morphologically correct**: Follows Latin o-stem pattern (library, librovore)  
+- **Memorable**: Evocative and immediately suggests the purpose
+- **Available**: Not taken on PyPI (as of 2025-01-19)
+- **Future-proof**: Not tied to any specific documentation tool
+
+**Alternative considered**: `librocule` (little book), but `librovore` better captures the active processing nature.
+
+### Migration Strategy
+- Package rename: `sphinx-mcp-server` → `librovore`
+- GitHub repository rename
+- Update all documentation and branding
+- PyPI package transfer/deprecation notice
+- Maintain backward compatibility during transition period
+
+## Builtin Processors Development Strategy
+
+### Release Strategy: Graduated Rollout
+**Phase 1 (Current)**: Ship with Sphinx processor to establish pattern and get community feedback
+**Phase 2**: Add high-impact processors that demonstrate cross-tool capability  
+**Phase 3**: Expand to specialized/niche documentation systems
+
+### Immediate Priority Processors (Phase 2)
+
+#### 1. MkDocs Processor 🎯 **HIGH PRIORITY**
+- **Rationale**: Extremely popular in Python ecosystem, fast-growing
+- **Technical feasibility**: Supports `objects.inv` via `mkdocstrings` plugin
+- **User impact**: Demonstrates cross-tool capability immediately
+- **Implementation**: Similar to Sphinx but with MkDocs-specific parsing
+
+#### 2. OpenAPI/Swagger Processor 🎯 **HIGH IMPACT**
+- **Rationale**: REST API documentation is massive use case for LLMs
+- **Technical feasibility**: Well-structured JSON/YAML input format
+- **Differentiation**: Inventory-style search vs existing static MCP servers
+- **Implementation**: Parse OpenAPI spec → generate inventory-like search interface
+- **Note**: Research existing MCP servers to avoid duplication
+
+#### 3. PyDoctor Processor 🤔 **INVESTIGATE**
+- **Rationale**: Alternative Python documentation generator
+- **Technical uncertainty**: Need to verify `objects.inv` format support
+- **User base**: Smaller than Sphinx/MkDocs but still significant
+- **Priority**: Lower due to smaller ecosystem impact
+
+### Future Expansion Processors (Phase 3)
+
+#### Documentation Systems
+- **rustdoc**: Growing Rust ecosystem, JSON output available
+- **godoc**: Go documentation (less structured output)
+- **JSDoc**: JavaScript/TypeScript ecosystem  
+- **Doxygen**: C/C++ documentation with XML output
+
+#### API/Schema Systems  
+- **GraphQL Introspection** 🎯 **INNOVATIVE**: Schema exploration perfect for LLMs
+- **AsyncAPI**: Async API specifications
+- **JSON Schema**: Schema documentation and validation
+
+#### Development Platform Integrations
+- **GitHub API**: Extract documentation from repository structures
+- **GitLab API**: Similar to GitHub but different ecosystem
+- **Confluence**: Enterprise documentation systems
+
+### Technical Implementation Notes
+
+#### MCP Sweet Spot Analysis
+**Ideal processors provide**:
+- **Semantic search capabilities**: Not just static file serving
+- **Contextual relationships**: Understanding connections between concepts  
+- **Structured exploration**: Inventory-style browsing and discovery
+- **LLM-friendly output**: Clean, parseable, context-rich responses
+
+**Avoid duplicating**:
+- Simple file serving that existing MCP servers handle well
+- Static content that doesn't benefit from structured exploration
+- Tools where existing MCP integration is already excellent
 
 ## Plugin Architecture Concepts
 
@@ -9,13 +90,15 @@
 - **Plugin dependencies**: Allow plugins to depend on other plugins or services
 - **Plugin metadata**: Version compatibility, capabilities, configuration schema
 
-### Built-in Plugins (Post-1.0)
-- **Sphinx plugin**: Current functionality retrofitted as reference implementation
-- **OpenAPI plugin**: Extract documentation from OpenAPI/Swagger specifications
-- **Rust docs plugin**: Support for rustdoc-generated documentation
-- **JSDoc plugin**: JavaScript documentation extraction
-- **GitHub plugin**: Extract documentation from GitHub repositories
-- **ReadTheDocs API plugin**: Direct API integration beyond objects.inv
+### Built-in Plugins Implementation Priority
+- **Sphinx plugin**: ✅ **Current reference implementation** (Phase 1)
+- **MkDocs plugin**: 🎯 **Next priority** - Popular Python ecosystem tool (Phase 2)
+- **OpenAPI plugin**: 🎯 **High impact** - API documentation for LLMs (Phase 2)
+- **GraphQL plugin**: 🎯 **Innovative** - Schema introspection capabilities (Phase 3)
+- **JSDoc plugin**: JavaScript/TypeScript ecosystem support (Phase 3)
+- **rustdoc plugin**: Growing Rust ecosystem (Phase 3)
+- **GitHub plugin**: Repository documentation extraction (Phase 3)
+- **ReadTheDocs API plugin**: Enhanced API integration (Phase 3)
 
 ### Plugin Configuration System
 - **Plugin-specific parameters**: Each plugin defines its own parameter schema
