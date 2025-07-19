@@ -51,7 +51,7 @@ CliRoleFilter: __.typx.TypeAlias = __.typx.Annotated[
     __.ddoc.Doc( ''' Filter objects by role (e.g., 'function'). ''' )
 ]
 CliSourceArgument: __.typx.TypeAlias = __.typx.Annotated[
-    str, __.ddoc.Doc( ''' URL or file path to Sphinx documentation. ''' )
+    str, __.ddoc.Doc( ''' URL or file path to documentation source. ''' )
 ]
 CliTermFilter: __.typx.TypeAlias = __.typx.Annotated[
     __.typx.Optional[ str ],
@@ -77,7 +77,7 @@ CliIncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
 class ExtractInventoryCommand(
     _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
-    ''' Extracts Sphinx inventory with optional filtering. '''
+    ''' Extracts inventory with optional filtering. '''
 
     source: CliSourceArgument
     domain: CliDomainFilter = None
@@ -113,7 +113,7 @@ class ExtractInventoryCommand(
 class SummarizeInventoryCommand(
     _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
-    ''' Provides human-readable summary of Sphinx inventory. '''
+    ''' Provides human-readable summary of inventory. '''
 
     source: CliSourceArgument
     domain: CliDomainFilter = None
@@ -149,7 +149,7 @@ class SummarizeInventoryCommand(
 class ExtractDocumentationCommand(
     _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
-    ''' Extracts documentation for a specific object from Sphinx docs. '''
+    ''' Extracts documentation for a specific object from source. '''
 
     source: CliSourceArgument
     object_name: __.typx.Annotated[
@@ -208,7 +208,7 @@ class QueryDocumentationCommand(
 class UseCommand(
     _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
-    ''' Use Sphinx MCP server tools. '''
+    ''' Use MCP server tools. '''
 
     operation: __.typx.Union[
         __.typx.Annotated[
@@ -265,7 +265,7 @@ class Cli(
     __.immut.DataclassObject,
     decorators = ( __.simple_tyro_class, ),
 ):
-    ''' Sphinx MCP server CLI. '''
+    ''' MCP server CLI. '''
 
     display: _interfaces.ConsoleDisplay
     command: __.typx.Union[

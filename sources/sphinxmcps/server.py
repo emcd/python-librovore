@@ -88,7 +88,7 @@ McpRoleFilter: __.typx.TypeAlias = __.typx.Annotated[
 McpSourceArgument: __.typx.TypeAlias = __.typx.Annotated[
     str,
     _Field(
-        description = "URL or file path to Sphinx documentation"
+        description = "URL or file path to documentation source"
     )
 ]
 McpTermFilter: __.typx.TypeAlias = __.typx.Annotated[
@@ -106,7 +106,7 @@ async def extract_documentation(
     source: McpSourceArgument,
     object_name: McpObjectName,
 ) -> __.cabc.Mapping[ str, __.typx.Any ]:
-    ''' Extract documentation for a specific object from Sphinx docs. '''
+    ''' Extract documentation for a specific object from source. '''
     _scribe.debug(
         "extract_documentation called: source=%s, object_name=%s",
         source, object_name )
@@ -161,7 +161,7 @@ async def extract_inventory( # noqa: PLR0913
     match_mode: McpMatchMode = _interfaces.MatchMode.Exact,
     fuzzy_threshold: McpFuzzyThreshold = 50,
 ) -> dict[ str, __.typx.Any ]:
-    ''' Extracts Sphinx inventory from location with optional filtering. '''
+    ''' Extracts inventory from location with optional filtering. '''
     _scribe.debug(
         "extract_inventory called: source=%s, domain=%s, role=%s, term=%s, "
         "priority=%s, match_mode=%s, fuzzy_threshold=%s",
@@ -187,7 +187,7 @@ async def summarize_inventory( # noqa: PLR0913
     match_mode: McpMatchMode = _interfaces.MatchMode.Exact,
     fuzzy_threshold: McpFuzzyThreshold = 50,
 ) -> str:
-    ''' Provides human-readable summary of Sphinx inventory. '''
+    ''' Provides human-readable summary of inventory. '''
     _scribe.debug(
         "summarize_inventory called: source=%s, domain=%s, role=%s, term=%s, "
         "priority=%s, match_mode=%s, fuzzy_threshold=%s",
