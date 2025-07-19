@@ -650,9 +650,19 @@ def _parse_documentation_html(
 _sphinx_processor = SphinxProcessor( )
 
 
-def register( ) -> None:
+def register(
+    arguments: __.cabc.Mapping[ str, __.typx.Any ] | None = None
+) -> None:
     ''' Register the Sphinx processor with the processors registry. '''
     from .. import xtnsapi as _xtnsapi
+    
+    # TODO: Apply configuration arguments to processor instance
+    # For now, we ignore arguments but accept them for future use
+    if arguments:
+        # Future: Configure processor with arguments like timeouts, cache
+        # settings, etc.
+        pass
+    
     _xtnsapi.processors[ _sphinx_processor.name ] = _sphinx_processor
 
 

@@ -1,0 +1,58 @@
+# Sphinx MCP Server Configuration
+# This file defines the configuration for the Sphinx MCP Server,
+# including plugin/extension settings and their parameters.
+
+# Built-in Extensions
+# These extensions are included with the server and do not require external packages.
+
+[[extensions]]
+name = "sphinx"
+enabled = true
+
+# External Extension Examples
+# Uncomment and modify these examples to add external documentation processors.
+
+# Example: OpenAPI/Swagger documentation processor
+# [[extensions]]
+# name = "openapi"
+# package = "sphinxmcps-openapi>=1.0"  # PEP 440 version specification
+# enabled = true
+# [extensions.arguments]
+# timeout = 60
+# validate_schemas = true
+# spec_version = "3.0"
+
+# Example: GitHub-hosted custom processor
+# [[extensions]]
+# name = "custom"
+# package = "git+https://github.com/user/sphinxmcps-plugin.git@main"  # PEP 508 URL
+# enabled = false
+# [extensions.arguments]
+# custom_param = "value"
+# debug_mode = false
+
+# Example: Local development processor
+# [[extensions]]
+# name = "local_dev"
+# package = "file:///path/to/local/plugin"  # Local file system
+# enabled = false
+# [extensions.arguments]
+# dev_mode = true
+
+# Example: PyPI package with specific version constraints
+# [[extensions]]
+# name = "mkdocs"
+# package = "sphinxmcps-mkdocs~=2.1"  # Compatible release
+# enabled = false
+# [extensions.arguments]
+# theme = "material"
+# strict_mode = true
+
+# Global Configuration (Future)
+# These settings would apply to all extensions unless overridden.
+
+# [global]
+# cache_ttl = 3600  # Cache time-to-live in seconds
+# timeout = 30      # Default network timeout
+# max_concurrent = 10  # Maximum concurrent operations
+# log_level = "INFO"   # Logging level

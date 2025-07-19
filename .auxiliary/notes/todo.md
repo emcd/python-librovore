@@ -7,8 +7,10 @@
 - [x] **Retrofit Sphinx support**: Convert current Sphinx inventory/documentation extraction to plugin
 - [x] **Plugin discovery system**: Mechanism to register and load plugins
 - [x] **Plugin API stability**: Ensure backwards compatibility for plugins
+- [x] **Refactor Sphinx code**: Move Sphinx-specific functions from `functions.py` to `processors/sphinx.py`
+- [x] **Code organization**: Organize all processor functions in lexicographical order
+- [x] **Test decoupling**: Remove tests that couple to private implementation details
 - [ ] **Plugin configuration**: Allow plugins to define their own parameters and options
-- [ ] **Refactor Sphinx code**: Move Sphinx-specific functions from `functions.py` to `processors/sphinx.py`
 
 ### 💾 Caching System
 - [ ] **Inventory caching**: Cache downloaded `objects.inv` files with TTL
@@ -21,11 +23,11 @@
 
 ### 🔧 Technical Debt
 - [ ] **Type alias consolidation**: Move duplicated type aliases from `cli.py` and `functions.py` to `interfaces.py`
-- [ ] **Code style cleanup**: Remove obvious comments, fix delimiter placement, lexicographical sorting
-- [ ] **Function refactoring**: Ensure functions stay under 30 lines, modules under 600 lines
+- [x] **Code style cleanup**: Remove obvious comments, fix delimiter placement, lexicographical sorting
+- [x] **Function refactoring**: Ensure functions stay under 30 lines, modules under 600 lines
 
 ### 🧪 Testing Strategy Improvements
-- [ ] **Reduce test overlap**: Target specific uncovered lines instead of comprehensive functionality tests
+- [x] **Reduce test overlap**: Target specific uncovered lines instead of comprehensive functionality tests
 - [ ] **Mock heavy operations**: Replace inventory parsing with mocks for unit tests
 - [ ] **Separate test types**: Split fast unit tests from slower integration tests
 - [ ] **Easy coverage wins**: Target `interfaces.py` file output streams and CLI error handling

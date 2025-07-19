@@ -143,3 +143,11 @@ class ProcessorNotFound( Omnierror, RuntimeError ):
         super( ).__init__( message )
 
 
+class ExtensionConfigError( Omnierror, ValueError ):
+    ''' Extension configuration is invalid. '''
+    
+    def __init__( self, extension_name: str, message: str ):
+        self.extension_name = extension_name
+        super( ).__init__( f"Extension '{extension_name}': {message}" )
+
+

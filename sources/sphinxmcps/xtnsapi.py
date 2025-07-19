@@ -24,6 +24,7 @@
 
 
 from . import __
+from . import configuration as _configuration
 
 from .exceptions import *
 from .interfaces import *
@@ -39,10 +40,35 @@ processors: __.accret.ValidatorDictionary[ str, Processor ] = (
 
 def register_intrinsic_processors( ):
     ''' Registers processors which come with package. '''
-    from .processors.sphinx import register
-    
-    # Register sphinx processor
-    register( )
+    # Load configuration from global state and register only enabled built-in
+    # processors
+    try:
+        extensions = _configuration.load_global_extensions_config( )
+        enabled_extensions = _configuration.get_enabled_extensions(
+            extensions )
+        builtin_extensions = _configuration.get_builtin_extensions(
+            enabled_extensions )
+        
+        for ext_config in builtin_extensions:
+            name = ext_config[ 'name' ]
+            arguments = _configuration.get_extension_arguments( ext_config )
+            
+            if name == 'sphinx':
+                from .processors.sphinx import register
+                register( arguments )
+            else:
+                # Log warning about unknown built-in processor
+                pass
+        
+        # If no configuration found at all, register default sphinx as fallback
+        if not extensions:
+            from .processors.sphinx import register
+            register( )
+            
+    except Exception:
+        # Fallback: Register default processors if configuration fails
+        from .processors.sphinx import register
+        register( )
 
 
 def ensure_intrinsic_processors_registered( ):

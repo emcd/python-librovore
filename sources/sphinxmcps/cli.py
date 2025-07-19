@@ -343,4 +343,11 @@ async def _prepare(
         inscription = __.appcore.inscription.Control(
             level = 'debug', target = logstream )
         nomargs[ 'inscription' ] = inscription
-    return await __.appcore.prepare( **nomargs )
+    
+    auxdata = await __.appcore.prepare( **nomargs )
+    
+    # Initialize configuration system with auxdata
+    from . import configuration as _configuration
+    _configuration.initialize_configuration( auxdata )
+    
+    return auxdata
