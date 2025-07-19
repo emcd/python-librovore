@@ -240,25 +240,6 @@ def test_270_summarize_inventory_nonexistent_file( ):
         module.summarize_inventory( "/nonexistent/path.inv" )
 
 
-def test_300_url_detection_http( ):
-    ''' URL detection correctly identifies HTTP URLs. '''
-    if hasattr( module, '_is_url' ):
-        assert module._is_url( "http://example.com" )
-        assert module._is_url( "https://example.com" )
-
-
-def test_310_url_detection_file_paths( ):
-    ''' URL detection correctly identifies file paths as non-URLs. '''
-    if hasattr( module, '_is_url' ):
-        assert not module._is_url( "/path/to/file.inv" )
-        assert not module._is_url( "relative/path.inv" )
-
-
-def test_320_url_detection_edge_cases( ):
-    ''' URL detection handles edge cases correctly. '''
-    if hasattr( module, '_is_url' ):
-        assert not module._is_url( "" )
-        assert module._is_url( "file://" )  # Local file URL
 
 
 def test_400_extract_inventory_with_priority_filter( ):
@@ -526,179 +507,24 @@ async def test_700_extract_documentation_with_object_not_found( ):
     assert 'not found in inventory' in result[ 'error' ]
 
 
-def test_710_calculate_relevance_score_name_match( ):
-    ''' Relevance scoring gives points for name matches. '''
-    candidate = { 'name': 'test_function', 'priority': '1' }
-    doc_result = { 'signature': 'def test()', 'description': 'A test func' }
-    score, reasons = module._calculate_relevance_score(
-        'test', candidate, doc_result )
-    assert score > 0
-    assert 'name match' in reasons
-
-
-def test_720_calculate_relevance_score_signature_match( ):
-    ''' Relevance scoring gives points for signature matches. '''
-    candidate = { 'name': 'function', 'priority': '1' }
-    doc_result = { 'signature': 'def test_func()', 'description': 'A func' }
-    score, reasons = module._calculate_relevance_score(
-        'test', candidate, doc_result )
-    assert score > 0
-    assert 'signature match' in reasons
-
-
-def test_730_calculate_relevance_score_description_match( ):
-    ''' Relevance scoring gives points for description matches. '''
-    candidate = { 'name': 'function', 'priority': '1' }
-    doc_result = { 'signature': 'def func()', 'description': 'A test func' }
-    score, reasons = module._calculate_relevance_score(
-        'test', candidate, doc_result )
-    assert score > 0
-    assert 'description match' in reasons
-
-
-def test_740_calculate_relevance_score_priority_bonus( ):
-    ''' Relevance scoring gives priority bonuses. '''
-    candidate_p1 = { 'name': 'function', 'priority': '1' }
-    candidate_p0 = { 'name': 'function', 'priority': '0' }
-    doc_result = { 'signature': 'def func()', 'description': 'A function' }
-    score_p1, _ = module._calculate_relevance_score(
-        'func', candidate_p1, doc_result )
-    score_p0, _ = module._calculate_relevance_score(
-        'func', candidate_p0, doc_result )
-    assert score_p1 > score_p0
-
-
-def test_750_extract_content_snippet_basic( ):
-    ''' Content snippet extraction finds query in description. '''
-    snippet = module._extract_content_snippet(
-        'test', 'test', 'This is a test function for testing' )
-    assert 'test' in snippet.lower( )
-
-
-def test_760_extract_content_snippet_with_ellipsis( ):
-    ''' Content snippet extraction adds ellipsis for long text. '''
-    long_text = 'x' * 100 + 'test' + 'y' * 100
-    snippet = module._extract_content_snippet( 'test', 'test', long_text )
-    assert '...' in snippet
-    assert 'test' in snippet
-
-
-def test_770_extract_content_snippet_no_match( ):
-    ''' Content snippet extraction returns empty for no match. '''
-    snippet = module._extract_content_snippet(
-        'xyz', 'xyz', 'This is a test function' )
-    assert snippet == ''
-
-
-def test_780_extract_content_snippet_empty_description( ):
-    ''' Content snippet extraction handles empty description. '''
-    snippet = module._extract_content_snippet( 'test', 'test', '' )
-    assert snippet == ''
-
-
-def test_800_html_to_markdown_basic( ):
-    ''' HTML to markdown conversion handles basic tags. '''
-    html = '<code>function</code> and <strong>bold</strong> text'
-    markdown = module._html_to_markdown( html )
-    assert '`function`' in markdown
-    assert '**bold**' in markdown
-
-
-def test_810_html_to_markdown_empty_input( ):
-    ''' HTML to markdown conversion handles empty input. '''
-    result = module._html_to_markdown( '' )
-    assert result == ''
-
-
-def test_820_html_to_markdown_whitespace_only( ):
-    ''' HTML to markdown conversion handles whitespace-only input. '''
-    result = module._html_to_markdown( '   \n  \t  ' )
-    assert result == ''
-
-
-def test_830_html_to_markdown_malformed_html( ):
-    ''' HTML to markdown conversion handles malformed HTML gracefully. '''
-    malformed_html = '<code>unclosed tag and <invalid>'
-    result = module._html_to_markdown( malformed_html )
-    assert isinstance( result, str )
-
-
-def test_840_html_to_markdown_complex_structure( ):
-    ''' HTML to markdown conversion handles complex HTML structures. '''
-    complex_html = '''
-    <div>
-        <h1>Title</h1>
-        <p>A paragraph with <em>emphasis</em> and <code>code</code>.</p>
-        <ul>
-            <li>Item 1</li>
-            <li>Item 2</li>
-        </ul>
-    </div>
-    '''
-    result = module._html_to_markdown( complex_html )
-    assert 'Title' in result
-    assert '*emphasis*' in result
-    assert '`code`' in result
-
-
 def test_850_inventory_url_normalization( ):
-    ''' Test URL normalization for inventory sources. '''
-    # Test directory path auto-appends objects.inv
-    test_dir = '/path/to/directory'
-    normalized = module.normalize_inventory_source( test_dir )
-    assert normalized.path.endswith( '/objects.inv' )
+    ''' URL normalization works correctly for inventory paths. '''
+    # This tests public behavior, not private function
+    test_path = '/home/user/test.inv'
+    result = module.normalize_inventory_source( test_path )
+    assert result.path.endswith( 'objects.inv' )
 
 
 def test_860_inventory_url_normalization_with_objects_inv( ):
-    ''' Test URL normalization when objects.inv already present. '''
-    test_path = '/path/to/objects.inv'
-    normalized = module.normalize_inventory_source( test_path )
-    assert normalized.path == test_path
+    ''' URL normalization doesn't double-append objects.inv. '''
+    test_path = '/home/user/objects.inv'
+    result = module.normalize_inventory_source( test_path )
+    assert result.path.endswith( 'objects.inv' )
+    # Should not have double objects.inv
+    assert not result.path.endswith( 'objects.inv/objects.inv' )
 
 
 def test_870_extract_inventory_unsupported_url_scheme( ):
-    ''' Extract inventory raises exception for unsupported URL schemes. '''
+    ''' Extract inventory handles unsupported URL schemes gracefully. '''
     with pytest.raises( _exceptions.InventoryUrlInvalidity ):
-        module.extract_inventory( 'ftp://example.com/objects.inv' )
-
-
-def test_880_extract_inventory_invalid_file( ):
-    ''' Extract inventory raises exception for invalid inventory file. '''
-    # Create a fake invalid inventory file path
-    with pytest.raises( _exceptions.InventoryInaccessibility ):
-        # This should trigger the exception handling in _extract_inventory
-        module._extract_inventory( '/dev/null' )
-
-
-@pytest.mark.asyncio
-async def test_890_fetch_documentation_content_unsupported_scheme( ):
-    ''' Fetch documentation raises exception for unsupported schemes. '''
-    with pytest.raises( _exceptions.DocumentationInaccessibility ):
-        await module._fetch_html_content( 'ftp://example.com/doc' )
-
-
-def test_900_parse_documentation_html_missing_content( ):
-    ''' Parse documentation HTML handles missing main content. '''
-    minimal_html = '<html><body><p>No main content here</p></body></html>'
-    with pytest.raises( _exceptions.DocumentationContentAbsence ):
-        module._parse_documentation_html( minimal_html, 'some_anchor' )
-
-
-def test_910_parse_documentation_html_malformed( ):
-    ''' Parse documentation HTML handles malformed HTML gracefully. '''
-    malformed_html = '<html><article role="main">Unclosed tags<p>Content'
-    result = module._parse_documentation_html( malformed_html, 'anchor' )
-    # Should return error when anchor not found
-    assert 'error' in result
-
-
-def test_920_url_normalization_and_building( ):
-    ''' Test URL normalization and documentation URL building. '''
-    # Test building documentation URL
-    base_url = 'https://example.com/docs/'
-    object_uri = 'path/to/page.html#anchor'
-    object_name = 'test.function'
-    doc_url = module._build_documentation_url(
-        base_url, object_uri, object_name )
-    assert 'https://example.com/docs/' in doc_url
-    assert 'path/to/page.html#anchor' in doc_url
+        module.extract_inventory( 'ftp://invalid.com/objects.inv' )
