@@ -22,12 +22,11 @@
 
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock, AsyncMock
 from io import StringIO
 
 import sphinxmcps.cli as module
 
-from . import PACKAGE_NAME
 from .fixtures import run_cli_command, get_test_inventory_path
 
 
@@ -149,13 +148,14 @@ async def test_070_serve_command_unit( ):
     ''' ServeCommand processes arguments correctly. '''
     display = MockConsoleDisplay( )
     auxdata = create_test_auxdata( )
-    # Mock the server.serve function to avoid actual server startup
-    with patch( f"{PACKAGE_NAME}.server.serve" ) as mock_serve:
-        mock_serve.return_value = AsyncMock( )
-        cmd = module.ServeCommand( port = 8080, transport = 'stdio' )
-        await cmd( auxdata, display )
-        mock_serve.assert_called_once_with(
-            auxdata, port = 8080, transport = 'stdio' )
+    # Use dependency injection instead of monkey-patching
+    mock_serve = AsyncMock( )
+    cmd = module.ServeCommand( 
+        port = 8080, transport = 'stdio', serve_function = mock_serve 
+    )
+    await cmd( auxdata, display )
+    mock_serve.assert_called_once_with(
+        auxdata, port = 8080, transport = 'stdio' )
 
 
 @pytest.mark.asyncio
@@ -163,12 +163,11 @@ async def test_080_serve_command_defaults( ):
     ''' ServeCommand works with default arguments. '''
     display = MockConsoleDisplay( )
     auxdata = create_test_auxdata( )
-    # Mock the server.serve function to avoid actual server startup
-    with patch( f"{PACKAGE_NAME}.server.serve" ) as mock_serve:
-        mock_serve.return_value = AsyncMock( )
-        cmd = module.ServeCommand( )
-        await cmd( auxdata, display )
-        mock_serve.assert_called_once_with( auxdata )
+    # Use dependency injection instead of monkey-patching
+    mock_serve = AsyncMock( )
+    cmd = module.ServeCommand( serve_function = mock_serve )
+    await cmd( auxdata, display )
+    mock_serve.assert_called_once_with( auxdata )
 
 
 def test_090_cli_prepare_invocation_args( ):

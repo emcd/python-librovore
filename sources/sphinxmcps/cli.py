@@ -250,6 +250,9 @@ class ServeCommand(
 
     port: CliPortArgument = None
     transport: CliTransportArgument = None
+    serve_function: __.typx.Callable[ 
+        [ __.Globals ], __.cabc.Awaitable[ None ] 
+    ] = _server.serve
     async def __call__(
         self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
     ) -> None:
@@ -258,7 +261,7 @@ class ServeCommand(
             nomargs[ 'port' ] = self.port
         if self.transport is not None:
             nomargs[ 'transport' ] = self.transport
-        await _server.serve( auxdata, **nomargs )
+        await self.serve_function( auxdata, **nomargs )
 
 
 class Cli(
