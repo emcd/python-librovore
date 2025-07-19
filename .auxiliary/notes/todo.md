@@ -11,6 +11,7 @@
 - [x] **Code organization**: Organize all processor functions in lexicographical order
 - [x] **Test decoupling**: Remove tests that couple to private implementation details
 - [ ] **Plugin configuration**: Allow plugins to define their own parameters and options
+- [ ] **External plugin installation**: Implement Coimport-inspired uv-based installation for external plugins
 
 ### 💾 Caching System
 - [ ] **Inventory caching**: Cache downloaded `objects.inv` files with TTL

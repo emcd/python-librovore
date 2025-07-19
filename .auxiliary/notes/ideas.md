@@ -198,6 +198,37 @@ Understanding of Sphinx search mechanisms:
 - **Privacy controls**: Option to disable external requests
 - **Security scanning**: Check for malicious inventory content
 
+## Testing Infrastructure Ideas
+
+### Filesystem-Independent Path Objects
+- **StringIO-backed PurePath subclass**: Path objects backed by in-memory content instead of filesystem
+- **Preloaded content caching**: Load real filesystem data into memory for fast test execution
+- **Directory simulation**: Support `.iterdir()` on fake directories with cached file contents
+- **No global patching**: Unlike pyfakefs, avoid global `open()` patching that interferes with aiofiles
+- **Test isolation**: Each test gets its own isolated filesystem view
+- **Performance benefits**: Eliminate I/O bottlenecks in test suites
+
+**Potential Implementation:**
+```python
+# String-backed paths
+fake_path = FakePath("/test/file.py", content="print('hello')")
+
+# Real file-backed (loads into StringIO cache)
+fake_path = FakePath("/real/file.py", source_path=Path("real_file.py"))
+
+# Directory-backed (loads all files in directory)
+fake_dir = FakePath("/test/dir", source_path=Path("real_dir/"))
+for child in fake_dir.iterdir():  # Returns FakePath objects
+    content = child.read_text()   # From StringIO, not filesystem
+```
+
+**Benefits over existing solutions:**
+- No interference with aiofiles or other async file operations
+- Faster test execution through memory-only operations
+- Easy preloading of real test data without filesystem dependency
+- Clear separation between test data and test logic
+- Potential for broader ecosystem adoption as standalone project
+
 ## Community and Ecosystem
 
 ### Integration Ecosystem
