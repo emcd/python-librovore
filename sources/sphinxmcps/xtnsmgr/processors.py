@@ -24,7 +24,7 @@
 from . import __
 from . import configuration as _configuration
 from . import installation as _installation
-from . import isolation as _isolation
+from . import importation as _importation
 
 
 _scribe = __.acquire_scribe( __name__ )
@@ -65,7 +65,7 @@ async def _install_packages(
     install_results = (
         await _installation.install_packages_parallel( specifications ) )
     for result in install_results:
-        _isolation.add_to_import_path( result )
+        _importation.add_package_to_import_path( result )
         _scribe.debug( f"Added to import path: {result}." )
     return tuple( install_results )
 
@@ -79,7 +79,7 @@ def _register_processor(
     if 'package' not in extension:
         module_name = f"{__.package_name}.processors.{name}"
     else: module_name = name
-    try: module = _isolation.import_processor_module( module_name )
+    try: module = _importation.import_processor_module( module_name )
     except Exception as exc:
         _scribe.error( f"Failed to import processor {name}: {exc}." )
         return

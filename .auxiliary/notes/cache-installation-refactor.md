@@ -77,23 +77,23 @@ The cache should own the complete contract of "make this package importable", wh
 
 ```python
 # cachemgr.py
-async def ensure_package(specification: str) -> None:
-    """Ensure package is installed and importable.
+async def ensure_package( specification: str ) -> None:
+    ''' Ensure package is installed and importable.
 
     Raises:
         ExtensionInstallationError: If installation fails
         ExtensionConfigError: If package specification is invalid
-    """
+    '''
 
-def invalidate(specification: str) -> None:
-    """Remove package from cache, forcing reinstall on next ensure_package."""
+def invalidate( specification: str ) -> None:
+    ''' Remove package from cache, forcing reinstall on next ensure_package. '''
 
 # importation.py
-def add_package_to_import_path(package_path: Path) -> None:
-    """Add package to sys.path and process any .pth files."""
+def add_package_to_import_path( package_path: __.Path ) -> None:
+    ''' Add package to sys.path and process any .pth files. '''
 
-def process_pth_files(package_path: Path) -> None:
-    """Process .pth files in package directory to update sys.path."""
+def process_pth_files( package_path: __.Path ) -> None:
+    ''' Process .pth files in package directory to update sys.path. '''
 ```
 
 ## Migration Plan
@@ -163,21 +163,21 @@ await cachemgr.ensure_package(spec)
 
 ### .pth File Processing
 ```python
-def process_pth_files(package_path: Path) -> None:
-    """Process .pth files to update sys.path."""
-    for pth_file in package_path.glob("*.pth"):
-        with pth_file.open('r', encoding='utf-8') as f:
+def process_pth_files( package_path: __.Path ) -> None:
+    ''' Process .pth files to update sys.path. '''
+    for pth_file in package_path.glob( "*.pth" ):
+        with pth_file.open( 'r', encoding = 'utf-8' ) as f:
             for line in f:
-                line = line.strip()
-                if line and not line.startswith('#'):
-                    if line.startswith('import '):
+                line = line.strip( )
+                if line and not line.startswith( '#' ):
+                    if line.startswith( 'import ' ):
                         # Execute import statement
-                        exec(line)
+                        exec( line )
                     else:
                         # Add path to sys.path
                         path = package_path / line
-                        if path.exists():
-                            sys.path.insert(0, str(path))
+                        if path.exists( ):
+                            __.sys.path.insert( 0, str( path ) )
 ```
 
 ### Dependency Injection Pattern
@@ -185,7 +185,7 @@ def process_pth_files(package_path: Path) -> None:
 # Allow custom installer for testing
 async def ensure_package(
     specification: str,
-    installer: Callable[[str], Awaitable[Path]] = installation.install_package
+    installer: __.cabc.Callable[ [ str ], __.cabc.Awaitable[ __.Path ] ] = installation.install_package
 ) -> None:
     # Implementation uses provided installer function
 ```

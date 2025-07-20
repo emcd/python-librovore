@@ -25,12 +25,13 @@ from .installation import (
     install_package,
     install_packages_parallel,
 )
-from .isolation import (
-    add_to_import_path,
+from .importation import (
+    add_package_to_import_path,
     cleanup_import_paths,
     import_processor_module,
     get_module_info,
     list_registered_processors,
+    process_pth_files,
     reload_processor_module,
     remove_from_import_path,
 )
