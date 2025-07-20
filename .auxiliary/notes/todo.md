@@ -2,6 +2,8 @@
 
 ## Core Architecture (High Priority)
 
+**🎉 Extension Manager (xtnsmgr) - COMPLETED**: Full implementation with cache-driven package management, .pth file processing, and simplified processor orchestration. See `xtnsmgr.md` for complete documentation.
+
 ### 🔌 Plugin/Extensions Architecture
 - [x] **Design plugin interface**: Define abstract base classes for inventory and documentation providers
 - [x] **Retrofit Sphinx support**: Convert current Sphinx inventory/documentation extraction to plugin
@@ -10,8 +12,8 @@
 - [x] **Refactor Sphinx code**: Move Sphinx-specific functions from `functions.py` to `processors/sphinx.py`
 - [x] **Code organization**: Organize all processor functions in lexicographical order
 - [x] **Test decoupling**: Remove tests that couple to private implementation details
-- [ ] **Plugin configuration**: Allow plugins to define their own parameters and options
-- [ ] **External plugin installation**: Implement Coimport-inspired uv-based installation for external plugins
+- [x] **Plugin configuration**: Extension configuration system with validation and argument extraction
+- [x] **External plugin installation**: Complete xtnsmgr implementation with cache-driven package management
 
 ### 💾 Caching System
 - [ ] **Inventory caching**: Cache downloaded `objects.inv` files with TTL
