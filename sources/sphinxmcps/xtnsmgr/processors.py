@@ -31,7 +31,7 @@ _scribe = __.acquire_scribe( __name__ )
 
 
 async def register_processors( auxdata: __.Globals ):
-    ''' Load and register processors based on configuration. '''
+    ''' Registers processors based on configuration. '''
     try: extensions = _configuration.extract_extensions( auxdata )
     except Exception as exc:
         _scribe.error( f"Configuration loading failed: {exc}." )
@@ -57,7 +57,7 @@ async def register_processors( auxdata: __.Globals ):
 async def _ensure_external_packages(
     extensions: __.cabc.Sequence[ _configuration.ExtensionConfig ]
 ) -> None:
-    ''' Ensure external packages are installed and importable. '''
+    ''' Ensures external packages are installed and importable. '''
     if not extensions: return
     specifications = [ ext[ 'package' ] for ext in extensions ]
     count = len( specifications )
@@ -69,7 +69,7 @@ async def _ensure_external_packages(
 def _register_processor(
     extension: _configuration.ExtensionConfig,
 ) -> None:
-    ''' Register a single processor from configuration. '''
+    ''' Registers single processor from configuration. '''
     name = extension[ 'name' ]
     arguments = _configuration.extract_extension_arguments( extension )
     if 'package' not in extension:

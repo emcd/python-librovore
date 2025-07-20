@@ -35,7 +35,3 @@ def _validator( name: str, value: Processor ) -> bool:
 
 processors: __.accret.ValidatorDictionary[ str, Processor ] = (
     __.accret.ValidatorDictionary( _validator ) )
-
-
-
-

@@ -33,8 +33,11 @@ import dataclasses as       dcls
 import                      enum
 import                      io
 import                      json
+import                      locale
 import                      platform
 import                      re
+import                      shutil
+import                      stat
 import                      subprocess
 import                      sys
 import                      time
@@ -43,8 +46,8 @@ import                      types
 from logging import getLogger as acquire_scribe
 from pathlib import Path
 
-import                      appcore
 import accretive as         accret
+import                      appcore
 import dynadoc as           ddoc
 import exceptiongroup as    excg
 import frigid as            immut
@@ -54,6 +57,7 @@ import tyro
 # --- END: Injected by Copier ---
 
 from absence import Absential, absent, is_absent
+from appcore import asyncf
 from appcore.state import Globals
 
 

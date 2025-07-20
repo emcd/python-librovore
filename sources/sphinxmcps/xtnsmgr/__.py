@@ -23,9 +23,7 @@
 # ruff: noqa: F403,F401
 
 import hashlib
-import shutil
-
-from appcore import asyncf
 
 from ..__ import *
+from ..exceptions import *
 from ..xtnsapi import *

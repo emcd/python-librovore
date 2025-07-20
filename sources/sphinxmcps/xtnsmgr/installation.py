@@ -25,7 +25,6 @@ import uv as _uv
 
 from . import __
 from . import cachemgr as _cachemgr
-from .. import exceptions as _exceptions
 
 
 _scribe = __.acquire_scribe( __name__ )
@@ -50,7 +49,7 @@ async def install_package(
     for attempt in range( max_retries + 1 ):
         try:
             return await _install_with_uv( specification, cache_ttl )
-        except _exceptions.ExtensionInstallationError as exc:  # noqa: PERF203
+        except __.ExtensionInstallationError as exc:  # noqa: PERF203
             if attempt == max_retries:
                 _scribe.error(
                     f"Failed to install {specification} after "
@@ -62,7 +61,7 @@ async def install_package(
                 f"Installation attempt {attempt + 1} failed for "
                 f"{specification}, retrying in {delay}s: {exc}" )
             await __.asyncio.sleep( delay )
-    raise _exceptions.ExtensionInstallationError(
+    raise __.ExtensionInstallationError(
         specification, "Maximum retries exceeded" )
 
 
@@ -72,7 +71,7 @@ async def _install_with_uv( specification: str, cache_ttl: int ) -> __.Path:
     cache_path.mkdir( parents = True, exist_ok = True )
     try: uv_executable = _uv.find_uv_bin( )
     except ImportError as exc:
-        raise _exceptions.ExtensionInstallationError(
+        raise __.ExtensionInstallationError(
             specification, f"uv not available: {exc}" ) from exc
     uv_exec_str: str = str( uv_executable )
     command: list[ str ] = [
@@ -87,15 +86,15 @@ async def _install_with_uv( specification: str, cache_ttl: int ) -> __.Path:
             stdout = __.asyncio.subprocess.PIPE,
             stderr = __.asyncio.subprocess.PIPE )
     except OSError as exc:
-        raise _exceptions.ExtensionInstallationError(
+        raise __.ExtensionInstallationError(
             specification, f"Process execution failed: {exc}" ) from exc
     try:
         stdout, stderr = await process.communicate( )
     except __.asyncio.TimeoutError as exc:
-        raise _exceptions.ExtensionInstallationError(
+        raise __.ExtensionInstallationError(
             specification, f"Installation timed out: {exc}" ) from exc
     if process.returncode != 0:
-        raise _exceptions.ExtensionInstallationError(
+        raise __.ExtensionInstallationError(
             specification,
             f"uv install failed (exit {process.returncode}): "
             f"{stderr.decode( 'utf-8' )}" )
@@ -131,6 +130,7 @@ async def install_packages_parallel(
         results = await __.asyncf.gather_async(
             *installers, error_message = "Failed to install packages." )
     except __.excg.ExceptionGroup as exc_group:
+        # TODO: Log at top of propagation.
         # Log individual package installation errors
         for exc in exc_group.exceptions:
             _scribe.error( f"Package installation failed: {exc}." )

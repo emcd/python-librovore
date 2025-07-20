@@ -21,16 +21,13 @@
 ''' Import path management and .pth file processing for extension packages. '''
 
 
-import io as _io
-import locale as _locale
-import stat as _stat
 import importlib as _importlib
 
 from . import __
 
 
-_scribe = __.acquire_scribe( __name__ )
 _added_paths: list[ str ] = [ ]
+_scribe = __.acquire_scribe( __name__ )
 
 
 def add_package_to_import_path( package_path: __.Path ) -> None:
@@ -72,7 +69,7 @@ def cleanup_import_paths( ) -> None:
 
 def import_processor_module( module_name: str ) -> __.types.ModuleType:
     ''' Import a processor module by name.
-    
+
         Uses standard Python import machinery. For builtin processors,
         pass f"{__.package_name}.processors.{name}". For external processors,
         pass the module name directly.
@@ -115,13 +112,13 @@ def get_module_info( module_name: str ) -> dict[ str, __.typx.Any ]:
         'file': getattr( module, '__file__', None ),
         'package': getattr( module, '__package__', None ),
         'version': getattr( module, '__version__', None ),
-        'doc': getattr( module, '__doc__', None )
+        'doc': getattr( module, '__doc__', None ),
     }
 
 
 def process_pth_files( package_path: __.Path ) -> None:
     ''' Process .pth files in package directory to update sys.path.
-    
+
         Handles proper encoding, hidden file detection, and security.
     '''
     if not package_path.is_dir( ): return
@@ -135,22 +132,14 @@ def process_pth_files( package_path: __.Path ) -> None:
         _process_pth_file( pth_file )
 
 
-def _process_pth_file( pth_file: __.Path ) -> None:
-    ''' Process single .pth file. '''
-    if not pth_file.exists( ) or _is_hidden( pth_file ): return
-    try: content = _acquire_pth_file_content( pth_file )
-    except OSError: return
-    _process_pth_file_lines( pth_file, content )
-
-
 def _acquire_pth_file_content( pth_file: __.Path ) -> str:
     ''' Read .pth file content with proper encoding handling. '''
-    with _io.open_code( str( pth_file ) ) as stream:
+    with __.io.open_code( str( pth_file ) ) as stream:
         content_bytes = stream.read( )
     # Accept BOM markers in .pth files - same as with source files
     try: return content_bytes.decode( 'utf-8-sig' )
     except UnicodeDecodeError:
-        return content_bytes.decode( _locale.getpreferredencoding( ) )
+        return content_bytes.decode( __.locale.getpreferredencoding( ) )
 
 
 def _is_hidden( path: __.Path ) -> bool:
@@ -159,13 +148,21 @@ def _is_hidden( path: __.Path ) -> bool:
     except OSError: return False
     match __.sys.platform:
         case 'darwin':
-            return bool( getattr( inode, 'st_flags', 0 ) & _stat.UF_HIDDEN )
+            return bool( getattr( inode, 'st_flags', 0 ) & __.stat.UF_HIDDEN )
         case 'win32':
             # Windows FILE_ATTRIBUTE_HIDDEN constant (0x2)
             return bool(
                 getattr( inode, 'st_file_attributes', 0 )
-                & getattr( _stat, 'FILE_ATTRIBUTE_HIDDEN', 0x2 ) )
+                & getattr( __.stat, 'FILE_ATTRIBUTE_HIDDEN', 0x2 ) )
         case _: return False
+
+
+def _process_pth_file( pth_file: __.Path ) -> None:
+    ''' Process single .pth file. '''
+    if not pth_file.exists( ) or _is_hidden( pth_file ): return
+    try: content = _acquire_pth_file_content( pth_file )
+    except OSError: return
+    _process_pth_file_lines( pth_file, content )
 
 
 def _process_pth_file_lines( pth_file: __.Path, content: str ) -> None:

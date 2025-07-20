@@ -22,7 +22,6 @@
 
 
 from . import __
-from .. import exceptions as _exceptions
 
 
 ExtensionArguments: __.typx.TypeAlias = __.typx.Annotated[
@@ -39,20 +38,20 @@ def validate_extension( config: ExtensionConfig ) -> None:
     ''' Validates single extension configuration. '''
     name = config.get( 'name' )
     if not name or not isinstance( name, str ):
-        raise _exceptions.ExtensionConfigError(
+        raise __.ExtensionConfigError(
             name or '<unnamed>',
             "Required field 'name' must be a non-empty string" )
     enabled = config.get( 'enabled', True )
     if not isinstance( enabled, bool ):
-        raise _exceptions.ExtensionConfigError(
+        raise __.ExtensionConfigError(
             name, "Field 'enabled' must be a boolean" )
     package = config.get( 'package' )
     if package is not None and not isinstance( package, str ):
-        raise _exceptions.ExtensionConfigError(
+        raise __.ExtensionConfigError(
             name, "Field 'package' must be a string" )
     arguments = config.get( 'arguments', { } )
     if not isinstance( arguments, dict ):
-        raise _exceptions.ExtensionConfigError(
+        raise __.ExtensionConfigError(
             name, "Field 'arguments' must be a dictionary" )
 
 
@@ -64,13 +63,13 @@ def extract_extensions(
     if not configuration: return ( )
     extensions_raw = configuration.get( 'extensions', [ ] )
     if not isinstance( extensions_raw, list ):
-        raise _exceptions.ExtensionConfigError(
+        raise __.ExtensionConfigError(
             '<root>', "Configuration 'extensions' must be a list" )
     extensions_raw = __.typx.cast( list[ __.typx.Any ], extensions_raw )
     extensions: list[ ExtensionConfig ] = [ ]
     for i, ext_config in enumerate( extensions_raw ):
         if not isinstance( ext_config, dict ):
-            raise _exceptions.ExtensionConfigError(
+            raise __.ExtensionConfigError(
                 f'<extension[{i}]>',
                 "Extension configuration must be a dictionary" )
         ext_config_typed = __.typx.cast( ExtensionConfig, ext_config )

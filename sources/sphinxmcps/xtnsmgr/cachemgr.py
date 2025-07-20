@@ -24,7 +24,6 @@
 from . import __
 from . import importation as _importation
 from . import installation as _installation
-from .. import exceptions as _exceptions
 
 
 _scribe = __.acquire_scribe( __name__ )
@@ -44,8 +43,7 @@ class CacheInfo( __.immut.DataclassObject ):
         ''' Checks if cache entry has expired. '''
         return (
             __.datetime.datetime.now( ) - self.ctime
-            > __.datetime.timedelta( hours = self.ttl )
-        )
+            > __.datetime.timedelta( hours = self.ttl ) )
 
 
 def calculate_cache_path( specification: str ) -> __.Path:
@@ -168,16 +166,14 @@ def clear_package_cache( specification: str ) -> bool:
     return False
 
 
-async def ensure_package( 
-    specification: str 
+async def ensure_package(
+    specification: str
 ) -> __.typx.Annotated[
     None,
-    __.ddoc.Raises( 
-        _exceptions.ExtensionInstallationError, 'Install fails.' 
-    ),
-    __.ddoc.Raises( _exceptions.ExtensionConfigError, 'Invalid spec.' )
+    __.ddoc.Raises( __.ExtensionConfigError, 'Invalid spec.' ),
+    __.ddoc.Raises( __.ExtensionInstallationError, 'Install fails.' ),
 ]:
-    ''' Ensure package is installed and importable. '''
+    ''' Ensures package is installed and importable. '''
     cache_info = acquire_cache_info( specification )
     if cache_info and not cache_info.is_expired:
         _scribe.debug( f"Using cached package: {specification}." )
@@ -191,5 +187,5 @@ async def ensure_package(
 
 
 def invalidate( specification: str ) -> None:
-    ''' Remove package from cache, forcing reinstall on next ensure. '''
+    ''' Removes package from cache, forcing reinstall on next ensure. '''
     clear_package_cache( specification )
