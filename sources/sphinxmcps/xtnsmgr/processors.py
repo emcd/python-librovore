@@ -22,8 +22,8 @@
 
 
 from . import __
+from . import cachemgr as _cachemgr
 from . import configuration as _configuration
-from . import installation as _installation
 from . import importation as _importation
 
 
@@ -46,28 +46,24 @@ async def register_processors( auxdata: __.Globals ):
     external_extensions = tuple(
         ext for ext in active_extensions
         if ext.get( 'package' ) and ext not in intrinsic_extensions )
-    installations = await _install_packages( external_extensions )
-    if not intrinsic_extensions and not installations:
+    await _ensure_external_packages( external_extensions )
+    if not intrinsic_extensions and not external_extensions:
         _scribe.warning( "No processors could be loaded." )
         return
     for extension in active_extensions:
         _register_processor( extension )
 
 
-async def _install_packages(
+async def _ensure_external_packages(
     extensions: __.cabc.Sequence[ _configuration.ExtensionConfig ]
-) -> tuple[ __.Path, ... ]:
-    ''' Install external packages and update import paths. '''
-    if not extensions: return ( )
+) -> None:
+    ''' Ensure external packages are installed and importable. '''
+    if not extensions: return
     specifications = [ ext[ 'package' ] for ext in extensions ]
     count = len( specifications )
-    _scribe.info( "Installing {} external packages.".format( count ) )
-    install_results = (
-        await _installation.install_packages_parallel( specifications ) )
-    for result in install_results:
-        _importation.add_package_to_import_path( result )
-        _scribe.debug( f"Added to import path: {result}." )
-    return tuple( install_results )
+    _scribe.info( "Ensuring {} external packages available.".format( count ) )
+    for specification in specifications:
+        await _cachemgr.ensure_package( specification )
 
 
 def _register_processor(

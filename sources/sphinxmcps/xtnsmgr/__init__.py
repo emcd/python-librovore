@@ -42,6 +42,8 @@ from .cachemgr import (
     cleanup_expired_caches,
     clear_package_cache,
     acquire_cache_info,
+    ensure_package,
+    invalidate,
     save_cache_info,
 )
 from .configuration import (

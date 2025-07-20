@@ -22,6 +22,9 @@
 
 
 from . import __
+from . import importation as _importation
+from . import installation as _installation
+from .. import exceptions as _exceptions
 
 
 _scribe = __.acquire_scribe( __name__ )
@@ -163,3 +166,30 @@ def clear_package_cache( specification: str ) -> bool:
             _scribe.info( f"Cleared cache for package: {specification}" )
             return True
     return False
+
+
+async def ensure_package( 
+    specification: str 
+) -> __.typx.Annotated[
+    None,
+    __.ddoc.Raises( 
+        _exceptions.ExtensionInstallationError, 'Install fails.' 
+    ),
+    __.ddoc.Raises( _exceptions.ExtensionConfigError, 'Invalid spec.' )
+]:
+    ''' Ensure package is installed and importable. '''
+    cache_info = acquire_cache_info( specification )
+    if cache_info and not cache_info.is_expired:
+        _scribe.debug( f"Using cached package: {specification}." )
+        package_path = cache_info.location
+    else:
+        if cache_info and cache_info.is_expired:
+            _scribe.debug( f"Clearing expired cache for: {specification}." )
+            clear_package_cache( specification )
+        package_path = await _installation.install_package( specification )
+    _importation.add_package_to_import_path( package_path )
+
+
+def invalidate( specification: str ) -> None:
+    ''' Remove package from cache, forcing reinstall on next ensure. '''
+    clear_package_cache( specification )
