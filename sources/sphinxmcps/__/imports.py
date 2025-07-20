@@ -46,6 +46,7 @@ from pathlib import Path
 import                      appcore
 import accretive as         accret
 import dynadoc as           ddoc
+import exceptiongroup as    excg
 import frigid as            immut
 import typing_extensions as typx
 # --- BEGIN: Injected by Copier ---

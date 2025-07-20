@@ -37,9 +37,9 @@ def add_to_import_path( package_path: __.Path ) -> None:
     if path_str not in __.sys.path:
         __.sys.path.insert( 0, path_str )
         _added_paths.append( path_str )
-        _scribe.debug( f"Added to sys.path: {path_str}" )
+        _scribe.debug( f"Added to sys.path: {path_str}." )
     else:
-        _scribe.debug( f"Path already in sys.path: {path_str}" )
+        _scribe.debug( f"Path already in sys.path: {path_str}." )
 
 
 def remove_from_import_path( package_path: __.Path ) -> None:
@@ -49,7 +49,7 @@ def remove_from_import_path( package_path: __.Path ) -> None:
         __.sys.path.remove( path_str )
         if path_str in _added_paths:
             _added_paths.remove( path_str )
-        _scribe.debug( f"Removed from sys.path: {path_str}" )
+        _scribe.debug( f"Removed from sys.path: {path_str}." )
 
 
 def cleanup_import_paths( ) -> None:
@@ -59,7 +59,7 @@ def cleanup_import_paths( ) -> None:
         if path_str in __.sys.path:
             __.sys.path.remove( path_str )
         _added_paths.remove( path_str )
-        _scribe.debug( f"Cleaned up sys.path: {path_str}" )
+        _scribe.debug( f"Cleaned up sys.path: {path_str}." )
 
 
 def import_processor_module( module_name: str ) -> types.ModuleType:
@@ -70,23 +70,23 @@ def import_processor_module( module_name: str ) -> types.ModuleType:
         pass the module name directly.
     '''
     try:
-        _scribe.debug( f"Importing processor module: {module_name}" )
+        _scribe.debug( f"Importing processor module: {module_name}." )
         module = importlib.import_module( module_name )
     except ImportError as exc:
-        _scribe.error( f"Failed to import {module_name}: {exc}" )
+        _scribe.error( f"Failed to import {module_name}: {exc}." )
         raise
     else:
-        _scribe.info( f"Successfully imported: {module_name}" )
+        _scribe.info( f"Successfully imported: {module_name}." )
         return module
 
 
 def reload_processor_module( module_name: str ) -> types.ModuleType:
     ''' Reload a processor module if it's already imported. '''
     if module_name in __.sys.modules:
-        _scribe.debug( f"Reloading processor module: {module_name}" )
+        _scribe.debug( f"Reloading processor module: {module_name}." )
         module = __.sys.modules[ module_name ]
         return importlib.reload( module )
-    _scribe.debug( f"Module not yet imported, importing: {module_name}" )
+    _scribe.debug( f"Module not yet imported, importing: {module_name}." )
     return import_processor_module( module_name )
 
 

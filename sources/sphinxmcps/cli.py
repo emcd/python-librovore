@@ -250,8 +250,8 @@ class ServeCommand(
 
     port: CliPortArgument = None
     transport: CliTransportArgument = None
-    serve_function: __.typx.Callable[ 
-        [ __.Globals ], __.cabc.Awaitable[ None ] 
+    serve_function: __.typx.Callable[
+        [ __.Globals ], __.cabc.Awaitable[ None ]
     ] = _server.serve
     async def __call__(
         self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
@@ -293,7 +293,7 @@ class Cli(
             auxdata = await _prepare( exits = exits, **nomargs )
             # Load processors for CLI operations
             from . import xtnsmgr
-            await xtnsmgr.load_and_register_processors( auxdata )
+            await xtnsmgr.register_processors( auxdata )
             await self.command( auxdata = auxdata, display = self.display )
 
     def prepare_invocation_args(
@@ -349,11 +349,7 @@ async def _prepare(
         inscription = __.appcore.inscription.Control(
             level = 'debug', target = logstream )
         nomargs[ 'inscription' ] = inscription
-
     auxdata = await __.appcore.prepare( **nomargs )
-
-    # Initialize configuration system with auxdata
     from . import configuration as _configuration
     _configuration.initialize_configuration( auxdata )
-
     return auxdata

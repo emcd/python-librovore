@@ -23,8 +23,6 @@
 
 import uv as _uv
 
-from appcore import generics as _generics
-
 from . import __
 from . import cachemgr as _cachemgr
 from .. import exceptions as _exceptions
@@ -44,10 +42,10 @@ async def install_package(
     '''
     cache_info = _cachemgr.acquire_cache_info( specification )
     if cache_info and not cache_info.is_expired:
-        _scribe.debug( f"Using cached package: {specification}" )
+        _scribe.debug( f"Using cached package: {specification}." )
         return cache_info.location
     if cache_info and cache_info.is_expired:
-        _scribe.debug( f"Clearing expired cache for: {specification}" )
+        _scribe.debug( f"Clearing expired cache for: {specification}." )
         _cachemgr.clear_package_cache( specification )
     for attempt in range( max_retries + 1 ):
         try:
@@ -82,7 +80,7 @@ async def _install_with_uv( specification: str, cache_ttl: int ) -> __.Path:
         'install', '--target', str( cache_path ),
         specification
     ]
-    _scribe.info( f"Installing {specification} to {cache_path}" )
+    _scribe.info( f"Installing {specification} to {cache_path}." )
     try:
         process = await __.asyncio.create_subprocess_exec(
             *command,
@@ -108,41 +106,35 @@ async def _install_with_uv( specification: str, cache_ttl: int ) -> __.Path:
         platform_id = _cachemgr.calculate_platform_id( ),
         location = cache_path )
     _cachemgr.save_cache_info( cache_info )
-    _scribe.info( f"Successfully installed {specification}" )
+    _scribe.info( f"Successfully installed {specification}." )
     return cache_path
 
 
 async def install_packages_parallel(
-    specifications: list[ str ], *,
+    specifications: __.cabc.Sequence[ str ], *,
     max_retries: int = 3,
     cache_ttl: int = 24
-) -> list[ __.Path ]:
+) -> __.cabc.Sequence[ __.Path ]:
     ''' Installs multiple packages in parallel using gather_async.
 
-        Returns list of results - either Path objects for success or
-        Exception objects for failures.
+        Raises ExceptionGroup if any installations fail.
+        Returns list of installation paths for successful installations.
     '''
     if not specifications: return [ ]
-    install_tasks = [
+    installers = [
         install_package(
-            spec,
-            max_retries = max_retries,
-            cache_ttl = cache_ttl
-        )
-        for spec in specifications
-    ]
-    _scribe.info( f"Installing {len( specifications )} packages in parallel" )
-    results = await __.asyncf.gather_async(
-        *install_tasks, return_exceptions = True )
-    errors: list[ Exception ] = [ ]
-    locations: list[ __.Path ] = [ ]
-    for result in results:
-        match result:
-            case _generics.Error( error ): # pyright: ignore
-                errors.append( error ) # pyright: ignore
-            case _generics.Value( value ): # pyright: ignore
-                locations.append( value )  # pyright: ignore
-            case _: pass # TODO: Raise error. Should never reach.
-    # TODO? Raise exception group with any errors.
-    #       Or iterate over errors and log each as an error.
-    return locations
+            spec, max_retries = max_retries, cache_ttl = cache_ttl )
+        for spec in specifications ]
+    count = len( specifications )
+    _scribe.info( f"Installing {count} packages." )
+    try:
+        results = await __.asyncf.gather_async(
+            *installers, error_message = "Failed to install packages." )
+    except __.excg.ExceptionGroup as exc_group:
+        # Log individual package installation errors
+        for exc in exc_group.exceptions:
+            _scribe.error( f"Package installation failed: {exc}." )
+        raise
+    else:
+        _scribe.info( "Successfully installed all packages." )
+        return results

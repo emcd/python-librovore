@@ -43,6 +43,4 @@ from .cachemgr import (
     acquire_cache_info,
     save_cache_info,
 )
-from .processor_loader import (
-    load_and_register_processors,
-)
+from .processor_loader import *
