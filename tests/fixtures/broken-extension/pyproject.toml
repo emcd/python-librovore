@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "broken-extension"
+version = "1.0.0"
+description = "Intentionally broken package for error testing"
+authors = [{name = "Test", email = "test@example.com"}]
+requires-python = ">=3.10"
+dependencies = []
+
+# Intentionally malformed entry point for testing
+[project.entry-points."sphinx_processors"]
+broken_processor = "broken_extension:nonexistent_function"

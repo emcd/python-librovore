@@ -34,14 +34,14 @@ tests/fixtures/fake-extension/
 
 ### Test File Structure
 ```
-tests/test_000_sphinxmcps/test_600_xtnsmgr/
-├── test_010_installation.py    # Package installation testing
-├── test_020_cache_management.py # Cache behavior and TTL
-├── test_030_importation.py     # Import path and .pth processing
-├── test_040_configuration.py   # Extension config validation
-├── test_050_processors.py      # Processor loading and registration
-├── test_060_integration.py     # End-to-end scenarios
-└── test_070_error_handling.py  # Failure modes and recovery
+tests/test_000_sphinxmcps/
+├── test_610_configuration.py   # Extension config validation
+├── test_620_installation.py    # Package installation testing
+├── test_630_importation.py     # Import path and .pth processing
+├── test_640_cachemgr.py        # Cache behavior and TTL
+├── test_650_processors.py      # Processor loading and registration
+├── test_660_integration.py     # End-to-end scenarios
+└── test_670_error_handling.py  # Failure modes and recovery
 ```
 
 ### Test Infrastructure
@@ -52,7 +52,7 @@ tests/test_000_sphinxmcps/test_600_xtnsmgr/
 
 ## 3. Core Test Scenarios
 
-### Installation Testing (`test_010_installation.py`)
+### Installation Testing (`test_620_installation.py`)
 - **PEP 508 file:// URL Installation**: Local package installation via file URLs
 - **Parallel Installation**: Multiple packages installing concurrently
 - **Retry Logic**: Network failure simulation with exponential backoff
@@ -60,7 +60,7 @@ tests/test_000_sphinxmcps/test_600_xtnsmgr/
 - **Platform Isolation**: Ensure platform-specific cache separation
 - **TTL Behavior**: Cache expiration and refresh logic
 
-### Cache Management (`test_020_cache_management.py`)
+### Cache Management (`test_640_cachemgr.py`)
 - **Cache Path Calculation**: SHA256-based deterministic paths
 - **Platform ID Generation**: Correct platform identification
 - **Metadata Persistence**: Cache info saving and loading
@@ -68,7 +68,7 @@ tests/test_000_sphinxmcps/test_600_xtnsmgr/
 - **Cache Cleanup**: Expired cache removal
 - **Cache Corruption**: Invalid metadata handling and recovery
 
-### Import Management (`test_030_importation.py`)
+### Import Management (`test_630_importation.py`)
 - **sys.path Manipulation**: Correct path addition and removal
 - **.pth File Processing**: Various .pth file scenarios:
   - Simple path additions
@@ -79,21 +79,21 @@ tests/test_000_sphinxmcps/test_600_xtnsmgr/
 - **Module Import**: Successful processor module loading
 - **Import Cleanup**: Proper sys.path restoration
 
-### Configuration Testing (`test_040_configuration.py`)
+### Configuration Testing (`test_610_configuration.py`)
 - **Valid Configurations**: Proper extension config parsing
 - **Invalid Configurations**: Error handling for malformed configs
 - **Built-in vs External**: Correct classification and handling
 - **Argument Extraction**: Extension-specific argument passing
 - **Enable/Disable Logic**: Respect enabled/disabled status
 
-### Processor Management (`test_050_processors.py`)
+### Processor Management (`test_650_processors.py`)
 - **Registration Process**: End-to-end processor registration
 - **Built-in Processors**: Loading existing Sphinx processor
 - **External Processors**: Loading from installed packages
 - **Mixed Scenarios**: Built-in and external processors together
 - **Registration Failures**: Graceful handling of processor failures
 
-## 4. Integration Testing (`test_060_integration.py`)
+## 4. Integration Testing (`test_660_integration.py`)
 
 ### End-to-End Scenarios
 - **Complete Loading Pipeline**: Configuration → Installation → Import → Registration
@@ -107,7 +107,7 @@ tests/test_000_sphinxmcps/test_600_xtnsmgr/
 - **MCP Server Integration**: Extensions available in server context
 - **Error Propagation**: Proper error reporting to users
 
-## 5. Error Handling Testing (`test_070_error_handling.py`)
+## 5. Error Handling Testing (`test_670_error_handling.py`)
 
 ### Installation Failures
 - **Network Simulation**: Connection failures, timeouts
@@ -237,10 +237,16 @@ def test_cache_expiration(mock_datetime):
 
 ## 11. Implementation Phases
 
-### Phase 1: Infrastructure Setup
-- Create fake extension packages in `tests/fixtures/`
-- Set up test directories and isolation utilities
-- Implement basic test utilities and mock frameworks
+### Phase 1: Infrastructure Setup ✓ COMPLETED
+- ✓ Create fake extension packages in `tests/fixtures/`
+  - Created `tests/fixtures/fake-extension/` with working package structure
+  - Created `tests/fixtures/broken-extension/` for error testing
+- ✓ Set up test directories and isolation utilities
+  - Added `tests/test_000_sphinxmcps/test_utils.py` with helper functions
+  - Added numbered test files: `test_610_configuration.py`, `test_620_installation.py`
+- ✓ Implement basic test utilities and mock frameworks
+  - Added URL helpers for fake packages
+  - Added mock utilities for subprocess and time
 
 ### Phase 2: Unit Testing
 - Test individual xtnsmgr modules in isolation
