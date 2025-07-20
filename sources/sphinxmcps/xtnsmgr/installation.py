@@ -21,6 +21,10 @@
 ''' Async package installation for extensions. '''
 
 
+import uv as _uv
+
+from appcore import generics as _generics
+
 from . import __
 from . import cachemgr as _cachemgr
 from .. import exceptions as _exceptions
@@ -30,153 +34,115 @@ _scribe = __.acquire_scribe( __name__ )
 
 
 async def install_package(
-    package_spec: str, *,
+    specification: str, *,
     max_retries: int = 3,
-    cache_ttl_hours: int = 24
+    cache_ttl: int = 24
 ) -> __.Path:
-    ''' Install package asynchronously with retry logic.
-    
+    ''' Installs package asynchronously with retry logic.
+
         Returns path to installed package for sys.path manipulation.
     '''
-    # Check if package is already cached and valid
-    cache_info = _cachemgr.get_cache_info( package_spec )
+    cache_info = _cachemgr.acquire_cache_info( specification )
     if cache_info and not cache_info.is_expired:
-        _scribe.debug( f"Using cached package: {package_spec}" )
-        return cache_info.cache_path
-    
-    # Clear expired cache if present
+        _scribe.debug( f"Using cached package: {specification}" )
+        return cache_info.location
     if cache_info and cache_info.is_expired:
-        _scribe.debug( f"Clearing expired cache for: {package_spec}" )
-        _cachemgr.clear_package_cache( package_spec )
-    
-    # Install with retry logic
+        _scribe.debug( f"Clearing expired cache for: {specification}" )
+        _cachemgr.clear_package_cache( specification )
     for attempt in range( max_retries + 1 ):
         try:
-            return await _install_with_uv( package_spec, cache_ttl_hours )
+            return await _install_with_uv( specification, cache_ttl )
         except _exceptions.ExtensionInstallationError as exc:  # noqa: PERF203
             if attempt == max_retries:
                 _scribe.error(
-                    f"Failed to install {package_spec} after "
-                    f"{max_retries + 1} attempts: {exc}"
-                )
+                    f"Failed to install {specification} after "
+                    f"{max_retries + 1} attempts: {exc}" )
                 raise
-            
             # Exponential backoff
             delay = 2 ** attempt
             _scribe.warning(
                 f"Installation attempt {attempt + 1} failed for "
-                f"{package_spec}, retrying in {delay}s: {exc}"
-            )
+                f"{specification}, retrying in {delay}s: {exc}" )
             await __.asyncio.sleep( delay )
-    
-    # This should never be reached, but satisfy type checker
     raise _exceptions.ExtensionInstallationError(
-        package_spec, "Maximum retries exceeded"
-    )
+        specification, "Maximum retries exceeded" )
 
 
-async def _install_with_uv( 
-    package_spec: str, cache_ttl_hours: int 
-) -> __.Path:
-    ''' Install package using uv to isolated cache directory. '''
-    cache_path = _cachemgr.calculate_cache_path( package_spec )
+async def _install_with_uv( specification: str, cache_ttl: int ) -> __.Path:
+    ''' Installs package using uv to isolated cache directory. '''
+    cache_path = _cachemgr.calculate_cache_path( specification )
     cache_path.mkdir( parents = True, exist_ok = True )
-    
-    # Find uv executable
-    try:
-        import uv
-        uv_executable = uv.find_uv_bin( )
+    try: uv_executable = _uv.find_uv_bin( )
     except ImportError as exc:
         raise _exceptions.ExtensionInstallationError(
-            package_spec, f"uv not available: {exc}"
-        ) from exc
-    
-    # Install package using uv  
+            specification, f"uv not available: {exc}" ) from exc
     uv_exec_str: str = str( uv_executable )
     command: list[ str ] = [
         uv_exec_str, 'pip',
         'install', '--target', str( cache_path ),
-        package_spec
+        specification
     ]
-    
-    _scribe.info( f"Installing {package_spec} to {cache_path}" )
-    
+    _scribe.info( f"Installing {specification} to {cache_path}" )
     try:
         process = await __.asyncio.create_subprocess_exec(
             *command,
             stdout = __.asyncio.subprocess.PIPE,
-            stderr = __.asyncio.subprocess.PIPE
-        )
-        
-        stdout, stderr = await process.communicate( )
-        
-        if process.returncode != 0:
-            raise _exceptions.ExtensionInstallationError(
-                package_spec,
-                f"uv install failed (exit {process.returncode}): "
-                f"{stderr.decode( 'utf-8' )}"
-            )
-        
-        # Save cache metadata on success
-        cache_info = _cachemgr.CacheInfo(
-            package_spec = package_spec,
-            installed_at = __.datetime.datetime.now( ),
-            ttl_hours = cache_ttl_hours,
-            platform_id = _cachemgr.calculate_platform_id( ),
-            cache_path = cache_path
-        )
-        _cachemgr.save_cache_info( cache_info )
-        
-        _scribe.info( f"Successfully installed {package_spec}" )
-        return cache_path  # noqa: TRY300
-        
-    except __.asyncio.TimeoutError as exc:
-        raise _exceptions.ExtensionInstallationError(
-            package_spec, f"Installation timed out: {exc}"
-        ) from exc
+            stderr = __.asyncio.subprocess.PIPE )
     except OSError as exc:
         raise _exceptions.ExtensionInstallationError(
-            package_spec, f"Process execution failed: {exc}"
-        ) from exc
+            specification, f"Process execution failed: {exc}" ) from exc
+    try:
+        stdout, stderr = await process.communicate( )
+    except __.asyncio.TimeoutError as exc:
+        raise _exceptions.ExtensionInstallationError(
+            specification, f"Installation timed out: {exc}" ) from exc
+    if process.returncode != 0:
+        raise _exceptions.ExtensionInstallationError(
+            specification,
+            f"uv install failed (exit {process.returncode}): "
+            f"{stderr.decode( 'utf-8' )}" )
+    cache_info = _cachemgr.CacheInfo(
+        specification = specification,
+        ctime = __.datetime.datetime.now( ),
+        ttl = cache_ttl,
+        platform_id = _cachemgr.calculate_platform_id( ),
+        location = cache_path )
+    _cachemgr.save_cache_info( cache_info )
+    _scribe.info( f"Successfully installed {specification}" )
+    return cache_path
 
 
 async def install_packages_parallel(
-    package_specs: list[ str ], *,
+    specifications: list[ str ], *,
     max_retries: int = 3,
-    cache_ttl_hours: int = 24
-) -> list[ __.Path | Exception ]:
-    ''' Install multiple packages in parallel using gather_async.
-    
+    cache_ttl: int = 24
+) -> list[ __.Path ]:
+    ''' Installs multiple packages in parallel using gather_async.
+
         Returns list of results - either Path objects for success or
         Exception objects for failures.
     '''
-    if not package_specs:
-        return [ ]
-    
+    if not specifications: return [ ]
     install_tasks = [
         install_package(
             spec,
             max_retries = max_retries,
-            cache_ttl_hours = cache_ttl_hours
+            cache_ttl = cache_ttl
         )
-        for spec in package_specs
+        for spec in specifications
     ]
-    
-    _scribe.info( f"Installing {len( package_specs )} packages in parallel" )
-    
-    results_tuple = await __.asyncf.gather_async(
-        *install_tasks,
-        return_exceptions = True
-    )
-    results: list[ __.Path | Exception ] = list( results_tuple )
-    
-    # Log results
-    successes = sum( 1 for result in results if isinstance( result, __.Path ) )
-    failures = len( results ) - successes
-    
-    _scribe.info(
-        f"Parallel installation completed: {successes} successful, "
-        f"{failures} failed"
-    )
-    
-    return results
+    _scribe.info( f"Installing {len( specifications )} packages in parallel" )
+    results = await __.asyncf.gather_async(
+        *install_tasks, return_exceptions = True )
+    errors: list[ Exception ] = [ ]
+    locations: list[ __.Path ] = [ ]
+    for result in results:
+        match result:
+            case _generics.Error( error ): # pyright: ignore
+                errors.append( error ) # pyright: ignore
+            case _generics.Value( value ): # pyright: ignore
+                locations.append( value )  # pyright: ignore
+            case _: pass # TODO: Raise error. Should never reach.
+    # TODO? Raise exception group with any errors.
+    #       Or iterate over errors and log each as an error.
+    return locations

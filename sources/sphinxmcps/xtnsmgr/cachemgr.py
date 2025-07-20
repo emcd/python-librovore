@@ -28,41 +28,35 @@ _scribe = __.acquire_scribe( __name__ )
 
 
 class CacheInfo( __.immut.DataclassObject ):
-    ''' Information about a cached extension package. '''
+    ''' Information about cached extension package. '''
 
-    package_spec: str
-    installed_at: __.datetime.datetime
-    ttl_hours: int
+    specification: str
+    location: __.Path
+    ctime: __.datetime.datetime
+    ttl: int # hours
     platform_id: str
-    cache_path: __.Path
 
     @property
     def is_expired( self ) -> bool:
-        ''' Check if cache entry has expired based on TTL. '''
+        ''' Checks if cache entry has expired. '''
         return (
-            __.datetime.datetime.now( ) - self.installed_at
-            > __.datetime.timedelta( hours = self.ttl_hours )
+            __.datetime.datetime.now( ) - self.ctime
+            > __.datetime.timedelta( hours = self.ttl )
         )
 
 
-def calculate_cache_path( package_spec: str ) -> __.Path:
-    ''' Calculate cache path for a package specification. '''
-    # Base cache directory
+def calculate_cache_path( specification: str ) -> __.Path:
+    ''' Calculates cache path for package specification. '''
     base_dir = __.Path( '.auxiliary/caches/extensions' )
-    
-    # Create SHA256 hash of package spec for deterministic path
     hasher = __.hashlib.sha256( )
-    hasher.update( package_spec.encode( 'utf-8' ) )
+    hasher.update( specification.encode( 'utf-8' ) )
     package_hash = hasher.hexdigest( )
-    
-    # Platform-specific subdirectory
     platform_id = calculate_platform_id( )
-    
     return base_dir / package_hash / platform_id
 
 
 def calculate_platform_id( ) -> str:
-    ''' Calculate platform identifier for package cache paths.
+    ''' Calculates platform identifier for package cache paths.
 
         Format: {python_impl}-{python_ver}--{os_name}--{cpu_arch}
 
@@ -73,8 +67,6 @@ def calculate_platform_id( ) -> str:
     implementation = __.sys.implementation.name
     version = '.'.join( map( str, __.sys.version_info[ : 2 ] ) )
     implementation_version = ''
-    
-    # Add implementation-specific version info
     match implementation:
         case 'pypy':
             implementation_version = '-' + '.'.join(
@@ -84,116 +76,90 @@ def calculate_platform_id( ) -> str:
             pass
         case _:
             pass
-    
     os_name = __.platform.system( ).lower( )
     cpu_architecture = __.platform.machine( ).lower( )
-    
     return (
         f"{implementation}-{version}{implementation_version}"
-        f"--{os_name}--{cpu_architecture}"
-    )
+        f"--{os_name}--{cpu_architecture}" )
 
 
-def get_cache_info( package_spec: str ) -> CacheInfo | None:
-    ''' Get cache information for a package if it exists. '''
-    cache_path = calculate_cache_path( package_spec )
+def acquire_cache_info( specification: str ) -> CacheInfo | None:
+    ''' Acquires cache information for a package, if it exists. '''
+    cache_path = calculate_cache_path( specification )
     metadata_file = cache_path / '.cache_metadata.json'
-    
-    if not metadata_file.exists( ):
-        return None
-    
+    if not metadata_file.exists( ): return None
     try:
         with metadata_file.open( 'r', encoding = 'utf-8' ) as f:
             metadata = __.json.load( f )
-        
         return CacheInfo(
-            package_spec = metadata[ 'package_spec' ],
-            installed_at = __.datetime.datetime.fromisoformat(
+            specification = metadata[ 'package_spec' ],
+            ctime = __.datetime.datetime.fromisoformat(
                 metadata[ 'installed_at' ]
             ),
-            ttl_hours = metadata[ 'ttl_hours' ],
+            ttl = metadata[ 'ttl_hours' ],
             platform_id = metadata[ 'platform_id' ],
-            cache_path = cache_path
-        )
+            location = cache_path )
     except ( __.json.JSONDecodeError, KeyError, ValueError ) as exc:
         _scribe.warning(
-            f"Invalid cache metadata for {package_spec}: {exc}"
-        )
+            f"Invalid cache metadata for {specification}: {exc}" )
         return None
 
 
 def save_cache_info( cache_info: CacheInfo ) -> None:
-    ''' Save cache information to metadata file. '''
-    metadata_file = cache_info.cache_path / '.cache_metadata.json'
+    ''' Saves cache information to metadata file. '''
+    metadata_file = cache_info.location / '.cache_metadata.json'
     metadata_file.parent.mkdir( parents = True, exist_ok = True )
-    
     metadata: dict[ str, str | int ] = {
-        'package_spec': cache_info.package_spec,
-        'installed_at': cache_info.installed_at.isoformat( ),
-        'ttl_hours': cache_info.ttl_hours,
+        'package_spec': cache_info.specification,
+        'installed_at': cache_info.ctime.isoformat( ),
+        'ttl_hours': cache_info.ttl,
         'platform_id': cache_info.platform_id
     }
-    
     with metadata_file.open( 'w', encoding = 'utf-8' ) as f:
         __.json.dump( metadata, f, indent = 2 )
 
 
-def cleanup_expired_caches( ttl_hours: int = 24 ) -> None:
-    ''' Remove expired cache entries. '''
+def cleanup_expired_caches( ttl: int = 24 ) -> None:
+    ''' Removes expired cache entries. '''
     base_dir = __.Path( '.auxiliary/caches/extensions' )
-    if not base_dir.exists( ):
-        return
-    
+    if not base_dir.exists( ): return
     for package_dir in base_dir.iterdir( ):
-        if not package_dir.is_dir( ):
-            continue
-        
+        if not package_dir.is_dir( ): continue
         for platform_dir in package_dir.iterdir( ):
-            if not platform_dir.is_dir( ):
-                continue
-            
+            if not platform_dir.is_dir( ): continue
             metadata_file = platform_dir / '.cache_metadata.json'
-            if not metadata_file.exists( ):
-                continue
-            
+            if not metadata_file.exists( ): continue
             try:
                 with metadata_file.open( 'r', encoding = 'utf-8' ) as f:
                     metadata = __.json.load( f )
-                
                 installed_at = __.datetime.datetime.fromisoformat(
-                    metadata[ 'installed_at' ]
-                )
-                cache_ttl = metadata.get( 'ttl_hours', ttl_hours )
-                
+                    metadata[ 'installed_at' ] )
+                cache_ttl = metadata.get( 'ttl_hours', ttl )
                 if ( __.datetime.datetime.now( ) - installed_at
-                     > __.datetime.timedelta( hours = cache_ttl ) ):
+                     > __.datetime.timedelta( hours = cache_ttl )
+                ):
                     _scribe.info( f"Removing expired cache: {platform_dir}" )
-                    __.subprocess.run(
-                        [ 'rm', '-rf', str( platform_dir ) ],
-                        check = True
-                    )
-                
-            except ( __.json.JSONDecodeError, KeyError, ValueError,
-                    __.subprocess.CalledProcessError ) as exc:
-                _scribe.warning( 
+                    __.shutil.rmtree( platform_dir )
+            except (
+                KeyError, ValueError,
+                __.json.JSONDecodeError,
+                OSError,
+            ) as exc:
+                _scribe.warning(
                     f"Error processing cache {platform_dir}: {exc}" )
 
 
-def clear_package_cache( package_spec: str ) -> bool:
-    ''' Clear cache for a specific package. Returns True if found. '''
-    cache_path = calculate_cache_path( package_spec )
-    
+def clear_package_cache( specification: str ) -> bool:
+    ''' Clears cache for specific package. Returns True if found. '''
+    cache_path = calculate_cache_path( specification )
     if cache_path.exists( ):
         try:
-            __.subprocess.run(
-                [ 'rm', '-rf', str( cache_path ) ],
-                check = True
-            )
-        except __.subprocess.CalledProcessError as exc:
-            _scribe.error( f"Failed to clear cache for {package_spec}: {exc}" )
+            __.shutil.rmtree( cache_path )
+        except OSError as exc:
+            _scribe.error(
+                f"Failed to clear cache for {specification}: {exc}" )
             return False
         else:
-            _scribe.info( f"Cleared cache for package: {package_spec}" )
+            _scribe.info( f"Cleared cache for package: {specification}" )
             return True
-    
     return False

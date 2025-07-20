@@ -20,6 +20,7 @@ dependencies = [
   'beautifulsoup4',
   'dynadoc~=1.3',
   'emcd-appcore~=1.1',
+  'exceptiongroup',
   'frigid~=4.1',
   'httpx',
   'lxml',

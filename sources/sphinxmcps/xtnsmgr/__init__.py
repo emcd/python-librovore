@@ -40,7 +40,7 @@ from .cachemgr import (
     calculate_platform_id,
     cleanup_expired_caches,
     clear_package_cache,
-    get_cache_info,
+    acquire_cache_info,
     save_cache_info,
 )
 from .processor_loader import (

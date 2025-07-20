@@ -22,113 +22,78 @@
 
 
 from . import __
-from .. import configuration as _configuration
-from .. import xtnsapi as _xtnsapi
+from . import installation as _installation
+from . import isolation as _isolation
 
 
 _scribe = __.acquire_scribe( __name__ )
 
 
-async def _install_external_packages( 
-    external_extensions: list[ __.ExtensionConfig ], 
-    scribe: __.typx.Any
-) -> list[ __.Path | Exception ]:
+async def _install_external_packages(
+    external_extensions: list[ __.ExtensionConfig ]
+) -> list[ __.Path ]:
     ''' Install external packages and update import paths. '''
-    from . import installation
-    from . import isolation
-    
-    if not external_extensions:
-        return [ ]
-    
+    if not external_extensions: return [ ]
     package_specs = [ ext[ 'package' ] for ext in external_extensions ]
-    scribe.info( f"Installing {len( package_specs )} external packages" )
-    
-    install_results = await installation.install_packages_parallel( 
-        package_specs )
-    
-    # Process installation results and update import paths
+    _scribe.info( f"Installing {len( package_specs )} external packages" )
+    install_results = (
+        await _installation.install_packages_parallel( package_specs ) )
     for ext_config, result in zip( external_extensions, install_results ):
         if isinstance( result, Exception ):
-            scribe.error(
-                f"Failed to install {ext_config[ 'package' ]}: {result}"
-            )
+            _scribe.error(
+                f"Failed to install {ext_config[ 'package' ]}: {result}" )
             continue
-        
-        # Add successful installation to import path
-        isolation.add_to_import_path( result )
-        scribe.debug( f"Added to import path: {result}" )
-    
+        _isolation.add_to_import_path( result )
+        _scribe.debug( f"Added to import path: {result}" )
     return install_results
 
 
-def _register_processor( 
-    ext_config: __.ExtensionConfig, 
-    builtin_extensions: list[ __.ExtensionConfig ], 
-    scribe: __.typx.Any
+def _register_processor(
+    ext_config: __.ExtensionConfig,
+    builtin_extensions: list[ __.ExtensionConfig ]
 ) -> None:
     ''' Register a single processor from configuration. '''
-    from . import isolation
-    
     name = ext_config[ 'name' ]
-    arguments = _configuration.get_extension_arguments( ext_config )
-    
+    arguments = __.get_extension_arguments( ext_config )
     try:
-        # Check if this is a builtin or external processor
         if ext_config in builtin_extensions:
-            # Builtin processor - construct path using package_name
             module_name = f"{__.package_name}.processors.{name}"
-            module = isolation.import_processor_module( module_name )
-        else:
-            # External processor - import by name
-            module = isolation.import_processor_module( name )
-        
+            module = _isolation.import_processor_module( module_name )
+        else: module = _isolation.import_processor_module( name )
         processor = module.register( arguments )
-        _xtnsapi.processors[ name ] = processor
-        scribe.info( f"Registered processor: {name}" )
-        
+        __.processors[ name ] = processor
+        _scribe.info( f"Registered processor: {name}" )
     except Exception as exc:
-        scribe.error( f"Failed to load processor {name}: {exc}" )
+        _scribe.error( f"Failed to load processor {name}: {exc}" )
 
 
 async def load_and_register_processors( auxdata: __.typx.Any = None ):
     ''' Load and register processors based on configuration. '''
-    scribe = __.acquire_scribe( __name__ )
-    
     try:
-        extensions = _configuration.load_extensions_config( auxdata )
-        enabled_extensions = _configuration.get_enabled_extensions(
-            extensions )
-        
-        if not enabled_extensions:
-            scribe.warning( "No enabled extensions found in configuration" )
-            return
-        
-        # Separate builtin vs external extensions
-        builtin_extensions = _configuration.get_builtin_extensions(
-            enabled_extensions )
-        external_extensions = [
-            ext for ext in enabled_extensions
-            if ext.get( 'package' ) and ext not in builtin_extensions
-        ]
-        
-        # Install external packages in parallel if any exist
-        install_results = await _install_external_packages(
-            external_extensions, scribe )
-        
-        # Load all processors (builtin + successfully installed external)
-        successful_external: list[ __.ExtensionConfig ] = [
-            ext for ext, result in zip( external_extensions, install_results )
-            if isinstance( result, __.Path )
-        ] if external_extensions else [ ]
-        all_extensions = builtin_extensions + successful_external
-        
-        if not all_extensions:
-            scribe.warning( "No processors could be loaded" )
-            return
-        
-        for ext_config in all_extensions:
-            _register_processor( ext_config, builtin_extensions, scribe )
-            
+        extensions = __.load_extensions_config( auxdata )
     except Exception as exc:
-        scribe.error( f"Configuration loading failed: {exc}" )
-        scribe.warning( "No processors loaded due to configuration errors" )
+        _scribe.error( f"Configuration loading failed: {exc}" )
+        _scribe.warning( "No processors loaded due to configuration errors" )
+        return
+    enabled_extensions = __.get_enabled_extensions( extensions )
+    if not enabled_extensions:
+        _scribe.warning( "No enabled extensions found in configuration" )
+        return
+    builtin_extensions = __.get_builtin_extensions( enabled_extensions )
+    external_extensions = [
+        ext for ext in enabled_extensions
+        if ext.get( 'package' ) and ext not in builtin_extensions
+    ]
+    install_results = (
+        await _install_external_packages( external_extensions ) )
+    # Load all processors (builtin + successfully installed external)
+    successful_external: list[ __.ExtensionConfig ] = [
+        ext for ext, result in zip( external_extensions, install_results )
+        if isinstance( result, __.Path )
+    ] if external_extensions else [ ]
+    all_extensions = builtin_extensions + successful_external
+    if not all_extensions:
+        _scribe.warning( "No processors could be loaded" )
+        return
+    for ext_config in all_extensions:
+        _register_processor( ext_config, builtin_extensions )
