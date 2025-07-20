@@ -28,5 +28,4 @@ import shutil
 from appcore import asyncf
 
 from ..__ import *
-from ..configuration import *
 from ..xtnsapi import *

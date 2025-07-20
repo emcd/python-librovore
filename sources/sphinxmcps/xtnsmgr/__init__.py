@@ -43,4 +43,14 @@ from .cachemgr import (
     acquire_cache_info,
     save_cache_info,
 )
-from .processor_loader import *
+from .configuration import (
+    ExtensionArguments,
+    ExtensionConfig,
+    select_intrinsic_extensions,
+    select_active_extensions,
+    extract_extension_arguments,
+    select_external_extensions,
+    extract_extensions,
+    validate_extension,
+)
+from .processors import *
