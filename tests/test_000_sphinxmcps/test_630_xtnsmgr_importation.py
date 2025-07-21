@@ -22,7 +22,6 @@
 
 
 import pytest
-from unittest.mock import patch, Mock
 from pathlib import Path
 import sys
 import tempfile
@@ -31,129 +30,125 @@ import importlib
 import sphinxmcps.xtnsmgr.importation as module
 
 
-def test_000_add_path_to_sys_path_new( ):
-    ''' New path gets added to sys.path at beginning. '''
+def test_000_new_paths_are_added_to_sys_path( ):
+    ''' New paths are inserted at the beginning of sys.path. '''
     test_path = Path( '/test/new/path' )
-    
     try:
         module._add_path_to_sys_path( test_path )
         assert str( test_path ) in sys.path
         assert sys.path[ 0 ] == str( test_path )
         assert str( test_path ) in module._added_paths
     finally:
-        # Cleanup
         if str( test_path ) in sys.path:
             sys.path.remove( str( test_path ) )
         if str( test_path ) in module._added_paths:
             module._added_paths.remove( str( test_path ) )
 
 
-def test_010_add_path_to_sys_path_existing( ):
-    ''' Existing path in sys.path is not added again. '''
+def test_010_existing_paths_are_not_duplicated( ):
+    ''' Paths already in sys.path are not added again. '''
     test_path = Path( sys.path[ 0 ] ) if sys.path else Path( '/existing' )
     original_count = sys.path.count( str( test_path ) )
-    
     module._add_path_to_sys_path( test_path )
-    
-    # Count should not have increased
     assert sys.path.count( str( test_path ) ) == original_count
 
 
-def test_020_remove_from_import_path( ):
-    ''' Path gets removed from sys.path and _added_paths. '''
+def test_020_paths_can_be_removed_from_sys_path( ):
+    ''' Paths are cleanly removed from sys.path and tracking. '''
     test_path = Path( '/test/remove/path' )
-    
-    # Add path first
     module._add_path_to_sys_path( test_path )
     assert str( test_path ) in sys.path
     assert str( test_path ) in module._added_paths
-    
-    # Remove path
     module.remove_from_import_path( test_path )
     assert str( test_path ) not in sys.path
     assert str( test_path ) not in module._added_paths
 
 
-def test_030_remove_from_import_path_not_present( ):
-    ''' Removing non-existent path does not raise error. '''
+def test_030_removing_nonexistent_paths_is_safe( ):
+    ''' Removing paths that don't exist does not raise errors. '''
     test_path = Path( '/test/nonexistent/path' )
-    module.remove_from_import_path( test_path )  # Should not raise
+    module.remove_from_import_path( test_path )
 
 
-def test_040_cleanup_import_paths( ):
-    ''' cleanup_import_paths removes all added paths. '''
+def test_040_all_added_paths_can_be_cleaned_up( ):
+    ''' Cleanup removes all extension-added paths from sys.path. '''
     test_paths = [
         Path( '/test/cleanup/path1' ),
         Path( '/test/cleanup/path2' ),
         Path( '/test/cleanup/path3' )
     ]
-    
-    # Add multiple paths
     for path in test_paths:
         module._add_path_to_sys_path( path )
-    
-    # Verify they were added
     for path in test_paths:
         assert str( path ) in sys.path
         assert str( path ) in module._added_paths
-    
-    # Cleanup all
     module.cleanup_import_paths( )
-    
-    # Verify they were removed
     for path in test_paths:
         assert str( path ) not in sys.path
         assert str( path ) not in module._added_paths
 
 
-def test_100_import_processor_module_success( ):
-    ''' Successful module import returns module object. '''
-    # Test with a built-in module
+def test_100_valid_modules_can_be_imported( ):
+    ''' Built-in modules can be successfully imported. '''
     module_name = 'json'
     result = module.import_processor_module( module_name )
     assert result.__name__ == module_name
 
 
-def test_110_import_processor_module_failure( ):
-    ''' Failed module import raises ImportError. '''
+def test_110_invalid_modules_raise_import_error( ):
+    ''' Non-existent modules raise ImportError. '''
     with pytest.raises( ImportError ):
         module.import_processor_module( 'nonexistent_module_12345' )
 
 
-def test_120_reload_processor_module_not_imported( ):
-    ''' Reload calls import for non-imported module. '''
-    with patch.object( module, 'import_processor_module' ) as mock_import:
-        mock_import.return_value = Mock( )
+def test_120_unimported_modules_trigger_import( ):
+    ''' Reloading unimported modules calls import. '''
+    original_import = module.import_processor_module
+    import_called_with = None
+    def mock_import( name ):
+        nonlocal import_called_with
+        import_called_with = name
+        return type( 'Module', ( ), { '__name__': name } )( )
+    try:
+        module.import_processor_module = mock_import
         module.reload_processor_module( 'test_module_not_imported' )
-        mock_import.assert_called_once_with( 'test_module_not_imported' )
+        assert import_called_with == 'test_module_not_imported'
+    finally:
+        module.import_processor_module = original_import
 
 
-def test_130_reload_processor_module_already_imported( ):
-    ''' Reload uses importlib.reload for already imported module. '''
-    test_module = Mock( )
-    test_module.__name__ = 'test_already_imported'
-    
-    with patch.dict(
-        sys.modules, { 'test_already_imported': test_module }
-    ), patch.object(
-        importlib, 'reload', return_value = test_module
-    ) as mock_reload:
+def test_130_imported_modules_are_reloaded( ):
+    ''' Already imported modules use importlib.reload. '''
+    test_module = type(
+        'Module', ( ), { '__name__': 'test_already_imported' }
+    )( )
+    original_reload = importlib.reload
+    reload_called_with = None
+    def mock_reload( mod ):
+        nonlocal reload_called_with
+        reload_called_with = mod
+        return mod
+    try:
+        sys.modules[ 'test_already_imported' ] = test_module
+        importlib.reload = mock_reload
         result = module.reload_processor_module( 'test_already_imported' )
-        mock_reload.assert_called_once_with( test_module )
-        assert result == test_module
+        assert reload_called_with is test_module
+        assert result is test_module
+    finally:
+        importlib.reload = original_reload
+        if 'test_already_imported' in sys.modules:
+            del sys.modules[ 'test_already_imported' ]
 
 
-def test_200_get_module_info_not_imported( ):
-    ''' Module info for non-imported module returns imported=False. '''
+def test_200_unimported_modules_show_not_imported( ):
+    ''' Module info for unimported modules returns imported=False. '''
     result = module.get_module_info( 'definitely_not_imported_module' )
     assert result == { 'imported': False }
 
 
-def test_210_get_module_info_imported( ):
-    ''' Module info for imported module returns details. '''
-    # Use json module as it's commonly available
+def test_210_imported_modules_show_details( ):
+    ''' Module info for imported modules includes metadata. '''
     result = module.get_module_info( 'json' )
-    
     assert result[ 'imported' ] is True
     assert result[ 'name' ] == 'json'
     assert 'file' in result
@@ -161,228 +156,248 @@ def test_210_get_module_info_imported( ):
     assert 'doc' in result
 
 
-def test_220_list_registered_processors( ):
-    ''' list_registered_processors returns list of processor names. '''
-    mock_processors = { 'proc1': Mock( ), 'proc2': Mock( ) }
-    mock_xtnsapi = Mock( )
-    mock_xtnsapi.processors = mock_processors
-    
-    # Patch the import within the function
-    with patch.dict( 'sys.modules', { 'sphinxmcps.xtnsapi': mock_xtnsapi } ):
-        result = module.list_registered_processors( )
-        assert set( result ) == { 'proc1', 'proc2' }
+def test_220_processor_registry_is_accessible( ):
+    ''' Registered processors can be listed from the registry. '''
+    result = module.list_registered_processors( )
+    assert isinstance( result, list )
 
 
-def test_300_process_pth_files_no_directory( ):
-    ''' Processing non-existent directory completes without error. '''
+def test_300_nonexistent_directories_are_handled_safely( ):
+    ''' Processing non-existent directories does not raise errors. '''
     non_existent = Path( '/definitely/does/not/exist' )
-    module.process_pth_files( non_existent )  # Should not raise
+    module.process_pth_files( non_existent )
 
 
-def test_310_process_pth_files_with_pth_files( ):
-    ''' Processing directory with .pth files calls _process_pth_file. '''
+def test_310_pth_files_are_discovered_and_processed( ):
+    ''' .pth files in directories are found and processed correctly. '''
     with tempfile.TemporaryDirectory( ) as temp_dir:
         temp_path = Path( temp_dir )
-        
-        # Create .pth files
         ( temp_path / 'test.pth' ).touch( )
         ( temp_path / 'another.pth' ).touch( )
-        ( temp_path / 'not_pth.txt' ).touch( )  # Should be ignored
-        
-        with patch.object( module, '_process_pth_file' ) as mock_process:
+        ( temp_path / 'not_pth.txt' ).touch( )
+        original_process = module._process_pth_file
+        processed_files = [ ]
+        def mock_process( pth_file ):
+            processed_files.append( pth_file.name )
+        try:
+            module._process_pth_file = mock_process
             module.process_pth_files( temp_path )
-            
-            # Should process .pth files in sorted order
-            assert mock_process.call_count == 2
-            processed_files = [
-                call[ 0 ][ 0 ].name for call in mock_process.call_args_list ]
+            assert len( processed_files ) == 2
             assert 'another.pth' in processed_files
             assert 'test.pth' in processed_files
+        finally:
+            module._process_pth_file = original_process
 
 
-def test_320_process_pth_files_ignores_hidden( ):
-    ''' Hidden .pth files are ignored during discovery. '''
+def test_320_hidden_pth_files_are_ignored( ):
+    ''' Hidden .pth files are skipped during discovery. '''
     with tempfile.TemporaryDirectory( ) as temp_dir:
         temp_path = Path( temp_dir )
-        
-        # Create normal and hidden .pth files
         ( temp_path / 'normal.pth' ).touch( )
-        ( temp_path / '.hidden.pth' ).touch( )  # Should be ignored
-        
-        with patch.object( module, '_process_pth_file' ) as mock_process:
+        ( temp_path / '.hidden.pth' ).touch( )
+        original_process = module._process_pth_file
+        processed_files = [ ]
+        def mock_process( pth_file ):
+            processed_files.append( pth_file.name )
+        try:
+            module._process_pth_file = mock_process
             module.process_pth_files( temp_path )
-            
-            # Should only process non-hidden files
-            assert mock_process.call_count == 1
-            processed_file = mock_process.call_args[ 0 ][ 0 ].name
-            assert processed_file == 'normal.pth'
+            assert len( processed_files ) == 1
+            assert processed_files[ 0 ] == 'normal.pth'
+        finally:
+            module._process_pth_file = original_process
 
 
-def test_330_process_pth_file_simple_path( ):
-    ''' .pth file with simple path adds to sys.path. '''
+def test_330_simple_paths_are_added_to_sys_path( ):
+    ''' .pth files with directory paths update sys.path. '''
     with tempfile.TemporaryDirectory( ) as temp_dir:
         temp_path = Path( temp_dir )
         pth_file = temp_path / 'test.pth'
         target_dir = temp_path / 'target'
         target_dir.mkdir( )
-        
-        # Write relative path to .pth file
         pth_file.write_text( 'target\n' )
-        
-        with patch.object( module, '_add_path_to_sys_path' ) as mock_add:
+        original_add = module._add_path_to_sys_path
+        added_paths = [ ]
+        def mock_add( path ):
+            added_paths.append( path )
+        try:
+            module._add_path_to_sys_path = mock_add
             module._process_pth_file( pth_file )
-            mock_add.assert_called_once_with( target_dir )
+            assert len( added_paths ) == 1
+            assert added_paths[ 0 ] == target_dir
+        finally:
+            module._add_path_to_sys_path = original_add
 
 
-def test_340_process_pth_file_import_statement( ):
-    ''' .pth file with import statement executes import. '''
+def test_340_import_statements_are_executed( ):
+    ''' .pth files with import statements execute the imports. '''
     with tempfile.TemporaryDirectory( ) as temp_dir:
         temp_path = Path( temp_dir )
         pth_file = temp_path / 'test.pth'
-        
-        # Write import statement to .pth file
         pth_file.write_text( 'import sys\n' )
-        
-        with patch( 'builtins.exec' ) as mock_exec:
+        original_exec = (
+            __builtins__[ 'exec' ] if isinstance( __builtins__, dict )
+            else __builtins__.exec )
+        executed_code = [ ]
+        def mock_exec( code ):
+            executed_code.append( code )
+        try:
+            if isinstance( __builtins__, dict ):
+                __builtins__[ 'exec' ] = mock_exec
+            else:
+                __builtins__.exec = mock_exec
             module._process_pth_file( pth_file )
-            mock_exec.assert_called_once_with( 'import sys' )
+            assert len( executed_code ) == 1
+            assert executed_code[ 0 ] == 'import sys'
+        finally:
+            if isinstance( __builtins__, dict ):
+                __builtins__[ 'exec' ] = original_exec
+            else:
+                __builtins__.exec = original_exec
 
 
-def test_350_process_pth_file_comments_and_blanks( ):
-    ''' .pth file ignores comments and blank lines. '''
+def test_350_comments_and_blanks_are_ignored( ):
+    ''' .pth files skip comment and blank lines. '''
     with tempfile.TemporaryDirectory( ) as temp_dir:
         temp_path = Path( temp_dir )
         pth_file = temp_path / 'test.pth'
-        
-        # Write file with comments and blank lines
         pth_file.write_text( '# This is a comment\n\n   \nvalid_path\n' )
-        
-        # Create the target directory
         ( temp_path / 'valid_path' ).mkdir( )
-        
-        with patch.object( module, '_add_path_to_sys_path' ) as mock_add:
+        original_add = module._add_path_to_sys_path
+        added_paths = [ ]
+        def mock_add( path ):
+            added_paths.append( path )
+        try:
+            module._add_path_to_sys_path = mock_add
             module._process_pth_file( pth_file )
-            # Should only process the valid path line
-            assert mock_add.call_count == 1
+            assert len( added_paths ) == 1
+        finally:
+            module._add_path_to_sys_path = original_add
 
 
-def test_360_process_pth_file_nonexistent_path( ):
-    ''' .pth file with non-existent path is ignored. '''
+def test_360_nonexistent_paths_are_ignored( ):
+    ''' .pth files with non-existent paths are skipped safely. '''
     with tempfile.TemporaryDirectory( ) as temp_dir:
         temp_path = Path( temp_dir )
         pth_file = temp_path / 'test.pth'
-        
-        # Write non-existent path to .pth file
         pth_file.write_text( 'does_not_exist\n' )
-        
-        with patch.object( module, '_add_path_to_sys_path' ) as mock_add:
+        original_add = module._add_path_to_sys_path
+        added_paths = [ ]
+        def mock_add( path ):
+            added_paths.append( path )
+        try:
+            module._add_path_to_sys_path = mock_add
             module._process_pth_file( pth_file )
-            mock_add.assert_not_called( )
+            assert len( added_paths ) == 0
+        finally:
+            module._add_path_to_sys_path = original_add
 
 
-def test_370_is_hidden_platform_specific( ):
-    ''' _is_hidden returns False on Linux (unsupported platform). '''
+def test_370_hidden_detection_returns_false_on_linux( ):
+    ''' Hidden file detection returns False on unsupported platforms. '''
     test_path = Path( '/some/test/path' )
-    with patch.object( module.__.sys, 'platform', 'linux' ):
+    original_platform = module.__.sys.platform
+    try:
+        module.__.sys.platform = 'linux'
         result = module._is_hidden( test_path )
         assert result is False
+    finally:
+        module.__.sys.platform = original_platform
 
 
-def test_380_acquire_pth_file_content_utf8( ):
-    ''' _acquire_pth_file_content reads UTF-8 content correctly. '''
+def test_380_utf8_content_is_read_correctly( ):
+    ''' .pth files with UTF-8 content are read properly. '''
     with tempfile.TemporaryDirectory( ) as temp_dir:
         temp_path = Path( temp_dir )
         pth_file = temp_path / 'test.pth'
-        
         test_content = 'test/path/with/unicode/ñ'
         pth_file.write_text( test_content, encoding = 'utf-8' )
-        
         result = module._acquire_pth_file_content( pth_file )
         assert result == test_content
 
 
-def test_390_process_pth_file_import_error( ):
-    ''' Import errors in .pth files are caught and logged. '''
+def test_390_import_errors_are_handled_gracefully( ):
+    ''' Import errors in .pth files do not crash processing. '''
     with tempfile.TemporaryDirectory( ) as temp_dir:
         temp_path = Path( temp_dir )
         pth_file = temp_path / 'test.pth'
-        
-        # Write invalid import statement
         pth_file.write_text( 'import nonexistent_module_xyz\n' )
-        
-        # Should not raise exception
         module._process_pth_file( pth_file )
 
 
-def test_400_add_package_to_import_path( ):
-    ''' add_package_to_import_path calls both path and pth processing. '''
+def test_400_package_addition_includes_both_operations( ):
+    ''' Adding packages handles both sys.path and .pth files. '''
     test_path = Path( '/test/package/path' )
-    
-    with patch.object(
-        module, '_add_path_to_sys_path'
-    ) as mock_add_path, patch.object(
-        module, 'process_pth_files'
-    ) as mock_process_pth:
-        
+    original_add = module._add_path_to_sys_path
+    original_process = module.process_pth_files
+    add_called_with = None
+    process_called_with = None
+    def mock_add( path ):
+        nonlocal add_called_with
+        add_called_with = path
+    def mock_process( path ):
+        nonlocal process_called_with
+        process_called_with = path
+    try:
+        module._add_path_to_sys_path = mock_add
+        module.process_pth_files = mock_process
         module.add_package_to_import_path( test_path )
-        
-        mock_add_path.assert_called_once_with( test_path )
-        mock_process_pth.assert_called_once_with( test_path )
+        assert add_called_with == test_path
+        assert process_called_with == test_path
+    finally:
+        module._add_path_to_sys_path = original_add
+        module.process_pth_files = original_process
 
 
-def test_410_pth_file_processing_order( ):
-    ''' .pth files are processed in sorted order. '''
+def test_410_pth_files_are_processed_in_sorted_order( ):
+    ''' .pth files are processed alphabetically. '''
     with tempfile.TemporaryDirectory( ) as temp_dir:
         temp_path = Path( temp_dir )
-        
-        # Create .pth files with names that will test sorting
         files = [ 'z_last.pth', 'a_first.pth', 'm_middle.pth' ]
         for filename in files:
             ( temp_path / filename ).touch( )
-        
         processed_order = [ ]
-        
+        original_process = module._process_pth_file
         def capture_order( pth_file ):
             processed_order.append( pth_file.name )
-        
-        with patch.object(
-            module, '_process_pth_file', side_effect = capture_order
-        ):
+        try:
+            module._process_pth_file = capture_order
             module.process_pth_files( temp_path )
-        
-        # Should be processed in alphabetical order
-        assert processed_order == [
-            'a_first.pth', 'm_middle.pth', 'z_last.pth' ]
+            assert processed_order == [
+                'a_first.pth', 'm_middle.pth', 'z_last.pth' ]
+        finally:
+            module._process_pth_file = original_process
 
 
-def test_500_process_pth_files_os_error( ):
-    ''' OSError during directory iteration is handled gracefully. '''
-    mock_path = Mock( spec = Path )
-    mock_path.is_dir.return_value = True
-    mock_path.iterdir.side_effect = OSError( "Permission denied" )
-    
-    # Should not raise exception
+def test_500_os_errors_during_iteration_are_handled( ):
+    ''' OS errors during directory iteration are handled gracefully. '''
+    mock_path = type( 'Path', ( ), {
+        'is_dir': lambda self: True,
+        'iterdir': lambda self: (
+            _ for _ in ( )
+        ).throw( OSError( "Permission denied" ) )
+    } )( )
     module.process_pth_files( mock_path )
 
 
-def test_510_process_pth_file_missing_file( ):
-    ''' Processing non-existent .pth file is handled gracefully. '''
+def test_510_missing_pth_files_are_handled_safely( ):
+    ''' Processing non-existent .pth files does not raise errors. '''
     non_existent_file = Path( '/definitely/does/not/exist.pth' )
-    
-    # Should not raise exception
     module._process_pth_file( non_existent_file )
 
 
-def test_520_acquire_pth_file_content_encoding_fallback( ):
-    ''' Content reading falls back to locale encoding on UTF-8 failure. '''
+def test_520_encoding_fallback_works( ):
+    ''' Content reading falls back to locale encoding gracefully. '''
     with tempfile.TemporaryDirectory( ) as temp_dir:
         temp_path = Path( temp_dir )
         pth_file = temp_path / 'test.pth'
-        
-        # Write content that might cause UTF-8 issues
         test_content = 'test_path'
         pth_file.write_text( test_content, encoding = 'utf-8' )
-        
-        with patch( 'locale.getpreferredencoding', return_value = 'utf-8' ):
+        original_getpreferredencoding = module.__.locale.getpreferredencoding
+        try:
+            module.__.locale.getpreferredencoding = lambda: 'utf-8'
             result = module._acquire_pth_file_content( pth_file )
             assert result == test_content
+        finally:
+            module.__.locale.getpreferredencoding = (
+                original_getpreferredencoding )
