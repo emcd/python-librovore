@@ -22,7 +22,6 @@
 
 
 import pytest
-from unittest.mock import patch
 from pathlib import Path
 
 import sphinxmcps.xtnsmgr.installation as module
@@ -43,13 +42,13 @@ async def test_010_install_packages_parallel_single_package( ):
     fake_url = get_fake_extension_url( )
     cache_path = Path( '/cache/path' )
     
-    with patch.object(
-        module, 'install_package', return_value = cache_path ) as mock_install:
-        result = await module.install_packages_parallel( [ fake_url ] )
-        assert result == ( cache_path, )
-        mock_install.assert_called_once_with(
-            fake_url, max_retries = 3, cache_ttl = 24 )
-
+    async def mock_installer( spec ):
+        assert spec == fake_url
+        return cache_path
+    
+    result = await module.install_packages_parallel(
+        [ fake_url ], installer = mock_installer )
+    assert result == ( cache_path, )
 
 def test_100_module_imports_correctly( ):
     ''' Installation module imports without errors. '''

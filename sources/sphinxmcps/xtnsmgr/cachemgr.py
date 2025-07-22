@@ -167,25 +167,52 @@ def clear_package_cache( specification: str ) -> bool:
 
 
 async def ensure_package(
-    specification: str
+    specification: str, *,
+    cache_acquirer: __.Absential[
+        __.cabc.Callable[ [ str ], CacheInfo | None ]
+    ] = __.absent,
+    cache_clearer: __.Absential[
+        __.cabc.Callable[ [ str ], bool ]
+    ] = __.absent,
+    installer: __.Absential[ __.cabc.Callable[
+        [ str ], __.cabc.Awaitable[ __.Path ]
+    ] ] = __.absent,
+    path_adder: __.Absential[
+        __.cabc.Callable[ [ __.Path ], None ]
+    ] = __.absent
 ) -> __.typx.Annotated[
     None,
     __.ddoc.Raises( __.ExtensionConfigError, 'Invalid spec.' ),
     __.ddoc.Raises( __.ExtensionInstallationError, 'Install fails.' ),
 ]:
     ''' Ensures package is installed and importable. '''
-    cache_info = acquire_cache_info( specification )
+    if __.is_absent( cache_acquirer ):
+        cache_acquirer = acquire_cache_info
+    if __.is_absent( cache_clearer ):
+        cache_clearer = clear_package_cache
+    if __.is_absent( installer ):
+        installer = _installation.install_package
+    if __.is_absent( path_adder ):
+        path_adder = _importation.add_package_to_import_path
+    cache_info = cache_acquirer( specification )
     if cache_info and not cache_info.is_expired:
         _scribe.debug( f"Using cached package: {specification}." )
         package_path = cache_info.location
     else:
         if cache_info and cache_info.is_expired:
             _scribe.debug( f"Clearing expired cache for: {specification}." )
-            clear_package_cache( specification )
-        package_path = await _installation.install_package( specification )
-    _importation.add_package_to_import_path( package_path )
+            cache_clearer( specification )
+        package_path = await installer( specification )
+    path_adder( package_path )
 
 
-def invalidate( specification: str ) -> None:
+def invalidate(
+    specification: str, *,
+    clearer: __.Absential[
+        __.cabc.Callable[ [ str ], bool ]
+    ] = __.absent
+) -> None:
     ''' Removes package from cache, forcing reinstall on next ensure. '''
-    clear_package_cache( specification )
+    if __.is_absent( clearer ):
+        clearer = clear_package_cache
+    clearer( specification )

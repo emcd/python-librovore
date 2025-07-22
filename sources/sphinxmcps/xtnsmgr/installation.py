@@ -24,7 +24,6 @@
 import uv as _uv
 
 from . import __
-from . import cachemgr as _cachemgr
 
 
 _scribe = __.acquire_scribe( __name__ )
@@ -39,13 +38,14 @@ async def install_package(
 
         Returns path to installed package for sys.path manipulation.
     '''
-    cache_info = _cachemgr.acquire_cache_info( specification )
+    import cachemgr # TODO: Get rid of cyclic dependency.
+    cache_info = cachemgr.acquire_cache_info( specification )
     if cache_info and not cache_info.is_expired:
         _scribe.debug( f"Using cached package: {specification}." )
         return cache_info.location
     if cache_info and cache_info.is_expired:
         _scribe.debug( f"Clearing expired cache for: {specification}." )
-        _cachemgr.clear_package_cache( specification )
+        cachemgr.clear_package_cache( specification )
     for attempt in range( max_retries + 1 ):
         try:
             return await _install_with_uv( specification, cache_ttl )
@@ -67,7 +67,8 @@ async def install_package(
 
 async def _install_with_uv( specification: str, cache_ttl: int ) -> __.Path:
     ''' Installs package using uv to isolated cache directory. '''
-    cache_path = _cachemgr.calculate_cache_path( specification )
+    import cachemgr # TODO: Get rid of cyclic dependency.
+    cache_path = cachemgr.calculate_cache_path( specification )
     cache_path.mkdir( parents = True, exist_ok = True )
     try: uv_executable = _uv.find_uv_bin( )
     except ImportError as exc:
@@ -98,13 +99,13 @@ async def _install_with_uv( specification: str, cache_ttl: int ) -> __.Path:
             specification,
             f"uv install failed (exit {process.returncode}): "
             f"{stderr.decode( 'utf-8' )}" )
-    cache_info = _cachemgr.CacheInfo(
+    cache_info = cachemgr.CacheInfo(
         specification = specification,
         ctime = __.datetime.datetime.now( ),
         ttl = cache_ttl,
-        platform_id = _cachemgr.calculate_platform_id( ),
+        platform_id = cachemgr.calculate_platform_id( ),
         location = cache_path )
-    _cachemgr.save_cache_info( cache_info )
+    cachemgr.save_cache_info( cache_info )
     _scribe.info( f"Successfully installed {specification}." )
     return cache_path
 
@@ -112,7 +113,10 @@ async def _install_with_uv( specification: str, cache_ttl: int ) -> __.Path:
 async def install_packages_parallel(
     specifications: __.cabc.Sequence[ str ], *,
     max_retries: int = 3,
-    cache_ttl: int = 24
+    cache_ttl: int = 24,
+    installer: __.Absential[
+        __.cabc.Callable[ [ str ], __.cabc.Awaitable[ __.Path ] ]
+    ] = __.absent
 ) -> __.cabc.Sequence[ __.Path ]:
     ''' Installs multiple packages in parallel using gather_async.
 
@@ -120,10 +124,12 @@ async def install_packages_parallel(
         Returns list of installation paths for successful installations.
     '''
     if not specifications: return [ ]
-    installers = [
-        install_package(
-            spec, max_retries = max_retries, cache_ttl = cache_ttl )
-        for spec in specifications ]
+    if __.is_absent( installer ):
+        def default_installer( spec ):
+            return install_package(
+                spec, max_retries = max_retries, cache_ttl = cache_ttl )
+        installer = default_installer
+    installers = [ installer( spec ) for spec in specifications ]
     count = len( specifications )
     _scribe.info( f"Installing {count} packages." )
     try:

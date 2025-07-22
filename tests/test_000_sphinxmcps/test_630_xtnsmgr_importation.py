@@ -25,7 +25,6 @@ import pytest
 from pathlib import Path
 import sys
 import tempfile
-import importlib
 
 import sphinxmcps.xtnsmgr.importation as module
 
@@ -103,26 +102,21 @@ def test_110_invalid_modules_raise_import_error( ):
 
 def test_120_unimported_modules_trigger_import( ):
     ''' Reloading unimported modules calls import. '''
-    original_import = module.import_processor_module
     import_called_with = None
     def mock_import( name ):
         nonlocal import_called_with
         import_called_with = name
         return type( 'Module', ( ), { '__name__': name } )( )
-    try:
-        module.import_processor_module = mock_import
-        module.reload_processor_module( 'test_module_not_imported' )
-        assert import_called_with == 'test_module_not_imported'
-    finally:
-        module.import_processor_module = original_import
-
+    
+    module.reload_processor_module(
+        'test_module_not_imported', importer = mock_import )
+    assert import_called_with == 'test_module_not_imported'
 
 def test_130_imported_modules_are_reloaded( ):
     ''' Already imported modules use importlib.reload. '''
     test_module = type(
         'Module', ( ), { '__name__': 'test_already_imported' }
     )( )
-    original_reload = importlib.reload
     reload_called_with = None
     def mock_reload( mod ):
         nonlocal reload_called_with
@@ -130,12 +124,11 @@ def test_130_imported_modules_are_reloaded( ):
         return mod
     try:
         sys.modules[ 'test_already_imported' ] = test_module
-        importlib.reload = mock_reload
-        result = module.reload_processor_module( 'test_already_imported' )
+        result = module.reload_processor_module(
+            'test_already_imported', reloader = mock_reload )
         assert reload_called_with is test_module
         assert result is test_module
     finally:
-        importlib.reload = original_reload
         if 'test_already_imported' in sys.modules:
             del sys.modules[ 'test_already_imported' ]
 
@@ -175,19 +168,14 @@ def test_310_pth_files_are_discovered_and_processed( ):
         ( temp_path / 'test.pth' ).touch( )
         ( temp_path / 'another.pth' ).touch( )
         ( temp_path / 'not_pth.txt' ).touch( )
-        original_process = module._process_pth_file
         processed_files = [ ]
         def mock_process( pth_file ):
             processed_files.append( pth_file.name )
-        try:
-            module._process_pth_file = mock_process
-            module.process_pth_files( temp_path )
-            assert len( processed_files ) == 2
-            assert 'another.pth' in processed_files
-            assert 'test.pth' in processed_files
-        finally:
-            module._process_pth_file = original_process
-
+        
+        module.process_pth_files( temp_path, processor = mock_process )
+        assert len( processed_files ) == 2
+        assert 'another.pth' in processed_files
+        assert 'test.pth' in processed_files
 
 def test_320_hidden_pth_files_are_ignored( ):
     ''' Hidden .pth files are skipped during discovery. '''
@@ -195,17 +183,13 @@ def test_320_hidden_pth_files_are_ignored( ):
         temp_path = Path( temp_dir )
         ( temp_path / 'normal.pth' ).touch( )
         ( temp_path / '.hidden.pth' ).touch( )
-        original_process = module._process_pth_file
         processed_files = [ ]
         def mock_process( pth_file ):
             processed_files.append( pth_file.name )
-        try:
-            module._process_pth_file = mock_process
-            module.process_pth_files( temp_path )
-            assert len( processed_files ) == 1
-            assert processed_files[ 0 ] == 'normal.pth'
-        finally:
-            module._process_pth_file = original_process
+        
+        module.process_pth_files( temp_path, processor = mock_process )
+        assert len( processed_files ) == 1
+        assert processed_files[ 0 ] == 'normal.pth'
 
 
 def test_330_simple_paths_are_added_to_sys_path( ):
@@ -216,17 +200,18 @@ def test_330_simple_paths_are_added_to_sys_path( ):
         target_dir = temp_path / 'target'
         target_dir.mkdir( )
         pth_file.write_text( 'target\n' )
-        original_add = module._add_path_to_sys_path
         added_paths = [ ]
         def mock_add( path ):
             added_paths.append( path )
-        try:
-            module._add_path_to_sys_path = mock_add
-            module._process_pth_file( pth_file )
-            assert len( added_paths ) == 1
-            assert added_paths[ 0 ] == target_dir
-        finally:
-            module._add_path_to_sys_path = original_add
+        
+        module._process_pth_file(
+            pth_file,
+            line_processor = lambda pth_file, content: 
+                module._process_pth_file_lines(
+                    pth_file, content, path_adder = mock_add )
+        )
+        assert len( added_paths ) == 1
+        assert added_paths[ 0 ] == target_dir
 
 
 def test_340_import_statements_are_executed( ):
@@ -235,25 +220,18 @@ def test_340_import_statements_are_executed( ):
         temp_path = Path( temp_dir )
         pth_file = temp_path / 'test.pth'
         pth_file.write_text( 'import sys\n' )
-        original_exec = (
-            __builtins__[ 'exec' ] if isinstance( __builtins__, dict )
-            else __builtins__.exec )
         executed_code = [ ]
         def mock_exec( code ):
             executed_code.append( code )
-        try:
-            if isinstance( __builtins__, dict ):
-                __builtins__[ 'exec' ] = mock_exec
-            else:
-                __builtins__.exec = mock_exec
-            module._process_pth_file( pth_file )
-            assert len( executed_code ) == 1
-            assert executed_code[ 0 ] == 'import sys'
-        finally:
-            if isinstance( __builtins__, dict ):
-                __builtins__[ 'exec' ] = original_exec
-            else:
-                __builtins__.exec = original_exec
+        
+        module._process_pth_file(
+            pth_file,
+            line_processor = lambda pth_file, content:
+                module._process_pth_file_lines(
+                    pth_file, content, executor = mock_exec )
+        )
+        assert len( executed_code ) == 1
+        assert executed_code[ 0 ] == 'import sys'
 
 
 def test_350_comments_and_blanks_are_ignored( ):
@@ -263,16 +241,17 @@ def test_350_comments_and_blanks_are_ignored( ):
         pth_file = temp_path / 'test.pth'
         pth_file.write_text( '# This is a comment\n\n   \nvalid_path\n' )
         ( temp_path / 'valid_path' ).mkdir( )
-        original_add = module._add_path_to_sys_path
         added_paths = [ ]
         def mock_add( path ):
             added_paths.append( path )
-        try:
-            module._add_path_to_sys_path = mock_add
-            module._process_pth_file( pth_file )
-            assert len( added_paths ) == 1
-        finally:
-            module._add_path_to_sys_path = original_add
+        
+        module._process_pth_file(
+            pth_file,
+            line_processor = lambda pth_file, content:
+                module._process_pth_file_lines(
+                    pth_file, content, path_adder = mock_add )
+        )
+        assert len( added_paths ) == 1
 
 
 def test_360_nonexistent_paths_are_ignored( ):
@@ -281,28 +260,24 @@ def test_360_nonexistent_paths_are_ignored( ):
         temp_path = Path( temp_dir )
         pth_file = temp_path / 'test.pth'
         pth_file.write_text( 'does_not_exist\n' )
-        original_add = module._add_path_to_sys_path
         added_paths = [ ]
         def mock_add( path ):
             added_paths.append( path )
-        try:
-            module._add_path_to_sys_path = mock_add
-            module._process_pth_file( pth_file )
-            assert len( added_paths ) == 0
-        finally:
-            module._add_path_to_sys_path = original_add
+        
+        module._process_pth_file(
+            pth_file,
+            line_processor = lambda pth_file, content:
+                module._process_pth_file_lines(
+                    pth_file, content, path_adder = mock_add )
+        )
+        assert len( added_paths ) == 0
 
 
 def test_370_hidden_detection_returns_false_on_linux( ):
     ''' Hidden file detection returns False on unsupported platforms. '''
     test_path = Path( '/some/test/path' )
-    original_platform = module.__.sys.platform
-    try:
-        module.__.sys.platform = 'linux'
-        result = module._is_hidden( test_path )
-        assert result is False
-    finally:
-        module.__.sys.platform = original_platform
+    result = module._is_hidden( test_path, platform = 'linux' )
+    assert result is False
 
 
 def test_380_utf8_content_is_read_correctly( ):
@@ -328,8 +303,6 @@ def test_390_import_errors_are_handled_gracefully( ):
 def test_400_package_addition_includes_both_operations( ):
     ''' Adding packages handles both sys.path and .pth files. '''
     test_path = Path( '/test/package/path' )
-    original_add = module._add_path_to_sys_path
-    original_process = module.process_pth_files
     add_called_with = None
     process_called_with = None
     def mock_add( path ):
@@ -338,15 +311,11 @@ def test_400_package_addition_includes_both_operations( ):
     def mock_process( path ):
         nonlocal process_called_with
         process_called_with = path
-    try:
-        module._add_path_to_sys_path = mock_add
-        module.process_pth_files = mock_process
-        module.add_package_to_import_path( test_path )
-        assert add_called_with == test_path
-        assert process_called_with == test_path
-    finally:
-        module._add_path_to_sys_path = original_add
-        module.process_pth_files = original_process
+    
+    module.add_package_to_import_path(
+        test_path, path_adder = mock_add, pth_processor = mock_process )
+    assert add_called_with == test_path
+    assert process_called_with == test_path
 
 
 def test_410_pth_files_are_processed_in_sorted_order( ):
@@ -357,16 +326,12 @@ def test_410_pth_files_are_processed_in_sorted_order( ):
         for filename in files:
             ( temp_path / filename ).touch( )
         processed_order = [ ]
-        original_process = module._process_pth_file
         def capture_order( pth_file ):
             processed_order.append( pth_file.name )
-        try:
-            module._process_pth_file = capture_order
-            module.process_pth_files( temp_path )
-            assert processed_order == [
-                'a_first.pth', 'm_middle.pth', 'z_last.pth' ]
-        finally:
-            module._process_pth_file = original_process
+        
+        module.process_pth_files( temp_path, processor = capture_order )
+        assert processed_order == [
+            'a_first.pth', 'm_middle.pth', 'z_last.pth' ]
 
 
 def test_500_os_errors_during_iteration_are_handled( ):
@@ -393,11 +358,7 @@ def test_520_encoding_fallback_works( ):
         pth_file = temp_path / 'test.pth'
         test_content = 'test_path'
         pth_file.write_text( test_content, encoding = 'utf-8' )
-        original_getpreferredencoding = module.__.locale.getpreferredencoding
-        try:
-            module.__.locale.getpreferredencoding = lambda: 'utf-8'
-            result = module._acquire_pth_file_content( pth_file )
-            assert result == test_content
-        finally:
-            module.__.locale.getpreferredencoding = (
-                original_getpreferredencoding )
+        
+        result = module._acquire_pth_file_content(
+            pth_file, encoding_provider = lambda: 'utf-8' )
+        assert result == test_content

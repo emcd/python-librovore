@@ -23,7 +23,7 @@
 
 from . import __
 from . import server
-# from . import xtnsmgr
+from . import xtnsmgr
 # --- BEGIN: Injected by Copier ---
 from . import exceptions
 # --- END: Injected by Copier ---

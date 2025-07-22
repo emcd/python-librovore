@@ -30,10 +30,22 @@ _added_paths: list[ str ] = [ ]
 _scribe = __.acquire_scribe( __name__ )
 
 
-def add_package_to_import_path( package_path: __.Path ) -> None:
+def add_package_to_import_path(
+    package_path: __.Path, *,
+    path_adder: __.Absential[
+        __.cabc.Callable[ [ __.Path ], None ]
+    ] = __.absent,
+    pth_processor: __.Absential[
+        __.cabc.Callable[ [ __.Path ], None ]
+    ] = __.absent
+) -> None:
     ''' Add package to sys.path and process any .pth files. '''
-    _add_path_to_sys_path( package_path )
-    process_pth_files( package_path )
+    if __.is_absent( path_adder ):
+        path_adder = _add_path_to_sys_path
+    if __.is_absent( pth_processor ):
+        pth_processor = process_pth_files
+    path_adder( package_path )
+    pth_processor( package_path )
 
 
 def _add_path_to_sys_path( package_path: __.Path ) -> None:
@@ -85,14 +97,26 @@ def import_processor_module( module_name: str ) -> __.types.ModuleType:
         return module
 
 
-def reload_processor_module( module_name: str ) -> __.types.ModuleType:
+def reload_processor_module(
+    module_name: str, *,
+    importer: __.Absential[
+        __.cabc.Callable[ [ str ], __.types.ModuleType ]
+    ] = __.absent,
+    reloader: __.Absential[ __.cabc.Callable[
+        [ __.types.ModuleType ], __.types.ModuleType
+    ] ] = __.absent
+) -> __.types.ModuleType:
     ''' Reload a processor module if it's already imported. '''
     if module_name in __.sys.modules:
         _scribe.debug( f"Reloading processor module: {module_name}." )
         module = __.sys.modules[ module_name ]
-        return _importlib.reload( module )
+        if __.is_absent( reloader ):
+            reloader = _importlib.reload
+        return reloader( module )
     _scribe.debug( f"Module not yet imported, importing: {module_name}." )
-    return import_processor_module( module_name )
+    if __.is_absent( importer ):
+        importer = import_processor_module
+    return importer( module_name )
 
 
 def list_registered_processors( ) -> list[ str ]:
@@ -116,7 +140,12 @@ def get_module_info( module_name: str ) -> dict[ str, __.typx.Any ]:
     }
 
 
-def process_pth_files( package_path: __.Path ) -> None:
+def process_pth_files(
+    package_path: __.Path, *,
+    processor: __.Absential[
+        __.cabc.Callable[ [ __.Path ], None ]
+    ] = __.absent
+) -> None:
     ''' Process .pth files in package directory to update sys.path.
 
         Handles proper encoding, hidden file detection, and security.
@@ -128,25 +157,38 @@ def process_pth_files( package_path: __.Path ) -> None:
             if '.pth' == file.suffix
             and not file.name.startswith( '.' ) )
     except OSError: return
+    if __.is_absent( processor ):
+        processor = _process_pth_file
     for pth_file in sorted( pth_files ):
-        _process_pth_file( pth_file )
+        processor( pth_file )
 
 
-def _acquire_pth_file_content( pth_file: __.Path ) -> str:
+def _acquire_pth_file_content(
+    pth_file: __.Path, *,
+    encoding_provider: __.Absential[
+        __.cabc.Callable[ [ ], str ]
+    ] = __.absent
+) -> str:
     ''' Read .pth file content with proper encoding handling. '''
     with __.io.open_code( str( pth_file ) ) as stream:
         content_bytes = stream.read( )
     # Accept BOM markers in .pth files - same as with source files
     try: return content_bytes.decode( 'utf-8-sig' )
     except UnicodeDecodeError:
-        return content_bytes.decode( __.locale.getpreferredencoding( ) )
+        if __.is_absent( encoding_provider ):
+            encoding_provider = __.locale.getpreferredencoding
+        return content_bytes.decode( encoding_provider( ) )
 
 
-def _is_hidden( path: __.Path ) -> bool:
+def _is_hidden(
+    path: __.Path, *, platform: __.Absential[ str ] = __.absent
+) -> bool:
     ''' Check if path is hidden via system attributes. '''
     try: inode = path.lstat( )
     except OSError: return False
-    match __.sys.platform:
+    if __.is_absent( platform ):
+        platform = __.sys.platform
+    match platform:
         case 'darwin':
             return bool( getattr( inode, 'st_flags', 0 ) & __.stat.UF_HIDDEN )
         case 'win32':
@@ -157,21 +199,48 @@ def _is_hidden( path: __.Path ) -> bool:
         case _: return False
 
 
-def _process_pth_file( pth_file: __.Path ) -> None:
+def _process_pth_file(
+    pth_file: __.Path, *,
+    hidden_checker: __.Absential[
+        __.cabc.Callable[ [ __.Path ], bool ]
+    ] = __.absent,
+    content_reader: __.Absential[
+        __.cabc.Callable[ [ __.Path ], str ]
+    ] = __.absent,
+    line_processor: __.Absential[
+        __.cabc.Callable[ [ __.Path, str ], None ]
+    ] = __.absent
+) -> None:
     ''' Process single .pth file. '''
-    if not pth_file.exists( ) or _is_hidden( pth_file ): return
-    try: content = _acquire_pth_file_content( pth_file )
+    if __.is_absent( hidden_checker ):
+        hidden_checker = _is_hidden
+    if __.is_absent( content_reader ):
+        content_reader = _acquire_pth_file_content
+    if __.is_absent( line_processor ):
+        line_processor = _process_pth_file_lines
+    if not pth_file.exists( ) or hidden_checker( pth_file ): return
+    try: content = content_reader( pth_file )
     except OSError: return
-    _process_pth_file_lines( pth_file, content )
+    line_processor( pth_file, content )
 
 
-def _process_pth_file_lines( pth_file: __.Path, content: str ) -> None:
+def _process_pth_file_lines(
+    pth_file: __.Path, content: str, *,
+    executor: __.Absential[ __.cabc.Callable[ [ str ], None ] ] = __.absent,
+    path_adder: __.Absential[
+        __.cabc.Callable[ [ __.Path ], None ]
+    ] = __.absent
+) -> None:
     ''' Process lines in .pth file content. '''
+    if __.is_absent( executor ):
+        executor = exec
+    if __.is_absent( path_adder ):
+        path_adder = _add_path_to_sys_path
     for n, line in enumerate( content.splitlines( ), 1 ):
         if line.startswith( '#' ) or '' == line.strip( ): continue
         if line.startswith( ( 'import ', 'import\t' ) ):
             _scribe.debug( f"Executing import from {pth_file.name}: {line}" )
-            try: exec( line )  # noqa: S102
+            try: executor( line )
             except Exception:
                 _scribe.exception( f"Error on line {n} of {pth_file}." )
                 break
@@ -179,4 +248,4 @@ def _process_pth_file_lines( pth_file: __.Path, content: str ) -> None:
         # Add directory path relative to .pth file location
         path_to_add = pth_file.parent / line.rstrip( )
         if path_to_add.exists( ):
-            _add_path_to_sys_path( path_to_add )
+            path_adder( path_to_add )

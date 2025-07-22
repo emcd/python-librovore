@@ -228,17 +228,13 @@ def test_500_cleanup_with_no_cache_directory_completes( ):
 
 def test_510_invalidate_clears_package_cache( ):
     ''' Cache invalidation removes package from cache. '''
-    original_clear = module.clear_package_cache
     clear_called_with = None
     def mock_clear( spec ):
         nonlocal clear_called_with
         clear_called_with = spec
-    try:
-        module.clear_package_cache = mock_clear
-        module.invalidate( 'test-package' )
-        assert clear_called_with == 'test-package'
-    finally:
-        module.clear_package_cache = original_clear
+        return True
+    module.invalidate( 'test-package', clearer = mock_clear )
+    assert clear_called_with == 'test-package'
 
 
 @pytest.mark.asyncio
@@ -248,9 +244,6 @@ async def test_600_valid_cache_avoids_installation( ):
         'is_expired': False,
         'location': Path( '/cache/path' )
     } )( )
-    original_acquire = module.acquire_cache_info
-    original_add = module._importation.add_package_to_import_path
-    original_install = module._installation.install_package
     install_called = False
     add_called_with = None
     def mock_acquire( spec ):
@@ -262,17 +255,14 @@ async def test_600_valid_cache_avoids_installation( ):
         nonlocal install_called
         install_called = True
         return Path( '/new/path' )
-    try:
-        module.acquire_cache_info = mock_acquire
-        module._importation.add_package_to_import_path = mock_add
-        module._installation.install_package = mock_install
-        await module.ensure_package( 'test-package' )
-        assert add_called_with == Path( '/cache/path' )
-        assert not install_called
-    finally:
-        module.acquire_cache_info = original_acquire
-        module._importation.add_package_to_import_path = original_add
-        module._installation.install_package = original_install
+    await module.ensure_package(
+        'test-package',
+        cache_acquirer = mock_acquire,
+        path_adder = mock_add,
+        installer = mock_install
+    )
+    assert add_called_with == Path( '/cache/path' )
+    assert not install_called
 
 
 @pytest.mark.asyncio
@@ -281,10 +271,6 @@ async def test_610_expired_cache_triggers_reinstall( ):
     mock_cache_info = type( 'MockCacheInfo', ( ), {
         'is_expired': True
     } )( )
-    original_acquire = module.acquire_cache_info
-    original_clear = module.clear_package_cache
-    original_add = module._importation.add_package_to_import_path
-    original_install = module._installation.install_package
     clear_called_with = None
     install_called_with = None
     add_called_with = None
@@ -293,6 +279,7 @@ async def test_610_expired_cache_triggers_reinstall( ):
     def mock_clear( spec ):
         nonlocal clear_called_with
         clear_called_with = spec
+        return True
     def mock_add( path ):
         nonlocal add_called_with
         add_called_with = path
@@ -300,28 +287,21 @@ async def test_610_expired_cache_triggers_reinstall( ):
         nonlocal install_called_with
         install_called_with = spec
         return Path( '/new/cache/path' )
-    try:
-        module.acquire_cache_info = mock_acquire
-        module.clear_package_cache = mock_clear
-        module._importation.add_package_to_import_path = mock_add
-        module._installation.install_package = mock_install
-        await module.ensure_package( 'test-package' )
-        assert clear_called_with == 'test-package'
-        assert install_called_with == 'test-package'
-        assert add_called_with == Path( '/new/cache/path' )
-    finally:
-        module.acquire_cache_info = original_acquire
-        module.clear_package_cache = original_clear
-        module._importation.add_package_to_import_path = original_add
-        module._installation.install_package = original_install
+    await module.ensure_package(
+        'test-package',
+        cache_acquirer = mock_acquire,
+        cache_clearer = mock_clear,
+        path_adder = mock_add,
+        installer = mock_install
+    )
+    assert clear_called_with == 'test-package'
+    assert install_called_with == 'test-package'
+    assert add_called_with == Path( '/new/cache/path' )
 
 
 @pytest.mark.asyncio
 async def test_620_missing_cache_triggers_install( ):
     ''' Missing cache entries trigger package installation. '''
-    original_acquire = module.acquire_cache_info
-    original_add = module._importation.add_package_to_import_path
-    original_install = module._installation.install_package
     install_called_with = None
     add_called_with = None
     def mock_acquire( spec ):
@@ -333,17 +313,14 @@ async def test_620_missing_cache_triggers_install( ):
         nonlocal install_called_with
         install_called_with = spec
         return Path( '/new/cache/path' )
-    try:
-        module.acquire_cache_info = mock_acquire
-        module._importation.add_package_to_import_path = mock_add
-        module._installation.install_package = mock_install
-        await module.ensure_package( 'test-package' )
-        assert install_called_with == 'test-package'
-        assert add_called_with == Path( '/new/cache/path' )
-    finally:
-        module.acquire_cache_info = original_acquire
-        module._importation.add_package_to_import_path = original_add
-        module._installation.install_package = original_install
+    await module.ensure_package(
+        'test-package',
+        cache_acquirer = mock_acquire,
+        path_adder = mock_add,
+        installer = mock_install
+    )
+    assert install_called_with == 'test-package'
+    assert add_called_with == Path( '/new/cache/path' )
 
 
 def test_700_complete_cache_lifecycle_works( ):
