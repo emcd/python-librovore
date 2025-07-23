@@ -4,7 +4,7 @@
 
 **🎉 Extension Manager (xtnsmgr) - COMPLETED**: Full implementation with cache-driven package management, .pth file processing, and simplified processor orchestration. See `xtnsmgr.md` for complete documentation.
 
-### 🔌 Plugin/Extensions Architecture
+### 🔌 Plugin/Extensions Architecture - COMPLETED
 - [x] **Design plugin interface**: Define abstract base classes for inventory and documentation providers
 - [x] **Retrofit Sphinx support**: Convert current Sphinx inventory/documentation extraction to plugin
 - [x] **Plugin discovery system**: Mechanism to register and load plugins
@@ -14,6 +14,12 @@
 - [x] **Test decoupling**: Remove tests that couple to private implementation details
 - [x] **Plugin configuration**: Extension configuration system with validation and argument extraction
 - [x] **External plugin installation**: Complete xtnsmgr implementation with cache-driven package management
+- [x] **SphinxDetection refactoring**: Replace metadata dict with typed dataclass attributes
+
+### 🏗️ Sphinx Processor Improvements (Current Priority)
+- [ ] **Refactor into subpackage**: Break large processors/sphinx.py into organized subpackage
+- [ ] **Comprehensive testing**: Add tests for processors/sphinx module (currently 51% coverage)
+- [ ] **xtnsmgr.processors testing**: Add tests for processor extraction and registration (currently 45% coverage)
 
 ### 💾 Caching System
 - [ ] **Inventory caching**: Cache downloaded `objects.inv` files with TTL

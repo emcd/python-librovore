@@ -25,7 +25,7 @@ import pytest
 from pathlib import Path
 
 import sphinxmcps.functions as module
-import sphinxmcps.exceptions as _exceptions
+import sphinxmcps.exceptions as _exceptions  
 import sphinxmcps.interfaces as _interfaces
 
 from .fixtures import get_test_inventory_path
@@ -529,24 +529,6 @@ async def test_700_extract_documentation_with_object_not_found( ):
     assert 'error' in result
     assert 'not found in inventory' in result[ 'error' ]
 
-
-@pytest.mark.asyncio
-async def test_850_inventory_url_normalization( ):
-    ''' URL normalization works correctly for inventory paths. '''
-    # This tests public behavior, not private function
-    test_path = '/home/user/test.inv'
-    result = module.normalize_inventory_source( test_path )
-    assert result.path.endswith( 'objects.inv' )
-
-
-@pytest.mark.asyncio
-async def test_860_inventory_url_normalization_with_objects_inv( ):
-    ''' URL normalization doesn't double-append objects.inv. '''
-    test_path = '/home/user/objects.inv'
-    result = module.normalize_inventory_source( test_path )
-    assert result.path.endswith( 'objects.inv' )
-    # Should not have double objects.inv
-    assert not result.path.endswith( 'objects.inv/objects.inv' )
 
 
 @pytest.mark.asyncio

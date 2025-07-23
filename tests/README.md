@@ -22,7 +22,7 @@ This test suite follows the project standard numbering conventions:
 - `test_650_xtnsmgr_processors.py` - Processor extraction and registration
 
 ### Processor-Specific Tests (700s)
-- `test_710_sphinx.py` - Sphinx processor implementation (future)
+- `test_710_sphinx.py` - Sphinx processor implementation
 
 ### Function Numbering within Modules
 - `000-099`: Foundational functionality

@@ -21,8 +21,6 @@
 ''' Core business logic shared between CLI and MCP server. '''
 
 
-import urllib.parse as _urlparse
-
 from . import __
 from . import exceptions as _exceptions
 from . import interfaces as _interfaces
@@ -153,42 +151,6 @@ async def summarize_inventory( # noqa: PLR0913
         fuzzy_threshold = fuzzy_threshold )
 
 
-def normalize_inventory_source( source: SourceArgument ) -> __.typx.Annotated[
-    _urlparse.ParseResult,
-    __.ddoc.Doc(
-        ''' Parsed URL components with objects.inv appended if needed.
-
-            Ensures the path component ends with 'objects.inv' filename.
-            Handles both URLs and local filesystem paths.
-        ''' )
-]:
-    ''' Parses URL strings and appends objects.inv if needed. '''
-    try: url = _urlparse.urlparse( source )
-    except Exception as exc:
-        raise _exceptions.InventoryUrlInvalidity( source ) from exc
-
-    # Handle local filesystem paths by converting to file:// URLs
-    match url.scheme:
-        case '':
-            # No scheme means local filesystem path
-            path = __.Path( source ).resolve( )
-            if path.is_dir( ):
-                path = path / 'objects.inv'
-            url = _urlparse.urlparse( path.as_uri( ) )
-        case 'http' | 'https' | 'file':
-            # Already a proper URL
-            pass
-        case _:
-            raise _exceptions.InventoryUrlInvalidity( source )
-
-    filename = 'objects.inv'
-    if url.path.endswith( filename ): return url
-    return _urlparse.ParseResult(
-        scheme = url.scheme, netloc = url.netloc,
-        path = f"{url.path}/{filename}",
-        params = url.params, query = url.query, fragment = url.fragment )
-
-
 async def _select_processor_for_source(
     source: SourceArgument
 ) -> _interfaces.Processor:
@@ -203,7 +165,3 @@ async def _select_processor_for_source(
     if not best_processor:
         raise _exceptions.ProcessorNotFound( source )
     return best_processor
-
-
-
-

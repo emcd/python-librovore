@@ -30,53 +30,79 @@ import sphobjinv as _sphobjinv
 from bs4 import BeautifulSoup as _BeautifulSoup
 
 from . import __
-from .. import functions as _functions
-from .. import interfaces as _interfaces
-from .. import exceptions as _exceptions
 
 
-class SphinxProcessor( _interfaces.Processor ):
+def normalize_inventory_source( source: str ) -> __.typx.Annotated[
+    _urlparse.ParseResult,
+    __.ddoc.Doc(
+        ''' Parsed URL components with objects.inv appended if needed.
+
+            Ensures the path component ends with 'objects.inv' filename.
+            Handles both URLs and local filesystem paths.
+        ''' )
+]:
+    ''' Parses URL strings and appends objects.inv if needed. '''
+    try: url = _urlparse.urlparse( source )
+    except Exception as exc:
+        raise __.InventoryUrlInvalidity( source ) from exc
+    match url.scheme:
+        case '':
+            path = __.Path( source ).resolve( )
+            if path.is_dir( ):
+                path = path / 'objects.inv'
+            url = _urlparse.urlparse( path.as_uri( ) )
+        case 'http' | 'https' | 'file': pass
+        case _: raise __.InventoryUrlInvalidity( source )
+    filename = 'objects.inv'
+    if url.path.endswith( filename ): return url
+    return _urlparse.ParseResult(
+        scheme = url.scheme, netloc = url.netloc,
+        path = f"{url.path}/{filename}",
+        params = url.params, query = url.query, fragment = url.fragment )
+
+
+class SphinxProcessor( __.Processor ):
     ''' Processor for Sphinx documentation sources. '''
 
     name: str = 'sphinx'
 
-    async def detect( self, source: str ) -> _interfaces.Detection:
+    async def detect( self, source: str ) -> __.Detection:
         ''' Detect if can process documentation from source. '''
         try:
-            normalized_source = _functions.normalize_inventory_source( source )
+            normalized_source = normalize_inventory_source( source )
         except Exception:
             return SphinxDetection(
-                processor = self, confidence = 0.0, source = source
-            )
+                processor = self, confidence = 0.0, source = source )
         has_objects_inv = await _check_objects_inv( normalized_source )
         if not has_objects_inv:
             return SphinxDetection(
                 processor = self, confidence = 0.0, source = source )
         has_searchindex = await _check_searchindex( normalized_source )
         confidence = 0.95 if has_searchindex else 0.7
-        metadata: dict[ str, __.typx.Any ] = {
-            'has_objects_inv': has_objects_inv,
-            'has_searchindex': has_searchindex,
-            'normalized_source': normalized_source.geturl( ),
-        }
+        theme = 'unknown'
+        theme_error = ''
         if has_searchindex:
             try:
                 theme_metadata = await _detect_theme( normalized_source )
-                metadata.update( theme_metadata )
+                theme = theme_metadata.get( 'theme', 'unknown' )
             except Exception as exc:
-                metadata[ 'theme_error' ] = str( exc )
+                theme_error = str( exc )
         return SphinxDetection(
             processor = self,
             confidence = confidence,
             source = source,
-            metadata = metadata )
+            has_objects_inv = has_objects_inv,
+            has_searchindex = has_searchindex,
+            normalized_source = normalized_source.geturl( ),
+            theme = theme,
+            theme_error = theme_error )
 
     def extract_inventory( self, source: str, /, *, # noqa: PLR0913
         domain: __.Absential[ str ] = __.absent,
         role: __.Absential[ str ] = __.absent,
         term: __.Absential[ str ] = __.absent,
         priority: __.Absential[ str ] = __.absent,
-        match_mode: _interfaces.MatchMode = _interfaces.MatchMode.Exact,
+        match_mode: __.MatchMode = __.MatchMode.Exact,
         fuzzy_threshold: int = 50
     ) -> dict[ str, __.typx.Any ]:
         ''' Extract inventory from Sphinx documentation source. '''
@@ -97,9 +123,9 @@ class SphinxProcessor( _interfaces.Processor ):
         if not __.is_absent( role ): filters[ 'role' ] = role
         if not __.is_absent( term ): filters[ 'term' ] = term
         if not __.is_absent( priority ): filters[ 'priority' ] = priority
-        if match_mode != _interfaces.MatchMode.Exact:
+        if match_mode != __.MatchMode.Exact:
             filters[ 'match_mode' ] = match_mode.value
-        if match_mode == _interfaces.MatchMode.Fuzzy:
+        if match_mode == __.MatchMode.Fuzzy:
             filters[ 'fuzzy_threshold' ] = fuzzy_threshold
         if filters:
             result[ 'filters' ] = filters
@@ -110,7 +136,7 @@ class SphinxProcessor( _interfaces.Processor ):
         role: __.Absential[ str ] = __.absent,
         term: __.Absential[ str ] = __.absent,
         priority: __.Absential[ str ] = __.absent,
-        match_mode: _interfaces.MatchMode = _interfaces.MatchMode.Exact,
+        match_mode: __.MatchMode = __.MatchMode.Exact,
         fuzzy_threshold: int = 50
     ) -> str:
         ''' Summarize inventory from Sphinx documentation source. '''
@@ -131,9 +157,9 @@ class SphinxProcessor( _interfaces.Processor ):
         if not __.is_absent( term ): filters.append( f"term={term}" )
         if not __.is_absent( priority ):
             filters.append( f"priority={priority}" )
-        if match_mode != _interfaces.MatchMode.Exact:
+        if match_mode != __.MatchMode.Exact:
             filters.append( f"match_mode={match_mode.value}" )
-        if match_mode == _interfaces.MatchMode.Fuzzy:
+        if match_mode == __.MatchMode.Fuzzy:
             filters.append( f"fuzzy_threshold={fuzzy_threshold}" )
         if filters:
             summary_lines.append( f"Filters: {', '.join( filters )}" )
@@ -186,7 +212,7 @@ class SphinxProcessor( _interfaces.Processor ):
         domain: __.Absential[ str ] = __.absent,
         role: __.Absential[ str ] = __.absent,
         priority: __.Absential[ str ] = __.absent,
-        match_mode: _interfaces.MatchMode = _interfaces.MatchMode.Fuzzy,
+        match_mode: __.MatchMode = __.MatchMode.Fuzzy,
         fuzzy_threshold: int = 50,
         max_results: int = 10,
         include_snippets: bool = True
@@ -246,20 +272,23 @@ class SphinxProcessor( _interfaces.Processor ):
         return results[ : max_results ]
 
 
-class SphinxDetection( _interfaces.Detection ):
+class SphinxDetection( __.Detection ):
     ''' Detection result for Sphinx documentation sources. '''
 
     source: str
-    metadata: dict[ str, __.typx.Any ] = __.dcls.field(
-        default_factory = dict[ str, __.typx.Any ] )
+    has_objects_inv: bool = False
+    has_searchindex: bool = False
+    normalized_source: str = ''
+    theme: str = 'unknown'
+    theme_error: str = ''
 
     @classmethod
     async def from_source(
-        cls, processor: _interfaces.Processor, source: str
+        cls, processor: __.Processor, source: str
     ) -> __.typx.Self:
         ''' Constructs detection from source location. '''
         if not isinstance( processor, SphinxProcessor ):
-            raise _exceptions.ProcessorTypeError(
+            raise __.ProcessorTypeError(
                 "SphinxProcessor", type( processor ) )
         detection = await processor.detect( source )
         return __.typx.cast( __.typx.Self, detection )
@@ -390,15 +419,15 @@ def _collect_matching_objects(
 
 def _create_term_matcher(
     term: str,
-    match_mode: _interfaces.MatchMode
+    match_mode: __.MatchMode
 ) -> __.cabc.Callable[ [ __.typx.Any ], bool ]:
     ''' Creates a matcher function for term filtering. '''
     if not term: return lambda obj: True
-    if match_mode == _interfaces.MatchMode.Regex:
+    if match_mode == __.MatchMode.Regex:
         try: pattern = __.re.compile( term, __.re.IGNORECASE )
         except __.re.error as exc:
             message = f"Invalid regex pattern: {term}"
-            raise _exceptions.InventoryFilterInvalidity( message ) from exc
+            raise __.InventoryFilterInvalidity( message ) from exc
         return lambda obj: bool( pattern.search( obj.name ) )
     term_lower = term.lower( )
     return lambda obj: term_lower in obj.name.lower( )
@@ -427,7 +456,7 @@ async def _detect_theme(
 
 def _extract_base_url( source: str ) -> str:
     ''' Extracts base documentation URL from inventory source. '''
-    url = _functions.normalize_inventory_source( source )
+    url = normalize_inventory_source( source )
     path = url.path.rstrip( '/objects.inv' )
     if not path.endswith( '/' ): path += '/'
     return _urlparse.urlunparse(
@@ -455,22 +484,22 @@ def _extract_content_snippet(
 
 def _extract_inventory( source: str ) -> _sphobjinv.Inventory:
     ''' Extracts and parses Sphinx inventory from URL or file path. '''
-    url = _functions.normalize_inventory_source( source )
+    url = normalize_inventory_source( source )
     url_s = _urlparse.urlunparse( url )
     nomargs: __.NominativeArguments = { }
     match url.scheme:
         case 'http' | 'https': nomargs[ 'url' ] = url_s
         case 'file': nomargs[ 'fname_zlib' ] = url.path
         case _:
-            raise _exceptions.InventoryUrlNoSupport(
+            raise __.InventoryUrlNoSupport(
                 url, component='scheme', value = url.scheme )
     try:
         return _sphobjinv.Inventory( **nomargs )
     except ( ConnectionError, OSError, TimeoutError ) as exc:
-        raise _exceptions.InventoryInaccessibility(
+        raise __.InventoryInaccessibility(
             url_s, cause = exc ) from exc
     except Exception as exc:
-        raise _exceptions.InventoryInvalidity(
+        raise __.InventoryInvalidity(
             url_s, cause = exc ) from exc
 
 
@@ -495,7 +524,7 @@ async def _fetch_html_content( url: str ) -> str:
                 file_path = __.Path( parsed_url.path )
                 return file_path.read_text( encoding = 'utf-8' )
             except Exception as exc:
-                raise _exceptions.DocumentationInaccessibility(
+                raise __.DocumentationInaccessibility(
                     url, exc ) from exc
         case 'http' | 'https':
             try:
@@ -504,10 +533,10 @@ async def _fetch_html_content( url: str ) -> str:
                     response.raise_for_status( )
                     return response.text
             except Exception as exc:
-                raise _exceptions.DocumentationInaccessibility(
+                raise __.DocumentationInaccessibility(
                     url, exc ) from exc
         case _:
-            raise _exceptions.DocumentationInaccessibility(
+            raise __.DocumentationInaccessibility(
                 url,
                 ValueError( f"Unsupported URL scheme: {parsed_url.scheme}" ) )
 
@@ -518,7 +547,7 @@ def _filter_exact_and_regex_matching( # noqa: PLR0913
     role: __.Absential[ str ],
     priority: __.Absential[ str ],
     term: str,
-    match_mode: _interfaces.MatchMode,
+    match_mode: __.MatchMode,
 ) -> tuple[ dict[ str, __.typx.Any ], int ]:
     ''' Filters inventory using exact or regex matching. '''
     term_matcher = _create_term_matcher( term, match_mode )
@@ -548,12 +577,12 @@ def _filter_inventory( # noqa: PLR0913
     role: __.Absential[ str ] = __.absent,
     term: __.Absential[ str ] = __.absent,
     priority: __.Absential[ str ] = __.absent,
-    match_mode: _interfaces.MatchMode = _interfaces.MatchMode.Exact,
+    match_mode: __.MatchMode = __.MatchMode.Exact,
     fuzzy_threshold: int = 50,
 ) -> tuple[ dict[ str, __.typx.Any ], int ]:
     ''' Filters inventory objects by domain, role, term, match mode. '''
     term_ = '' if __.is_absent( term ) else term
-    if term_ and match_mode == _interfaces.MatchMode.Fuzzy:
+    if term_ and match_mode == __.MatchMode.Fuzzy:
         return _filter_fuzzy_matching(
             inventory, domain, role, priority, term_, fuzzy_threshold )
     return _filter_exact_and_regex_matching(
@@ -605,11 +634,11 @@ def _parse_documentation_html(
     ''' Parses HTML content to extract documentation sections. '''
     try: soup = _BeautifulSoup( html_content, 'lxml' )
     except Exception as exc:
-        raise _exceptions.DocumentationParseFailure(
+        raise __.DocumentationParseFailure(
             element_id, exc ) from exc
     main_content = soup.find( 'article', { 'role': 'main' } )
     if not main_content:
-        raise _exceptions.DocumentationContentAbsence( element_id )
+        raise __.DocumentationContentAbsence( element_id )
     object_element = main_content.find( id = element_id )
     if not object_element:
         return { 'error': f"Object '{element_id}' not found in page" }
@@ -646,10 +675,10 @@ def register(
     # Apply configuration arguments to processor instance
     # For now, create basic instance - future: pass arguments to constructor
     processor = SphinxProcessor( )
-    
+
     if arguments:
         # Future: Configure processor with arguments like timeouts, cache
         # settings, etc.
         pass
-    
+
     return processor
