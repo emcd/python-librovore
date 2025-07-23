@@ -22,31 +22,23 @@
 
 
 from . import __
+from . import interfaces as _interfaces
 from . import xtnsapi as _xtnsapi
 
 
-class Detection( __.immut.DataclassObject ):
-    ''' Base detection result with common fields across all processors. '''
-
-    confidence: float
-    processor: str  # TODO: Processor object
-    timestamp: float
-    metadata: dict[ str, __.typx.Any ] = __.dcls.field(
-        default_factory = dict[ str, __.typx.Any ] )
-
-
-DetectionsByProcessor: __.typx.TypeAlias = __.cabc.Mapping[ str, Detection ]
+DetectionsByProcessor: __.typx.TypeAlias = (
+    __.cabc.Mapping[ str, _interfaces.Detection ] )
 
 
 class DetectionsCacheEntry( __.immut.DataclassObject ):
     ''' Cache entry for source detection results. '''
 
-    detections: __.cabc.Mapping[ str, Detection ]
+    detections: __.cabc.Mapping[ str, _interfaces.Detection ]
     timestamp: float
     ttl: int
 
     @property
-    def best_detection( self ) -> __.Absential[ Detection ]:
+    def best_detection( self ) -> __.Absential[ _interfaces.Detection ]:
         ''' Returns the detection with highest confidence. '''
         if not self.detections: return __.absent
         best_result = max(
@@ -81,7 +73,7 @@ class DetectionsCache( __.immut.DataclassObject ):
 
     def access_best_detection(
         self, source: str
-    ) -> __.Absential[ Detection ]:
+    ) -> __.Absential[ _interfaces.Detection ]:
         ''' Returns the best detection for source, if unexpired. '''
         if source not in self._entries: return __.absent
         cache_entry = self._entries[ source ]
@@ -92,11 +84,11 @@ class DetectionsCache( __.immut.DataclassObject ):
         return cache_entry.best_detection
 
     def add_entry(
-        self, source: str, results: __.cabc.Mapping[ str, Detection ],
+        self, source: str, detections: DetectionsByProcessor
     ) -> __.typx.Self:
         ''' Adds or updates cache entry with fresh results. '''
         self._entries[ source ] = DetectionsCacheEntry(
-            detections = results,
+            detections = detections,
             timestamp = __.time.time( ),
             ttl = self.ttl,
         )
@@ -123,7 +115,7 @@ async def determine_processor_optimal(
     source: str, /, *,
     cache: DetectionsCache = _detections_cache,
     processors: _xtnsapi.ProcessorsRegistry = _xtnsapi.processors,
-) -> __.Absential[ Detection ]:
+) -> __.Absential[ _interfaces.Detection ]:
     ''' Determines which processor can best handle the source. '''
     detection = cache.access_best_detection( source )
     if not __.is_absent( detection ): return detection
@@ -134,33 +126,22 @@ async def determine_processor_optimal(
 
 async def _execute_processors(
     source: str, processors: _xtnsapi.ProcessorsRegistry
-) -> dict[ str, Detection ]:
+) -> dict[ str, _interfaces.Detection ]:
     ''' Runs all processors on the source. '''
-    results: dict[ str, Detection ] = { }
-    current_time = __.time.time( )
+    results: dict[ str, _interfaces.Detection ] = { }
     for processor in processors.values( ):
         try: detection = await processor.detect( source )
-        except Exception as exc:  # noqa: PERF203
-            # Log error but continue with other processors
-            results[ processor.name ] = Detection(
-                confidence = 0.0,
-                metadata = { 'error': str( exc ) },
-                processor = processor.name,
-                timestamp = current_time,
-            )
+        except Exception:  # noqa: PERF203,S112
+            # Skip processor on detection failure
+            continue
         else:
-            results[ processor.name ] = Detection(
-                confidence = detection.confidence,
-                metadata = detection.specifics,
-                processor = processor.name,
-                timestamp = current_time,
-            )
+            results[ processor.name ] = detection
     return results
 
 
 def _select_processor_optimal(
     detections: DetectionsByProcessor, processors: _xtnsapi.ProcessorsRegistry
-) -> __.Absential[ Detection ]:
+) -> __.Absential[ _interfaces.Detection ]:
     ''' Selects best processor based on confidence and registration order. '''
     if not detections: return __.absent
     detections_ = [
@@ -168,9 +149,9 @@ def _select_processor_optimal(
         if result.confidence > 0.0 ]
     if not detections_: return __.absent
     processor_names = list( processors.keys( ) )
-    def sort_key( result: Detection ) -> tuple[ float, int ]:
+    def sort_key( result: _interfaces.Detection ) -> tuple[ float, int ]:
         confidence = result.confidence
-        processor_name = result.processor
+        processor_name = result.processor.name
         registration_order = processor_names.index( processor_name )
         return ( -confidence, registration_order )
     detections_.sort( key = sort_key )

@@ -172,8 +172,8 @@ async def ensure_package(
     max_retries: int = 3
 ) -> __.typx.Annotated[
     None,
-    __.ddoc.Raises( __.ExtensionConfigError, 'Invalid spec.' ),
-    __.ddoc.Raises( __.ExtensionInstallationError, 'Install fails.' ),
+    __.ddoc.Raises( __.ExtensionConfigurationInvalidity, 'Invalid spec.' ),
+    __.ddoc.Raises( __.ExtensionInstallFailure, 'Install fails.' ),
 ]:
     ''' Ensures package is installed and importable. '''
     cache_info = acquire_cache_info( specification )

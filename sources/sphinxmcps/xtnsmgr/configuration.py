@@ -38,20 +38,20 @@ def validate_extension( config: ExtensionConfig ) -> None:
     ''' Validates single extension configuration. '''
     name = config.get( 'name' )
     if not name or not isinstance( name, str ):
-        raise __.ExtensionConfigError(
+        raise __.ExtensionConfigurationInvalidity(
             name or '<unnamed>',
             "Required field 'name' must be a non-empty string" )
     enabled = config.get( 'enabled', True )
     if not isinstance( enabled, bool ):
-        raise __.ExtensionConfigError(
+        raise __.ExtensionConfigurationInvalidity(
             name, "Field 'enabled' must be a boolean" )
     package = config.get( 'package' )
     if package is not None and not isinstance( package, str ):
-        raise __.ExtensionConfigError(
+        raise __.ExtensionConfigurationInvalidity(
             name, "Field 'package' must be a string" )
     arguments = config.get( 'arguments', { } )
     if not isinstance( arguments, dict ):
-        raise __.ExtensionConfigError(
+        raise __.ExtensionConfigurationInvalidity(
             name, "Field 'arguments' must be a dictionary" )
 
 
@@ -63,13 +63,13 @@ def extract_extensions(
     if not configuration: return ( )
     raw = configuration.get( 'extensions', [ ] )
     if not isinstance( raw, list ):
-        raise __.ExtensionConfigError(
+        raise __.ExtensionConfigurationInvalidity(
             '<root>', "Configuration 'extensions' must be a list" )
     raw = __.typx.cast( list[ __.typx.Any ], raw )
     extensions: __.cabc.Sequence[ ExtensionConfig ] = [ ]
     for i, config in enumerate( raw ):
         if not isinstance( config, dict ):
-            raise __.ExtensionConfigError(
+            raise __.ExtensionConfigurationInvalidity(
                 f'<extension[{i}]>',
                 "Extension configuration must be a dictionary" )
         typed_config = __.typx.cast( ExtensionConfig, config )

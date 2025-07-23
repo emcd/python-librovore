@@ -40,7 +40,7 @@ async def install_package(
     '''
     for attempt in range( max_retries + 1 ):
         try: return await _install_with_uv( specification, cache_path )
-        except __.ExtensionInstallationError as exc:  # noqa: PERF203
+        except __.ExtensionInstallFailure as exc:  # noqa: PERF203
             if attempt == max_retries:
                 _scribe.error(
                     f"Failed to install {specification} after "
@@ -52,7 +52,7 @@ async def install_package(
                 f"Installation attempt {attempt + 1} failed for "
                 f"{specification}, retrying in {delay}s: {exc}" )
             await __.asyncio.sleep( delay )
-    raise __.ExtensionInstallationError(
+    raise __.ExtensionInstallFailure(
         specification, "Maximum retries exceeded" )
 
 
@@ -77,7 +77,7 @@ def _get_uv_executable( specification: str ) -> str:
     ''' Gets uv executable path, raising appropriate error if not found. '''
     try: return str( _uv.find_uv_bin( ) )
     except ImportError as exc:
-        raise __.ExtensionInstallationError(
+        raise __.ExtensionInstallFailure(
             specification, f"uv not available: {exc}" ) from exc
 
 
@@ -102,16 +102,16 @@ async def _execute_uv_command(
             stdout = __.asyncio.subprocess.PIPE,
             stderr = __.asyncio.subprocess.PIPE )
     except OSError as exc:
-        raise __.ExtensionInstallationError(
+        raise __.ExtensionInstallFailure(
             specification, f"Process execution failed: {exc}" ) from exc
     try:
         stdout, stderr = await process.communicate( )
     except __.asyncio.TimeoutError as exc:
-        raise __.ExtensionInstallationError(
+        raise __.ExtensionInstallFailure(
             specification, f"Installation timed out: {exc}" ) from exc
     returncode = process.returncode
     if returncode is None:
-        raise __.ExtensionInstallationError(
+        raise __.ExtensionInstallFailure(
             specification, "Process terminated without exit code" )
     return stdout, stderr, returncode
 
@@ -121,7 +121,7 @@ def _validate_installation_result(
 ) -> None:
     ''' Validates installation result and raises error if failed. '''
     if returncode != 0:
-        raise __.ExtensionInstallationError(
+        raise __.ExtensionInstallFailure(
             specification,
             f"uv install failed (exit {returncode}): "
             f"{stderr.decode( 'utf-8' )}" )

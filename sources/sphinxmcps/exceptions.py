@@ -38,6 +38,14 @@ class Omnierror( Omniexception, Exception ):
     ''' Base for error exceptions raised by package API. '''
 
 
+class DetectionConfidenceInvalidity( Omnierror, ValueError ):
+    ''' Detection confidence value is out of valid range. '''
+
+    def __init__( self, confidence: float ):
+        self.confidence = confidence
+        super( ).__init__( f"Confidence {confidence} not in range [0.0, 1.0]" )
+
+
 class DocumentationContentAbsence( Omnierror, ValueError ):
     ''' Documentation main content container not found. '''
 
@@ -65,6 +73,30 @@ class DocumentationParseFailure( Omnierror, ValueError ):
         super( ).__init__( message )
 
 
+class ExtensionCacheFailure( Omnierror, RuntimeError ):
+    ''' Extension cache operation failed. '''
+
+    def __init__( self, cache_path: __.Path, message: str ):
+        self.cache_path = cache_path
+        super( ).__init__( f"Cache error at '{cache_path}': {message}" )
+
+
+class ExtensionConfigurationInvalidity( Omnierror, ValueError ):
+    ''' Extension configuration is invalid. '''
+
+    def __init__( self, extension_name: str, message: str ):
+        self.extension_name = extension_name
+        super( ).__init__( f"Extension '{extension_name}': {message}" )
+
+
+class ExtensionInstallFailure( Omnierror, RuntimeError ):
+    ''' Extension package installation failed. '''
+
+    def __init__( self, package_spec: str, message: str ):
+        self.package_spec = package_spec
+        super( ).__init__( f"Failed to install '{package_spec}': {message}" )
+
+
 class ExtensionRegisterFailure( Omnierror, TypeError ):
     ''' Invalid plugin could not be registered. '''
 
@@ -73,13 +105,22 @@ class ExtensionRegisterFailure( Omnierror, TypeError ):
         super( ).__init__( message )
 
 
-class ProcessorTypeError( Omnierror, TypeError ):
-    ''' Processor has wrong type. '''
+class ExtensionVersionConflict( Omnierror, ImportError ):
+    ''' Extension has incompatible version requirements. '''
 
-    def __init__( self, expected_type: str, actual_type: type ):
-        message = f"Expected {expected_type}, got {actual_type}"
-        self.expected_type = expected_type
-        self.actual_type = actual_type
+    def __init__( self, package_name: str, required: str, available: str ):
+        self.package_name = package_name
+        self.required = required
+        self.available = available
+        super( ).__init__(
+            f"Version conflict for '{package_name}': "
+            f"required {required}, available {available}" )
+
+
+class InventoryFilterInvalidity( Omnierror, ValueError ):
+    ''' Inventory filter is invalid. '''
+
+    def __init__( self, message: str ):
         super( ).__init__( message )
 
 
@@ -98,13 +139,6 @@ class InventoryInvalidity( Omnierror, ValueError ):
     def __init__( self, source: str, cause: Exception ):
         message = f"Inventory at '{source}' is invalid. Cause: {cause}"
         self.source = source
-        super( ).__init__( message )
-
-
-class InventoryFilterInvalidity( Omnierror, ValueError ):
-    ''' Inventory filter is invalid. '''
-
-    def __init__( self, message: str ):
         super( ).__init__( message )
 
 
@@ -143,40 +177,11 @@ class ProcessorNotFound( Omnierror, RuntimeError ):
         super( ).__init__( message )
 
 
-class ExtensionConfigError( Omnierror, ValueError ):
-    ''' Extension configuration is invalid. '''
-    
-    def __init__( self, extension_name: str, message: str ):
-        self.extension_name = extension_name
-        super( ).__init__( f"Extension '{extension_name}': {message}" )
+class ProcessorTypeError( Omnierror, TypeError ):
+    ''' Processor has wrong type. '''
 
-
-class ExtensionInstallationError( Omnierror, RuntimeError ):
-    ''' Extension package installation failed. '''
-    
-    def __init__( self, package_spec: str, message: str ):
-        self.package_spec = package_spec
-        super( ).__init__( f"Failed to install '{package_spec}': {message}" )
-
-
-class ExtensionCacheError( Omnierror, RuntimeError ):
-    ''' Extension cache operation failed. '''
-    
-    def __init__( self, cache_path: __.Path, message: str ):
-        self.cache_path = cache_path
-        super( ).__init__( f"Cache error at '{cache_path}': {message}" )
-
-
-class ExtensionVersionConflictError( Omnierror, ImportError ):
-    ''' Extension has incompatible version requirements. '''
-    
-    def __init__( self, package_name: str, required: str, available: str ):
-        self.package_name = package_name
-        self.required = required
-        self.available = available
-        super( ).__init__(
-            f"Version conflict for '{package_name}': "
-            f"required {required}, available {available}"
-        )
-
-
+    def __init__( self, expected_type: str, actual_type: type ):
+        message = f"Expected {expected_type}, got {actual_type}"
+        self.expected_type = expected_type
+        self.actual_type = actual_type
+        super( ).__init__( message )

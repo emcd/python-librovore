@@ -82,8 +82,9 @@ def test_040_validate_extension_missing_name_field( ):
         'arguments': { }
     }
     with pytest.raises(
-        _exceptions.ExtensionConfigError, match="Required field 'name'" ):
-        module.validate_extension( config )
+        _exceptions.ExtensionConfigurationInvalidity,
+        match = "Required field 'name'"
+    ): module.validate_extension( config )
 
 
 def test_050_validate_extension_empty_name_field( ):
@@ -94,8 +95,9 @@ def test_050_validate_extension_empty_name_field( ):
         'arguments': { }
     }
     with pytest.raises(
-        _exceptions.ExtensionConfigError, match="Required field 'name'" ):
-        module.validate_extension( config )
+        _exceptions.ExtensionConfigurationInvalidity,
+        match = "Required field 'name'"
+    ): module.validate_extension( config )
 
 
 def test_060_validate_extension_non_string_name( ):
@@ -106,8 +108,9 @@ def test_060_validate_extension_non_string_name( ):
         'arguments': { }
     }
     with pytest.raises(
-        _exceptions.ExtensionConfigError, match="must be a non-empty string" ):
-        module.validate_extension( config )
+        _exceptions.ExtensionConfigurationInvalidity,
+        match = "must be a non-empty string"
+    ): module.validate_extension( config )
 
 
 def test_070_validate_extension_non_boolean_enabled( ):
@@ -118,8 +121,9 @@ def test_070_validate_extension_non_boolean_enabled( ):
         'arguments': { }
     }
     with pytest.raises(
-        _exceptions.ExtensionConfigError, match="must be a boolean" ):
-        module.validate_extension( config )
+        _exceptions.ExtensionConfigurationInvalidity,
+        match = "must be a boolean"
+    ): module.validate_extension( config )
 
 
 def test_080_validate_extension_non_string_package( ):
@@ -131,8 +135,9 @@ def test_080_validate_extension_non_string_package( ):
         'arguments': { }
     }
     with pytest.raises(
-        _exceptions.ExtensionConfigError, match="must be a string" ):
-        module.validate_extension( config )
+        _exceptions.ExtensionConfigurationInvalidity,
+        match = "must be a string"
+    ): module.validate_extension( config )
 
 
 def test_090_validate_extension_non_dict_arguments( ):
@@ -143,8 +148,9 @@ def test_090_validate_extension_non_dict_arguments( ):
         'arguments': 'invalid'
     }
     with pytest.raises(
-        _exceptions.ExtensionConfigError, match="must be a dictionary" ):
-        module.validate_extension( config )
+        _exceptions.ExtensionConfigurationInvalidity,
+        match = "must be a dictionary"
+    ): module.validate_extension( config )
 
 
 def test_100_validate_extension_minimal_config( ):
@@ -198,8 +204,9 @@ def test_230_extract_extensions_non_list_extensions( ):
     mock_globals = Mock( )
     mock_globals.configuration = { 'extensions': 'not_a_list' }
     with pytest.raises(
-        _exceptions.ExtensionConfigError, match="must be a list" ):
-        module.extract_extensions( mock_globals )
+        _exceptions.ExtensionConfigurationInvalidity,
+        match = "must be a list"
+    ): module.extract_extensions( mock_globals )
 
 
 def test_240_extract_extensions_non_dict_extension( ):
@@ -209,8 +216,9 @@ def test_240_extract_extensions_non_dict_extension( ):
         'extensions': [ 'not_a_dict' ]
     }
     with pytest.raises(
-        _exceptions.ExtensionConfigError, match="must be a dictionary" ):
-        module.extract_extensions( mock_globals )
+        _exceptions.ExtensionConfigurationInvalidity,
+        match = "must be a dictionary"
+    ): module.extract_extensions( mock_globals )
 
 
 def test_250_extract_extensions_invalid_extension( ):
@@ -222,8 +230,9 @@ def test_250_extract_extensions_invalid_extension( ):
         ]
     }
     with pytest.raises(
-        _exceptions.ExtensionConfigError, match="Required field 'name'" ):
-        module.extract_extensions( mock_globals )
+        _exceptions.ExtensionConfigurationInvalidity,
+        match = "Required field 'name'"
+    ): module.extract_extensions( mock_globals )
 
 
 def test_300_select_active_extensions( ):

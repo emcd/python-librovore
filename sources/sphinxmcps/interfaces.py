@@ -22,12 +22,9 @@
 
 
 from . import __
+from . import exceptions as _exceptions
 
 
-DetectionSpecifics: __.typx.TypeAlias = __.typx.Annotated[
-    dict[ str, __.typx.Any ],
-    __.typx.Doc( ''' Metadata specific to a detection. ''' ),
-]
 
 
 class DisplayStreams( __.enum.Enum ):
@@ -145,6 +142,12 @@ class Detection( __.immut.DataclassProtocol ):
 
     processor: Processor
     confidence: float
+    timestamp: float = __.dcls.field( default_factory = __.time.time )
+
+    def __post_init__( self ) -> None:
+        ''' Validates confidence is in valid range [0.0, 1.0]. '''
+        if not ( 0.0 <= self.confidence <= 1.0 ):
+            raise _exceptions.DetectionConfidenceInvalidity( self.confidence )
 
     @classmethod
     @__.abc.abstractmethod
@@ -152,10 +155,4 @@ class Detection( __.immut.DataclassProtocol ):
         selfclass, processor: Processor, source: str
     ) -> __.typx.Self:
         ''' Constructs detection from source location. '''
-        raise NotImplementedError
-
-    @property
-    @__.abc.abstractmethod
-    def specifics( self ) -> DetectionSpecifics:
-        ''' Returns metadata associated with detection as dictionary. '''
         raise NotImplementedError

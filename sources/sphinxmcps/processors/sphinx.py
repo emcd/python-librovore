@@ -264,14 +264,6 @@ class SphinxDetection( _interfaces.Detection ):
         detection = await processor.detect( source )
         return __.typx.cast( __.typx.Self, detection )
 
-    @property
-    def specifics( self ) -> _interfaces.DetectionSpecifics:
-        ''' Returns metadata associated with detection as dictionary. '''
-        return {
-            'source': self.source,
-            'processor_name': self.processor.name,
-            **self.metadata
-        }
 
 
 def _build_documentation_url(
