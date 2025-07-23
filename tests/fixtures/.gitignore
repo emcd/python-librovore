@@ -1,0 +1,7 @@
+# Ignore Python build artifacts in test fixtures
+*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+build/
+dist/

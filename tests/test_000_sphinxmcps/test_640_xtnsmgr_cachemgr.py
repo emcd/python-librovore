@@ -247,6 +247,8 @@ def test_600_ensure_package_exists_in_module( ):
 def test_700_complete_cache_lifecycle_works( ):
     ''' Full cache save, retrieve, and clear cycle works correctly. '''
     fake_url = get_fake_extension_url( )
+    # Clean any existing cache first
+    module.clear_package_cache( fake_url )
     result = module.acquire_cache_info( fake_url )
     assert result is None
     cleared = module.clear_package_cache( fake_url )
