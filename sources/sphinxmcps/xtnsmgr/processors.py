@@ -32,8 +32,9 @@ _scribe = __.acquire_scribe( __name__ )
 
 async def register_processors( auxdata: __.Globals ):
     ''' Registers processors based on configuration. '''
-    try: extensions = _configuration.extract_extensions( auxdata )
-    except Exception as exc:
+    try:
+        extensions = _configuration.extract_extensions( auxdata )
+    except ( KeyError, ValueError, TypeError ) as exc:
         _scribe.error( f"Configuration loading failed: {exc}." )
         _scribe.warning( "No processors loaded due to configuration errors." )
         return
@@ -75,12 +76,14 @@ def _register_processor(
     if 'package' not in extension:
         module_name = f"{__.package_name}.processors.{name}"
     else: module_name = name
-    try: module = _importation.import_processor_module( module_name )
-    except Exception as exc:
+    try:
+        module = _importation.import_processor_module( module_name )
+    except ( ImportError, ModuleNotFoundError ) as exc:
         _scribe.error( f"Failed to import processor {name}: {exc}." )
         return
-    try: processor = module.register( arguments )
-    except Exception as exc:
+    try:
+        processor = module.register( arguments )
+    except ( AttributeError, TypeError, ValueError ) as exc:
         _scribe.error( f"Failed to register processor {name}: {exc}." )
         return
     __.processors[ name ] = processor

@@ -51,9 +51,9 @@ def calculate_cache_path( specification: str ) -> __.Path:
     base_dir = __.Path( '.auxiliary/caches/extensions' )
     hasher = __.hashlib.sha256( )
     hasher.update( specification.encode( 'utf-8' ) )
-    package_hash = hasher.hexdigest( )
+    digest = hasher.hexdigest( )
     platform_id = calculate_platform_id( )
-    return base_dir / package_hash / platform_id
+    return base_dir / digest / platform_id
 
 
 def calculate_platform_id( ) -> str:
@@ -67,10 +67,10 @@ def calculate_platform_id( ) -> str:
     '''
     implementation = __.sys.implementation.name
     version = '.'.join( map( str, __.sys.version_info[ : 2 ] ) )
-    implementation_version = ''
+    suffix = ''
     match implementation:
         case 'pypy':
-            implementation_version = '-' + '.'.join(
+            suffix = '-' + '.'.join(
                 map( str, __.sys.pypy_version_info[ : 2 ] ) ) # pyright: ignore
         case 'graalpy':
             # TODO: Add GraalVM version when available
@@ -78,19 +78,19 @@ def calculate_platform_id( ) -> str:
         case _:
             pass
     os_name = __.platform.system( ).lower( )
-    cpu_architecture = __.platform.machine( ).lower( )
+    architecture = __.platform.machine( ).lower( )
     return (
-        f"{implementation}-{version}{implementation_version}"
-        f"--{os_name}--{cpu_architecture}" )
+        f"{implementation}-{version}{suffix}"
+        f"--{os_name}--{architecture}" )
 
 
 def acquire_cache_info( specification: str ) -> CacheInfo | None:
     ''' Acquires cache information for a package, if it exists. '''
     cache_path = calculate_cache_path( specification )
-    metadata_file = cache_path / '.cache_metadata.json'
-    if not metadata_file.exists( ): return None
+    metafile = cache_path / '.cache_metadata.json'
+    if not metafile.exists( ): return None
     try:
-        with metadata_file.open( 'r', encoding = 'utf-8' ) as f:
+        with metafile.open( 'r', encoding = 'utf-8' ) as f:
             metadata = __.json.load( f )
         return CacheInfo(
             specification = metadata[ 'package_spec' ],
@@ -108,16 +108,16 @@ def acquire_cache_info( specification: str ) -> CacheInfo | None:
 
 def save_cache_info( cache_info: CacheInfo ) -> None:
     ''' Saves cache information to metadata file. '''
-    metadata_file = cache_info.location / '.cache_metadata.json'
-    metadata_file.parent.mkdir( parents = True, exist_ok = True )
-    metadata: dict[ str, str | int ] = {
+    metafile = cache_info.location / '.cache_metadata.json'
+    metafile.parent.mkdir( parents = True, exist_ok = True )
+    metadata: __.cabc.Mapping[ str, str | int ] = __.immut.Dictionary( {
         'package_spec': cache_info.specification,
         'installed_at': cache_info.ctime.isoformat( ),
         'ttl_hours': cache_info.ttl,
         'platform_id': cache_info.platform_id
-    }
-    with metadata_file.open( 'w', encoding = 'utf-8' ) as f:
-        __.json.dump( metadata, f, indent = 2 )
+    } )
+    with metafile.open( 'w', encoding = 'utf-8' ) as f:
+        __.json.dump( dict( metadata ), f, indent = 2 )
 
 
 def cleanup_expired_caches( ttl: int = 24 ) -> None:
@@ -128,10 +128,10 @@ def cleanup_expired_caches( ttl: int = 24 ) -> None:
         if not package_dir.is_dir( ): continue
         for platform_dir in package_dir.iterdir( ):
             if not platform_dir.is_dir( ): continue
-            metadata_file = platform_dir / '.cache_metadata.json'
-            if not metadata_file.exists( ): continue
+            metafile = platform_dir / '.cache_metadata.json'
+            if not metafile.exists( ): continue
             try:
-                with metadata_file.open( 'r', encoding = 'utf-8' ) as f:
+                with metafile.open( 'r', encoding = 'utf-8' ) as f:
                     metadata = __.json.load( f )
                 installed_at = __.datetime.datetime.fromisoformat(
                     metadata[ 'installed_at' ] )

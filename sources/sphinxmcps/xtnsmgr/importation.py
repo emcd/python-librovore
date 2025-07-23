@@ -26,7 +26,7 @@ import importlib as _importlib
 from . import __
 
 
-_added_paths: list[ str ] = [ ]
+_added_paths: __.cabc.MutableSequence[ str ] = [ ]
 _scribe = __.acquire_scribe( __name__ )
 
 
@@ -119,10 +119,10 @@ def reload_processor_module(
     return importer( module_name )
 
 
-def list_registered_processors( ) -> list[ str ]:
+def list_registered_processors( ) -> tuple[ str, ... ]:
     ''' List all currently registered processor names from the registry. '''
     from .. import xtnsapi as _xtnsapi
-    return list( _xtnsapi.processors.keys( ) )
+    return tuple( _xtnsapi.processors.keys( ) )
 
 
 def get_module_info( module_name: str ) -> dict[ str, __.typx.Any ]:

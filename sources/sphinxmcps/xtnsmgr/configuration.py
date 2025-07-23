@@ -61,20 +61,20 @@ def extract_extensions(
     ''' Loads and validates extensions configuration. '''
     configuration = auxdata.configuration
     if not configuration: return ( )
-    extensions_raw = configuration.get( 'extensions', [ ] )
-    if not isinstance( extensions_raw, list ):
+    raw = configuration.get( 'extensions', [ ] )
+    if not isinstance( raw, list ):
         raise __.ExtensionConfigError(
             '<root>', "Configuration 'extensions' must be a list" )
-    extensions_raw = __.typx.cast( list[ __.typx.Any ], extensions_raw )
-    extensions: list[ ExtensionConfig ] = [ ]
-    for i, ext_config in enumerate( extensions_raw ):
-        if not isinstance( ext_config, dict ):
+    raw = __.typx.cast( list[ __.typx.Any ], raw )
+    extensions: __.cabc.Sequence[ ExtensionConfig ] = [ ]
+    for i, config in enumerate( raw ):
+        if not isinstance( config, dict ):
             raise __.ExtensionConfigError(
                 f'<extension[{i}]>',
                 "Extension configuration must be a dictionary" )
-        ext_config_typed = __.typx.cast( ExtensionConfig, ext_config )
-        validate_extension( ext_config_typed )
-        extensions.append( ext_config_typed )
+        typed_config = __.typx.cast( ExtensionConfig, config )
+        validate_extension( typed_config )
+        extensions.append( typed_config )
     return tuple( extensions )
 
 

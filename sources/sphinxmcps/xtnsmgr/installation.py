@@ -38,7 +38,7 @@ async def install_package(
 
         Returns path to installed package for sys.path manipulation.
     '''
-    import cachemgr # TODO: Get rid of cyclic dependency.
+    from . import cachemgr # TODO: Get rid of cyclic dependency.
     cache_info = cachemgr.acquire_cache_info( specification )
     if cache_info and not cache_info.is_expired:
         _scribe.debug( f"Using cached package: {specification}." )
@@ -47,8 +47,7 @@ async def install_package(
         _scribe.debug( f"Clearing expired cache for: {specification}." )
         cachemgr.clear_package_cache( specification )
     for attempt in range( max_retries + 1 ):
-        try:
-            return await _install_with_uv( specification, cache_ttl )
+        try: return await _install_with_uv( specification, cache_ttl )
         except __.ExtensionInstallationError as exc:  # noqa: PERF203
             if attempt == max_retries:
                 _scribe.error(
@@ -67,20 +66,49 @@ async def install_package(
 
 async def _install_with_uv( specification: str, cache_ttl: int ) -> __.Path:
     ''' Installs package using uv to isolated cache directory. '''
-    import cachemgr # TODO: Get rid of cyclic dependency.
+    cache_path = _prepare_cache_directory( specification )
+    executable = _get_uv_executable( specification )
+    command = _build_uv_command( executable, cache_path, specification )
+    _scribe.info( f"Installing {specification} to {cache_path}." )
+    stdout, stderr, returncode = await _execute_uv_command(
+        command, specification )
+    _validate_installation_result( specification, returncode, stderr )
+    _save_cache_metadata( specification, cache_ttl, cache_path )
+    _scribe.info( f"Successfully installed {specification}." )
+    return cache_path
+
+
+def _prepare_cache_directory( specification: str ) -> __.Path:
+    ''' Prepares and returns cache directory for package installation. '''
+    from . import cachemgr # TODO: Get rid of cyclic dependency.
     cache_path = cachemgr.calculate_cache_path( specification )
     cache_path.mkdir( parents = True, exist_ok = True )
-    try: uv_executable = _uv.find_uv_bin( )
+    return cache_path
+
+
+def _get_uv_executable( specification: str ) -> str:
+    ''' Gets uv executable path, raising appropriate error if not found. '''
+    try: return str( _uv.find_uv_bin( ) )
     except ImportError as exc:
         raise __.ExtensionInstallationError(
             specification, f"uv not available: {exc}" ) from exc
-    uv_exec_str: str = str( uv_executable )
-    command: list[ str ] = [
-        uv_exec_str, 'pip',
+
+
+def _build_uv_command(
+    executable: str, cache_path: __.Path, specification: str
+) -> list[ str ]:
+    ''' Builds uv command for package installation. '''
+    return [
+        executable, 'pip',
         'install', '--target', str( cache_path ),
         specification
     ]
-    _scribe.info( f"Installing {specification} to {cache_path}." )
+
+
+async def _execute_uv_command(
+    command: list[ str ], specification: str
+) -> tuple[ bytes, bytes, int ]:
+    ''' Executes uv command and returns stdout, stderr, and return code. '''
     try:
         process = await __.asyncio.create_subprocess_exec(
             *command,
@@ -94,11 +122,29 @@ async def _install_with_uv( specification: str, cache_ttl: int ) -> __.Path:
     except __.asyncio.TimeoutError as exc:
         raise __.ExtensionInstallationError(
             specification, f"Installation timed out: {exc}" ) from exc
-    if process.returncode != 0:
+    returncode = process.returncode
+    if returncode is None:
+        raise __.ExtensionInstallationError(
+            specification, "Process terminated without exit code" )
+    return stdout, stderr, returncode
+
+
+def _validate_installation_result(
+    specification: str, returncode: int, stderr: bytes
+) -> None:
+    ''' Validates installation result and raises error if failed. '''
+    if returncode != 0:
         raise __.ExtensionInstallationError(
             specification,
-            f"uv install failed (exit {process.returncode}): "
+            f"uv install failed (exit {returncode}): "
             f"{stderr.decode( 'utf-8' )}" )
+
+
+def _save_cache_metadata(
+    specification: str, cache_ttl: int, cache_path: __.Path
+) -> None:
+    ''' Saves cache metadata for successful installation. '''
+    from . import cachemgr # TODO: Get rid of cyclic dependency.
     cache_info = cachemgr.CacheInfo(
         specification = specification,
         ctime = __.datetime.datetime.now( ),
@@ -106,8 +152,6 @@ async def _install_with_uv( specification: str, cache_ttl: int ) -> __.Path:
         platform_id = cachemgr.calculate_platform_id( ),
         location = cache_path )
     cachemgr.save_cache_info( cache_info )
-    _scribe.info( f"Successfully installed {specification}." )
-    return cache_path
 
 
 async def install_packages_parallel(
@@ -125,7 +169,7 @@ async def install_packages_parallel(
     '''
     if not specifications: return [ ]
     if __.is_absent( installer ):
-        def default_installer( spec ):
+        def default_installer( spec: str ):
             return install_package(
                 spec, max_retries = max_retries, cache_ttl = cache_ttl )
         installer = default_installer

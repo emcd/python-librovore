@@ -152,7 +152,7 @@ def test_210_imported_modules_show_details( ):
 def test_220_processor_registry_is_accessible( ):
     ''' Registered processors can be listed from the registry. '''
     result = module.list_registered_processors( )
-    assert isinstance( result, list )
+    assert isinstance( result, tuple )
 
 
 def test_300_nonexistent_directories_are_handled_safely( ):
