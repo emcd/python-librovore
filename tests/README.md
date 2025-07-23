@@ -8,16 +8,35 @@ This test suite follows the project standard numbering conventions:
 - `test_000_package.py` - Package infrastructure and imports
 - `test_010_internals.py` - Internal utilities and common imports (renamed from test_010_base.py)
 - `test_100_exceptions.py` - Exception hierarchy and error handling (layer 0)
-- `test_200_functions.py` - Core business logic functions (layer 1)  
+- `test_200_detection.py` - Detection system and processor selection (layer 1)
+- `test_210_functions.py` - Core business logic functions (layer 1)  
 - `test_300_cli.py` - Command-line interface (layer 2)
 - `test_400_server.py` - MCP server functionality (layer 3)
 - `test_500_integration.py` - Cross-module integration tests
+
+### Extension Manager Subpackage Tests (600s)
+- `test_610_xtnsmgr_configuration.py` - Configuration validation and extraction
+- `test_620_xtnsmgr_importation.py` - Package importing and .pth file processing  
+- `test_630_xtnsmgr_installation.py` - Package installation via uv
+- `test_640_xtnsmgr_cachemgr.py` - Cache management and coordination
+- `test_650_xtnsmgr_processors.py` - Processor extraction and registration
+
+### Processor-Specific Tests (700s)
+- `test_710_sphinx.py` - Sphinx processor implementation (future)
 
 ### Function Numbering within Modules
 - `000-099`: Foundational functionality
 - `100-199`: Primary feature blocks  
 - `200-299`: Secondary feature blocks
+- `300-399`: Tertiary feature blocks
 - Increment by 10-20 for related test groups
+
+#### Special: Detection Module Function Organization
+`test_200_detection.py` uses specialized numbering:
+- `100-199`: DetectionsCacheEntry tests
+- `200-299`: DetectionsCache tests  
+- `300-399`: determine_processor_optimal tests
+- `700-799`: Sphinx processor integration tests (future)
 
 ## Testing Principles Applied
 
