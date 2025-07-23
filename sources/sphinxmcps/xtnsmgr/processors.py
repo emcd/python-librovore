@@ -58,13 +58,21 @@ async def register_processors( auxdata: __.Globals ):
 async def _ensure_external_packages(
     extensions: __.cabc.Sequence[ _configuration.ExtensionConfig ]
 ) -> None:
-    ''' Ensures external packages are installed and importable. '''
+    ''' Ensures external packages are installed and importable in parallel. '''
     if not extensions: return
     specifications = [ ext[ 'package' ] for ext in extensions ]
     count = len( specifications )
-    _scribe.info( "Ensuring {} external packages available.".format( count ) )
-    for specification in specifications:
-        await _cachemgr.ensure_package( specification )
+    _scribe.info( f"Ensuring {count} external packages available." )
+    tasks = [ _cachemgr.ensure_package( spec ) for spec in specifications ]
+    try:
+        await __.asyncf.gather_async(
+            *tasks, error_message = "Failed to install external packages." )
+    except __.excg.ExceptionGroup as exc_group:
+        for exc in exc_group.exceptions:
+            _scribe.error( f"Package installation failed: {exc}." )
+        raise
+    else:
+        _scribe.info( "Successfully ensured all external packages." )
 
 
 def _register_processor(
