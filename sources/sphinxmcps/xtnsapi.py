@@ -29,9 +29,12 @@ from .exceptions import *
 from .interfaces import *
 
 
+ProcessorsRegistry: __.typx.TypeAlias = (
+    __.accret.ValidatorDictionary[ str, Processor ] )
+
+
 def _validator( name: str, value: Processor ) -> bool:
     return isinstance( value, Processor )
 
 
-processors: __.accret.ValidatorDictionary[ str, Processor ] = (
-    __.accret.ValidatorDictionary( _validator ) )
+processors: ProcessorsRegistry = __.accret.ValidatorDictionary( _validator )

@@ -22,157 +22,156 @@
 
 
 from . import __
-from . import interfaces as _interfaces
+from . import xtnsapi as _xtnsapi
 
 
-DetectionCache: __.typx.TypeAlias = __.typx.Annotated[
-    dict[ str, dict[ str, __.typx.Any ] ],
-    __.typx.Doc( '''
-        Cache mapping source URLs to detection results.
+class Detection( __.immut.DataclassObject ):
+    ''' Base detection result with common fields across all processors. '''
 
-        Structure:
-        {
-            "https://example.com/": {
-                'timestamp': float,
-                'ttl': int,
-                'results': {
-                    'sphinx': DetectionResult,
-                    'openapi': DetectionResult,
-                }
-            }
-        }
-    ''' ),
-]
-DetectionResult: __.typx.TypeAlias = __.typx.Annotated[
-    dict[ str, __.typx.Any ],
-    __.typx.Doc( '''
-        Result of source detection containing confidence score and metadata.
-
-        Structure:
-        {
-            'confidence': float,  # 0.0-1.0 confidence score
-            'metadata': dict,     # Plugin-specific metadata
-            'detector_name': str, # Name of the detector
-            'timestamp': float,   # Detection timestamp
-        }
-    ''' ),
-]
+    confidence: float
+    processor: str  # TODO: Processor object
+    timestamp: float
+    metadata: dict[ str, __.typx.Any ] = __.dcls.field(
+        default_factory = dict[ str, __.typx.Any ] )
 
 
-# Global detection cache
-_detection_cache: DetectionCache = { }
+DetectionsByProcessor: __.typx.TypeAlias = __.cabc.Mapping[ str, Detection ]
 
 
-async def detect_source(
-    source: str, *, cache_ttl: int = 3600
-) -> DetectionResult | None:
-    ''' Detect which processor can best handle the source. '''
-    from . import xtnsapi as _xtnsapi
-    
-    # Check cache first
-    cached_result = _get_cached_result( source, cache_ttl )
-    if cached_result is not None:
-        return cached_result
+class DetectionsCacheEntry( __.immut.DataclassObject ):
+    ''' Cache entry for source detection results. '''
 
-    # Run detection on all processors
-    results = await _run_processors( source, _xtnsapi.processors )
+    detections: __.cabc.Mapping[ str, Detection ]
+    timestamp: float
+    ttl: int
 
-    # Cache results
-    _cache_results( source, results, cache_ttl )
+    @property
+    def best_detection( self ) -> __.Absential[ Detection ]:
+        ''' Returns the detection with highest confidence. '''
+        if not self.detections: return __.absent
+        best_result = max(
+            self.detections.values( ),
+            key=lambda x: x.confidence )
+        return (
+            best_result if best_result.confidence > 0.0 else __.absent )
 
-    # Select best processor
-    return _select_best_processor( results, _xtnsapi.processors )
-
-
-def _get_cached_result(
-    source: str, cache_ttl: int
-) -> DetectionResult | None:
-    ''' Get cached detection result if valid. '''
-    if source not in _detection_cache:
-        return None
-
-    cache_entry = _detection_cache[ source ]
-
-    if __.time.time( ) - cache_entry[ 'timestamp' ] > cache_ttl:
-        del _detection_cache[ source ]
-        return None
-
-    # Return best result from cache
-    if not cache_entry[ 'results' ]:
-        return None
-
-    best_result = max(
-        cache_entry[ 'results' ].values( ),
-        key=lambda x: x[ 'confidence' ]
-    )
-    return best_result if best_result[ 'confidence' ] > 0.0 else None
+    def is_expired( self, current_time: float ) -> bool:
+        ''' Checks if cache entry has expired. '''
+        return current_time - self.timestamp > self.ttl
 
 
-async def _run_processors(
-    source: str,
-    processors: __.accret.ValidatorDictionary[ str, _interfaces.Processor ]
-) -> dict[ str, DetectionResult ]:
-    ''' Run all processors on the source. '''
-    results: dict[ str, DetectionResult ] = { }
+class DetectionsCache( __.immut.DataclassObject ):
+    ''' Cache for source detection results with TTL support. '''
+
+    ttl: int = 3600
+    _entries: dict[ str, DetectionsCacheEntry ] = (
+        __.dcls.field( default_factory = dict[ str, DetectionsCacheEntry ] ) )
+
+    def access_entry(
+        self, source: str
+    ) -> __.Absential[ DetectionsByProcessor ]:
+        ''' Returns all detections for source, if unexpired. '''
+        if source not in self._entries: return __.absent
+        cache_entry = self._entries[ source ]
+        current_time = __.time.time( )
+        if cache_entry.is_expired( current_time ):
+            del self._entries[ source ]
+            return __.absent
+        return cache_entry.detections
+
+    def access_best_detection(
+        self, source: str
+    ) -> __.Absential[ Detection ]:
+        ''' Returns the best detection for source, if unexpired. '''
+        if source not in self._entries: return __.absent
+        cache_entry = self._entries[ source ]
+        current_time = __.time.time( )
+        if cache_entry.is_expired( current_time ):
+            del self._entries[ source ]
+            return __.absent
+        return cache_entry.best_detection
+
+    def add_entry(
+        self, source: str, results: __.cabc.Mapping[ str, Detection ],
+    ) -> __.typx.Self:
+        ''' Adds or updates cache entry with fresh results. '''
+        self._entries[ source ] = DetectionsCacheEntry(
+            detections = results,
+            timestamp = __.time.time( ),
+            ttl = self.ttl,
+        )
+        return self
+
+    def clear( self ) -> __.typx.Self:
+        ''' Clears all cached entries. '''
+        self._entries.clear( )
+        return self
+
+    def remove_entry(
+        self, source: str
+    ) -> __.Absential[ DetectionsByProcessor ]:
+        ''' Removes specific source from cache, if present. '''
+        entry = self._entries.pop( source, None )
+        if entry: return entry.detections
+        return __.absent
+
+
+_detections_cache = DetectionsCache( )
+
+
+async def determine_processor_optimal(
+    source: str, /, *,
+    cache: DetectionsCache = _detections_cache,
+    processors: _xtnsapi.ProcessorsRegistry = _xtnsapi.processors,
+) -> __.Absential[ Detection ]:
+    ''' Determines which processor can best handle the source. '''
+    detection = cache.access_best_detection( source )
+    if not __.is_absent( detection ): return detection
+    detections = await _execute_processors( source, processors )
+    cache.add_entry( source, detections )
+    return _select_processor_optimal( detections, processors )
+
+
+async def _execute_processors(
+    source: str, processors: _xtnsapi.ProcessorsRegistry
+) -> dict[ str, Detection ]:
+    ''' Runs all processors on the source. '''
+    results: dict[ str, Detection ] = { }
     current_time = __.time.time( )
-
     for processor in processors.values( ):
-        try:
-            detection = await processor.detect( source )
-            
-            results[ processor.name ] = {
-                'confidence': detection.confidence,
-                'metadata': detection.specifics,
-                'detector_name': processor.name,
-                'timestamp': current_time,
-            }
+        try: detection = await processor.detect( source )
         except Exception as exc:  # noqa: PERF203
             # Log error but continue with other processors
-            results[ processor.name ] = {
-                'confidence': 0.0,
-                'metadata': { 'error': str( exc ) },
-                'detector_name': processor.name,
-                'timestamp': current_time,
-            }
-
+            results[ processor.name ] = Detection(
+                confidence = 0.0,
+                metadata = { 'error': str( exc ) },
+                processor = processor.name,
+                timestamp = current_time,
+            )
+        else:
+            results[ processor.name ] = Detection(
+                confidence = detection.confidence,
+                metadata = detection.specifics,
+                processor = processor.name,
+                timestamp = current_time,
+            )
     return results
 
 
-def _cache_results(
-    source: str, results: dict[ str, DetectionResult ], cache_ttl: int
-) -> None:
-    ''' Cache detection results. '''
-    _detection_cache[ source ] = {
-        'timestamp': __.time.time( ),
-        'ttl': cache_ttl,
-        'results': results,
-    }
-
-
-def _select_best_processor(
-    results: dict[ str, DetectionResult ],
-    processors: __.accret.ValidatorDictionary[ str, _interfaces.Processor ]
-) -> DetectionResult | None:
-    ''' Select best processor based on confidence and registration order. '''
-    if not results: return None
-    # Filter out zero confidence results
-    valid_results = [
-        result for result in results.values( )
-        if result[ 'confidence' ] > 0.0 ]
-    if not valid_results: return None
-    # Sort by confidence (descending), then by processor registration order
+def _select_processor_optimal(
+    detections: DetectionsByProcessor, processors: _xtnsapi.ProcessorsRegistry
+) -> __.Absential[ Detection ]:
+    ''' Selects best processor based on confidence and registration order. '''
+    if not detections: return __.absent
+    detections_ = [
+        result for result in detections.values( )
+        if result.confidence > 0.0 ]
+    if not detections_: return __.absent
     processor_names = list( processors.keys( ) )
-
-    def sort_key( result: DetectionResult ) -> tuple[ float, int ]:
-        confidence = result[ 'confidence' ]
-        processor_name = result[ 'detector_name' ]
+    def sort_key( result: Detection ) -> tuple[ float, int ]:
+        confidence = result.confidence
+        processor_name = result.processor
         registration_order = processor_names.index( processor_name )
-        return ( -confidence, registration_order )  # Negative for descending
-
-    valid_results.sort( key=sort_key )
-    return valid_results[ 0 ]
-
-
-def clear_cache( ) -> None:
-    ''' Clear the detection cache. '''
-    _detection_cache.clear( )
+        return ( -confidence, registration_order )
+    detections_.sort( key = sort_key )
+    return detections_[ 0 ]
