@@ -30,24 +30,16 @@ _scribe = __.acquire_scribe( __name__ )
 
 
 async def install_package(
-    specification: str, *,
-    max_retries: int = 3,
-    cache_ttl: int = 24
+    specification: str,
+    cache_path: __.Path, *,
+    max_retries: int = 3
 ) -> __.Path:
-    ''' Installs package asynchronously with retry logic.
+    ''' Installs package to specified path with retry logic.
 
         Returns path to installed package for sys.path manipulation.
     '''
-    from . import cachemgr # TODO: Get rid of cyclic dependency.
-    cache_info = cachemgr.acquire_cache_info( specification )
-    if cache_info and not cache_info.is_expired:
-        _scribe.debug( f"Using cached package: {specification}." )
-        return cache_info.location
-    if cache_info and cache_info.is_expired:
-        _scribe.debug( f"Clearing expired cache for: {specification}." )
-        cachemgr.clear_package_cache( specification )
     for attempt in range( max_retries + 1 ):
-        try: return await _install_with_uv( specification, cache_ttl )
+        try: return await _install_with_uv( specification, cache_path )
         except __.ExtensionInstallationError as exc:  # noqa: PERF203
             if attempt == max_retries:
                 _scribe.error(
@@ -64,26 +56,21 @@ async def install_package(
         specification, "Maximum retries exceeded" )
 
 
-async def _install_with_uv( specification: str, cache_ttl: int ) -> __.Path:
-    ''' Installs package using uv to isolated cache directory. '''
-    cache_path = _prepare_cache_directory( specification )
+async def _install_with_uv(
+    specification: str, cache_path: __.Path
+) -> __.Path:
+    ''' Installs package using uv to specified directory. '''
+    cache_path.mkdir( parents = True, exist_ok = True )
     executable = _get_uv_executable( specification )
     command = _build_uv_command( executable, cache_path, specification )
     _scribe.info( f"Installing {specification} to {cache_path}." )
     stdout, stderr, returncode = await _execute_uv_command(
         command, specification )
     _validate_installation_result( specification, returncode, stderr )
-    _save_cache_metadata( specification, cache_ttl, cache_path )
     _scribe.info( f"Successfully installed {specification}." )
     return cache_path
 
 
-def _prepare_cache_directory( specification: str ) -> __.Path:
-    ''' Prepares and returns cache directory for package installation. '''
-    from . import cachemgr # TODO: Get rid of cyclic dependency.
-    cache_path = cachemgr.calculate_cache_path( specification )
-    cache_path.mkdir( parents = True, exist_ok = True )
-    return cache_path
 
 
 def _get_uv_executable( specification: str ) -> str:
@@ -140,51 +127,5 @@ def _validate_installation_result(
             f"{stderr.decode( 'utf-8' )}" )
 
 
-def _save_cache_metadata(
-    specification: str, cache_ttl: int, cache_path: __.Path
-) -> None:
-    ''' Saves cache metadata for successful installation. '''
-    from . import cachemgr # TODO: Get rid of cyclic dependency.
-    cache_info = cachemgr.CacheInfo(
-        specification = specification,
-        ctime = __.datetime.datetime.now( ),
-        ttl = cache_ttl,
-        platform_id = cachemgr.calculate_platform_id( ),
-        location = cache_path )
-    cachemgr.save_cache_info( cache_info )
 
 
-async def install_packages_parallel(
-    specifications: __.cabc.Sequence[ str ], *,
-    max_retries: int = 3,
-    cache_ttl: int = 24,
-    installer: __.Absential[
-        __.cabc.Callable[ [ str ], __.cabc.Awaitable[ __.Path ] ]
-    ] = __.absent
-) -> __.cabc.Sequence[ __.Path ]:
-    ''' Installs multiple packages in parallel using gather_async.
-
-        Raises ExceptionGroup if any installations fail.
-        Returns list of installation paths for successful installations.
-    '''
-    if not specifications: return [ ]
-    if __.is_absent( installer ):
-        def default_installer( spec: str ):
-            return install_package(
-                spec, max_retries = max_retries, cache_ttl = cache_ttl )
-        installer = default_installer
-    installers = [ installer( spec ) for spec in specifications ]
-    count = len( specifications )
-    _scribe.info( f"Installing {count} packages." )
-    try:
-        results = await __.asyncf.gather_async(
-            *installers, error_message = "Failed to install packages." )
-    except __.excg.ExceptionGroup as exc_group:
-        # TODO: Log at top of propagation.
-        # Log individual package installation errors
-        for exc in exc_group.exceptions:
-            _scribe.error( f"Package installation failed: {exc}." )
-        raise
-    else:
-        _scribe.info( "Successfully installed all packages." )
-        return results

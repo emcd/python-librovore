@@ -168,42 +168,33 @@ def clear_package_cache( specification: str ) -> bool:
 
 async def ensure_package(
     specification: str, *,
-    cache_acquirer: __.Absential[
-        __.cabc.Callable[ [ str ], CacheInfo | None ]
-    ] = __.absent,
-    cache_clearer: __.Absential[
-        __.cabc.Callable[ [ str ], bool ]
-    ] = __.absent,
-    installer: __.Absential[ __.cabc.Callable[
-        [ str ], __.cabc.Awaitable[ __.Path ]
-    ] ] = __.absent,
-    path_adder: __.Absential[
-        __.cabc.Callable[ [ __.Path ], None ]
-    ] = __.absent
+    cache_ttl: int = 24,
+    max_retries: int = 3
 ) -> __.typx.Annotated[
     None,
     __.ddoc.Raises( __.ExtensionConfigError, 'Invalid spec.' ),
     __.ddoc.Raises( __.ExtensionInstallationError, 'Install fails.' ),
 ]:
     ''' Ensures package is installed and importable. '''
-    if __.is_absent( cache_acquirer ):
-        cache_acquirer = acquire_cache_info
-    if __.is_absent( cache_clearer ):
-        cache_clearer = clear_package_cache
-    if __.is_absent( installer ):
-        installer = _installation.install_package
-    if __.is_absent( path_adder ):
-        path_adder = _importation.add_package_to_import_path
-    cache_info = cache_acquirer( specification )
+    cache_info = acquire_cache_info( specification )
     if cache_info and not cache_info.is_expired:
         _scribe.debug( f"Using cached package: {specification}." )
         package_path = cache_info.location
     else:
         if cache_info and cache_info.is_expired:
             _scribe.debug( f"Clearing expired cache for: {specification}." )
-            cache_clearer( specification )
-        package_path = await installer( specification )
-    path_adder( package_path )
+            clear_package_cache( specification )
+        cache_path = calculate_cache_path( specification )
+        package_path = await _installation.install_package(
+            specification, cache_path, max_retries = max_retries )
+        cache_info = CacheInfo(
+            specification = specification,
+            ctime = __.datetime.datetime.now( ),
+            ttl = cache_ttl,
+            platform_id = calculate_platform_id( ),
+            location = package_path )
+        save_cache_info( cache_info )
+    _importation.add_package_to_import_path( package_path )
 
 
 def invalidate(

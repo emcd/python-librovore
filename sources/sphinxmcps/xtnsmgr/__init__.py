@@ -23,7 +23,6 @@
 
 from .installation import (
     install_package,
-    install_packages_parallel,
 )
 from .importation import (
     add_package_to_import_path,

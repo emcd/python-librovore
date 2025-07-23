@@ -21,39 +21,16 @@
 ''' Extension package installation tests. '''
 
 
-import pytest
-from pathlib import Path
 
 import sphinxmcps.xtnsmgr.installation as module
 
 from .test_utils import get_fake_extension_url
 
 
-@pytest.mark.asyncio
-async def test_000_install_packages_parallel_empty_list( ):
-    ''' Empty package list returns empty list. '''
-    result = await module.install_packages_parallel( [ ] )
-    assert result == [ ]
-
-
-@pytest.mark.asyncio  
-async def test_010_install_packages_parallel_single_package( ):
-    ''' Single package installation works through parallel interface. '''
-    fake_url = get_fake_extension_url( )
-    cache_path = Path( '/cache/path' )
-    
-    async def mock_installer( spec ):
-        assert spec == fake_url
-        return cache_path
-    
-    result = await module.install_packages_parallel(
-        [ fake_url ], installer = mock_installer )
-    assert result == ( cache_path, )
 
 def test_100_module_imports_correctly( ):
     ''' Installation module imports without errors. '''
     assert hasattr( module, 'install_package' )
-    assert hasattr( module, 'install_packages_parallel' )
 
 
 def test_110_fake_extension_url_format( ):
