@@ -52,14 +52,15 @@ class SphinxProcessor( __.Processor ):
                 processor = self, confidence = 0.0, source = source )
         has_searchindex = await _check_searchindex( normalized_source )
         confidence = 0.95 if has_searchindex else 0.7
-        theme = 'unknown'
-        theme_error = ''
+        theme = None
         if has_searchindex:
             try:
                 theme_metadata = await _detect_theme( normalized_source )
-                theme = theme_metadata.get( 'theme', 'unknown' )
+                theme = theme_metadata.get( 'theme' )
             except Exception as exc:
-                theme_error = str( exc )
+                # Theme detection failed, log and leave theme as None
+                __.acquire_scribe( __name__ ).debug(
+                    f"Theme detection failed for {source}: {exc}" )
         return SphinxDetection(
             processor = self,
             confidence = confidence,
@@ -67,8 +68,7 @@ class SphinxProcessor( __.Processor ):
             has_objects_inv = has_objects_inv,
             has_searchindex = has_searchindex,
             normalized_source = normalized_source.geturl( ),
-            theme = theme,
-            theme_error = theme_error )
+            theme = theme )
 
     async def extract_inventory( self, source: str, /, *, # noqa: PLR0913
         domain: __.Absential[ str ] = __.absent,
@@ -212,8 +212,7 @@ class SphinxDetection( __.Detection ):
     has_objects_inv: bool = False
     has_searchindex: bool = False
     normalized_source: str = ''
-    theme: str = 'unknown'
-    theme_error: str = ''
+    theme: str | None = None
 
     @classmethod
     async def from_source(
@@ -357,7 +356,7 @@ def _create_term_matcher(
 async def _detect_theme(
     normalized_source: _urlparse.ParseResult
 ) -> dict[ str, __.typx.Any ]:
-    ''' Detect Sphinx theme and other metadata. '''
+    ''' Detects Sphinx theme and other metadata. '''
     theme_metadata: dict[ str, __.typx.Any ] = { }
     source_url = normalized_source.geturl( )
     base_url = _normalize_base_url( source_url )
@@ -372,8 +371,7 @@ async def _detect_theme(
                 theme_metadata[ 'theme' ] = 'alabaster'
             elif 'sphinx_rtd_theme' in html_content:
                 theme_metadata[ 'theme' ] = 'sphinx_rtd_theme'
-            else:
-                theme_metadata[ 'theme' ] = 'unknown'
+            # If no theme detected, don't set theme key (returns None)
     return theme_metadata
 
 
