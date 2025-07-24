@@ -32,8 +32,7 @@ _scribe = __.acquire_scribe( __name__ )
 
 async def register_processors( auxdata: __.Globals ):
     ''' Registers processors based on configuration. '''
-    try:
-        extensions = _configuration.extract_extensions( auxdata )
+    try: extensions = _configuration.extract_extensions( auxdata )
     except ( KeyError, ValueError, TypeError ) as exc:
         _scribe.error( f"Configuration loading failed: {exc}." )
         _scribe.warning( "No processors loaded due to configuration errors." )
@@ -52,7 +51,7 @@ async def register_processors( auxdata: __.Globals ):
         _scribe.warning( "No processors could be loaded." )
         return
     for extension in active_extensions:
-        _register_processor( extension )
+        _register_extension( extension )
 
 
 async def _ensure_external_packages(
@@ -75,24 +74,21 @@ async def _ensure_external_packages(
         _scribe.info( "Successfully ensured all external packages." )
 
 
-def _register_processor(
+def _register_extension(
     extension: _configuration.ExtensionConfig,
 ) -> None:
-    ''' Registers single processor from configuration. '''
+    ''' Registers extension from configuration. '''
     name = extension[ 'name' ]
     arguments = _configuration.extract_extension_arguments( extension )
     if 'package' not in extension:
         module_name = f"{__.package_name}.processors.{name}"
     else: module_name = name
-    try:
-        module = _importation.import_processor_module( module_name )
+    try: module = _importation.import_processor_module( module_name )
     except ( ImportError, ModuleNotFoundError ) as exc:
-        _scribe.error( f"Failed to import processor {name}: {exc}." )
+        _scribe.error( f"Failed to import processor {name}: {exc}" )
         return
-    try:
-        processor = module.register( arguments )
-    except ( AttributeError, TypeError, ValueError ) as exc:
-        _scribe.error( f"Failed to register processor {name}: {exc}." )
+    try: module.register( arguments )
+    except Exception as exc:
+        _scribe.error( f"Failed to register processor {name}: {exc}" )
         return
-    __.processors[ name ] = processor
-    _scribe.info( f"Registered processor: {name}." )
+    _scribe.info( f"Registered extension: {name}." )

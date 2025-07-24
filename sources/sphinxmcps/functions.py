@@ -117,7 +117,7 @@ async def extract_inventory( # noqa: PLR0913
 ]:
     ''' Extracts inventory from source with optional filtering. '''
     processor = await _select_processor_for_source( source )
-    result_mapping = processor.extract_inventory(
+    result_mapping = await processor.extract_inventory(
         source, domain = domain, role = role, term = term,
         priority = priority, match_mode = match_mode,
         fuzzy_threshold = fuzzy_threshold )
@@ -144,11 +144,35 @@ async def summarize_inventory( # noqa: PLR0913
     __.ddoc.Doc( ''' Human-readable summary of inventory contents. ''' )
 ]:
     ''' Provides human-readable summary of inventory. '''
-    processor = await _select_processor_for_source( source )
-    return processor.summarize_inventory(
+    inventory_data = await extract_inventory(
         source, domain = domain, role = role, term = term,
         priority = priority, match_mode = match_mode,
         fuzzy_threshold = fuzzy_threshold )
+    return _format_inventory_summary( inventory_data )
+
+
+def _format_inventory_summary(
+    inventory_data: dict[ str, __.typx.Any ]
+) -> str:
+    ''' Formats inventory data into human-readable summary. '''
+    summary_lines: list[ str ] = [
+        f"Project: {inventory_data[ 'project' ]}",
+        f"Version: {inventory_data[ 'version' ]}",
+        f"Objects: {inventory_data[ 'object_count' ]}",
+    ]
+    if 'filters' in inventory_data:
+        filters = inventory_data[ 'filters' ]
+        filter_strings: list[ str ] = [ ]
+        for key, value in filters.items( ):
+            filter_strings.append( f"{key}={value}" )
+        if filter_strings:
+            summary_lines.append( f"Filters: {', '.join( filter_strings )}" )
+    if inventory_data[ 'objects' ]:
+        summary_lines.append( "\nDomain breakdown:" )
+        for domain_name, objects in inventory_data[ 'objects' ].items( ):
+            summary_lines.append(
+                f"  {domain_name}: {len( objects )} objects" )
+    return '\n'.join( summary_lines )
 
 
 async def _select_processor_for_source(

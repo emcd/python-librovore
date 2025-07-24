@@ -47,10 +47,8 @@ def fake_fs_with_inventories( fs, cached_inventories ):
 @pytest_asyncio.fixture( scope = 'session', autouse = True )
 async def load_processors( ):
     ''' Auto-load builtin processors for tests. '''
-    import sphinxmcps.xtnsapi as _xtnsapi
     import sphinxmcps.processors.sphinx as _sphinx_processor
-    processor = _sphinx_processor.register( { } )
-    _xtnsapi.processors[ 'sphinx' ] = processor
+    _sphinx_processor.register( { } )
 
 
 def pytest_sessionfinish( session, exitstatus ):

@@ -25,8 +25,6 @@ from . import __
 from . import exceptions as _exceptions
 
 
-
-
 class DisplayStreams( __.enum.Enum ):
     ''' Stream upon which to place output. '''
 
@@ -93,7 +91,7 @@ class Processor( __.immut.DataclassProtocol ):
         raise NotImplementedError
 
     @__.abc.abstractmethod
-    def extract_inventory( self, source: str, /, *, # noqa: PLR0913
+    async def extract_inventory( self, source: str, /, *, # noqa: PLR0913
         domain: __.Absential[ str ] = __.absent,
         role: __.Absential[ str ] = __.absent,
         term: __.Absential[ str ] = __.absent,
@@ -104,17 +102,6 @@ class Processor( __.immut.DataclassProtocol ):
         ''' Extracts inventory from source with optional filtering. '''
         raise NotImplementedError
 
-    @__.abc.abstractmethod
-    def summarize_inventory( self, source: str, /, *, # noqa: PLR0913
-        domain: __.Absential[ str ] = __.absent,
-        role: __.Absential[ str ] = __.absent,
-        term: __.Absential[ str ] = __.absent,
-        priority: __.Absential[ str ] = __.absent,
-        match_mode: MatchMode = MatchMode.Exact,
-        fuzzy_threshold: int = 50,
-    ) -> str:
-        ''' Provides human-readable summary of inventory. '''
-        raise NotImplementedError
 
     @__.abc.abstractmethod
     async def extract_documentation( self, source: str, object_name: str, /, *,

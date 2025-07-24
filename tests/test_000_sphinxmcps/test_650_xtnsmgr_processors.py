@@ -37,9 +37,9 @@ def test_000_module_imports_correctly( ):
 def test_100_private_functions_exist( ):
     ''' Internal processor functions are available for testing. '''
     assert hasattr( module, '_ensure_external_packages' )
-    assert hasattr( module, '_register_processor' )
+    assert hasattr( module, '_register_extension' )
     assert callable( module._ensure_external_packages )
-    assert callable( module._register_processor )
+    assert callable( module._register_extension )
 
 
 @pytest.mark.asyncio
@@ -59,17 +59,17 @@ async def test_210_ensure_external_packages_with_fake_package( ):
     await module._ensure_external_packages( fake_extensions )
 
 
-def test_300_register_processor_handles_missing_name( ):
-    ''' Processor registration handles missing name key. '''
-    assert callable( module._register_processor )
+def test_300_register_extension_handles_missing_name( ):
+    ''' Extension registration handles missing name key. '''
+    assert callable( module._register_extension )
     
     # Should raise KeyError for missing required 'name' field
     with pytest.raises( KeyError ):
-        module._register_processor( { } )
+        module._register_extension( { } )
 
 
-def test_310_register_processor_handles_valid_config( ):
-    ''' Processor registration processes valid intrinsic config. '''
+def test_310_register_extension_handles_valid_config( ):
+    ''' Extension registration processes valid intrinsic config. '''
     # Test with minimal valid intrinsic processor config
     valid_config = { 
         'name': 'nonexistent-processor',
@@ -78,11 +78,11 @@ def test_310_register_processor_handles_valid_config( ):
     }
     # This should attempt to import the processor but fail gracefully
     # The function should return without raising for missing modules
-    module._register_processor( valid_config )
+    module._register_extension( valid_config )
 
 
-def test_320_register_processor_handles_external_config( ):
-    ''' Processor registration processes external processor config. '''
+def test_320_register_extension_handles_external_config( ):
+    ''' Extension registration processes external processor config. '''
     # Test with external processor config
     external_config = { 
         'name': 'external-processor',
@@ -91,7 +91,7 @@ def test_320_register_processor_handles_external_config( ):
         'arguments': { }
     }
     # Should attempt to import external module but handle gracefully
-    module._register_processor( external_config )
+    module._register_extension( external_config )
 
 
 @pytest.mark.asyncio
