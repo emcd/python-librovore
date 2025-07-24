@@ -18,23 +18,15 @@
 #============================================================================#
 
 
-''' Core Sphinx processor implementation. '''
+''' Main Sphinx processor implementation. '''
 
 
 from . import __
-from .detection import SphinxDetection as _SphinxDetection
-from .detection import check_objects_inv as _check_objects_inv
-from .detection import check_searchindex as _check_searchindex
-from .detection import detect_theme as _detect_theme
-from .urls import normalize_base_url as _normalize_base_url
-from .urls import derive_documentation_url as _derive_documentation_url
-from .inventory import extract_inventory as _extract_inventory
-from .inventory import filter_inventory as _filter_inventory
-from .extraction import retrieve_url as _retrieve_url
-from .extraction import parse_documentation_html as _parse_documentation_html
-from .extraction import calculate_relevance_score as _calculate_relevance_score
-from .extraction import extract_content_snippet as _extract_content_snippet
-from .conversion import html_to_markdown as _html_to_markdown
+from . import detection as _detection
+from . import urls as _urls
+from . import inventory as _inventory
+from . import extraction as _extraction
+from . import conversion as _conversion
 
 
 _scribe = __.acquire_scribe( __name__ )
@@ -47,23 +39,23 @@ class SphinxProcessor( __.Processor ):
 
     async def detect( self, source: str ) -> __.Detection:
         ''' Detects if can process documentation from source. '''
-        try: base_url = _normalize_base_url( source )
+        try: base_url = _urls.normalize_base_url( source )
         except Exception:
-            return _SphinxDetection(
+            return _detection.SphinxDetection(
                 processor = self, confidence = 0.0, source = source )
-        has_objects_inv = await _check_objects_inv( base_url )
+        has_objects_inv = await _detection.check_objects_inv( base_url )
         if not has_objects_inv:
-            return _SphinxDetection(
+            return _detection.SphinxDetection(
                 processor = self, confidence = 0.0, source = source )
-        has_searchindex = await _check_searchindex( base_url )
+        has_searchindex = await _detection.check_searchindex( base_url )
         confidence = 0.95 if has_searchindex else 0.7
         theme = None
         if has_searchindex:
-            try: theme_metadata = await _detect_theme( base_url )
+            try: theme_metadata = await _detection.detect_theme( base_url )
             except Exception as exc:
                 _scribe.debug( f"Theme detection failed for {source}: {exc}" )
             else: theme = theme_metadata.get( 'theme' )
-        return _SphinxDetection(
+        return _detection.SphinxDetection(
             processor = self,
             confidence = confidence,
             source = source,
@@ -83,9 +75,9 @@ class SphinxProcessor( __.Processor ):
         fuzzy_threshold: int = 50,
     ) -> dict[ str, __.typx.Any ]:
         ''' Extracts inventory from Sphinx documentation source. '''
-        base_url = _normalize_base_url( source )
-        inventory = _extract_inventory( base_url )
-        filtered_objects, object_count = _filter_inventory(
+        base_url = _urls.normalize_base_url( source )
+        inventory = _inventory.extract_inventory( base_url )
+        filtered_objects, object_count = _inventory.filter_inventory(
             inventory, domain = domain, role = role, term = term,
             priority = priority,
             match_mode = match_mode, fuzzy_threshold = fuzzy_threshold )
@@ -117,8 +109,8 @@ class SphinxProcessor( __.Processor ):
         output_format: str = 'markdown'
     ) -> __.cabc.Mapping[ str, __.typx.Any ]:
         ''' Extracts documentation for specific object from Sphinx source. '''
-        base_url = _normalize_base_url( source )
-        inventory = _extract_inventory( base_url )
+        base_url = _urls.normalize_base_url( source )
+        inventory = _inventory.extract_inventory( base_url )
         found_object = None
         for objct in inventory.objects:
             if objct.name == object_name:
@@ -128,11 +120,12 @@ class SphinxProcessor( __.Processor ):
             return {
                 'error': f"Object '{object_name}' not found in inventory"
             }
-        doc_url = _derive_documentation_url(
+        doc_url = _urls.derive_documentation_url(
             base_url, found_object.uri, object_name )
-        html_content = await _retrieve_url( doc_url )
+        html_content = await _extraction.retrieve_url( doc_url )
         anchor = doc_url.fragment or object_name
-        parsed_content = _parse_documentation_html( html_content, anchor )
+        parsed_content = _extraction.parse_documentation_html(
+            html_content, anchor )
         if 'error' in parsed_content: return parsed_content
         result = {
             'object_name': object_name,
@@ -141,7 +134,7 @@ class SphinxProcessor( __.Processor ):
             'description': parsed_content[ 'description' ],
         }
         if output_format == 'markdown':
-            result[ 'description' ] = _html_to_markdown(
+            result[ 'description' ] = _conversion.html_to_markdown(
                 result[ 'description' ] )
         return result
 
@@ -157,9 +150,9 @@ class SphinxProcessor( __.Processor ):
         include_snippets: bool = True
     ) -> list[ __.cabc.Mapping[ str, __.typx.Any ] ]:
         ''' Queries documentation content from Sphinx source. '''
-        base_url = _normalize_base_url( source )
-        inventory = _extract_inventory( base_url )
-        filtered_objects, _ = _filter_inventory(
+        base_url = _urls.normalize_base_url( source )
+        inventory = _inventory.extract_inventory( base_url )
+        filtered_objects, _ = _inventory.filter_inventory(
             inventory, domain = domain, role = role,
             priority = priority,
             match_mode = match_mode, fuzzy_threshold = fuzzy_threshold )
@@ -167,33 +160,34 @@ class SphinxProcessor( __.Processor ):
         for domain_objects in filtered_objects.values( ):
             candidates.extend( domain_objects )
         if not candidates: return [ ]
-        base_url = _normalize_base_url( source )
+        base_url = _urls.normalize_base_url( source )
         query_lower = query.lower( )
         results: list[ __.cabc.Mapping[ str, __.typx.Any ] ] = [ ]
         for candidate in candidates:
-            doc_url = _derive_documentation_url(
+            doc_url = _urls.derive_documentation_url(
                 base_url, candidate[ 'uri' ], candidate[ 'name' ] )
-            try: html_content = await _retrieve_url( doc_url )
+            try: html_content = await _extraction.retrieve_url( doc_url )
             except Exception: # noqa: S112
                 continue
             anchor = doc_url.fragment or str( candidate[ 'name' ] )
             try:
-                parsed_content = _parse_documentation_html(
+                parsed_content = _extraction.parse_documentation_html(
                     html_content, anchor )
             except Exception: # noqa: S112
                 continue
             if 'error' in parsed_content: continue
-            description = _html_to_markdown( parsed_content[ 'description' ] )
+            description = _conversion.html_to_markdown(
+                parsed_content[ 'description' ] )
             doc_result = {
                 'signature': parsed_content[ 'signature' ],
                 'description': description,
             }
-            score, match_reasons = _calculate_relevance_score(
+            score, match_reasons = _extraction.calculate_relevance_score(
                 query_lower, candidate, doc_result )
             if score > 0:
                 content_snippet = ''
                 if include_snippets:
-                    content_snippet = _extract_content_snippet(
+                    content_snippet = _extraction.extract_content_snippet(
                         query_lower, query, description )
                 results.append( {
                     'object_name': candidate[ 'name' ],

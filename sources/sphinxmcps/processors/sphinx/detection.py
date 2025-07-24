@@ -47,7 +47,7 @@ class SphinxDetection( __.Detection ):
         cls, processor: __.Processor, source: str
     ) -> __.typx.Self:
         ''' Constructs detection from source location. '''
-        from .core import SphinxProcessor as _SphinxProcessor
+        from .main import SphinxProcessor as _SphinxProcessor
         if not isinstance( processor, _SphinxProcessor ):
             raise __.ProcessorTypeError(
                 "SphinxProcessor", type( processor ) )
