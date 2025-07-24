@@ -34,16 +34,33 @@ _request_locks: dict[ str, __.asyncio.Lock ] = { }
 # LRU tracking for cache eviction
 _head_access_order: __.deque[ str ] = __.deque( )
 _get_access_order: __.deque[ str ] = __.deque( )
+
+# Global memory usage tracking
+_total_cache_memory: int = 0
+_memory_lock: __.asyncio.Lock = __.asyncio.Lock( )
 ```
 
 #### 2. Cache Entry Structure
 ```python
+from appcore.generics import Result, Value, Error
+
 class CacheEntry( __.immut.DataclassObject ):
-    ''' HTTP response cache entry with TTL. '''
+    ''' HTTP response cache entry with Result wrapper and size tracking. '''
     
-    response: __.cabc.Union[ bool, str, Exception ]  # HEAD bool, GET str, or cached error
-    timestamp: float                                 # When cached  
-    ttl: float                                      # Time to live in seconds
+    response: Result[ __.cabc.Union[ bool, str ], Exception ]  # Wrapped response
+    timestamp: float                                           # When cached  
+    ttl: float                                                # Time to live in seconds
+    size_bytes: int                                           # Memory footprint in bytes
+
+    @property 
+    def memory_footprint( self ) -> int:
+        ''' Calculate total memory usage including metadata. '''
+        return self.size_bytes + 100  # Add overhead for cache entry metadata
+
+    @property
+    def is_expired( self ) -> bool:
+        ''' Check if cache entry has exceeded its TTL. '''
+        return __.time.time( ) - self.timestamp > self.ttl
 ```
 
 #### 3. Public API
@@ -51,12 +68,26 @@ class CacheEntry( __.immut.DataclassObject ):
 async def probe_url( 
     url: _Url, *, timeout: float = 10.0 
 ) -> bool:
-    ''' Cached HEAD request to check URL existence. '''
+    ''' Cached HEAD request to check URL existence.
+    
+    Returns:
+        bool: True if URL is accessible, False otherwise
+        
+    Raises:
+        Original exception from cached Error result
+    '''
 
 async def retrieve_url( 
     url: _Url, *, timeout: float = 30.0 
 ) -> str:
-    ''' Cached GET request to fetch URL content. '''
+    ''' Cached GET request to fetch URL content.
+    
+    Returns:
+        str: Response content from successful request
+        
+    Raises:
+        Original exception from cached Error result
+    '''
 ```
 
 ## Caching Strategy
@@ -70,10 +101,11 @@ async def retrieve_url(
 - **Error responses**: 30 seconds (prevent retry storms, allow recovery)
 - **Network errors**: 10 seconds (temporary issues may resolve quickly)
 
-### Error Caching
-- Cache common errors (404, 403, timeout) to prevent repeated failures
-- Store exception objects in cache entries
-- Re-raise original exceptions when serving from cache
+### Error Caching with Result Types
+- Cache common errors (404, 403, timeout) as `Error(exception)` instances
+- Use `Result.is_error()` to identify cached failures
+- Re-raise original exceptions via `Result.extract()` when serving from cache
+- Error results maintain type safety while preserving exception details
 
 ## Implementation Details
 
@@ -81,17 +113,20 @@ async def retrieve_url(
 1. Check if URL already has active request (mutex exists and locked)
 2. If so, wait for existing request to complete
 3. If not, acquire mutex and make request
-4. Store result in cache before releasing mutex
+4. Wrap response in `Value(response)` or exception in `Error(exception)`
+5. Store Result in cache before releasing mutex
 
 ### Cache Expiration
 - Check timestamp + TTL before serving cached responses
 - Evict expired entries lazily (when accessed)
 - No proactive cleanup initially (keep MVP simple)
 
-### Error Handling
-- Catch and cache `httpx` exceptions
-- Cache `DocumentationInaccessibility` for failed requests
+### Error Handling with Result Types
+- Catch `httpx` and `DocumentationInaccessibility` exceptions
+- Wrap caught exceptions in `Error(exception)` for caching
+- Use `Result.is_error()` to check for cached failures before serving
 - Differentiate between client errors (4xx) and server errors (5xx) for TTL
+- `Result.extract()` automatically re-raises the original exception
 
 ## Migration Path
 
@@ -119,21 +154,27 @@ class HttpCacheConfig( __.immut.DataclassObject ):
     success_ttl: float = 300.0       # 5 minutes
     error_ttl: float = 30.0          # 30 seconds  
     network_error_ttl: float = 10.0  # 10 seconds
-    max_cache_size: int = 1000       # LRU eviction trigger
+    max_memory_bytes: int = 32 * 1024 * 1024  # 32 MiB default
+    max_cache_entries: int = 1000    # Fallback entry limit
 ```
 
 ## Testing Strategy
 
 ### Unit Tests
-- Cache hit/miss behavior
-- TTL expiration handling
-- Error caching and re-raising
+- Cache hit/miss behavior with Result types
+- TTL expiration handling  
+- Error caching with `Error(exception)` wrapping
+- Result extraction and exception re-raising
 - Concurrent request deduplication
+- Memory tracking accuracy for Value/Error results
+- Memory-based eviction behavior
+- Type safety validation for Result[bool, Exception] vs Result[str, Exception]
 
 ### Integration Tests
 - End-to-end processor detection with caching
 - Performance comparison with/without cache
 - Rate limiting avoidance verification
+- Memory usage under load
 
 ## LRU Eviction Strategy
 
@@ -143,18 +184,48 @@ Use `collections.deque` to track access order for each cache:
 - On cache miss: add URL to end of deque
 - On eviction: remove from front of deque (least recently used)
 
-### Eviction Logic
+### Memory-Based Eviction Logic
 ```python
-def _evict_lru_entries( 
+def _calculate_response_size( response: Result[ __.cabc.Union[ bool, str ], Exception ] ) -> int:
+    ''' Calculate memory footprint of cached Result. '''  
+    if response.is_value( ):
+        value = response.extract( )
+        match value:
+            case bool( ):
+                return 1  # Minimal for boolean
+            case str( content ):
+                return len( content.encode( 'utf-8' ) )
+            case _:
+                return 8  # Default object overhead
+    else:
+        # For Error results, estimate exception string size without extracting
+        # (extracting would raise the exception)
+        return 100  # Conservative estimate for exception overhead
+
+def _create_cache_entry(
+    response: Result[ __.cabc.Union[ bool, str ], Exception ],
+    ttl: float
+) -> CacheEntry:  
+    ''' Create cache entry with proper size calculation. '''
+    return CacheEntry(
+        response = response,
+        timestamp = __.time.time( ),
+        ttl = ttl,
+        size_bytes = _calculate_response_size( response )
+    )
+
+async def _evict_by_memory( 
     cache: dict[ str, CacheEntry ],
     access_order: __.deque[ str ],
-    max_size: int
+    max_memory: int
 ) -> None:
-    ''' Evicts least recently used entries when cache exceeds max size. '''
-    while len( cache ) > max_size:
-        if not access_order: break  # Safety check
-        lru_url = access_order.popleft( )
-        cache.pop( lru_url, None )  # May already be expired and removed
+    ''' Evicts LRU entries until memory usage is under limit. '''
+    global _total_cache_memory
+    async with _memory_lock:
+        while _total_cache_memory > max_memory and access_order:
+            lru_url = access_order.popleft( )
+            if entry := cache.pop( lru_url, None ):
+                _total_cache_memory -= entry.memory_footprint
 ```
 
 ### Access Tracking
@@ -188,10 +259,13 @@ def _record_cache_access( url: str, access_order: __.deque[ str ] ) -> None:
 ## Benefits
 
 1. **Performance**: Eliminates redundant network requests during detection
-2. **Reliability**: Prevents rate limiting from simultaneous requests
+2. **Reliability**: Prevents rate limiting from simultaneous requests  
 3. **Consistency**: All processors see identical responses for same URLs
 4. **Scalability**: Efficient resource usage as processor count grows
 5. **Robustness**: Error caching prevents cascading failures
+6. **Type Safety**: Result types provide compile-time guarantees for error handling
+7. **Functional Programming**: Clean separation of success/error paths with Result API
+8. **Memory Efficiency**: Byte-based eviction handles variable response sizes
 
 ## Risks & Mitigations
 
@@ -201,7 +275,7 @@ def _record_cache_access( url: str, access_order: __.deque[ str ] ) -> None:
 
 ### Memory Usage  
 - **Risk**: Unbounded cache growth
-- **Mitigation**: LRU eviction at configurable max size (default 1000 entries)
+- **Mitigation**: Memory-based LRU eviction at configurable limit (default 32 MiB)
 
 ### Cache Coherency
 - **Risk**: Different request types for same URL may be inconsistent
