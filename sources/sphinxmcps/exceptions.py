@@ -117,6 +117,18 @@ class ExtensionVersionConflict( Omnierror, ImportError ):
             f"required {required}, available {available}" )
 
 
+class HttpContentTypeInvalidity( Omnierror, ValueError ):
+    ''' HTTP content type is not suitable for requested operation. '''
+
+    def __init__( self, url: str, content_type: str, operation: str ):
+        self.url = url
+        self.content_type = content_type
+        self.operation = operation
+        super( ).__init__(
+            f"Content type '{content_type}' not suitable for {operation} "
+            f"operation on URL: {url}" )
+
+
 class InventoryFilterInvalidity( Omnierror, ValueError ):
     ''' Inventory filter is invalid. '''
 

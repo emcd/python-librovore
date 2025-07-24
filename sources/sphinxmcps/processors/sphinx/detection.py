@@ -28,6 +28,7 @@ from urllib.parse import ParseResult as _Url
 import httpx as _httpx
 
 from . import __
+from . import urls as _urls
 
 
 _scribe = __.acquire_scribe( __name__ )
@@ -57,24 +58,21 @@ class SphinxDetection( __.Detection ):
 
 async def check_objects_inv( source: _Url ) -> bool:
     ''' Checks if objects.inv exists at the source. '''
-    from .urls import derive_inventory_url as _derive_inventory_url
-    inventory_url = _derive_inventory_url( source )
+    inventory_url = _urls.derive_inventory_url( source )
     return await probe_url( inventory_url )
 
 
 async def check_searchindex( source: _Url ) -> bool:
     ''' Checks if searchindex.js exists (indicates full Sphinx site). '''
-    from .urls import derive_searchindex_url as _derive_searchindex_url
-    searchindex_url = _derive_searchindex_url( source )
+    searchindex_url = _urls.derive_searchindex_url( source )
     return await probe_url( searchindex_url )
 
 
 async def detect_theme( source: _Url ) -> dict[ str, __.typx.Any ]:
     ''' Detects Sphinx theme and other metadata. '''
-    from .urls import derive_html_url as _derive_html_url
     from .extraction import retrieve_url as _retrieve_url
     theme_metadata: dict[ str, __.typx.Any ] = { }
-    html_url = _derive_html_url( source )
+    html_url = _urls.derive_html_url( source )
     try: html_content = await _retrieve_url( html_url, timeout = 10.0 )
     except __.DocumentationInaccessibility: pass
     else:
