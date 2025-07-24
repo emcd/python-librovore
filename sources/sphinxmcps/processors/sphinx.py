@@ -32,33 +32,37 @@ from bs4 import BeautifulSoup as _BeautifulSoup
 from . import __
 
 
-def normalize_inventory_source( source: str ) -> __.typx.Annotated[
-    _urlparse.ParseResult,
+def normalize_base_url( source: str ) -> __.typx.Annotated[
+    str,
     __.ddoc.Doc(
-        ''' Parsed URL components with objects.inv appended if needed.
+        ''' Normalized base URL without trailing slash.
 
-            Ensures the path component ends with 'objects.inv' filename.
-            Handles both URLs and local filesystem paths.
+            Extracts clean base documentation URL from any source.
+            Handles URLs, file paths, and directories consistently.
         ''' )
 ]:
-    ''' Parses URL strings and appends objects.inv if needed. '''
+    ''' Extract clean base documentation URL from any source. '''
     try: url = _urlparse.urlparse( source )
     except Exception as exc:
         raise __.InventoryUrlInvalidity( source ) from exc
     match url.scheme:
         case '':
-            path = __.Path( source ).resolve( )
-            if path.is_dir( ):
-                path = path / 'objects.inv'
-            url = _urlparse.urlparse( path.as_uri( ) )
+            path = __.Path( source )
+            if path.is_file( ) or (not path.exists( ) and path.suffix):
+                path = path.parent
+            url = _urlparse.urlparse( path.resolve( ).as_uri( ) )
         case 'http' | 'https' | 'file': pass
         case _: raise __.InventoryUrlInvalidity( source )
-    filename = 'objects.inv'
-    if url.path.endswith( filename ): return url
-    return _urlparse.ParseResult(
-        scheme = url.scheme, netloc = url.netloc,
-        path = f"{url.path}/{filename}",
-        params = url.params, query = url.query, fragment = url.fragment )
+    path = url.path
+    if path.endswith( '/objects.inv' ):
+        path = path[:-12]
+    elif path.endswith( 'objects.inv' ):
+        path = path[:-11]
+    path = path.rstrip( '/' )
+    return _urlparse.urlunparse(
+        _urlparse.ParseResult(
+            scheme = url.scheme, netloc = url.netloc, path = path,
+            params = '', query = '', fragment = '' ) )
 
 
 class SphinxProcessor( __.Processor ):
@@ -69,7 +73,9 @@ class SphinxProcessor( __.Processor ):
     async def detect( self, source: str ) -> __.Detection:
         ''' Detect if can process documentation from source. '''
         try:
-            normalized_source = normalize_inventory_source( source )
+            base_url = normalize_base_url( source )
+            inventory_url = _build_inventory_url( base_url )
+            normalized_source = _urlparse.urlparse( inventory_url )
         except Exception:
             return SphinxDetection(
                 processor = self, confidence = 0.0, source = source )
@@ -187,7 +193,7 @@ class SphinxProcessor( __.Processor ):
             return {
                 'error': f"Object '{object_name}' not found in inventory"
             }
-        base_url = _extract_base_url( source )
+        base_url = normalize_base_url( source )
         doc_url = _build_documentation_url(
             base_url, found_object.uri, object_name )
         html_content = await _fetch_html_content( doc_url )
@@ -227,7 +233,7 @@ class SphinxProcessor( __.Processor ):
         for domain_objects in filtered_objects.values( ):
             candidates.extend( domain_objects )
         if not candidates: return [ ]
-        base_url = _extract_base_url( source )
+        base_url = normalize_base_url( source )
         query_lower = query.lower( )
         results: list[ __.cabc.Mapping[ str, __.typx.Any ] ] = [ ]
         for candidate in candidates:
@@ -300,8 +306,7 @@ def _build_documentation_url(
 ) -> str:
     ''' Constructs documentation URL from base URL and object URI. '''
     uri_with_name = object_uri.replace( '$', object_name )
-    return "{base_url}/{object_uri}".format(
-        base_url = base_url.rstrip( '/' ), object_uri = uri_with_name )
+    return f"{base_url}/{uri_with_name}"
 
 
 def _calculate_relevance_score(
@@ -327,38 +332,14 @@ def _calculate_relevance_score(
     return score, match_reasons
 
 
-def _build_html_url(
-    normalized_source: _urlparse.ParseResult
-) -> _urlparse.ParseResult:
-    # TODO: Just pass in the base path instead of stripping suffixes.
-    ''' Build main HTML URL from objects.inv URL. '''
-    path = normalized_source.path
-    if path.endswith( '/objects.inv' ):
-        base_path = path[ :-12 ]
-    elif path.endswith( 'objects.inv' ):
-        base_path = path[ :-11 ]
-    else:
-        base_path = path
-    normalized_base = base_path.rstrip( '/' ) + '/'
-    html_path = normalized_base + 'index.html'
-    return normalized_source._replace( path = html_path )
+def _build_html_url( base_url: str ) -> str:
+    ''' Build index.html URL from base URL. '''
+    return f"{base_url}/index.html"
 
 
-def _build_searchindex_url(
-    normalized_source: _urlparse.ParseResult
-) -> _urlparse.ParseResult:
-    # TODO: Just pass in the base path instead of stripping suffixes.
-    ''' Build searchindex.js URL from objects.inv URL. '''
-    path = normalized_source.path
-    if path.endswith( '/objects.inv' ):
-        base_path = path[ :-12 ]
-    elif path.endswith( 'objects.inv' ):
-        base_path = path[ :-11 ]
-    else:
-        base_path = path
-    normalized_base = base_path.rstrip( '/' ) + '/'
-    searchindex_path = normalized_base + 'searchindex.js'
-    return normalized_source._replace( path = searchindex_path )
+def _build_searchindex_url( base_url: str ) -> str:
+    ''' Build searchindex.js URL from base URL. '''
+    return f"{base_url}/searchindex.js"
 
 
 async def _check_objects_inv(
@@ -381,15 +362,18 @@ async def _check_searchindex(
     normalized_source: _urlparse.ParseResult
 ) -> bool:
     ''' Check if searchindex.js exists (indicates full Sphinx site). '''
-    searchindex_url = _build_searchindex_url( normalized_source )
-    if searchindex_url.scheme in ( 'file', '' ):
+    source_url = normalized_source.geturl( )
+    base_url = normalize_base_url( source_url )
+    searchindex_url = _build_searchindex_url( base_url )
+    parsed_url = _urlparse.urlparse( searchindex_url )
+    if parsed_url.scheme in ( 'file', '' ):
         try:
-            searchindex_path = __.Path( searchindex_url.path )
+            searchindex_path = __.Path( parsed_url.path )
             return searchindex_path.exists( )
         except Exception: return False
     try:
         async with _httpx.AsyncClient( timeout = 10.0 ) as client:
-            response = await client.head( searchindex_url.geturl( ) )
+            response = await client.head( searchindex_url )
             return response.status_code == _http.HTTPStatus.OK
     except Exception: return False
 
@@ -438,9 +422,11 @@ async def _detect_theme(
 ) -> dict[ str, __.typx.Any ]:
     ''' Detect Sphinx theme and other metadata. '''
     theme_metadata: dict[ str, __.typx.Any ] = { }
-    html_url = _build_html_url( normalized_source )
+    source_url = normalized_source.geturl( )
+    base_url = normalize_base_url( source_url )
+    html_url = _build_html_url( base_url )
     async with _httpx.AsyncClient( timeout = 10.0 ) as client:
-        response = await client.get( html_url.geturl( ) )
+        response = await client.get( html_url )
         if response.status_code == _http.HTTPStatus.OK:
             html_content = response.text.lower( )
             if 'furo' in html_content:
@@ -454,15 +440,9 @@ async def _detect_theme(
     return theme_metadata
 
 
-def _extract_base_url( source: str ) -> str:
-    ''' Extracts base documentation URL from inventory source. '''
-    url = normalize_inventory_source( source )
-    path = url.path.rstrip( '/objects.inv' )
-    if not path.endswith( '/' ): path += '/'
-    return _urlparse.urlunparse(
-        _urlparse.ParseResult(
-            scheme = url.scheme, netloc = url.netloc, path = path,
-            params='', query='', fragment='' ) )
+def _build_inventory_url( base_url: str ) -> str:
+    ''' Build objects.inv URL from base URL. '''
+    return f"{base_url}/objects.inv"
 
 
 def _extract_content_snippet(
@@ -484,7 +464,9 @@ def _extract_content_snippet(
 
 def _extract_inventory( source: str ) -> _sphobjinv.Inventory:
     ''' Extracts and parses Sphinx inventory from URL or file path. '''
-    url = normalize_inventory_source( source )
+    base_url = normalize_base_url( source )
+    inventory_url = _build_inventory_url( base_url )
+    url = _urlparse.urlparse( inventory_url )
     url_s = _urlparse.urlunparse( url )
     nomargs: __.NominativeArguments = { }
     match url.scheme:
