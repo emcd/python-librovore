@@ -18,14 +18,7 @@
 #============================================================================#
 
 
-''' Sphinx processor implementation tests using dependency injection. '''
+''' Sphinx subpackage import namespace. '''
 
 
-import sphinxmcps.processors.sphinx.urls as module
-
-
-def test_100__normalize_base_url_basic_path( ):
-    ''' Base URL normalization works correctly for file paths. '''
-    test_path = '/home/user/test.inv'
-    result = module.normalize_base_url( test_path )
-    assert result.geturl( ) == 'file:///home/user'
+from ..__ import * # noqa: F403

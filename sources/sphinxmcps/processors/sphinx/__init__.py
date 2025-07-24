@@ -18,14 +18,16 @@
 #============================================================================#
 
 
-''' Sphinx processor implementation tests using dependency injection. '''
+''' Sphinx documentation source detector and processor. '''
 
 
-import sphinxmcps.processors.sphinx.urls as module
+from .core import SphinxProcessor as SphinxProcessor
+from .detection import SphinxDetection as SphinxDetection
+
+from . import __
 
 
-def test_100__normalize_base_url_basic_path( ):
-    ''' Base URL normalization works correctly for file paths. '''
-    test_path = '/home/user/test.inv'
-    result = module.normalize_base_url( test_path )
-    assert result.geturl( ) == 'file:///home/user'
+def register( arguments: __.cabc.Mapping[ str, __.typx.Any ] ) -> None:
+    ''' Registers configured Sphinx processor instance. '''
+    processor = SphinxProcessor( )
+    __.processors[ processor.name ] = processor
