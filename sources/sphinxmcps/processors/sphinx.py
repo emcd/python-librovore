@@ -32,6 +32,9 @@ from bs4 import BeautifulSoup as _BeautifulSoup
 from . import __
 
 
+_scribe = __.acquire_scribe( __name__ )
+
+
 class SphinxProcessor( __.Processor ):
     ''' Processor for Sphinx documentation sources. '''
 
@@ -41,7 +44,7 @@ class SphinxProcessor( __.Processor ):
         ''' Detects if can process documentation from source. '''
         try:
             base_url = _normalize_base_url( source )
-            inventory_url = _build_inventory_url( base_url )
+            inventory_url = _derive_inventory_url( base_url )
             normalized_source = _urlparse.urlparse( inventory_url )
         except Exception:
             return SphinxDetection(
@@ -54,13 +57,10 @@ class SphinxProcessor( __.Processor ):
         confidence = 0.95 if has_searchindex else 0.7
         theme = None
         if has_searchindex:
-            try:
-                theme_metadata = await _detect_theme( normalized_source )
-                theme = theme_metadata.get( 'theme' )
+            try: theme_metadata = await _detect_theme( normalized_source )
             except Exception as exc:
-                # Theme detection failed, log and leave theme as None
-                __.acquire_scribe( __name__ ).debug(
-                    f"Theme detection failed for {source}: {exc}" )
+                _scribe.debug( f"Theme detection failed for {source}: {exc}" )
+            else: theme = theme_metadata.get( 'theme' )
         return SphinxDetection(
             processor = self,
             confidence = confidence,
@@ -121,7 +121,7 @@ class SphinxProcessor( __.Processor ):
                 'error': f"Object '{object_name}' not found in inventory"
             }
         base_url = _normalize_base_url( source )
-        doc_url = _build_documentation_url(
+        doc_url = _derive_documentation_url(
             base_url, found_object.uri, object_name )
         html_content = await _fetch_html_content( doc_url )
         url_parts = _urlparse.urlparse( doc_url )
@@ -164,7 +164,7 @@ class SphinxProcessor( __.Processor ):
         query_lower = query.lower( )
         results: list[ __.cabc.Mapping[ str, __.typx.Any ] ] = [ ]
         for candidate in candidates:
-            doc_url = _build_documentation_url(
+            doc_url = _derive_documentation_url(
                 base_url, candidate[ 'uri' ], candidate[ 'name' ] )
             try: html_content = await _fetch_html_content( doc_url )
             except Exception: # noqa: S112
@@ -232,29 +232,6 @@ def register( arguments: __.cabc.Mapping[ str, __.typx.Any ] ) -> None:
     __.processors[ processor.name ] = processor
 
 
-def _build_documentation_url(
-    base_url: str, object_uri: str, object_name: str
-) -> str:
-    ''' Constructs documentation URL from base URL and object URI. '''
-    uri_with_name = object_uri.replace( '$', object_name )
-    return f"{base_url}/{uri_with_name}"
-
-
-def _build_html_url( base_url: str ) -> str:
-    ''' Builds index.html URL from base URL. '''
-    return f"{base_url}/index.html"
-
-
-def _build_inventory_url( base_url: str ) -> str:
-    ''' Build objects.inv URL from base URL. '''
-    return f"{base_url}/objects.inv"
-
-
-def _build_searchindex_url( base_url: str ) -> str:
-    ''' Builds searchindex.js URL from base URL. '''
-    return f"{base_url}/searchindex.js"
-
-
 def _calculate_relevance_score(
     query_lower: str, candidate: __.cabc.Mapping[ str, __.typx.Any ],
     doc_result: __.cabc.Mapping[ str, __.typx.Any ]
@@ -282,16 +259,7 @@ async def _check_objects_inv(
     normalized_source: _urlparse.ParseResult
 ) -> bool:
     ''' Checks if objects.inv exists at the source. '''
-    if normalized_source.scheme in ( 'file', '' ):
-        try:
-            objects_inv_path = __.Path( normalized_source.path )
-            return objects_inv_path.exists( )
-        except Exception: return False
-    try:
-        async with _httpx.AsyncClient( timeout = 10.0 ) as client:
-            response = await client.head( normalized_source.geturl( ) )
-            return response.status_code == _http.HTTPStatus.OK
-    except Exception: return False
+    return await _check_url( normalized_source.geturl( ) )
 
 
 async def _check_searchindex(
@@ -300,18 +268,8 @@ async def _check_searchindex(
     ''' Checks if searchindex.js exists (indicates full Sphinx site). '''
     source_url = normalized_source.geturl( )
     base_url = _normalize_base_url( source_url )
-    searchindex_url = _build_searchindex_url( base_url )
-    parsed_url = _urlparse.urlparse( searchindex_url )
-    if parsed_url.scheme in ( 'file', '' ):
-        try:
-            searchindex_path = __.Path( parsed_url.path )
-            return searchindex_path.exists( )
-        except Exception: return False
-    try:
-        async with _httpx.AsyncClient( timeout = 10.0 ) as client:
-            response = await client.head( searchindex_url )
-            return response.status_code == _http.HTTPStatus.OK
-    except Exception: return False
+    searchindex_url = _derive_searchindex_url( base_url )
+    return await _check_url( searchindex_url )
 
 
 def _collect_matching_objects(
@@ -353,6 +311,29 @@ def _create_term_matcher(
     return lambda obj: term_lower in obj.name.lower( )
 
 
+def _derive_documentation_url(
+    base_url: str, object_uri: str, object_name: str
+) -> str:
+    ''' Derives documentation URL from base URL and object URI. '''
+    uri_with_name = object_uri.replace( '$', object_name )
+    return f"{base_url}/{uri_with_name}"
+
+
+def _derive_html_url( base_url: str ) -> str:
+    ''' Derives index.html URL from base URL. '''
+    return f"{base_url}/index.html"
+
+
+def _derive_inventory_url( base_url: str ) -> str:
+    ''' Derives objects.inv URL from base URL. '''
+    return f"{base_url}/objects.inv"
+
+
+def _derive_searchindex_url( base_url: str ) -> str:
+    ''' Derives searchindex.js URL from base URL. '''
+    return f"{base_url}/searchindex.js"
+
+
 async def _detect_theme(
     normalized_source: _urlparse.ParseResult
 ) -> dict[ str, __.typx.Any ]:
@@ -360,18 +341,19 @@ async def _detect_theme(
     theme_metadata: dict[ str, __.typx.Any ] = { }
     source_url = normalized_source.geturl( )
     base_url = _normalize_base_url( source_url )
-    html_url = _build_html_url( base_url )
-    async with _httpx.AsyncClient( timeout = 10.0 ) as client:
-        response = await client.get( html_url )
-        if response.status_code == _http.HTTPStatus.OK:
-            html_content = response.text.lower( )
-            if 'furo' in html_content:
-                theme_metadata[ 'theme' ] = 'furo'
-            elif 'alabaster' in html_content:
-                theme_metadata[ 'theme' ] = 'alabaster'
-            elif 'sphinx_rtd_theme' in html_content:
-                theme_metadata[ 'theme' ] = 'sphinx_rtd_theme'
-            # If no theme detected, don't set theme key (returns None)
+    html_url = _derive_html_url( base_url )
+    try:
+        html_content = await _retrieve_url( html_url, timeout = 10.0 )
+        html_content_lower = html_content.lower( )
+        if 'furo' in html_content_lower:
+            theme_metadata[ 'theme' ] = 'furo'
+        elif 'alabaster' in html_content_lower:
+            theme_metadata[ 'theme' ] = 'alabaster'
+        elif 'sphinx_rtd_theme' in html_content_lower:
+            theme_metadata[ 'theme' ] = 'sphinx_rtd_theme'
+        # If no theme detected, don't set theme key (returns None)
+    except __.DocumentationInaccessibility:
+        pass  # theme_metadata remains empty
     return theme_metadata
 
 
@@ -395,7 +377,7 @@ def _extract_content_snippet(
 def _extract_inventory( source: str ) -> _sphobjinv.Inventory:
     ''' Extracts and parses Sphinx inventory from URL or file path. '''
     base_url = _normalize_base_url( source )
-    inventory_url = _build_inventory_url( base_url )
+    inventory_url = _derive_inventory_url( base_url )
     url = _urlparse.urlparse( inventory_url )
     url_s = _urlparse.urlunparse( url )
     nomargs: __.NominativeArguments = { }
@@ -427,8 +409,29 @@ def _extract_names_from_suggestions(
     return fuzzy_names
 
 
-async def _fetch_html_content( url: str ) -> str:
-    ''' Fetches HTML content from documentation URL or local file. '''
+async def _check_url( url: str, *, timeout: float = 10.0 ) -> bool:
+    ''' Checks if URL exists using HEAD request or file existence check. '''
+    parsed_url = _urlparse.urlparse( url )
+    match parsed_url.scheme:
+        case 'file' | '':
+            try:
+                file_path = __.Path( parsed_url.path )
+                return file_path.exists( )
+            except Exception:
+                return False
+        case 'http' | 'https':
+            try:
+                async with _httpx.AsyncClient( timeout = timeout ) as client:
+                    response = await client.head( url )
+                    return response.status_code == _http.HTTPStatus.OK
+            except Exception:
+                return False
+        case _:
+            return False
+
+
+async def _retrieve_url( url: str, *, timeout: float = 30.0 ) -> str:
+    ''' Retrieves content from URL using GET request or file read. '''
     parsed_url = _urlparse.urlparse( url )
     match parsed_url.scheme:
         case 'file':
@@ -436,21 +439,24 @@ async def _fetch_html_content( url: str ) -> str:
                 file_path = __.Path( parsed_url.path )
                 return file_path.read_text( encoding = 'utf-8' )
             except Exception as exc:
-                raise __.DocumentationInaccessibility(
-                    url, exc ) from exc
+                raise __.DocumentationInaccessibility( url, exc ) from exc
         case 'http' | 'https':
             try:
-                async with _httpx.AsyncClient( timeout = 30.0 ) as client:
+                async with _httpx.AsyncClient( timeout = timeout ) as client:
                     response = await client.get( url )
                     response.raise_for_status( )
                     return response.text
             except Exception as exc:
-                raise __.DocumentationInaccessibility(
-                    url, exc ) from exc
+                raise __.DocumentationInaccessibility( url, exc ) from exc
         case _:
             raise __.DocumentationInaccessibility(
                 url,
                 ValueError( f"Unsupported URL scheme: {parsed_url.scheme}" ) )
+
+
+async def _fetch_html_content( url: str ) -> str:
+    ''' Fetches HTML content from documentation URL or local file. '''
+    return await _retrieve_url( url )
 
 
 def _filter_exact_and_regex_matching( # noqa: PLR0913
