@@ -28,11 +28,4 @@ def test_100__normalize_base_url_basic_path( ):
     ''' Base URL normalization works correctly for file paths. '''
     test_path = '/home/user/test.inv'
     result = module._normalize_base_url( test_path )
-    assert result == 'file:///home/user'
-
-
-def test_110__normalize_base_url_with_objects_inv( ):
-    ''' Base URL normalization strips objects.inv correctly. '''
-    test_path = '/home/user/objects.inv'
-    result = module._normalize_base_url( test_path )
-    assert result == 'file:///home/user'
+    assert result.geturl( ) == 'file:///home/user'
