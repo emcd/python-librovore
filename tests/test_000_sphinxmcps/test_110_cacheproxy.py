@@ -1,0 +1,1141 @@
+# vim: set filetype=python fileencoding=utf-8:
+# -*- coding: utf-8 -*-
+
+#============================================================================#
+#                                                                            #
+#  Licensed under the Apache License, Version 2.0 (the "License");           #
+#  you may not use this file except in compliance with the License.          #
+#  You may obtain a copy of the License at                                   #
+#                                                                            #
+#      http://www.apache.org/licenses/LICENSE-2.0                            #
+#                                                                            #
+#  Unless required by applicable law or agreed to in writing, software       #
+#  distributed under the License is distributed on an "AS IS" BASIS,         #
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  #
+#  See the License for the specific language governing permissions and       #
+#  limitations under the License.                                            #
+#                                                                            #
+#============================================================================#
+
+
+''' Comprehensive tests for HTTP caching infrastructure. '''
+
+
+import pytest
+from unittest.mock import patch, Mock
+from urllib.parse import ParseResult as Url
+
+import httpx as _httpx
+import appcore.generics as _generics
+
+import sphinxmcps.cacheproxy as module
+from sphinxmcps import __
+from sphinxmcps import exceptions as _exceptions
+
+
+#
+# Series 000: Configuration and Entry Classes
+#
+
+
+def test_000_cache_configuration_defaults( ):
+    ''' Configuration uses expected default values. '''
+    config = module.CacheConfiguration( )
+    assert config.contents_memory_max == 32 * 1024 * 1024  # 32 MiB
+    assert config.probe_entries_max == 1000
+    assert config.error_ttl == 30.0
+    assert config.network_error_ttl == 10.0
+    assert config.success_ttl == 300.0
+
+
+def test_010_cache_configuration_custom_values( ):
+    ''' Configuration accepts custom values. '''
+    config = module.CacheConfiguration(
+        contents_memory_max = 64 * 1024 * 1024,
+        probe_entries_max = 2000,
+        error_ttl = 60.0,
+        network_error_ttl = 20.0,
+        success_ttl = 600.0 )
+    assert config.contents_memory_max == 64 * 1024 * 1024
+    assert config.probe_entries_max == 2000
+    assert config.error_ttl == 60.0
+    assert config.network_error_ttl == 20.0
+    assert config.success_ttl == 600.0
+
+
+@patch.object( module.__.time, 'time', return_value = 1000.0 )
+def test_020_cache_entry_fresh_not_extant( mock_time ):
+    ''' Fresh entries are not extant. '''
+    entry = module.CacheEntry( timestamp = 950.0, ttl = 100.0 )
+    assert not entry.extant
+
+
+@patch.object( module.__.time, 'time', return_value = 1000.0 )
+def test_030_cache_entry_expired_is_extant( mock_time ):
+    ''' Expired entries are extant. '''
+    entry = module.CacheEntry( timestamp = 800.0, ttl = 100.0 )
+    assert entry.extant
+
+
+@patch.object( module.__.time, 'time', return_value = 1000.0 )
+def test_040_cache_entry_boundary_condition( mock_time ):
+    ''' Expiration boundary is handled correctly. '''
+    # Exactly at boundary - not expired (uses > not >=)
+    entry_exact = module.CacheEntry( timestamp = 900.0, ttl = 100.0 )
+    assert not entry_exact.extant
+    # Just past boundary - expired
+    mock_time.return_value = 1000.1
+    entry_past = module.CacheEntry( timestamp = 900.0, ttl = 100.0 )
+    assert entry_past.extant
+
+
+def test_050_content_cache_entry_memory_usage( ):
+    ''' Memory usage calculation includes overhead. '''
+    response = _generics.Value( b'test content' )
+    headers = _httpx.Headers( { 'content-type': 'text/plain' } )
+    entry = module.ContentCacheEntry(
+        response = response,
+        headers = headers,
+        timestamp = 1000.0,
+        ttl = 300.0,
+        size_bytes = 12 )
+    assert entry.memory_usage == 112  # 12 + 100 overhead
+
+
+def test_060_probe_cache_entry_basic_construction( ):
+    ''' Probe entries construct with required fields. '''
+    response = _generics.Value( True )
+    entry = module.ProbeCacheEntry(
+        response = response,
+        timestamp = 1000.0,
+        ttl = 300.0 )
+    assert entry.response == response
+    assert entry.timestamp == 1000.0
+    assert entry.ttl == 300.0
+
+
+#
+# Series 100: ContentCache Tests
+#
+
+
+def test_100_content_cache_initialization( ):
+    ''' Content cache initializes with configuration. '''
+    config = module.CacheConfiguration( contents_memory_max = 1024 )
+    cache = module.ContentCache( config )
+    assert cache._configuration == config
+    assert cache._memory_total == 0
+    assert len( cache._cache ) == 0
+    assert len( cache._recency ) == 0
+
+
+@pytest.mark.asyncio
+async def test_110_content_cache_access_missing_returns_absent( ):
+    ''' Missing URLs return absent from cache access. '''
+    config = module.CacheConfiguration( )
+    cache = module.ContentCache( config )
+    result = await cache.access( 'http://example.com/missing' )
+    assert __.is_absent( result )
+
+
+@pytest.mark.asyncio
+async def test_120_content_cache_access_fresh_returns_content( ):
+    ''' Fresh entries return content and headers from cache access. '''
+    config = module.CacheConfiguration( )
+    cache = module.ContentCache( config )
+    test_content = b'test content'
+    test_headers = _httpx.Headers( { 'content-type': 'text/plain' } )
+    response = _generics.Value( test_content )
+    
+    with patch.object( module.__.time, 'time', return_value = 1000.0 ):
+        await cache.store(
+            'http://example.com/test', response, test_headers, 300.0 )
+    
+    with patch.object( module.__.time, 'time', return_value = 1100.0 ):
+        result = await cache.access( 'http://example.com/test' )
+    
+    assert not __.is_absent( result )
+    content, headers = result
+    assert content == test_content
+    assert headers == test_headers
+
+
+@pytest.mark.asyncio
+async def test_130_content_cache_access_expired_returns_absent( ):
+    ''' Expired entries are removed and return absent from cache access. '''
+    config = module.CacheConfiguration( )
+    cache = module.ContentCache( config )
+    test_content = b'test content'
+    test_headers = _httpx.Headers( { 'content-type': 'text/plain' } )
+    response = _generics.Value( test_content )
+    
+    with patch.object( module.__.time, 'time', return_value = 1000.0 ):
+        await cache.store(
+            'http://example.com/test', response, test_headers, 300.0 )
+    
+    with patch.object( module.__.time, 'time', return_value = 2000.0 ):
+        result = await cache.access( 'http://example.com/test' )
+    
+    assert __.is_absent( result )
+    assert 'http://example.com/test' not in cache._cache
+
+
+def test_140_content_cache_determine_ttl_success( ):
+    ''' Successful responses get appropriate TTL. '''
+    config = module.CacheConfiguration( success_ttl = 123.0 )
+    cache = module.ContentCache( config )
+    response = _generics.Value( b'content' )
+    ttl = cache.determine_ttl( response )
+    assert ttl == 123.0
+
+
+def test_150_content_cache_determine_ttl_error( ):
+    ''' Error responses get appropriate TTL. '''
+    config = module.CacheConfiguration( error_ttl = 45.0 )
+    cache = module.ContentCache( config )
+    response = _generics.Error( Exception( 'test error' ) )
+    ttl = cache.determine_ttl( response )
+    assert ttl == 45.0
+
+
+@pytest.mark.asyncio
+async def test_160_content_cache_store_tracks_memory( ):
+    ''' Storing entries updates memory tracking correctly. '''
+    config = module.CacheConfiguration( )
+    cache = module.ContentCache( config )
+    test_content = b'test content 12 bytes'
+    response = _generics.Value( test_content )
+    headers = _httpx.Headers( )
+    
+    with patch.object( module.__.time, 'time', return_value = 1000.0 ):
+        await cache.store(
+            'http://example.com/test', response, headers, 300.0 )
+    
+    assert cache._memory_total == 121  # 21 bytes + 100 overhead
+    assert 'http://example.com/test' in cache._cache
+    assert list( cache._recency ) == [ 'http://example.com/test' ]
+
+
+@pytest.mark.asyncio
+async def test_170_content_cache_store_replaces_existing( ):
+    ''' Storing replaces existing entries and updates memory. '''
+    config = module.CacheConfiguration( )
+    cache = module.ContentCache( config )
+    
+    # Store first entry
+    content1 = b'first'
+    response1 = _generics.Value( content1 )
+    headers1 = _httpx.Headers( )
+    
+    with patch.object( module.__.time, 'time', return_value = 1000.0 ):
+        await cache.store(
+            'http://example.com/test', response1, headers1, 300.0 )
+    
+    # Store second entry with same URL
+    content2 = b'second content longer'
+    response2 = _generics.Value( content2 )
+    headers2 = _httpx.Headers( { 'content-type': 'text/html' } )
+    
+    with patch.object( module.__.time, 'time', return_value = 1100.0 ):
+        await cache.store(
+            'http://example.com/test', response2, headers2, 300.0 )
+    
+    # Verify replacement
+    assert len( cache._cache ) == 1
+    entry = cache._cache[ 'http://example.com/test' ]
+    assert entry.response.extract( ) == content2
+    assert entry.headers == headers2
+    assert cache._memory_total == 121  # 21 bytes + 100 overhead
+
+
+@pytest.mark.asyncio
+async def test_180_content_cache_eviction_by_memory( ):
+    ''' LRU entries are evicted when memory limit exceeded. '''
+    config = module.CacheConfiguration( contents_memory_max = 300 )
+    cache = module.ContentCache( config )
+    
+    # Store multiple entries that will exceed memory limit
+    for i in range( 5 ):
+        content = b'x' * 50  # 50 bytes each + 100 overhead = 150 each
+        response = _generics.Value( content )
+        headers = _httpx.Headers( )
+        url = f'http://example.com/test{i}'
+        
+        with patch.object( module.__.time, 'time', return_value = 1000.0 + i ):
+            await cache.store( url, response, headers, 300.0 )
+    
+    # Should have evicted oldest entries to stay under 300 bytes
+    assert cache._memory_total <= 300
+    assert len( cache._cache ) == 2  # Only last 2 entries fit
+    assert 'http://example.com/test3' in cache._cache
+    assert 'http://example.com/test4' in cache._cache
+    assert 'http://example.com/test0' not in cache._cache
+
+
+@pytest.mark.asyncio
+async def test_190_content_cache_record_access_updates_lru( ):
+    ''' Accessing entries moves URLs to end of recency queue. '''
+    config = module.CacheConfiguration( )
+    cache = module.ContentCache( config )
+    
+    # Store multiple entries
+    for i in range( 3 ):
+        content = b'test'
+        response = _generics.Value( content )
+        headers = _httpx.Headers( )
+        url = f'http://example.com/test{i}'
+        
+        with patch.object( module.__.time, 'time', return_value = 1000.0 + i ):
+            await cache.store( url, response, headers, 300.0 )
+    
+    # Access middle entry
+    with patch.object( module.__.time, 'time', return_value = 1100.0 ):
+        await cache.access( 'http://example.com/test1' )
+    
+    # Should have moved test1 to end
+    assert list( cache._recency ) == [
+        'http://example.com/test0',
+        'http://example.com/test2', 
+        'http://example.com/test1'
+    ]
+
+
+#
+# Series 200: ProbeCache Tests
+#
+
+
+def test_200_probe_cache_initialization( ):
+    ''' Probe cache initializes with configuration. '''
+    config = module.CacheConfiguration( probe_entries_max = 500 )
+    cache = module.ProbeCache( config )
+    assert cache._configuration == config
+    assert len( cache._cache ) == 0
+    assert len( cache._recency ) == 0
+
+
+@pytest.mark.asyncio
+async def test_210_probe_cache_access_missing_returns_absent( ):
+    ''' Missing URLs return absent from probe cache access. '''
+    config = module.CacheConfiguration( )
+    cache = module.ProbeCache( config )
+    result = await cache.access( 'http://example.com/missing' )
+    assert __.is_absent( result )
+
+
+@pytest.mark.asyncio
+async def test_220_probe_cache_access_fresh_returns_result( ):
+    ''' Fresh entries return probe results from cache access. '''
+    config = module.CacheConfiguration( )
+    cache = module.ProbeCache( config )
+    response = _generics.Value( True )
+    
+    with patch.object( module.__.time, 'time', return_value = 1000.0 ):
+        await cache.store( 'http://example.com/test', response, 300.0 )
+    
+    with patch.object( module.__.time, 'time', return_value = 1100.0 ):
+        result = await cache.access( 'http://example.com/test' )
+    
+    assert not __.is_absent( result )
+    assert result is True
+
+
+@pytest.mark.asyncio
+async def test_230_probe_cache_access_expired_returns_absent( ):
+    ''' Expired entries are removed and return absent from probe cache. '''
+    config = module.CacheConfiguration( )
+    cache = module.ProbeCache( config )
+    response = _generics.Value( False )
+    
+    with patch.object( module.__.time, 'time', return_value = 1000.0 ):
+        await cache.store( 'http://example.com/test', response, 300.0 )
+    
+    with patch.object( module.__.time, 'time', return_value = 2000.0 ):
+        result = await cache.access( 'http://example.com/test' )
+    
+    assert __.is_absent( result )
+    assert 'http://example.com/test' not in cache._cache
+
+
+def test_240_probe_cache_determine_ttl_success( ):
+    ''' Successful probe responses get appropriate TTL. '''
+    config = module.CacheConfiguration( success_ttl = 456.0 )
+    cache = module.ProbeCache( config )
+    response = _generics.Value( True )
+    ttl = cache.determine_ttl( response )
+    assert ttl == 456.0
+
+
+def test_250_probe_cache_determine_ttl_error( ):
+    ''' Error probe responses get appropriate TTL. '''
+    config = module.CacheConfiguration( error_ttl = 78.0 )
+    cache = module.ProbeCache( config )
+    response = _generics.Error( Exception( 'test error' ) )
+    ttl = cache.determine_ttl( response )
+    assert ttl == 78.0
+
+
+@pytest.mark.asyncio
+async def test_260_probe_cache_store_updates_recency( ):
+    ''' Storing probe entries updates recency tracking correctly. '''
+    config = module.CacheConfiguration( )
+    cache = module.ProbeCache( config )
+    response = _generics.Value( True )
+    
+    with patch.object( module.__.time, 'time', return_value = 1000.0 ):
+        await cache.store( 'http://example.com/test', response, 300.0 )
+    
+    assert 'http://example.com/test' in cache._cache
+    assert list( cache._recency ) == [ 'http://example.com/test' ]
+
+
+@pytest.mark.asyncio
+async def test_270_probe_cache_eviction_by_count( ):
+    ''' Oldest entries are evicted when count limit exceeded. '''
+    config = module.CacheConfiguration( probe_entries_max = 3 )
+    cache = module.ProbeCache( config )
+    
+    # Store more entries than limit
+    for i in range( 5 ):
+        response = _generics.Value( i % 2 == 0 )  # Alternating True/False
+        url = f'http://example.com/test{i}'
+        
+        with patch.object( module.__.time, 'time', return_value = 1000.0 + i ):
+            await cache.store( url, response, 300.0 )
+    
+    # Should have evicted oldest entries to stay under limit
+    assert len( cache._cache ) == 3
+    assert 'http://example.com/test2' in cache._cache
+    assert 'http://example.com/test3' in cache._cache
+    assert 'http://example.com/test4' in cache._cache
+    assert 'http://example.com/test0' not in cache._cache
+    assert 'http://example.com/test1' not in cache._cache
+
+
+@pytest.mark.asyncio
+async def test_280_probe_cache_record_access_updates_lru( ):
+    ''' Accessing probe entries moves URLs to end of recency queue. '''
+    config = module.CacheConfiguration( )
+    cache = module.ProbeCache( config )
+    
+    # Store multiple entries
+    for i in range( 3 ):
+        response = _generics.Value( True )
+        url = f'http://example.com/test{i}'
+        
+        with patch.object( module.__.time, 'time', return_value = 1000.0 + i ):
+            await cache.store( url, response, 300.0 )
+    
+    # Access first entry
+    with patch.object( module.__.time, 'time', return_value = 1100.0 ):
+        await cache.access( 'http://example.com/test0' )
+    
+    # Should have moved test0 to end
+    assert list( cache._recency ) == [
+        'http://example.com/test1',
+        'http://example.com/test2',
+        'http://example.com/test0'
+    ]
+
+
+#
+# Series 300: probe_url Function Tests
+#
+
+
+@pytest.mark.asyncio
+async def test_300_probe_url_file_scheme_existing_file( fs ):
+    ''' Existing file URLs return True when probed. '''
+    fs.create_file( '/test/file.txt', contents = 'test content' )
+    url = Url( scheme = 'file', netloc = '', path = '/test/file.txt',
+               params = '', query = '', fragment = '' )
+    result = await module.probe_url( url )
+    assert result is True
+
+
+@pytest.mark.asyncio
+async def test_310_probe_url_file_scheme_missing_file( fs ):
+    ''' Missing file URLs return False when probed. '''
+    url = Url( scheme = 'file', netloc = '', path = '/test/missing.txt',
+               params = '', query = '', fragment = '' )
+    result = await module.probe_url( url )
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_320_probe_url_empty_scheme_existing_file( fs ):
+    ''' Empty schemes are handled as file paths when probing. '''
+    fs.create_file( '/test/file.txt', contents = 'test content' )
+    url = Url( scheme = '', netloc = '', path = '/test/file.txt',
+               params = '', query = '', fragment = '' )
+    result = await module.probe_url( url )
+    assert result is True
+
+
+@pytest.mark.asyncio
+async def test_330_probe_url_http_cache_hit_returns_cached( ):
+    ''' Cache hits return cached probe results. '''
+    mock_cache = Mock( spec = module.ProbeCache )
+    mock_cache.access.return_value = True
+    
+    url = Url( scheme = 'http', netloc = 'example.com', path = '/test',
+               params = '', query = '', fragment = '' )
+    
+    result = await module.probe_url( url, cache = mock_cache )
+    
+    assert result is True
+    mock_cache.access.assert_called_once_with( 'http://example.com/test' )
+
+
+@pytest.mark.asyncio
+async def test_340_probe_url_dependency_injection_with_custom_cache( ):
+    ''' Injected cache dependencies are accepted and used for probing. '''
+    custom_config = module.CacheConfiguration( probe_entries_max = 5 )
+    custom_cache = module.ProbeCache( custom_config )
+    
+    url = Url( scheme = 'file', netloc = '', path = '/nonexistent',
+               params = '', query = '', fragment = '' )
+    
+    result = await module.probe_url( url, cache = custom_cache )
+    assert result is False
+    assert custom_cache._configuration.probe_entries_max == 5
+
+
+@pytest.mark.asyncio
+async def test_350_probe_url_cache_configuration_affects_behavior( ):
+    ''' Custom cache configuration affects probing behavior. '''
+    restrictive_config = module.CacheConfiguration( 
+        probe_entries_max = 2,
+        success_ttl = 60.0 
+    )
+    custom_cache = module.ProbeCache( restrictive_config )
+    
+    url = Url( scheme = 'file', netloc = '', path = '/nonexistent',
+               params = '', query = '', fragment = '' )
+    
+    result = await module.probe_url( url, cache = custom_cache )
+    assert result is False
+    assert custom_cache._configuration.probe_entries_max == 2
+    assert custom_cache._configuration.success_ttl == 60.0
+
+
+@pytest.mark.asyncio
+async def test_360_probe_url_unsupported_scheme_returns_false( ):
+    ''' Unsupported URL schemes return False when probed. '''
+    url = Url( scheme = 'ftp', netloc = 'example.com', path = '/test',
+               params = '', query = '', fragment = '' )
+    result = await module.probe_url( url )
+    assert result is False
+
+
+#
+# Series 400: retrieve_url Function Tests
+#
+
+
+@pytest.mark.asyncio
+async def test_400_retrieve_url_file_scheme_existing_file( fs ):
+    ''' Existing file URLs return content when retrieved. '''
+    test_content = b'file content for testing'
+    fs.create_file( '/test/data.txt', contents = test_content )
+    url = Url( scheme = 'file', netloc = '', path = '/test/data.txt',
+               params = '', query = '', fragment = '' )
+    result = await module.retrieve_url( url )
+    assert result == test_content
+
+
+@pytest.mark.asyncio
+async def test_410_retrieve_url_file_scheme_missing_file( fs ):
+    ''' Missing files raise DocumentationInaccessibility when retrieved. '''
+    url = Url( scheme = 'file', netloc = '', path = '/test/missing.txt',
+               params = '', query = '', fragment = '' )
+    with pytest.raises( _exceptions.DocumentationInaccessibility ):
+        await module.retrieve_url( url )
+
+
+@pytest.mark.asyncio
+async def test_420_retrieve_url_empty_scheme_existing_file( fs ):
+    ''' Empty schemes are handled as file paths when retrieving. '''
+    test_content = b'empty scheme content'
+    fs.create_file( '/test/data.txt', contents = test_content )
+    url = Url( scheme = '', netloc = '', path = '/test/data.txt',
+               params = '', query = '', fragment = '' )
+    result = await module.retrieve_url( url )
+    assert result == test_content
+
+
+@pytest.mark.asyncio
+async def test_430_retrieve_url_http_cache_hit_returns_cached( ):
+    ''' Cache hits return cached content when retrieving. '''
+    mock_cache = Mock( spec = module.ContentCache )
+    test_content = b'cached content'
+    test_headers = _httpx.Headers( { 'content-type': 'text/plain' } )
+    mock_cache.access.return_value = ( test_content, test_headers )
+    
+    url = Url( scheme = 'http', netloc = 'example.com', path = '/test',
+               params = '', query = '', fragment = '' )
+    
+    result = await module.retrieve_url( url, cache = mock_cache )
+    
+    assert result == test_content
+    mock_cache.access.assert_called_once_with( 'http://example.com/test' )
+
+
+@pytest.mark.asyncio
+async def test_440_retrieve_url_dependency_injection_with_custom_cache( fs ):
+    ''' Injected cache dependencies are accepted for retrieval. '''
+    custom_config = module.CacheConfiguration( contents_memory_max = 2048 )
+    custom_cache = module.ContentCache( custom_config )
+    test_content = b'custom cache test content'
+    
+    fs.create_file( '/test/custom.txt', contents = test_content )
+    
+    url = Url( scheme = 'file', netloc = '', path = '/test/custom.txt',
+               params = '', query = '', fragment = '' )
+    result = await module.retrieve_url( url, cache = custom_cache )
+    
+    assert result == test_content
+    assert custom_cache._configuration.contents_memory_max == 2048
+
+
+@pytest.mark.asyncio
+async def test_450_retrieve_url_file_permission_error_raises_exception( ):
+    ''' File errors raise DocumentationInaccessibility when retrieving. '''
+    url = Url( scheme = 'file', netloc = '', path = '/nonexistent/file.txt',
+               params = '', query = '', fragment = '' )
+    
+    with pytest.raises( _exceptions.DocumentationInaccessibility ):
+        await module.retrieve_url( url )
+
+
+@pytest.mark.asyncio
+async def test_460_retrieve_url_unsupported_scheme_raises_exception( ):
+    ''' Unsupported schemes raise DocumentationInaccessibility. '''
+    url = Url( scheme = 'ftp', netloc = 'example.com', path = '/test',
+               params = '', query = '', fragment = '' )
+    with pytest.raises( _exceptions.DocumentationInaccessibility ):
+        await module.retrieve_url( url )
+
+
+@pytest.mark.asyncio
+async def test_470_retrieve_url_custom_cache_dependency_injection( fs ):
+    ''' retrieve_url accepts injected cache dependency. '''
+    custom_config = module.CacheConfiguration( contents_memory_max = 1024 )
+    custom_cache = module.ContentCache( custom_config )
+    test_content = b'custom cache content'
+    
+    fs.create_file( '/test/data.txt', contents = test_content )
+    
+    url = Url( scheme = 'file', netloc = '', path = '/test/data.txt',
+               params = '', query = '', fragment = '' )
+    result = await module.retrieve_url( url, cache = custom_cache )
+    
+    assert result == test_content
+
+
+#
+# Series 500: retrieve_url_as_text Function Tests
+#
+
+
+@pytest.mark.asyncio
+async def test_500_retrieve_url_as_text_file_scheme_utf8( fs ):
+    ''' UTF-8 files return decoded content as text. '''
+    test_content = 'UTF-8 text content with émojis 🚀'
+    fs.create_file(
+        '/test/utf8.txt', contents = test_content, encoding = 'utf-8' )
+    url = Url( scheme = 'file', netloc = '', path = '/test/utf8.txt',
+               params = '', query = '', fragment = '' )
+    result = await module.retrieve_url_as_text( url )
+    assert result == test_content
+
+
+@pytest.mark.asyncio
+async def test_510_retrieve_url_as_text_file_scheme_custom_charset( fs ):
+    ''' Custom default charset is used for file text retrieval. '''
+    test_content = 'ASCII content only'
+    fs.create_file(
+        '/test/ascii.txt', contents = test_content.encode( 'ascii' ) )
+    url = Url( scheme = 'file', netloc = '', path = '/test/ascii.txt',
+               params = '', query = '', fragment = '' )
+    result = await module.retrieve_url_as_text(
+        url, charset_default = 'ascii' )
+    assert result == test_content
+
+
+@pytest.mark.asyncio
+async def test_520_retrieve_url_as_text_http_cache_hit_with_charset( ):
+    ''' Cache hits extract charset from headers for text retrieval. '''
+    mock_cache = Mock( spec = module.ContentCache )
+    test_content = 'Cached text content'
+    test_headers = _httpx.Headers( {
+        'content-type': 'text/html; charset=iso-8859-1'
+    } )
+    mock_cache.access.return_value = (
+        test_content.encode( 'iso-8859-1' ), test_headers )
+    
+    url = Url( scheme = 'http', netloc = 'example.com', path = '/test',
+               params = '', query = '', fragment = '' )
+    
+    result = await module.retrieve_url_as_text( url, cache = mock_cache )
+    
+    assert result == test_content
+    mock_cache.access.assert_called_once_with( 'http://example.com/test' )
+
+
+@pytest.mark.asyncio
+async def test_530_retrieve_url_as_text_http_validates_content_type( ):
+    ''' Textual content type is validated for text retrieval. '''
+    mock_cache = Mock( spec = module.ContentCache )
+    test_headers = _httpx.Headers( { 'content-type': 'image/png' } )
+    mock_cache.access.return_value = ( b'binary data', test_headers )
+    
+    url = Url( scheme = 'http', netloc = 'example.com', path = '/image',
+               params = '', query = '', fragment = '' )
+    
+    with pytest.raises( _exceptions.HttpContentTypeInvalidity ):
+        await module.retrieve_url_as_text( url, cache = mock_cache )
+
+
+@pytest.mark.asyncio
+async def test_540_retrieve_url_as_text_dependency_injection( fs ):
+    ''' Injected cache dependencies are accepted for text retrieval. '''
+    custom_config = module.CacheConfiguration( contents_memory_max = 1024 )
+    custom_cache = module.ContentCache( custom_config )
+    test_content = 'Custom text content'
+    
+    fs.create_file( '/test/text.txt', contents = test_content )
+    
+    url = Url( scheme = 'file', netloc = '', path = '/test/text.txt',
+               params = '', query = '', fragment = '' )
+    result = await module.retrieve_url_as_text( url, cache = custom_cache )
+    
+    assert result == test_content
+    assert custom_cache._configuration.contents_memory_max == 1024
+
+
+@pytest.mark.asyncio
+async def test_550_retrieve_url_as_text_http_default_charset_fallback( ):
+    ''' Default charset is used as fallback when none specified. '''
+    mock_cache = Mock( spec = module.ContentCache )
+    test_content = 'Default charset content'
+    test_headers = _httpx.Headers( { 'content-type': 'text/plain' } )
+    mock_cache.access.return_value = (
+        test_content.encode( 'utf-8' ), test_headers )
+    
+    url = Url( scheme = 'http', netloc = 'example.com', path = '/text',
+               params = '', query = '', fragment = '' )
+    
+    result = await module.retrieve_url_as_text( url, cache = mock_cache )
+    assert result == test_content
+
+
+@pytest.mark.asyncio  
+async def test_580_probe_url_http_cache_miss_success( ):
+    ''' HTTP cache miss executes successful HEAD request. '''
+    cache = module.ProbeCache( module.CacheConfiguration( ) )
+    url = Url( scheme = 'http', netloc = 'httpbin.org', path = '/status/200',
+               params = '', query = '', fragment = '' )
+    result = await module.probe_url( url, cache = cache )
+    assert result is True
+
+
+@pytest.mark.asyncio
+async def test_590_probe_url_http_cache_miss_failure( ):
+    ''' HTTP cache miss handles HEAD request exceptions. '''
+    cache = module.ProbeCache( module.CacheConfiguration( ) )
+    url = Url( scheme = 'http', netloc = 'example.com', path = '/test',
+               params = '', query = '', fragment = '' )
+    
+    with patch( 'httpx.AsyncClient' ) as mock_client_class:
+        mock_client = mock_client_class.return_value.__aenter__.return_value
+        mock_client.head.side_effect = _httpx.TimeoutException( 'Timeout' )
+        
+        with pytest.raises( _httpx.TimeoutException ):
+            await module.probe_url( url, cache = cache )
+
+
+#
+# Series 600: Integration and Error Scenarios
+#
+
+
+@pytest.mark.asyncio
+async def test_600_concurrent_requests_use_same_cache( fs ):
+    ''' Multiple concurrent requests share the same cache instance. '''
+    custom_cache_content = module.ContentCache( module.CacheConfiguration( ) )
+    custom_cache_probe = module.ProbeCache( module.CacheConfiguration( ) )
+    
+    test_content = b'shared cache content'
+    fs.create_file( '/test/shared.txt', contents = test_content )
+    
+    url = Url( scheme = 'file', netloc = '', path = '/test/shared.txt',
+               params = '', query = '', fragment = '' )
+    
+    probe_result = await module.probe_url(
+        url, cache = custom_cache_probe )
+    retrieve_result = await module.retrieve_url(
+        url, cache = custom_cache_content )
+    
+    assert probe_result is True
+    assert retrieve_result == test_content
+
+
+@pytest.mark.asyncio
+async def test_610_cache_configuration_affects_behavior( fs ):
+    ''' Custom cache configuration affects caching behavior. '''
+    restrictive_config = module.CacheConfiguration(
+        contents_memory_max = 100,
+        probe_entries_max = 2,
+        success_ttl = 60.0
+    )
+    custom_cache = module.ContentCache( restrictive_config )
+    
+    test_content = b'x' * 80
+    fs.create_file( '/test/large.txt', contents = test_content )
+    
+    url = Url( scheme = 'file', netloc = '', path = '/test/large.txt',
+               params = '', query = '', fragment = '' )
+    result = await module.retrieve_url( url, cache = custom_cache )
+    
+    assert result == test_content
+    assert custom_cache._configuration.contents_memory_max == 100
+
+
+@pytest.mark.asyncio
+async def test_620_retrieve_url_dependency_injection_with_custom_cache( fs ):
+    ''' Injected cache dependencies are accepted for retrieval. '''
+    custom_config = module.CacheConfiguration( contents_memory_max = 2048 )
+    custom_cache = module.ContentCache( custom_config )
+    test_content = b'custom cache test content'
+    
+    fs.create_file( '/test/custom.txt', contents = test_content )
+    
+    url = Url( scheme = 'file', netloc = '', path = '/test/custom.txt',
+               params = '', query = '', fragment = '' )
+    result = await module.retrieve_url( url, cache = custom_cache )
+    
+    assert result == test_content
+    assert custom_cache._configuration.contents_memory_max == 2048
+
+
+#
+# Series 700: Utility Function Tests
+#
+
+
+def test_700_extract_charset_from_headers_with_charset( ):
+    ''' Charset is extracted from Content-Type headers. '''
+    headers = _httpx.Headers( {
+        'content-type': 'text/html; charset=iso-8859-1'
+    } )
+    result = module._extract_charset_from_headers( headers, 'utf-8' )
+    assert result == 'iso-8859-1'
+
+
+def test_710_extract_charset_from_headers_with_quotes( ):
+    ''' Quoted charset values are handled correctly. '''
+    headers = _httpx.Headers( {
+        'content-type': 'text/html; charset="utf-16"'
+    } )
+    result = module._extract_charset_from_headers( headers, 'utf-8' )
+    assert result == 'utf-16'
+
+
+def test_720_extract_charset_from_headers_no_charset( ):
+    ''' Default charset is returned when none specified. '''
+    headers = _httpx.Headers( {
+        'content-type': 'text/html'
+    } )
+    result = module._extract_charset_from_headers( headers, 'utf-8' )
+    assert result == 'utf-8'
+
+
+def test_730_extract_charset_from_headers_missing_header( ):
+    ''' Default charset is returned when header is missing. '''
+    headers = _httpx.Headers( )
+    result = module._extract_charset_from_headers( headers, 'utf-8' )
+    assert result == 'utf-8'
+
+
+def test_740_extract_mimetype_from_headers_with_params( ):
+    ''' Mimetype is extracted before parameters. '''
+    headers = _httpx.Headers( {
+        'content-type': 'application/json; charset=utf-8'
+    } )
+    result = module._extract_mimetype_from_headers( headers )
+    assert result == 'application/json'
+
+
+def test_750_extract_mimetype_from_headers_no_params( ):
+    ''' Full mimetype value is returned without parameters. '''
+    headers = _httpx.Headers( {
+        'content-type': 'text/plain'
+    } )
+    result = module._extract_mimetype_from_headers( headers )
+    assert result == 'text/plain'
+
+
+def test_760_extract_mimetype_from_headers_missing_header( ):
+    ''' Empty string is returned when mimetype header is missing. '''
+    headers = _httpx.Headers( )
+    result = module._extract_mimetype_from_headers( headers )
+    assert result == ''
+
+
+def test_770_is_textual_mimetype_text_types( ):
+    ''' Text mimetypes are identified as textual. '''
+    assert module._is_textual_mimetype( 'text/plain' )
+    assert module._is_textual_mimetype( 'text/html' )
+    assert module._is_textual_mimetype( 'text/css' )
+
+
+def test_780_is_textual_mimetype_application_types( ):
+    ''' Textual application types are identified as textual. '''
+    assert module._is_textual_mimetype( 'application/json' )
+    assert module._is_textual_mimetype( 'application/xml' )
+    assert module._is_textual_mimetype( 'application/javascript' )
+    assert module._is_textual_mimetype( 'application/yaml' )
+
+
+def test_790_is_textual_mimetype_non_textual( ):
+    ''' Non-textual mimetypes are identified as non-textual. '''
+    assert not module._is_textual_mimetype( 'image/png' )
+    assert not module._is_textual_mimetype( 'application/pdf' )
+    assert not module._is_textual_mimetype( 'video/mp4' )
+
+
+def test_800_validate_textual_content_valid_mimetype( ):
+    ''' Textual mimetypes pass content validation. '''
+    headers = _httpx.Headers( { 'content-type': 'text/html' } )
+    module._validate_textual_content( headers, 'http://example.com' )
+
+
+def test_810_validate_textual_content_invalid_mimetype( ):
+    ''' Non-textual content raises validation exception. '''
+    headers = _httpx.Headers( { 'content-type': 'image/png' } )
+    with pytest.raises( _exceptions.HttpContentTypeInvalidity ):
+        module._validate_textual_content( headers, 'http://example.com' )
+
+
+def test_820_validate_textual_content_missing_header( ):
+    ''' Missing Content-Type headers pass validation. '''
+    headers = _httpx.Headers( )
+    module._validate_textual_content( headers, 'http://example.com' )
+
+
+#
+# Series 900: Edge Case Coverage Tests
+#
+
+
+def test_900_content_cache_calculate_response_size_exception( ):
+    ''' Exception responses use conservative size estimate. '''
+    config = module.CacheConfiguration( )
+    cache = module.ContentCache( config )
+    
+    error_response = _generics.Error( ValueError( 'Test error' ) )
+    size = cache._calculate_response_size( error_response )
+    
+    assert size == 100  # Conservative estimate for exceptions
+
+
+def test_910_content_cache_evict_empty_recency_queue( ):
+    ''' Memory eviction handles empty recency queue gracefully. '''
+    config = module.CacheConfiguration( contents_memory_max = 1 )
+    cache = module.ContentCache( config )
+    
+    # Force memory total above limit but with empty recency queue
+    cache._memory_total = 1000
+    cache._recency.clear( )
+    
+    # Should not crash when trying to evict from empty queue
+    cache._evict_by_memory( )
+    
+    assert cache._memory_total == 1000  # Unchanged since nothing to evict
+
+
+def test_920_content_cache_remove_missing_entry( ):
+    ''' Removing missing entry returns early without error. '''
+    config = module.CacheConfiguration( )
+    cache = module.ContentCache( config )
+    
+    # Should not crash when removing non-existent entry
+    cache._remove( 'http://nonexistent.com' )
+    
+    assert len( cache._cache ) == 0
+
+
+def test_930_probe_cache_evict_empty_recency_queue( ):
+    ''' Count eviction handles empty recency queue gracefully. '''
+    config = module.CacheConfiguration( probe_entries_max = 0 )
+    cache = module.ProbeCache( config )
+    
+    # Force cache size above limit but with empty recency queue
+    cache._cache[ 'url1' ] = Mock( )
+    cache._recency.clear( )
+    
+    # Should not crash when trying to evict from empty queue
+    cache._evict_by_count( )
+    
+    assert len( cache._cache ) == 1  # Unchanged since nothing to evict
+
+
+def test_940_extract_charset_no_semicolon( ):
+    ''' Content-Type without semicolon returns charset default. '''
+    headers = _httpx.Headers( { 'content-type': 'text/plain' } )
+    
+    result = module._extract_charset_from_headers( headers, 'utf-8' )
+    
+    assert result == 'utf-8'  # Default returned when no semicolon
+
+
+#
+# Series 1000: HTTP Request Deduplication Tests
+#
+
+
+@pytest.mark.asyncio
+async def test_1000_probe_url_concurrent_requests_deduplication( ):
+    ''' Concurrent probe requests for same URL are deduplicated. '''
+    cache = module.ProbeCache( module.CacheConfiguration( ) )
+    url = Url( scheme = 'http', netloc = 'example.com', path = '/test',
+               params = '', query = '', fragment = '' )
+    
+    call_count = 0
+    
+    with patch( 'httpx.AsyncClient' ) as mock_client_class:
+        def side_effect( *args, **kwargs ):
+            nonlocal call_count
+            call_count += 1
+            mock_response = Mock( )
+            mock_response.status_code = 200
+            return mock_response
+        
+        mock_client = mock_client_class.return_value.__aenter__.return_value
+        mock_client.head.side_effect = side_effect
+        
+        # Launch concurrent requests
+        import asyncio
+        results = await asyncio.gather(
+            module.probe_url( url, cache = cache ),
+            module.probe_url( url, cache = cache ),
+            module.probe_url( url, cache = cache )
+        )
+        
+        # All should succeed
+        assert all( results )
+        # But only one HTTP request should have been made due to deduplication
+        assert call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_1010_retrieve_url_concurrent_requests_deduplication( ):
+    ''' Concurrent retrieve requests for same URL are deduplicated. '''
+    cache = module.ContentCache( module.CacheConfiguration( ) )
+    url = Url( scheme = 'http', netloc = 'example.com', path = '/test',
+               params = '', query = '', fragment = '' )
+    test_content = b'Test content'
+    
+    call_count = 0
+    
+    with patch( 'httpx.AsyncClient' ) as mock_client_class:
+        def side_effect( *args, **kwargs ):
+            nonlocal call_count
+            call_count += 1
+            mock_response = Mock( )
+            mock_response.content = test_content
+            mock_response.headers = _httpx.Headers( {
+                'content-type': 'text/plain' } )
+            mock_response.raise_for_status.return_value = None
+            return mock_response
+        
+        mock_client = mock_client_class.return_value.__aenter__.return_value
+        mock_client.get.side_effect = side_effect
+        
+        # Launch concurrent requests
+        import asyncio
+        results = await asyncio.gather(
+            module.retrieve_url( url, cache = cache ),
+            module.retrieve_url( url, cache = cache ),
+            module.retrieve_url( url, cache = cache )
+        )
+        
+        # All should return same content
+        assert all( result == test_content for result in results )
+        # But only one HTTP request should have been made due to deduplication
+        assert call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_1020_request_mutex_cleanup_after_completion( ):
+    ''' Request mutexes are cleaned up after completion. '''
+    url = Url( scheme = 'http', netloc = 'example.com', path = '/test',
+               params = '', query = '', fragment = '' )
+    url_key = url.geturl( )
+    
+    with patch( 'httpx.AsyncClient' ) as mock_client_class:
+        mock_client = mock_client_class.return_value.__aenter__.return_value
+        mock_client.head.return_value = Mock( status_code = 200 )
+        
+        # Ensure mutex is cleaned up initially
+        module._request_mutexes.pop( url_key, None )
+        
+        await module.probe_url( url )
+        
+        # Mutex should be cleaned up after request completes
+        assert url_key not in module._request_mutexes
+
+
+#
+# Series 1100: HTTP Error Conditions Tests
+#
+
+
+@pytest.mark.asyncio
+async def test_1100_probe_url_http_timeout_exception( ):
+    ''' HTTP timeout exceptions are raised in probing. '''
+    cache = module.ProbeCache( module.CacheConfiguration( ) )
+    url = Url( scheme = 'http', netloc = 'example.com', path = '/test',
+               params = '', query = '', fragment = '' )
+    
+    with patch( 'httpx.AsyncClient' ) as mock_client_class:
+        mock_client = mock_client_class.return_value.__aenter__.return_value
+        mock_client.head.side_effect = _httpx.TimeoutException(
+            'Request timeout' )
+        
+        with pytest.raises( _httpx.TimeoutException ):
+            await module.probe_url( url, cache = cache )
+
+
+@pytest.mark.asyncio
+async def test_1110_retrieve_url_http_connection_error( ):
+    ''' HTTP connection errors raise DocumentationInaccessibility. '''
+    cache = module.ContentCache( module.CacheConfiguration( ) )
+    url = Url( scheme = 'http', netloc = 'unreachable.example', path = '/test',
+               params = '', query = '', fragment = '' )
+    
+    with patch( 'httpx.AsyncClient' ) as mock_client_class:
+        mock_client = mock_client_class.return_value.__aenter__.return_value
+        mock_client.get.side_effect = _httpx.ConnectError(
+            'Connection refused' )
+        
+        with pytest.raises( _exceptions.DocumentationInaccessibility ):
+            await module.retrieve_url( url, cache = cache )
+
+
+@pytest.mark.asyncio
+async def test_1120_retrieve_url_http_status_error( ):
+    ''' HTTP status errors raise DocumentationInaccessibility. '''
+    cache = module.ContentCache( module.CacheConfiguration( ) )
+    url = Url( scheme = 'http', netloc = 'example.com', path = '/notfound',
+               params = '', query = '', fragment = '' )
+    
+    with patch( 'httpx.AsyncClient' ) as mock_client_class:
+        mock_client = mock_client_class.return_value.__aenter__.return_value
+        mock_client.get.side_effect = _httpx.HTTPStatusError(
+            'HTTP 404', request = Mock( ), response = Mock( ) )
+        
+        with pytest.raises( _exceptions.DocumentationInaccessibility ):
+            await module.retrieve_url( url, cache = cache )
+
