@@ -30,7 +30,12 @@ from . import xtnsapi as _xtnsapi
 DocumentationResult: __.typx.TypeAlias = __.cabc.Mapping[ str, __.typx.Any ]
 DomainFilter: __.typx.TypeAlias = __.typx.Annotated[
     __.Absential[ str ],
-    __.ddoc.Doc( ''' Filter objects by domain (e.g., 'py', 'std'). ''' )
+    __.ddoc.Doc( '''
+        Filter objects by Sphinx domain. Built-in domains:
+        'py' (Python), 'std' (standard), 'c' (C), 'cpp' (C++),
+        'js' (JavaScript), 'rst' (reStructuredText),
+        'math' (Mathematics). Empty string shows all domains.
+    ''' )
 ]
 FuzzyThreshold: __.typx.TypeAlias = __.typx.Annotated[
     int,

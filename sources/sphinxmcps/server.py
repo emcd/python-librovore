@@ -34,7 +34,12 @@ from . import interfaces as _interfaces
 McpDomainFilter: __.typx.TypeAlias = __.typx.Annotated[
     str,
     _Field(
-        description = "Filter objects by domain (e.g., 'py', 'std')"
+        description = (
+            "Filter objects by Sphinx domain. Built-in domains: "
+            "'py' (Python), 'std' (standard), 'c' (C), 'cpp' (C++), "
+            "'js' (JavaScript), 'rst' (reStructuredText), "
+            "'math' (Mathematics). Empty string shows all domains."
+        )
     )
 ]
 McpFuzzyThreshold: __.typx.TypeAlias = __.typx.Annotated[
@@ -112,9 +117,20 @@ async def extract_documentation(
         source, object_name )
     try:
         return await _functions.extract_documentation( source, object_name )
+    except KeyError as exc:
+        param_name = str( exc ).strip( "'" )
+        _scribe.error( 
+            "Missing parameter in extract_documentation: %s", param_name )
+        return { 'error': (
+            f"Missing required parameter '{param_name}'. "
+            "Check function signature for required arguments." ) }
+    except ValueError as exc:
+        _scribe.error( 
+            "Invalid parameter value in extract_documentation: %s", exc )
+        return { 'error': f"Invalid parameter value: {exc}" }
     except Exception as exc:
         _scribe.error( "Error extracting documentation: %s", exc )
-        return { 'error': str( exc ) }
+        return { 'error': f"Documentation extraction failed: {exc}" }
 
 
 async def query_documentation(  # noqa: PLR0913
@@ -147,9 +163,20 @@ async def query_documentation(  # noqa: PLR0913
     try:
         return await _functions.query_documentation(
             source, query, **nomargs )
+    except KeyError as exc:
+        param_name = str( exc ).strip( "'" )
+        _scribe.error( 
+            "Missing parameter in query_documentation: %s", param_name )
+        return [ { 'error': (
+            f"Missing required parameter '{param_name}'. "
+            "Check function signature for required arguments." ) } ]
+    except ValueError as exc:
+        _scribe.error( 
+            "Invalid parameter value in query_documentation: %s", exc )
+        return [ { 'error': f"Invalid parameter value: {exc}" } ]
     except Exception as exc:
         _scribe.error( "Error querying documentation: %s", exc )
-        return [ { 'error': str( exc ) } ]
+        return [ { 'error': f"Documentation query failed: {exc}" } ]
 
 
 async def extract_inventory( # noqa: PLR0913
@@ -175,7 +202,22 @@ async def extract_inventory( # noqa: PLR0913
     nomargs[ 'match_mode' ] = match_mode
     if match_mode == _interfaces.MatchMode.Fuzzy:
         nomargs[ 'fuzzy_threshold' ] = fuzzy_threshold
-    return await _functions.extract_inventory( source, **nomargs )
+    try:
+        return await _functions.extract_inventory( source, **nomargs )
+    except KeyError as exc:
+        param_name = str( exc ).strip( "'" )
+        _scribe.error( 
+            "Missing parameter in extract_inventory: %s", param_name )
+        return { 'error': (
+            f"Missing required parameter '{param_name}'. "
+            "Check function signature for required arguments." ) }
+    except ValueError as exc:
+        _scribe.error( 
+            "Invalid parameter value in extract_inventory: %s", exc )
+        return { 'error': f"Invalid parameter value: {exc}" }
+    except Exception as exc:
+        _scribe.error( "Error extracting inventory: %s", exc )
+        return { 'error': f"Inventory extraction failed: {exc}" }
 
 
 async def summarize_inventory( # noqa: PLR0913
@@ -200,7 +242,22 @@ async def summarize_inventory( # noqa: PLR0913
     nomargs[ 'match_mode' ] = match_mode
     if match_mode == _interfaces.MatchMode.Fuzzy:
         nomargs[ 'fuzzy_threshold' ] = fuzzy_threshold
-    return await _functions.summarize_inventory( source, **nomargs )
+    try:
+        return await _functions.summarize_inventory( source, **nomargs )
+    except KeyError as exc:
+        param_name = str( exc ).strip( "'" )
+        _scribe.error( 
+            "Missing parameter in summarize_inventory: %s", param_name )
+        return (
+            f"Error: Missing required parameter '{param_name}'. "
+            "Check function signature for required arguments." )
+    except ValueError as exc:
+        _scribe.error( 
+            "Invalid parameter value in summarize_inventory: %s", exc )
+        return f"Error: Invalid parameter value: {exc}"
+    except Exception as exc:
+        _scribe.error( "Error summarizing inventory: %s", exc )
+        return f"Error: Inventory summarization failed: {exc}"
 
 
 async def serve(
