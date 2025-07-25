@@ -230,6 +230,8 @@ async def probe_url(
     url: _Url, *,
     cache: ProbeCache = _probe_cache_default,
     duration_max: float = 10.0,
+    client_factory: __.cabc.Callable[ [ ], _httpx.AsyncClient ] = (
+        _httpx.AsyncClient ),
 ) -> bool:
     ''' Cached HEAD request to check URL existence. '''
     match url.scheme:
@@ -239,7 +241,9 @@ async def probe_url(
             url_s = url.geturl( )
             result = await cache.access( url_s )
             if not __.is_absent( result ): return result
-            result = await _probe_url( url, duration_max = duration_max )
+            result = await _probe_url(
+                url, duration_max = duration_max,
+                client_factory = client_factory )
             ttl = cache.determine_ttl( result )
             await cache.store( url_s, result, ttl )
             return result.extract( )
@@ -249,7 +253,9 @@ async def probe_url(
 async def retrieve_url(
     url: _Url, *,
     cache: ContentCache = _content_cache_default,
-    duration_max: float = 30.0
+    duration_max: float = 30.0,
+    client_factory: __.cabc.Callable[ [ ], _httpx.AsyncClient ] = (
+        _httpx.AsyncClient ),
 ) -> bytes:
     ''' Cached GET request to fetch URL content as bytes. '''
     match url.scheme:
@@ -266,7 +272,8 @@ async def retrieve_url(
                 content_bytes, _ = result
                 return content_bytes
             result, headers = await _retrieve_url(
-                url, duration_max = duration_max )
+                url, duration_max = duration_max,
+                client_factory = client_factory )
             ttl = cache.determine_ttl( result )
             await cache.store( url_s, result, headers, ttl )
             return result.extract( )
@@ -280,7 +287,9 @@ async def retrieve_url_as_text(
     url: _Url, *,
     cache: ContentCache = _content_cache_default,
     duration_max: float = 30.0,
-    charset_default: str = 'utf-8'
+    charset_default: str = 'utf-8',
+    client_factory: __.cabc.Callable[ [ ], _httpx.AsyncClient ] = (
+        _httpx.AsyncClient ),
 ) -> str:
     ''' Cached GET request to fetch URL content as text. '''
     match url.scheme:
@@ -301,7 +310,8 @@ async def retrieve_url_as_text(
                     headers, charset_default )
                 return content_bytes.decode( charset )
             result, headers = await _retrieve_url(
-                url, duration_max = duration_max )
+                url, duration_max = duration_max,
+                client_factory = client_factory )
             ttl = cache.determine_ttl( result )
             await cache.store( url_s, result, headers, ttl )
             content_bytes = result.extract( )
@@ -354,7 +364,8 @@ def _is_textual_mimetype( mimetype: str ) -> bool:
 
 
 async def _probe_url(
-    url: _Url, *, duration_max: float
+    url: _Url, *, duration_max: float,
+    client_factory: __.cabc.Callable[ [ ], _httpx.AsyncClient ]
 ) -> ProbeResponse:
     ''' Makes HEAD request with deduplication. '''
     url_key = url.geturl( )
@@ -362,7 +373,7 @@ async def _probe_url(
         _request_mutexes[ url_key ] = __.asyncio.Lock( )
     async with _request_mutexes[ url_key ]:
         try:
-            async with _httpx.AsyncClient( ) as client:
+            async with client_factory( ) as client:
                 response = await client.head( url_key, timeout = duration_max )
                 return _generics.Value(
                     response.status_code < _http_success_threshold )
@@ -373,7 +384,8 @@ async def _probe_url(
 
 
 async def _retrieve_url(
-    url: _Url, *, duration_max: float
+    url: _Url, *, duration_max: float,
+    client_factory: __.cabc.Callable[ [ ], _httpx.AsyncClient ]
 ) -> tuple[ ContentResponse, _httpx.Headers ]:
     ''' Makes GET request with deduplication. '''
     url_key = url.geturl( )
@@ -381,7 +393,7 @@ async def _retrieve_url(
         _request_mutexes[ url_key ] = __.asyncio.Lock( )
     async with _request_mutexes[ url_key ]:
         try:
-            async with _httpx.AsyncClient( ) as client:
+            async with client_factory( ) as client:
                 response = await client.get( url_key, timeout = duration_max )
                 response.raise_for_status( )
                 return (
