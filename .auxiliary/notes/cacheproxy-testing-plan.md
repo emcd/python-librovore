@@ -120,15 +120,33 @@
 
 ## 🎯 REMAINING OPTIONS FOR 100% COVERAGE
 
-### **Option A1: Complete Coverage (Final 4%)**
+## ✅ PHASE 1 IMPLEMENTATION: Easy Coverage Gains (Target: ~99%)
+
+**Tests Added for Phase 1**:
+- `test_580_retrieve_url_as_text_unsupported_scheme_raises_exception`: Covers lines 322-323 unsupported scheme path
+- `test_735_extract_charset_from_headers_with_semicolon_no_charset`: Covers line 335->338 charset edge case
+
+**Phase 1 Results**: Successfully implemented 2/3 planned easy tests
+- ✅ **Lines 322-323**: Unsupported scheme exception for text retrieval - NOW COVERED
+- ✅ **Line 335->338**: Charset extraction without charset parameter - NOW COVERED  
+- ❌ **Lines 402-404**: HTTP exception handling proved more complex than expected
+
+## 🎯 REMAINING OPTIONS FOR FINAL COVERAGE
+
+### **Option A1: Complete Coverage (Final ~1-2%)**
 - **Target**: All remaining edge cases and race conditions
-- **Effort**: High complexity due to race condition simulation
+- **Effort**: High complexity due to race condition simulation and async exception handling
 - **Value**: Theoretical completeness
 
-### **Option B: Accept Excellent Coverage (Recommended)**
-- **96% coverage** represents exceptional business logic coverage
-- **Missing 4%** entirely consists of edge cases, race conditions, and error paths
+### **Option B: Accept Exceptional Coverage (Recommended)**
+- **~98% coverage** represents exceptional business logic coverage  
+- **Missing ~2%** entirely consists of edge cases, race conditions, and complex error paths
 - **ROI consideration**: Diminishing returns for complex edge case testing
+
+### **Option C: Phase 2 Implementation**
+- **Target**: Cache eviction race conditions (mutex collision tests)
+- **Complexity**: Requires concurrent async testing and internal state manipulation
+- **Estimated effort**: 4-6 hours of development + potential test flakiness
 
 ## 📋 PROPOSED TEST NUMBERING REORGANIZATION
 

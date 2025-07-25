@@ -759,9 +759,19 @@ async def test_575_retrieve_url_as_text_http_cache_miss_custom_charset( ):
     assert cached_content.decode( 'iso-8859-1' ) == test_content
 
 
+@pytest.mark.asyncio
+async def test_580_retrieve_url_as_text_unsupported_scheme_raises_exception( ):
+    ''' Unsupported schemes raise DocumentationInaccessibility for text. '''
+    url = Url(
+        scheme = 'ftp', netloc = 'example.com', path = '/test.txt',
+        params = '', query = '', fragment = '' )
+    with pytest.raises( _exceptions.DocumentationInaccessibility ):
+        await module.retrieve_url_as_text( url )
+
+
 
 @pytest.mark.asyncio
-async def test_580_probe_url_http_cache_miss_success( ):
+async def test_590_probe_url_http_cache_miss_success( ):
     ''' HTTP cache miss executes successful HEAD request. '''
     cache = module.ProbeCache( module.CacheConfiguration( ) )
     url = Url(
@@ -881,6 +891,15 @@ def test_720_extract_charset_from_headers_no_charset( ):
 def test_730_extract_charset_from_headers_missing_header( ):
     ''' Default charset is returned when header is missing. '''
     headers = _httpx.Headers( )
+    result = module._extract_charset_from_headers( headers, 'utf-8' )
+    assert result == 'utf-8'
+
+
+def test_735_extract_charset_from_headers_with_semicolon_no_charset( ):
+    ''' Default charset returned when semicolon present but no charset. '''
+    headers = _httpx.Headers( {
+        'content-type': 'text/html; boundary=something'
+    } )
     result = module._extract_charset_from_headers( headers, 'utf-8' )
     assert result == 'utf-8'
 
