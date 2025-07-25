@@ -76,7 +76,8 @@ class ProbeCacheEntry( CacheEntry ):
 
 
 class ContentCache(
-    __.immut.Object, instances_mutables = ( '_memory_total', )
+    __.immut.Object,
+    instances_mutables = ( '_memory_total', '_request_mutexes' )
 ):
     ''' Cache manager for URL content (GET requests) with memory tracking. '''
 
@@ -85,6 +86,7 @@ class ContentCache(
         self._configuration = configuration
         self._memory_total = 0
         self._recency: __.collections.deque[ str ] = __.collections.deque( )
+        self._request_mutexes: dict[ str, __.asyncio.Lock ] = { }
 
     async def access(
         self, url: str
@@ -97,6 +99,16 @@ class ContentCache(
             return __.absent
         self._record_access( url )
         return ( entry.response.extract( ), entry.headers )
+
+    @__.ctxl.asynccontextmanager
+    async def acquire_mutex_for( self, url: str ):
+        ''' Acquires mutex for HTTP request deduplication. '''
+        if url not in self._request_mutexes: # pragma: no branch
+            self._request_mutexes[ url ] = __.asyncio.Lock( )
+        mutex = self._request_mutexes[ url ]
+        async with mutex:
+            try: yield
+            finally: self._request_mutexes.pop( url, None )
 
     def determine_ttl( self, response: ContentResponse ) -> float:
         ''' Determines appropriate TTL based on response type. '''
@@ -138,7 +150,7 @@ class ContentCache(
             and self._recency
         ):
             lru_url = self._recency.popleft( )
-            if lru_url in self._cache:
+            if lru_url in self._cache: # pragma: no branch
                 entry = self._cache[ lru_url ]
                 self._memory_total -= entry.memory_usage
                 del self._cache[ lru_url ]
@@ -158,13 +170,16 @@ class ContentCache(
                 self._recency.remove( url )
 
 
-class ProbeCache( __.immut.Object ):
+class ProbeCache(
+    __.immut.Object, instances_mutables = ( '_request_mutexes', )
+):
     ''' Cache manager for URL probe results (HEAD requests). '''
 
     def __init__( self, configuration: CacheConfiguration ) -> None:
         self._cache: dict[ str, ProbeCacheEntry ] = { }
         self._configuration = configuration
         self._recency: __.collections.deque[ str ] = __.collections.deque( )
+        self._request_mutexes: dict[ str, __.asyncio.Lock ] = { }
 
     async def access( self, url: str ) -> __.Absential[ bool ]:
         ''' Retrieves cached probe result if valid. '''
@@ -175,6 +190,16 @@ class ProbeCache( __.immut.Object ):
             return __.absent
         self._record_access( url )
         return entry.response.extract( )
+
+    @__.ctxl.asynccontextmanager
+    async def acquire_mutex_for( self, url: str ):
+        ''' Acquires mutex for HTTP request deduplication. '''
+        if url not in self._request_mutexes: # pragma: no branch
+            self._request_mutexes[ url ] = __.asyncio.Lock( )
+        mutex = self._request_mutexes[ url ]
+        async with mutex:
+            try: yield
+            finally: self._request_mutexes.pop( url, None )
 
     def determine_ttl( self, response: ProbeResponse ) -> float:
         ''' Determines appropriate TTL based on response type. '''
@@ -202,7 +227,7 @@ class ProbeCache( __.immut.Object ):
             and self._recency
         ):
             lru_url = self._recency.popleft( )
-            if lru_url in self._cache:
+            if lru_url in self._cache: # pragma: no branch
                 del self._cache[ lru_url ]
 
     def _record_access( self, url: str ) -> None:
@@ -222,7 +247,6 @@ _configuration_default = CacheConfiguration( )
 _http_success_threshold = 400
 _content_cache_default = ContentCache( _configuration_default )
 _probe_cache_default = ProbeCache( _configuration_default )
-_request_mutexes: dict[ str, __.asyncio.Lock ] = { }
 _scribe = __.acquire_scribe( __name__ )
 
 
@@ -243,7 +267,7 @@ async def probe_url(
             if not __.is_absent( result ): return result
             result = await _probe_url(
                 url, duration_max = duration_max,
-                client_factory = client_factory )
+                cache = cache, client_factory = client_factory )
             ttl = cache.determine_ttl( result )
             await cache.store( url_s, result, ttl )
             return result.extract( )
@@ -273,7 +297,7 @@ async def retrieve_url(
                 return content_bytes
             result, headers = await _retrieve_url(
                 url, duration_max = duration_max,
-                client_factory = client_factory )
+                cache = cache, client_factory = client_factory )
             ttl = cache.determine_ttl( result )
             await cache.store( url_s, result, headers, ttl )
             return result.extract( )
@@ -311,7 +335,7 @@ async def retrieve_url_as_text(
                 return content_bytes.decode( charset )
             result, headers = await _retrieve_url(
                 url, duration_max = duration_max,
-                client_factory = client_factory )
+                cache = cache, client_factory = client_factory )
             ttl = cache.determine_ttl( result )
             await cache.store( url_s, result, headers, ttl )
             content_bytes = result.extract( )
@@ -365,44 +389,40 @@ def _is_textual_mimetype( mimetype: str ) -> bool:
 
 async def _probe_url(
     url: _Url, *, duration_max: float,
+    cache: ProbeCache,
     client_factory: __.cabc.Callable[ [ ], _httpx.AsyncClient ]
 ) -> ProbeResponse:
     ''' Makes HEAD request with deduplication. '''
-    url_key = url.geturl( )
-    if url_key not in _request_mutexes:
-        _request_mutexes[ url_key ] = __.asyncio.Lock( )
-    async with _request_mutexes[ url_key ]:
+    url_s = url.geturl( )
+    async with cache.acquire_mutex_for( url_s ):
         try:
             async with client_factory( ) as client:
-                response = await client.head( url_key, timeout = duration_max )
+                response = await client.head( url_s, timeout = duration_max )
                 return _generics.Value(
                     response.status_code < _http_success_threshold )
         except Exception as exc:
-            _scribe.debug( f"HEAD request failed for {url_key}: {exc}" )
+            _scribe.debug( f"HEAD request failed for {url_s}: {exc}" )
             return _generics.Error( exc )
-        finally: _request_mutexes.pop( url_key, None )
 
 
 async def _retrieve_url(
     url: _Url, *, duration_max: float,
+    cache: ContentCache,
     client_factory: __.cabc.Callable[ [ ], _httpx.AsyncClient ]
 ) -> tuple[ ContentResponse, _httpx.Headers ]:
     ''' Makes GET request with deduplication. '''
-    url_key = url.geturl( )
-    if url_key not in _request_mutexes:
-        _request_mutexes[ url_key ] = __.asyncio.Lock( )
-    async with _request_mutexes[ url_key ]:
+    url_s = url.geturl( )
+    async with cache.acquire_mutex_for( url_s ):
         try:
             async with client_factory( ) as client:
-                response = await client.get( url_key, timeout = duration_max )
+                response = await client.get( url_s, timeout = duration_max )
                 response.raise_for_status( )
                 return (
                     _generics.Value( response.content ),
                     response.headers )
         except Exception as exc:
-            _scribe.debug( f"GET request failed for {url_key}: {exc}" )
+            _scribe.debug( f"GET request failed for {url_s}: {exc}" )
             return _generics.Error( exc ), _httpx.Headers( )
-        finally: _request_mutexes.pop( url_key, None )
 
 
 def _validate_textual_content( headers: _httpx.Headers, url: str ) -> None:

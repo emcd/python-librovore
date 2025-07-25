@@ -21,12 +21,14 @@
 ''' Comprehensive tests for HTTP caching infrastructure. '''
 
 
-import pytest
+import asyncio
+
 from unittest.mock import patch, Mock
 from urllib.parse import ParseResult as Url
 
 import httpx as _httpx
 import appcore.generics as _generics
+import pytest
 
 import sphinxmcps.cacheproxy as module
 from sphinxmcps import __
@@ -654,6 +656,37 @@ async def test_221_probe_url_cache_configuration_affects_behavior( ):
     assert custom_cache._configuration.success_ttl == 60.0
 
 
+@pytest.mark.asyncio
+async def test_222_probe_url_mutex_reuse_sequential_requests( ):
+    ''' Sequential probe requests to same URL reuse existing mutex. '''
+    url = _URL_HTTP_TEST
+    call_count = 0
+    def handler( request ):
+        nonlocal call_count
+        call_count += 1
+        return _httpx.Response( 200 )
+    mock_transport = _httpx.MockTransport( handler )
+    def client_factory( ):
+        return _httpx.AsyncClient( transport = mock_transport )
+
+    # Use separate caches to avoid cache hits
+    cache1 = module.ProbeCache( module.CacheConfiguration( ) )
+    cache2 = module.ProbeCache( module.CacheConfiguration( ) )
+
+    # First request creates mutex
+    result1 = await module.probe_url(
+        url, cache = cache1, client_factory = client_factory )
+    assert result1 is True
+
+    # Second request reuses existing mutex (exercises false branch)
+    result2 = await module.probe_url(
+        url, cache = cache2, client_factory = client_factory )
+    assert result2 is True
+
+    # Both requests should have completed
+    assert call_count == 2
+
+
 #
 # Series 300: retrieve_url Function Tests
 #
@@ -756,6 +789,38 @@ async def test_320_retrieve_url_dependency_injection_with_custom_cache( fs ):
     result = await module.retrieve_url( url, cache = custom_cache )
     assert result == test_content
     assert custom_cache._configuration.contents_memory_max == 2048
+
+
+@pytest.mark.asyncio
+async def test_321_retrieve_url_mutex_reuse_sequential_requests( ):
+    ''' Sequential retrieve requests to same URL reuse existing mutex. '''
+    url = _URL_HTTP_TEST
+    test_content = b'test content for mutex reuse'
+    call_count = 0
+    def handler( request ):
+        nonlocal call_count
+        call_count += 1
+        return _httpx.Response( 200, content = test_content )
+    mock_transport = _httpx.MockTransport( handler )
+    def client_factory( ):
+        return _httpx.AsyncClient( transport = mock_transport )
+
+    # Use separate caches to avoid cache hits
+    cache1 = module.ContentCache( module.CacheConfiguration( ) )
+    cache2 = module.ContentCache( module.CacheConfiguration( ) )
+
+    # First request creates mutex
+    result1 = await module.retrieve_url(
+        url, cache = cache1, client_factory = client_factory )
+    assert result1 == test_content
+
+    # Second request reuses existing mutex (exercises false branch)
+    result2 = await module.retrieve_url(
+        url, cache = cache2, client_factory = client_factory )
+    assert result2 == test_content
+
+    # Both requests should have completed
+    assert call_count == 2
 
 
 #
@@ -980,7 +1045,6 @@ async def test_900_probe_url_concurrent_requests_deduplication( ):
     mock_transport = _httpx.MockTransport( handler )
     def client_factory( ):
         return _httpx.AsyncClient( transport = mock_transport )
-    import asyncio
     results = await asyncio.gather(
         module.probe_url(
             url, cache = cache, client_factory = client_factory ),
@@ -1011,7 +1075,6 @@ async def test_901_retrieve_url_concurrent_requests_deduplication( ):
     mock_transport = _httpx.MockTransport( handler )
     def client_factory( ):
         return _httpx.AsyncClient( transport = mock_transport )
-    import asyncio
     results = await asyncio.gather(
         module.retrieve_url(
             url, cache = cache, client_factory = client_factory ),
@@ -1037,11 +1100,20 @@ async def test_902_request_mutex_cleanup_after_completion( ):
     mock_transport = _httpx.MockTransport( handler )
     def client_factory( ):
         return _httpx.AsyncClient( transport = mock_transport )
-    # Ensure mutex is cleaned up initially
-    module._request_mutexes.pop( url_key, None )
-    await module.probe_url( url, client_factory = client_factory )
+
+    # Test probe cache mutex cleanup
+    probe_cache = module.ProbeCache( module.CacheConfiguration( ) )
+    await module.probe_url(
+        url, cache = probe_cache, client_factory = client_factory )
     # Mutex should be cleaned up after request completes
-    assert url_key not in module._request_mutexes
+    assert url_key not in probe_cache._request_mutexes
+
+    # Test content cache mutex cleanup
+    content_cache = module.ContentCache( module.CacheConfiguration( ) )
+    await module.retrieve_url(
+        url, cache = content_cache, client_factory = client_factory )
+    # Mutex should be cleaned up after request completes
+    assert url_key not in content_cache._request_mutexes
 
 
 #
@@ -1099,3 +1171,5 @@ async def test_912_retrieve_url_http_status_error( ):
     with pytest.raises( _httpx.HTTPStatusError ):
         await module.retrieve_url(
             url, cache = cache, client_factory = client_factory )
+
+
