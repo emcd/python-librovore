@@ -687,6 +687,80 @@ async def test_550_retrieve_url_as_text_http_default_charset_fallback( ):
 
 
 @pytest.mark.asyncio
+async def test_560_retrieve_url_as_bytes_http_cache_miss( ):
+    ''' HTTP cache miss for bytes retrieval executes GET and caches result. '''
+    cache = module.ContentCache( module.CacheConfiguration( ) )
+    test_content = b'HTTP response content for cache miss test'
+    url = Url(
+        scheme = 'http', netloc = 'cache-miss-test.example.com',
+        path = '/unique-cache-miss-560',
+        params = '', query = '', fragment = '' )
+    def handler( request ):
+        return _httpx.Response(
+            200, content = test_content,
+            headers = { 'content-type': 'application/octet-stream' } )
+    mock_transport = _httpx.MockTransport( handler )
+    def client_factory( ):
+        return _httpx.AsyncClient( transport = mock_transport )
+    result = await module.retrieve_url(
+        url, cache = cache, client_factory = client_factory )
+    assert result == test_content
+    cached_result = await cache.access( url.geturl( ) )
+    assert not __.is_absent( cached_result )
+    cached_content, _ = cached_result
+    assert cached_content == test_content
+
+
+@pytest.mark.asyncio
+async def test_570_retrieve_url_as_text_http_cache_miss( ):
+    ''' HTTP cache miss for text retrieval executes GET and caches result. '''
+    cache = module.ContentCache( module.CacheConfiguration( ) )
+    test_content = 'HTTP text response'
+    url = Url(
+        scheme = 'http', netloc = 'example.com', path = '/text',
+        params = '', query = '', fragment = '' )
+    def handler( request ):
+        return _httpx.Response(
+            200, content = test_content.encode( 'utf-8' ),
+            headers = { 'content-type': 'text/plain; charset=utf-8' } )
+    mock_transport = _httpx.MockTransport( handler )
+    def client_factory( ):
+        return _httpx.AsyncClient( transport = mock_transport )
+    result = await module.retrieve_url_as_text(
+        url, cache = cache, client_factory = client_factory )
+    assert result == test_content
+    cached_result = await cache.access( url.geturl( ) )
+    assert not __.is_absent( cached_result )
+    cached_content, cached_headers = cached_result
+    assert cached_content.decode( 'utf-8' ) == test_content
+
+
+@pytest.mark.asyncio
+async def test_575_retrieve_url_as_text_http_cache_miss_custom_charset( ):
+    ''' HTTP cache miss for text with custom charset decodes correctly. '''
+    cache = module.ContentCache( module.CacheConfiguration( ) )
+    test_content = 'Custom charset content'
+    url = Url(
+        scheme = 'http', netloc = 'example.com', path = '/latin',
+        params = '', query = '', fragment = '' )
+    def handler( request ):
+        return _httpx.Response(
+            200, content = test_content.encode( 'iso-8859-1' ),
+            headers = { 'content-type': 'text/plain; charset=iso-8859-1' } )
+    mock_transport = _httpx.MockTransport( handler )
+    def client_factory( ):
+        return _httpx.AsyncClient( transport = mock_transport )
+    result = await module.retrieve_url_as_text(
+        url, cache = cache, client_factory = client_factory )
+    assert result == test_content
+    cached_result = await cache.access( url.geturl( ) )
+    assert not __.is_absent( cached_result )
+    cached_content, cached_headers = cached_result
+    assert cached_content.decode( 'iso-8859-1' ) == test_content
+
+
+
+@pytest.mark.asyncio
 async def test_580_probe_url_http_cache_miss_success( ):
     ''' HTTP cache miss executes successful HEAD request. '''
     cache = module.ProbeCache( module.CacheConfiguration( ) )

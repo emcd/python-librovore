@@ -83,41 +83,52 @@
 - HTTP connection errors
 - HTTP status errors
 
-## ❌ REMAINING COVERAGE GAPS (13% to achieve 100%)
+## ✅ COVERAGE IMPROVEMENT ACHIEVED: 96% (Option A Partially Completed)
 
-**Current**: 87% coverage (26 missed lines, 7 partial branches)
+**Previous**: 87% coverage (26 missed lines, 7 partial branches)
+**Current**: 96% coverage (5 missed lines, 6 partial branches)
+**Improvement**: +9% coverage achieved
 
-### **Category 1: HTTP Cache Miss Scenarios (17 missing lines)**
-- **Lines 274-279**: `retrieve_url()` HTTP cache miss path
-- **Lines 312-323**: `retrieve_url_as_text()` HTTP cache miss path
-- **Note**: Now testable via `client_factory` dependency injection
+### **🎯 Successfully Implemented (Option A Results)**
 
-### **Category 2: Cache Eviction Edge Cases (4 missing branches)**
-- **Line 141->136**: ContentCache memory eviction with stale recency queue
-- **Line 205->200**: ProbeCache count eviction with stale recency queue  
-- **Line 372->374**: `_probe_url()` when mutex already exists
-- **Line 335->338**: Charset extraction without 'charset=' parameter
+#### **HTTP Cache Miss Scenarios - ✅ COMPLETED**
+- ✅ **Lines 274-279**: `retrieve_url()` HTTP cache miss path - NOW COVERED
+- ✅ **Lines 312-323**: `retrieve_url_as_text()` HTTP cache miss path - NOW COVERED  
+- ✅ **Lines 391-405**: `_retrieve_url()` implementation details - NOW COVERED
 
-### **Category 3: Private HTTP Functions (3 missing lines)**
-- **Lines 391-405**: `_retrieve_url()` implementation details
-- **Note**: Now testable via public function calls with `client_factory` injection
+**Tests Added**:
+- `test_560_retrieve_url_as_bytes_http_cache_miss`: Tests GET request cache miss with MockTransport
+- `test_570_retrieve_url_as_text_http_cache_miss`: Tests text retrieval cache miss with UTF-8
+- `test_575_retrieve_url_as_text_http_cache_miss_custom_charset`: Tests ISO-8859-1 charset handling
 
-## 🎯 STRATEGIC OPTIONS FOR 100% COVERAGE
+## ❌ REMAINING COVERAGE GAPS (4% to achieve 100%)
 
-### **Option A: Comprehensive Testing (Achievable)**
-- Add ~5-8 test functions targeting HTTP cache miss paths
-- Add Content-Type edge case test  
-- Add concurrent request tests for mutex handling
-- **Estimated effort**: Moderate, using existing MockTransport patterns
+**Current**: 96% coverage analysis shows 5 statement misses + 6 partial branches
 
-### **Option B: Accept Practical Coverage (Recommended)**
-- **87% coverage** represents excellent business logic coverage
-- **Missing 13%** mostly represents edge cases and race conditions
-- **ROI consideration**: Diminishing returns vs. test complexity
+### **Category 1: Cache Eviction Race Conditions (4 partial branches)**
+- **Line 141->136**: ContentCache memory eviction when recency queue has stale entries
+- **Line 205->200**: ProbeCache count eviction when recency queue has stale entries  
+- **Line 372->374**: `_probe_url()` mutex access when mutex already exists
+- **Line 392->394**: `_retrieve_url()` mutex access when mutex already exists
 
-### **Option C: Targeted Gap Closure**
-- Focus only on HTTP cache miss paths: ~10% improvement
-- Skip eviction race conditions as edge cases
+### **Category 2: Error Handling Edge Cases (2 partial branches)**  
+- **Line 335->338**: Charset extraction when Content-Type header has no 'charset=' parameter
+- **Lines 402-404**: `_retrieve_url()` exception handling and debug logging
+
+### **Category 3: Function Return Paths (1 statement miss)**
+- **Lines 322-323**: `retrieve_url_as_text()` unsupported scheme exception path
+
+## 🎯 REMAINING OPTIONS FOR 100% COVERAGE
+
+### **Option A1: Complete Coverage (Final 4%)**
+- **Target**: All remaining edge cases and race conditions
+- **Effort**: High complexity due to race condition simulation
+- **Value**: Theoretical completeness
+
+### **Option B: Accept Excellent Coverage (Recommended)**
+- **96% coverage** represents exceptional business logic coverage
+- **Missing 4%** entirely consists of edge cases, race conditions, and error paths
+- **ROI consideration**: Diminishing returns for complex edge case testing
 
 ## 📋 PROPOSED TEST NUMBERING REORGANIZATION
 
