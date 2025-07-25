@@ -20,11 +20,12 @@
 
 ''' Interface for extension development. '''
 
-# ruff: noqa: F403,F405
+# ruff: noqa: F401,F403,F405
 
 
 from . import __
 
+from .cacheproxy import probe_url, retrieve_url, retrieve_url_as_text
 from .exceptions import *
 from .interfaces import *
 

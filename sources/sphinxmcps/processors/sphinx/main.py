@@ -122,7 +122,7 @@ class SphinxProcessor( __.Processor ):
             }
         doc_url = _urls.derive_documentation_url(
             base_url, found_object.uri, object_name )
-        html_content = await _extraction.retrieve_url( doc_url )
+        html_content = await __.retrieve_url_as_text( doc_url )
         anchor = doc_url.fragment or object_name
         parsed_content = _extraction.parse_documentation_html(
             html_content, anchor )
@@ -166,7 +166,7 @@ class SphinxProcessor( __.Processor ):
         for candidate in candidates:
             doc_url = _urls.derive_documentation_url(
                 base_url, candidate[ 'uri' ], candidate[ 'name' ] )
-            try: html_content = await _extraction.retrieve_url( doc_url )
+            try: html_content = await __.retrieve_url_as_text( doc_url )
             except Exception: # noqa: S112
                 continue
             anchor = doc_url.fragment or str( candidate[ 'name' ] )

@@ -21,11 +21,7 @@
 ''' Sphinx detection and metadata extraction. '''
 
 
-import http as _http
-
 from urllib.parse import ParseResult as _Url
-
-import httpx as _httpx
 
 from . import __
 from . import urls as _urls
@@ -59,21 +55,22 @@ class SphinxDetection( __.Detection ):
 async def check_objects_inv( source: _Url ) -> bool:
     ''' Checks if objects.inv exists at the source. '''
     inventory_url = _urls.derive_inventory_url( source )
-    return await probe_url( inventory_url )
+    return await __.probe_url( inventory_url )
 
 
 async def check_searchindex( source: _Url ) -> bool:
     ''' Checks if searchindex.js exists (indicates full Sphinx site). '''
     searchindex_url = _urls.derive_searchindex_url( source )
-    return await probe_url( searchindex_url )
+    return await __.probe_url( searchindex_url )
 
 
 async def detect_theme( source: _Url ) -> dict[ str, __.typx.Any ]:
     ''' Detects Sphinx theme and other metadata. '''
-    from .extraction import retrieve_url as _retrieve_url
+    from ...cacheproxy import retrieve_url_as_text as _retrieve_url_as_text
     theme_metadata: dict[ str, __.typx.Any ] = { }
     html_url = _urls.derive_html_url( source )
-    try: html_content = await _retrieve_url( html_url, timeout = 10.0 )
+    try: html_content = await _retrieve_url_as_text(
+        html_url, duration_max = 10.0 )
     except __.DocumentationInaccessibility: pass
     else:
         html_content_lower = html_content.lower( )
@@ -87,16 +84,3 @@ async def detect_theme( source: _Url ) -> dict[ str, __.typx.Any ]:
     return theme_metadata
 
 
-async def probe_url( url: _Url, *, timeout: float = 10.0 ) -> bool:
-    ''' Checks if URL exists using HEAD request or file existence check. '''
-    match url.scheme:
-        case 'file' | '':
-            file_path = __.Path( url.path )
-            return file_path.exists( )
-        case 'http' | 'https':
-            try:
-                async with _httpx.AsyncClient( timeout = timeout ) as client:
-                    response = await client.head( url.geturl( ) )
-            except Exception: return False
-            else: return response.status_code == _http.HTTPStatus.OK
-        case _: return False

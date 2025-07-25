@@ -21,10 +21,6 @@
 ''' Documentation extraction and content retrieval. '''
 
 
-from urllib.parse import ParseResult as _Url
-
-import httpx as _httpx
-
 from bs4 import BeautifulSoup as _BeautifulSoup
 
 from . import __
@@ -108,27 +104,3 @@ def parse_documentation_html(
         'description': description,
         'object_name': element_id,
     }
-
-
-async def retrieve_url( url: _Url, *, timeout: float = 30.0 ) -> str:
-    ''' Retrieves content from URL using GET request or file read. '''
-    match url.scheme:
-        case 'file':
-            file_path = __.Path( url.path )
-            try: return file_path.read_text( encoding = 'utf-8' )
-            except Exception as exc:
-                raise __.DocumentationInaccessibility(
-                    url.geturl( ), exc ) from exc
-        case 'http' | 'https':
-            try:
-                async with _httpx.AsyncClient( timeout = timeout ) as client:
-                    response = await client.get( url.geturl( ) )
-                    response.raise_for_status( )
-            except Exception as exc:
-                raise __.DocumentationInaccessibility(
-                    url.geturl( ), exc ) from exc
-            else: return response.text
-        case _:
-            raise __.DocumentationInaccessibility(
-                url.geturl( ),
-                ValueError( f"Unsupported URL scheme: {url.scheme}" ) )
