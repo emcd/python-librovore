@@ -46,48 +46,6 @@ def create_test_auxdata( ):
 
 
 @pytest.mark.asyncio
-async def test_000_extract_inventory_command_unit( ):
-    ''' ExtractInventoryCommand processes arguments correctly. '''
-    display = MockConsoleDisplay( )
-    auxdata = create_test_auxdata( )
-    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    cmd = module.ExtractInventoryCommand(
-        source = test_inventory_path, domain = 'py' )
-    await cmd( auxdata, display )
-    output = display.stream.getvalue( )
-    assert 'project' in output
-    assert 'domain' in output
-    assert 'py' in output
-
-
-@pytest.mark.asyncio
-async def test_010_extract_inventory_command_no_filters( ):
-    ''' ExtractInventoryCommand works without filters. '''
-    display = MockConsoleDisplay( )
-    auxdata = create_test_auxdata( )
-    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    cmd = module.ExtractInventoryCommand( source = test_inventory_path )
-    await cmd( auxdata, display )
-    output = display.stream.getvalue( )
-    assert 'project' in output
-    assert 'objects' in output
-
-
-@pytest.mark.asyncio
-async def test_020_extract_inventory_command_all_filters( ):
-    ''' ExtractInventoryCommand handles all filter parameters. '''
-    display = MockConsoleDisplay( )
-    auxdata = create_test_auxdata( )
-    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    cmd = module.ExtractInventoryCommand(
-        source = test_inventory_path,
-        domain = 'py', role = 'module', term = 'test' )
-    await cmd( auxdata, display )
-    output = display.stream.getvalue( )
-    assert 'project' in output
-
-
-@pytest.mark.asyncio
 async def test_030_summarize_inventory_command_unit( ):
     ''' SummarizeInventoryCommand processes arguments correctly. '''
     display = MockConsoleDisplay( )
@@ -114,21 +72,6 @@ async def test_040_summarize_inventory_command_no_filters( ):
 
 
 @pytest.mark.asyncio
-async def test_050_use_command_extract_delegation( ):
-    ''' UseCommand delegates to ExtractInventoryCommand correctly. '''
-    display = MockConsoleDisplay( )
-    auxdata = create_test_auxdata( )
-    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    extract_cmd = module.ExtractInventoryCommand(
-        source = test_inventory_path, domain = 'py' )
-    use_cmd = module.UseCommand( operation = extract_cmd )
-    await use_cmd( auxdata, display )
-    output = display.stream.getvalue( )
-    assert 'project' in output
-    assert 'py' in output
-
-
-@pytest.mark.asyncio
 async def test_060_use_command_summarize_delegation( ):
     ''' UseCommand delegates to SummarizeInventoryCommand correctly. '''
     display = MockConsoleDisplay( )
@@ -148,7 +91,6 @@ async def test_070_serve_command_unit( ):
     ''' ServeCommand processes arguments correctly. '''
     display = MockConsoleDisplay( )
     auxdata = create_test_auxdata( )
-    # Use dependency injection instead of monkey-patching
     mock_serve = AsyncMock( )
     cmd = module.ServeCommand( 
         port = 8080, transport = 'stdio', serve_function = mock_serve 
@@ -163,7 +105,6 @@ async def test_080_serve_command_defaults( ):
     ''' ServeCommand works with default arguments. '''
     display = MockConsoleDisplay( )
     auxdata = create_test_auxdata( )
-    # Use dependency injection instead of monkey-patching
     mock_serve = AsyncMock( )
     cmd = module.ServeCommand( serve_function = mock_serve )
     await cmd( auxdata, display )
@@ -206,21 +147,6 @@ async def test_500_cli_explore_local_file( ):
     assert result.returncode == 0
     assert 'project' in result.stdout or 'project' in result.stderr
     assert 'documents' in result.stdout or 'documents' in result.stderr
-
-
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_510_cli_extract_inventory_nonexistent_file( ):
-    ''' CLI extract-inventory fails gracefully for missing files. '''
-    result = await run_cli_command( [
-        'use', 'extract-inventory', '--source', '/nonexistent/path.inv'
-    ] )
-    assert result.returncode != 0
-    assert (
-            'inaccessible' in result.stderr.lower( )
-        or  'not found' in result.stderr.lower( )
-        or  'no such file' in result.stderr.lower( )
-        or  'no processor found' in result.stderr.lower( ) )
 
 
 @pytest.mark.slow
@@ -270,7 +196,6 @@ async def test_710_cli_serve_invalid_transport( ):
     ''' CLI serve command fails with invalid transport. '''
     result = await run_cli_command( [ 'serve', '--transport', 'invalid' ] )
     assert result.returncode != 0
-    # Main assertion is non-zero exit code for invalid transport
 
 
 @pytest.mark.slow
@@ -279,7 +204,6 @@ async def test_720_cli_serve_invalid_port( ):
     ''' CLI serve command fails with invalid port. '''
     result = await run_cli_command( [ 'serve', '--port', 'invalid' ] )
     assert result.returncode != 0
-    # Main assertion is non-zero exit code for invalid port
 
 
 @pytest.mark.slow

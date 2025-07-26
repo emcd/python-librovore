@@ -31,46 +31,6 @@ from .fixtures import get_test_inventory_path
 
 
 @pytest.mark.asyncio
-async def test_000_extract_inventory_wrapper( ):
-    ''' Server extract_inventory delegates to functions correctly. '''
-    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = await module.extract_inventory(
-        source = test_inventory_path, domain = 'py', role = 'function' )
-    assert isinstance( result, dict )
-    assert 'project' in result
-    assert 'filters' in result
-    assert result[ 'filters' ][ 'domain' ] == 'py'
-    assert result[ 'filters' ][ 'role' ] == 'function'
-
-
-@pytest.mark.asyncio
-async def test_010_extract_inventory_wrapper_no_filters( ):
-    ''' Server extract_inventory works without filters. '''
-    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = await module.extract_inventory( source = test_inventory_path )
-    assert isinstance( result, dict )
-    assert 'project' in result
-    assert 'domains' in result
-    assert 'objects' in result
-    assert 'object_count' in result
-    assert 'filters' not in result
-
-
-@pytest.mark.asyncio
-async def test_020_extract_inventory_wrapper_with_regex( ):
-    ''' Server extract_inventory handles match_mode parameter correctly. '''
-    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = await module.extract_inventory(
-        source = test_inventory_path,
-        term = 'test.*pattern',
-        match_mode = _interfaces.MatchMode.Regex )
-    assert isinstance( result, dict )
-    assert 'filters' in result
-    assert result[ 'filters' ][ 'term' ] == 'test.*pattern'
-    assert result[ 'filters' ][ 'match_mode' ] == 'regex'
-
-
-@pytest.mark.asyncio
 async def test_100_summarize_inventory_wrapper( ):
     ''' Server summarize_inventory delegates to functions correctly. '''
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
@@ -103,20 +63,56 @@ async def test_120_summarize_inventory_wrapper_with_regex( ):
 
 
 @pytest.mark.asyncio
-async def test_130_extract_inventory_wrapper_with_fuzzy( ):
-    ''' Server extract_inventory handles fuzzy matching correctly. '''
+async def test_150_summarize_inventory_wrapper_with_priority( ):
+    ''' Server summarize_inventory handles priority filtering correctly. '''
     test_inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = await module.extract_inventory(
+    result = await module.summarize_inventory(
+        source = test_inventory_path, priority = '0' )
+    assert isinstance( result, str )
+    assert 'priority=0' in result
+    assert 'Filters:' in result
+
+
+@pytest.mark.asyncio
+async def test_170_explore_wrapper( ):
+    ''' Server explore delegates to functions correctly. '''
+    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    result = await module.explore(
+        source = test_inventory_path, query = 'test',
+        domain = 'py', role = 'function' )
+    assert isinstance( result, dict )
+    assert 'project' in result
+    assert 'search_metadata' in result
+    assert result[ 'search_metadata' ][ 'filters' ][ 'domain' ] == 'py'
+    assert result[ 'search_metadata' ][ 'filters' ][ 'role' ] == 'function'
+
+
+@pytest.mark.asyncio
+async def test_180_explore_wrapper_no_filters( ):
+    ''' Server explore works without filters. '''
+    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    result = await module.explore(
+        source = test_inventory_path, query = 'test' )
+    assert isinstance( result, dict )
+    assert 'project' in result
+    assert 'documents' in result
+    assert 'search_metadata' in result
+
+
+@pytest.mark.asyncio
+async def test_190_explore_wrapper_with_fuzzy( ):
+    ''' Server explore handles fuzzy matching correctly. '''
+    test_inventory_path = get_test_inventory_path( 'sphobjinv' )
+    result = await module.explore(
         source = test_inventory_path,
-        term = 'DataObj',
+        query = 'DataObj',
         match_mode = _interfaces.MatchMode.Fuzzy,
         fuzzy_threshold = 60 )
     assert isinstance( result, dict )
-    assert 'filters' in result
-    assert result[ 'filters' ][ 'term' ] == 'DataObj'
-    assert result[ 'filters' ][ 'match_mode' ] == 'fuzzy'
-    assert result[ 'filters' ][ 'fuzzy_threshold' ] == 60
-    assert result[ 'object_count' ] > 0
+    assert 'search_metadata' in result
+    assert result[ 'search_metadata' ][ 'filters' ][ 'match_mode' ] == 'fuzzy'
+    assert result[ 'search_metadata' ][ 'filters' ][ 'fuzzy_threshold' ] == 60
+    assert 'documents' in result
 
 
 @pytest.mark.asyncio
@@ -158,29 +154,3 @@ async def test_230_serve_default_transport( ):
         try: await module.serve( mock_auxdata )
         except ValueError:
             pytest.fail( "ValueError raised for default transport" )
-
-
-@pytest.mark.asyncio
-async def test_140_extract_inventory_wrapper_with_priority( ):
-    ''' Server extract_inventory handles priority filtering correctly. '''
-    test_inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = await module.extract_inventory(
-        source = test_inventory_path, priority = '1' )
-    assert isinstance( result, dict )
-    assert 'filters' in result
-    assert result[ 'filters' ][ 'priority' ] == '1'
-    assert result[ 'object_count' ] > 0
-    for domain_objects in result[ 'objects' ].values( ):
-        for obj in domain_objects:
-            assert obj[ 'priority' ] == '1'
-
-
-@pytest.mark.asyncio
-async def test_150_summarize_inventory_wrapper_with_priority( ):
-    ''' Server summarize_inventory handles priority filtering correctly. '''
-    test_inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = await module.summarize_inventory(
-        source = test_inventory_path, priority = '0' )
-    assert isinstance( result, str )
-    assert 'priority=0' in result
-    assert 'Filters:' in result

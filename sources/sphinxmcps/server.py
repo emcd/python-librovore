@@ -190,7 +190,7 @@ async def summarize_inventory( # noqa: PLR0913
         return f"Error: Invalid parameter value: {exc}"
     except Exception as exc:
         _scribe.error( "Error summarizing inventory: %s", exc )
-        return f"Error: Inventory summarization failed: {exc}"
+        raise RuntimeError from exc
 
 
 async def explore(  # noqa: PLR0913
@@ -232,8 +232,7 @@ async def explore(  # noqa: PLR0913
             include_documentation = include_documentation )
     except Exception as exc:
         _scribe.error( "Error exploring: %s", exc )
-        return { 'error': f"Exploration failed: {exc}" }
-
+        raise RuntimeError from exc
 
 async def serve(
     auxdata: __.Globals, /, *,

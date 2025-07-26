@@ -60,22 +60,24 @@ async def test_010_mcp_tools_list( ):
         assert 'tools' in response[ 'result' ]
         tools = response[ 'result' ][ 'tools' ]
         tool_names = [ tool[ 'name' ] for tool in tools ]
-        assert 'extract_inventory' in tool_names
         assert 'summarize_inventory' in tool_names
+        assert 'query_documentation' in tool_names
+        assert 'explore' in tool_names
 
 
 @pytest.mark.slow
 @pytest.mark.asyncio
-async def test_100_mcp_extract_inventory_tool( ):
-    ''' MCP extract_inventory tool processes inventory files. '''
+async def test_170_mcp_explore_tool( ):
+    ''' MCP explore tool processes inventory files and docs. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
     async with (
         mcp_test_server( ) as port,
         MCPTestClient( port ) as client
     ):
         await client.initialize( )
-        response = await client.call_tool( 'extract_inventory', {
-            'source': inventory_path
+        response = await client.call_tool( 'explore', {
+            'source': inventory_path,
+            'query': 'test'
         } )
         assert response[ 'jsonrpc' ] == '2.0'
         assert 'result' in response
@@ -84,20 +86,21 @@ async def test_100_mcp_extract_inventory_tool( ):
         assert content[ 0 ][ 'type' ] == 'text'
         text_content = content[ 0 ][ 'text' ]
         assert 'project' in text_content
-        assert 'objects' in text_content
+        assert 'documents' in text_content
 
 
 @pytest.mark.slow
 @pytest.mark.asyncio
-async def test_110_mcp_extract_inventory_nonexistent_file( ):
-    ''' MCP extract_inventory tool handles nonexistent files gracefully. '''
+async def test_180_mcp_explore_nonexistent_file( ):
+    ''' MCP explore tool handles nonexistent files gracefully. '''
     async with (
         mcp_test_server( ) as port,
         MCPTestClient( port ) as client
     ):
         await client.initialize( )
-        response = await client.call_tool( 'extract_inventory', {
-            'source': '/nonexistent/path.inv'
+        response = await client.call_tool( 'explore', {
+            'source': '/nonexistent/path.inv',
+            'query': 'test'
         } )
         assert response[ 'jsonrpc' ] == '2.0'
         assert 'result' in response
@@ -187,7 +190,6 @@ async def test_310_mcp_protocol_error_handling( ):
 @pytest.mark.asyncio
 async def test_400_mcp_stdio_transport( ):
     ''' stdio transport works correctly with MCP protocol. '''
-    # This test is implicit in all the above tests, but let's be explicit
     async with (
         mcp_test_server( ) as process,
         MCPTestClient( process ) as client
@@ -209,8 +211,6 @@ async def test_400_mcp_stdio_transport( ):
 @pytest.mark.asyncio
 async def test_410_mcp_multiple_requests( ):
     ''' MCP server can handle multiple sequential requests. '''
-    # Note: Cannot test concurrent clients with stdio transport
-    # since each process has only one stdin/stdout pair
     async with (
         mcp_test_server( ) as process,
         MCPTestClient( process ) as client
@@ -222,7 +222,7 @@ async def test_410_mcp_multiple_requests( ):
         assert response1[ 'jsonrpc' ] == '2.0'
         assert 'result' in response1
         response2 = await client.call_tool(
-            'extract_inventory', { 'source': inventory_path } )
+            'explore', { 'source': inventory_path, 'query': 'test' } )
         assert response2[ 'jsonrpc' ] == '2.0'
         assert 'result' in response2
         assert (
@@ -237,7 +237,6 @@ async def test_410_mcp_multiple_requests( ):
 @pytest.mark.asyncio
 async def test_500_mcp_server_shutdown_cleanup( ):
     ''' MCP server shuts down cleanly and cleans up resources. '''
-    # Start server and get port
     async with (
         mcp_test_server( ) as port,
         MCPTestClient( port ) as client
@@ -249,5 +248,3 @@ async def test_500_mcp_server_shutdown_cleanup( ):
         assert (
             'Project:' in
             response[ 'result' ][ 'content' ][ 0 ][ 'text' ] )
-        # Client connection should close cleanly
-    # Server should shut down cleanly (tested by context manager)
