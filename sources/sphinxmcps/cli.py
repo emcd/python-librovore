@@ -200,7 +200,7 @@ class QueryDocumentationCommand(
         print( __.json.dumps( result, indent = 2 ), file = stream )
 
 
-_filters_default = _functions.Filters( )
+_filters_default = _interfaces.Filters( )
 
 
 class ExploreCommand(
@@ -211,7 +211,7 @@ class ExploreCommand(
     source: CliSourceArgument
     query: CliQueryArgument
     filters: __.typx.Annotated[
-        _functions.Filters,
+        _interfaces.Filters,
         __.tyro.conf.arg( prefix_name = False ),
     ] = _filters_default
     max_objects: __.typx.Annotated[

@@ -70,16 +70,6 @@ SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
 ]
 
 
-class Filters( __.immut.DataclassObject ):
-    ''' Common filters for inventory and documentation search. '''
-
-    domain: str = ""
-    role: str = ""
-    priority: str = ""
-    match_mode: _interfaces.MatchMode = _interfaces.MatchMode.Fuzzy
-    fuzzy_threshold: int = 50
-
-
 async def extract_documentation(
     source: SourceArgument,
     object_name: str, /, *,
@@ -169,7 +159,7 @@ async def summarize_inventory( # noqa: PLR0913
 async def explore(
     source: SourceArgument,
     query: str, /, *,
-    filters: Filters | None = None,
+    filters: _interfaces.Filters | None = None,
     max_objects: int = 5,
     include_documentation: bool = True,
 ) -> __.typx.Annotated[
@@ -190,7 +180,7 @@ async def explore(
     results from failed extractions.
     '''
     if filters is None:
-        filters = Filters( )
+        filters = _interfaces.Filters( )
     inventory_data = await extract_inventory(
         source,
         domain = filters.domain if filters.domain else __.absent,
@@ -230,7 +220,7 @@ def _build_explore_result_structure(
     query: str,
     selected_objects: list[ dict[ str, __.typx.Any ] ],
     max_objects: int,
-    filters: Filters,
+    filters: _interfaces.Filters,
 ) -> dict[ str, __.typx.Any ]:
     ''' Builds the base result structure with metadata. '''
     filter_metadata: dict[ str, __.typx.Any ] = { }
@@ -256,7 +246,7 @@ def _build_explore_result_structure(
 
 def _populate_filter_metadata(
     metadata: dict[ str, __.typx.Any ],
-    filters: Filters
+    filters: _interfaces.Filters
 ) -> None:
     ''' Populates filter metadata dictionary with non-empty filters. '''
     if filters.domain:

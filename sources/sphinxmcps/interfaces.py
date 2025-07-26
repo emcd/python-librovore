@@ -80,6 +80,16 @@ class MatchMode( str, __.enum.Enum ):
     Fuzzy = 'fuzzy'
 
 
+class Filters( __.immut.DataclassObject ):
+    ''' Common filters for inventory and documentation search. '''
+
+    domain: str = ""
+    role: str = ""
+    priority: str = ""
+    match_mode: MatchMode = MatchMode.Fuzzy
+    fuzzy_threshold: int = 50
+
+
 class Processor( __.immut.DataclassProtocol ):
     ''' Abstract base class for documentation source detectors. '''
 
