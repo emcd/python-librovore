@@ -27,6 +27,9 @@ from . import interfaces as _interfaces
 from . import server as _server
 
 
+_scribe = __.acquire_scribe( __name__ )
+
+
 CliDomainFilter: __.typx.TypeAlias = __.typx.Annotated[
     __.typx.Optional[ str ],
     __.ddoc.Doc( '''
@@ -112,6 +115,9 @@ class SummarizeInventoryCommand(
         print( result, file = stream )
 
 
+_filters_default = _interfaces.Filters( )
+
+
 class QueryDocumentationCommand(
     _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
@@ -119,11 +125,10 @@ class QueryDocumentationCommand(
 
     source: CliSourceArgument
     query: CliQueryArgument
-    domain: CliDomainFilter = None
-    role: CliRoleFilter = None
-    priority: CliPriorityFilter = None
-    match_mode: CliMatchMode = _interfaces.MatchMode.Fuzzy
-    fuzzy_threshold: CliFuzzyThreshold = 50
+    filters: __.typx.Annotated[
+        _interfaces.Filters,
+        __.tyro.conf.arg( prefix_name = False ),
+    ] = _filters_default
     max_results: CliMaxResults = 10
     include_snippets: CliIncludeSnippets = True
 
@@ -131,23 +136,16 @@ class QueryDocumentationCommand(
         self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
-        nomargs: __.NominativeArguments = { }
-        if self.domain is not None:
-            nomargs[ 'domain' ] = self.domain
-        if self.role is not None:
-            nomargs[ 'role' ] = self.role
-        if self.priority is not None:
-            nomargs[ 'priority' ] = self.priority
-        nomargs[ 'match_mode' ] = self.match_mode
-        nomargs[ 'fuzzy_threshold' ] = self.fuzzy_threshold
-        nomargs[ 'max_results' ] = self.max_results
-        nomargs[ 'include_snippets' ] = self.include_snippets
-        result = await _functions.query_documentation(
-            self.source, self.query, **nomargs )
-        print( __.json.dumps( result, indent = 2 ), file = stream )
-
-
-_filters_default = _interfaces.Filters( )
+        try:
+            result = await _functions.query_documentation(
+                self.source, self.query, 
+                filters = self.filters,
+                max_results = self.max_results, 
+                include_snippets = self.include_snippets )
+            print( __.json.dumps( result, indent = 2 ), file = stream )
+        except Exception as exc:
+            _scribe.error( "query_documentation failed: %s", exc )
+            raise
 
 
 class ExploreCommand(
@@ -173,13 +171,17 @@ class ExploreCommand(
         self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
-        result = await _functions.explore(
-            self.source,
-            self.query,
-            filters = self.filters,
-            max_objects = self.max_objects,
-            include_documentation = self.include_documentation )
-        print( __.json.dumps( result, indent = 2 ), file = stream )
+        try:
+            result = await _functions.explore(
+                self.source,
+                self.query,
+                filters = self.filters,
+                max_objects = self.max_objects,
+                include_documentation = self.include_documentation )
+            print( __.json.dumps( result, indent = 2 ), file = stream )
+        except Exception as exc:
+            _scribe.error( "explore failed: %s", exc )
+            raise
 
 
 class UseCommand(
@@ -282,8 +284,12 @@ def execute( ) -> None:
     )
     try: run( __.tyro.cli( Cli, config = config )( ) )
     except SystemExit: raise
+    except __.excg.ExceptionGroup as exc_group:
+        for exc in exc_group.exceptions:
+            _scribe.error( f"CLI command failed: {exc}" )
+        raise SystemExit( 1 ) from None
     except BaseException as exc:
-        print( exc, file = __.sys.stderr )
+        _scribe.error( f"CLI command failed: {exc}" )
         raise SystemExit( 1 ) from None
 
 

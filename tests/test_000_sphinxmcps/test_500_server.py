@@ -92,7 +92,8 @@ async def test_180_explore_wrapper_no_filters( ):
     ''' Server explore works without filters. '''
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
     result = await module.explore(
-        source = test_inventory_path, query = 'test' )
+        source = test_inventory_path, query = 'test', 
+        include_documentation = False )
     assert isinstance( result, dict )
     assert 'project' in result
     assert 'documents' in result
@@ -107,7 +108,8 @@ async def test_190_explore_wrapper_with_fuzzy( ):
         source = test_inventory_path,
         query = 'DataObj',
         match_mode = _interfaces.MatchMode.Fuzzy,
-        fuzzy_threshold = 60 )
+        fuzzy_threshold = 60,
+        include_documentation = False )
     assert isinstance( result, dict )
     assert 'search_metadata' in result
     assert result[ 'search_metadata' ][ 'filters' ][ 'match_mode' ] == 'fuzzy'

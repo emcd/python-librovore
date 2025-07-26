@@ -70,26 +70,35 @@ SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
 ]
 
 
-async def query_documentation(  # noqa: PLR0913
+async def query_documentation(
     source: SourceArgument,
     query: str, /, *,
-    domain: DomainFilter = __.absent,
-    role: RoleFilter = __.absent,
-    priority: PriorityFilter = __.absent,
-    match_mode: _interfaces.MatchMode = _interfaces.MatchMode.Fuzzy,
-    fuzzy_threshold: int = 50,
+    filters: _interfaces.Filters | None = None,
     max_results: int = 10,
     include_snippets: bool = True
 ) -> __.typx.Annotated[
-    list[ __.cabc.Mapping[ str, __.typx.Any ] ],
-    __.ddoc.Doc( ''' List of query results with relevance ranking. ''' )
+    dict[ str, __.typx.Any ],
+    __.ddoc.Doc( ''' Search results with metadata in explore format. ''' )
 ]:
     ''' Queries documentation content with relevance ranking. '''
+    if filters is None:
+        filters = _interfaces.Filters( )
     processor = await _select_processor_for_source( source )
-    return await processor.query_documentation(
-        source, query, domain = domain, role = role, priority = priority,
-        match_mode = match_mode, fuzzy_threshold = fuzzy_threshold,
-        max_results = max_results, include_snippets = include_snippets )
+    
+    # Get raw query results from processor
+    raw_results = await processor.query_documentation(
+        source, query,
+        domain = filters.domain if filters.domain else __.absent,
+        role = filters.role if filters.role else __.absent,
+        priority = filters.priority if filters.priority else __.absent,
+        match_mode = filters.match_mode,
+        fuzzy_threshold = filters.fuzzy_threshold,
+        max_results = max_results,
+        include_snippets = include_snippets )
+    
+    # Transform to explore-style format
+    return _build_query_result_structure( 
+        source, query, raw_results, max_results, filters )
 
 
 async def summarize_inventory( # noqa: PLR0913
@@ -246,8 +255,7 @@ def _build_explore_result_structure(
         'version': inventory_data[ 'version' ],
         'query': query,
         'search_metadata': search_metadata,
-        'documents': [ ],
-        'errors': [ ]
+        'documents': [ ]
     }
     return result
 
@@ -276,18 +284,10 @@ async def _add_documentation_to_results(
     ''' Extracts documentation for objects and adds to results. '''
     processor = await _select_processor_for_source( source )
     for obj in selected_objects:
-        try:
-            doc_result = await processor.extract_documentation(
-                source, obj[ 'name' ] )
-            document = _create_document_with_docs( obj, doc_result )
-            result[ 'documents' ].append( document )
-        except Exception as exc:  # noqa: PERF203
-            error_info: dict[ str, __.typx.Any ] = {
-                'name': obj[ 'name' ],
-                'domain': obj.get( 'domain', '' ),
-                'error': f"Documentation extraction failed: {exc}"
-            }
-            result[ 'errors' ].append( error_info )
+        doc_result = await processor.extract_documentation(
+            source, obj[ 'name' ] )
+        document = _create_document_with_docs( obj, doc_result )
+        result[ 'documents' ].append( document )
 
 
 def _add_object_metadata_to_results(
@@ -348,6 +348,50 @@ def _format_inventory_summary(
             summary_lines.append(
                 f"  {domain_name}: {len( objects )} objects" )
     return '\n'.join( summary_lines )
+
+
+def _build_query_result_structure(
+    source: str,
+    query: str,
+    raw_results: list[ __.cabc.Mapping[ str, __.typx.Any ] ],
+    max_results: int,
+    filters: _interfaces.Filters,
+) -> dict[ str, __.typx.Any ]:
+    ''' Builds query result structure in explore format. '''
+    filter_metadata: dict[ str, __.typx.Any ] = { }
+    _populate_filter_metadata( filter_metadata, filters )
+
+    search_metadata: dict[ str, __.typx.Any ] = {
+        'result_count': len( raw_results ),
+        'max_results': max_results,
+        'filters': filter_metadata
+    }
+
+    # Transform raw results to document format
+    documents: list[ dict[ str, __.typx.Any ] ] = [ ]
+    for raw_result in raw_results:
+        result_dict = dict( raw_result )
+        document: dict[ str, __.typx.Any ] = {
+            'name': result_dict[ 'object_name' ],
+            'type': result_dict[ 'object_type' ],
+            'domain': result_dict[ 'domain' ],
+            'priority': result_dict[ 'priority' ],
+            'url': result_dict[ 'url' ],
+            'signature': result_dict[ 'signature' ],
+            'description': result_dict[ 'description' ],
+            'content_snippet': result_dict[ 'content_snippet' ],
+            'relevance_score': result_dict[ 'relevance_score' ],
+            'match_reasons': result_dict[ 'match_reasons' ]
+        }
+        documents.append( document )
+
+    result: dict[ str, __.typx.Any ] = {
+        'source': source,
+        'query': query,
+        'search_metadata': search_metadata,
+        'documents': documents
+    }
+    return result
 
 
 async def _select_processor_for_source(

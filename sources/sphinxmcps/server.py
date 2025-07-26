@@ -117,40 +117,23 @@ async def query_documentation(  # noqa: PLR0913
     fuzzy_threshold: McpFuzzyThreshold = 50,
     max_results: McpMaxResults = 10,
     include_snippets: McpIncludeSnippets = True,
-) -> list[ __.cabc.Mapping[ str, __.typx.Any ] ]:
+) -> dict[ str, __.typx.Any ]:
     ''' Query documentation content with relevance ranking. '''
     _scribe.debug(
         "query_documentation called: source=%s, query=%s", source, query )
 
-    # match_mode is already an enum
+    # Build filters DTO
+    filters = _interfaces.Filters(
+        domain = domain,
+        role = role,
+        priority = priority,
+        match_mode = match_mode,
+        fuzzy_threshold = fuzzy_threshold
+    )
 
-    nomargs: __.NominativeArguments = { }
-    if domain: nomargs[ 'domain' ] = domain
-    if role: nomargs[ 'role' ] = role
-    if priority: nomargs[ 'priority' ] = priority
-
-    nomargs[ 'match_mode' ] = match_mode
-    nomargs[ 'fuzzy_threshold' ] = fuzzy_threshold
-    nomargs[ 'max_results' ] = max_results
-    nomargs[ 'include_snippets' ] = include_snippets
-
-    try:
-        return await _functions.query_documentation(
-            source, query, **nomargs )
-    except KeyError as exc:
-        param_name = str( exc ).strip( "'" )
-        _scribe.error( 
-            "Missing parameter in query_documentation: %s", param_name )
-        return [ { 'error': (
-            f"Missing required parameter '{param_name}'. "
-            "Check function signature for required arguments." ) } ]
-    except ValueError as exc:
-        _scribe.error( 
-            "Invalid parameter value in query_documentation: %s", exc )
-        return [ { 'error': f"Invalid parameter value: {exc}" } ]
-    except Exception as exc:
-        _scribe.error( "Error querying documentation: %s", exc )
-        return [ { 'error': f"Documentation query failed: {exc}" } ]
+    return await _functions.query_documentation(
+        source, query, filters = filters,
+        max_results = max_results, include_snippets = include_snippets )
 
 
 async def summarize_inventory( # noqa: PLR0913

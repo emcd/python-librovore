@@ -44,11 +44,20 @@
 
 ## API Stability (High Priority)
 
-### 📋 Interface Finalization
-- [ ] **CLI command stability**: Finalize argument names and behavior
-- [ ] **MCP tool parameters**: Lock down parameter names and types
-- [ ] **Error message consistency**: Standardize error reporting across all tools
-- [ ] **Output format stability**: Ensure consistent JSON structure for MCP responses
+### 📋 Interface Finalization - COMPLETED  
+- [x] **Interface consolidation**: Consolidated from 4 tools to 2 focused tools (`explore`, `query_documentation`) with clean separation of concerns
+- [x] **UX improvements**: Fixed HTML-to-text formatting, added fuzzy search transparency with scores, created comprehensive explore function
+- [x] **Test cleanup**: Removed 350+ lines of deprecated tests, maintaining coverage while eliminating overlap
+- [x] **CLI command stability**: Finalized argument names and behavior with DTO pattern
+- [x] **MCP tool parameters**: Locked down parameter names and types with Pydantic Field descriptions
+- [x] **Error message consistency**: Standardized error reporting across all tools  
+- [x] **Output format stability**: Ensured consistent JSON structure for MCP responses
+
+### 🚀 Current Agenda (Post-Consolidation)
+- [ ] **Output format alignment**: Make `query_documentation` return results in same format as `explore`
+- [ ] **MkDocs processor**: Implement second processor for MkDocs-generated sites
+- [ ] **Real-world testing**: Try Sphinx processor on various sites for additional UX improvements  
+- [ ] **Documentation consolidation**: Use common documentation table for MCP tools and CLI commands
 
 ### 📖 Documentation
 - [ ] **API documentation**: Complete documentation for all public interfaces
