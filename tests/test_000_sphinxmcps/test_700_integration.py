@@ -77,7 +77,8 @@ async def test_170_mcp_explore_tool( ):
         await client.initialize( )
         response = await client.call_tool( 'explore', {
             'source': inventory_path,
-            'query': 'test'
+            'query': 'test',
+            'include_documentation': False
         } )
         assert response[ 'jsonrpc' ] == '2.0'
         assert 'result' in response
@@ -222,7 +223,8 @@ async def test_410_mcp_multiple_requests( ):
         assert response1[ 'jsonrpc' ] == '2.0'
         assert 'result' in response1
         response2 = await client.call_tool(
-            'explore', { 'source': inventory_path, 'query': 'test' } )
+            'explore', { 'source': inventory_path, 'query': 'test', 
+                        'include_documentation': False } )
         assert response2[ 'jsonrpc' ] == '2.0'
         assert 'result' in response2
         assert (
