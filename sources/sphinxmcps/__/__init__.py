@@ -21,6 +21,10 @@
 ''' Common constants, imports, and utilities. '''
 
 
+from .doctab import (
+    access_doctab,
+    fragments as doctab,
+)
 from .imports import *
 from .inscription import *
 from .interfaces import *

@@ -119,7 +119,9 @@ async def test_200_summarize_inventory_basic( ):
 async def test_210_summarize_inventory_with_filters( ):
     ''' Summarize inventory includes filter information when provided. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = await module.summarize_inventory( inventory_path, domain = 'py' )
+    filters = module._interfaces.Filters( domain = 'py' )
+    result = await module.summarize_inventory(
+        inventory_path, filters = filters )
     assert 'objects' in result
     assert 'filter' in result.lower( ) or 'domain' in result.lower( )
 
@@ -128,9 +130,10 @@ async def test_210_summarize_inventory_with_filters( ):
 async def test_215_summarize_inventory_with_regex( ):
     ''' Summarize inventory includes regex filter information. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = await module.summarize_inventory(
-        inventory_path, term = '.*inventory.*',
+    filters = module._interfaces.Filters(
         match_mode = _interfaces.MatchMode.Regex )
+    result = await module.summarize_inventory(
+        inventory_path, '.*inventory.*', filters = filters )
     assert 'objects' in result
     assert 'regex' in result.lower( )
 
@@ -139,10 +142,10 @@ async def test_215_summarize_inventory_with_regex( ):
 async def test_250_summarize_inventory_with_fuzzy( ):
     ''' Summarize inventory includes fuzzy filter information. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
+    filters = module._interfaces.Filters(
+        match_mode = _interfaces.MatchMode.Fuzzy, fuzzy_threshold = 70 )
     result = await module.summarize_inventory(
-        inventory_path, term = 'inventory',
-        match_mode = _interfaces.MatchMode.Fuzzy,
-        fuzzy_threshold = 70 )
+        inventory_path, 'inventory', filters = filters )
     assert 'objects' in result
     assert 'fuzzy' in result.lower( )
     assert '70' in result
@@ -167,7 +170,9 @@ async def test_270_summarize_inventory_nonexistent_file( ):
 async def test_430_summarize_inventory_with_priority( ):
     ''' Summarize inventory includes priority filter information. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = await module.summarize_inventory( inventory_path, priority = '1')
+    filters = module._interfaces.Filters( priority = '1' )
+    result = await module.summarize_inventory(
+        inventory_path, filters = filters )
     assert 'priority=1' in result
     assert 'Filters:' in result
 

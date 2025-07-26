@@ -31,92 +31,51 @@ from . import functions as _functions
 from . import interfaces as _interfaces
 
 
-McpDomainFilter: __.typx.TypeAlias = __.typx.Annotated[
-    str,
-    _Field(
-        description = (
-            "Filter objects by Sphinx domain. Built-in domains: "
-            "'py' (Python), 'std' (standard), 'c' (C), 'cpp' (C++), "
-            "'js' (JavaScript), 'rst' (reStructuredText), "
-            "'math' (Mathematics). Empty string shows all domains."
-        )
-    )
-]
-McpFuzzyThreshold: __.typx.TypeAlias = __.typx.Annotated[
+DomainFilter: __.typx.TypeAlias = __.typx.Annotated[
+    str, _Field( description = __.access_doctab( 'domain filter argument' ) ) ]
+FuzzyThreshold: __.typx.TypeAlias = __.typx.Annotated[
     int,
-    _Field(
-        description = "Fuzzy matching threshold (0-100, higher = stricter)"
-    )
+    _Field( description = __.access_doctab( 'fuzzy threshold argument' ) ),
 ]
-McpIncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
+IncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
     bool,
-    _Field(
-        description = "Include content snippets in results"
-    )
+    _Field( description = __.access_doctab( 'include snippets argument' ) ),
 ]
-McpMatchMode: __.typx.TypeAlias = __.typx.Annotated[
+MatchMode: __.typx.TypeAlias = __.typx.Annotated[
     _interfaces.MatchMode,
-    _Field(
-        description = "Term matching mode: 'exact', 'regex', or 'fuzzy'"
-    )
+    _Field( description = __.access_doctab( 'match mode argument' ) ),
 ]
-McpMaxResults: __.typx.TypeAlias = __.typx.Annotated[
-    int,
-    _Field(
-        description = "Maximum number of results to return"
-    )
-]
-McpObjectName: __.typx.TypeAlias = __.typx.Annotated[
+ResultsMax: __.typx.TypeAlias = __.typx.Annotated[
+    int, _Field( description = __.access_doctab( 'results max argument' ) ) ]
+ObjectName: __.typx.TypeAlias = __.typx.Annotated[
+    str, _Field( description = __.access_doctab( 'object name' ) ) ]
+PriorityFilter: __.typx.TypeAlias = __.typx.Annotated[
     str,
-    _Field(
-        description = "Name of the object to extract documentation for"
-    )
+    _Field( description = __.access_doctab( 'priority filter argument' ) ),
 ]
-McpPriorityFilter: __.typx.TypeAlias = __.typx.Annotated[
-    str,
-    _Field(
-        description = "Filter objects by priority level (e.g., '1', '0')"
-    )
-]
-McpQuery: __.typx.TypeAlias = __.typx.Annotated[
-    str,
-    _Field(
-        description = "Search query for documentation content"
-    )
-]
-McpRoleFilter: __.typx.TypeAlias = __.typx.Annotated[
-    str,
-    _Field(
-        description = "Filter objects by role (e.g., 'function', 'class')"
-    )
-]
-McpSourceArgument: __.typx.TypeAlias = __.typx.Annotated[
-    str,
-    _Field(
-        description = "URL or file path to documentation source"
-    )
-]
-McpTermFilter: __.typx.TypeAlias = __.typx.Annotated[
-    str,
-    _Field(
-        description = "Filter objects by name (case-insensitive)"
-    )
-]
+Query: __.typx.TypeAlias = __.typx.Annotated[
+    str, _Field( description = __.access_doctab( 'query argument' ) ) ]
+RoleFilter: __.typx.TypeAlias = __.typx.Annotated[
+    str, _Field( description = __.access_doctab( 'role filter argument' ) ) ]
+SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
+    str, _Field( description = __.access_doctab( 'source argument' ) ) ]
+TermFilter: __.typx.TypeAlias = __.typx.Annotated[
+    str, _Field( description = __.access_doctab( 'term filter argument' ) ) ]
 
 
 _scribe = __.acquire_scribe( __name__ )
 
 
 async def query_documentation(  # noqa: PLR0913
-    source: McpSourceArgument,
-    query: McpQuery,
-    domain: McpDomainFilter = '',
-    role: McpRoleFilter = '',
-    priority: McpPriorityFilter = '',
-    match_mode: McpMatchMode = _interfaces.MatchMode.Fuzzy,
-    fuzzy_threshold: McpFuzzyThreshold = 50,
-    max_results: McpMaxResults = 10,
-    include_snippets: McpIncludeSnippets = True,
+    source: SourceArgument,
+    query: Query,
+    domain: DomainFilter = '',
+    role: RoleFilter = '',
+    priority: PriorityFilter = '',
+    match_mode: MatchMode = _interfaces.MatchMode.Fuzzy,
+    fuzzy_threshold: FuzzyThreshold = 50,
+    max_results: ResultsMax = 10,
+    include_snippets: IncludeSnippets = True,
 ) -> dict[ str, __.typx.Any ]:
     ''' Query documentation content with relevance ranking. '''
     _scribe.debug(
@@ -137,60 +96,54 @@ async def query_documentation(  # noqa: PLR0913
 
 
 async def summarize_inventory( # noqa: PLR0913
-    source: McpSourceArgument,
-    domain: McpDomainFilter = '',
-    role: McpRoleFilter = '',
-    term: McpTermFilter = '',
-    priority: McpPriorityFilter = '',
-    match_mode: McpMatchMode = _interfaces.MatchMode.Exact,
-    fuzzy_threshold: McpFuzzyThreshold = 50,
+    source: SourceArgument,
+    domain: DomainFilter = '',
+    role: RoleFilter = '',
+    term: TermFilter = '',
+    priority: PriorityFilter = '',
+    match_mode: MatchMode = _interfaces.MatchMode.Exact,
+    fuzzy_threshold: FuzzyThreshold = 50,
 ) -> str:
     ''' Provides human-readable summary of inventory. '''
     _scribe.debug(
         "summarize_inventory called: source=%s, domain=%s, role=%s, term=%s, "
         "priority=%s, match_mode=%s, fuzzy_threshold=%s",
         source, domain, role, term, priority, match_mode, fuzzy_threshold )
-    nomargs: __.NominativeArguments = { }
-    if domain: nomargs[ 'domain' ] = domain
-    if role: nomargs[ 'role' ] = role
-    if term: nomargs[ 'term' ] = term
-    if priority: nomargs[ 'priority' ] = priority
-    nomargs[ 'match_mode' ] = match_mode
-    if match_mode == _interfaces.MatchMode.Fuzzy:
-        nomargs[ 'fuzzy_threshold' ] = fuzzy_threshold
+
+    # Build filters DTO
+    filters = _interfaces.Filters(
+        domain = domain,
+        role = role,
+        priority = priority,
+        match_mode = match_mode,
+        fuzzy_threshold = fuzzy_threshold
+    )
+
     try:
-        return await _functions.summarize_inventory( source, **nomargs )
-    except KeyError as exc:
-        param_name = str( exc ).strip( "'" )
-        _scribe.error( 
-            "Missing parameter in summarize_inventory: %s", param_name )
-        return (
-            f"Error: Missing required parameter '{param_name}'. "
-            "Check function signature for required arguments." )
-    except ValueError as exc:
-        _scribe.error( 
-            "Invalid parameter value in summarize_inventory: %s", exc )
-        return f"Error: Invalid parameter value: {exc}"
+        return await _functions.summarize_inventory(
+            source, term, filters = filters )
     except Exception as exc:
         _scribe.error( "Error summarizing inventory: %s", exc )
         raise RuntimeError from exc
 
 
 async def explore(  # noqa: PLR0913
-    source: McpSourceArgument,
-    query: McpQuery,
-    domain: McpDomainFilter = '',
-    role: McpRoleFilter = '',
-    priority: McpPriorityFilter = '',
-    match_mode: McpMatchMode = _interfaces.MatchMode.Fuzzy,
-    fuzzy_threshold: McpFuzzyThreshold = 50,
+    source: SourceArgument,
+    query: Query,
+    domain: DomainFilter = '',
+    role: RoleFilter = '',
+    priority: PriorityFilter = '',
+    match_mode: MatchMode = _interfaces.MatchMode.Fuzzy,
+    fuzzy_threshold: FuzzyThreshold = 50,
     max_objects: __.typx.Annotated[
         int,
-        __.ddoc.Doc( ''' Maximum number of objects to process. ''' )
+        _Field( description = __.access_doctab( 'objects max argument' ) ),
     ] = 5,
     include_documentation: __.typx.Annotated[
         bool,
-        __.ddoc.Doc( ''' Whether to extract documentation for objects. ''' )
+        _Field(
+            description = __.access_doctab(
+                'include documentation argument' ) ),
     ] = True,
 ) -> dict[ str, __.typx.Any ]:
     ''' Explores objects by combining inventory search with documentation. '''

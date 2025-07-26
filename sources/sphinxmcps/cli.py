@@ -30,55 +30,53 @@ from . import server as _server
 _scribe = __.acquire_scribe( __name__ )
 
 
-CliDomainFilter: __.typx.TypeAlias = __.typx.Annotated[
+DomainFilter: __.typx.TypeAlias = __.typx.Annotated[
     __.typx.Optional[ str ],
-    __.ddoc.Doc( '''
-        Filter objects by Sphinx domain. Built-in domains:
-        'py' (Python), 'std' (standard), 'c' (C), 'cpp' (C++),
-        'js' (JavaScript), 'rst' (reStructuredText),
-        'math' (Mathematics). Empty string shows all domains.
-    ''' )
+    __.tyro.conf.arg( help = __.access_doctab( 'domain filter argument' ) ),
 ]
-CliFuzzyThreshold: __.typx.TypeAlias = __.typx.Annotated[
+FuzzyThreshold: __.typx.TypeAlias = __.typx.Annotated[
     int,
-    __.ddoc.Doc( ''' Fuzzy matching threshold (0-100, higher = stricter). ''' )
+    __.tyro.conf.arg( help = __.access_doctab( 'fuzzy threshold argument' ) ),
 ]
-CliMatchMode: __.typx.TypeAlias = __.typx.Annotated[
+MatchMode: __.typx.TypeAlias = __.typx.Annotated[
     _interfaces.MatchMode,
-    __.ddoc.Doc( ''' Term matching mode: Exact, Regex, or Fuzzy. ''' )
+    __.tyro.conf.arg( help = __.access_doctab( 'match mode cli argument' ) ),
 ]
-CliPortArgument: __.typx.TypeAlias = __.typx.Annotated[
-    __.typx.Optional[ int ], __.ddoc.Doc( ''' TCP port for server. ''' )
+PortArgument: __.typx.TypeAlias = __.typx.Annotated[
+    __.typx.Optional[ int ],
+    __.tyro.conf.arg( help = __.access_doctab( 'server port argument' ) ),
 ]
-CliPriorityFilter: __.typx.TypeAlias = __.typx.Annotated[
+PriorityFilter: __.typx.TypeAlias = __.typx.Annotated[
     __.typx.Optional[ str ],
-    __.ddoc.Doc( ''' Filter objects by priority level (e.g., '1', '0'). ''' )
+    __.tyro.conf.arg( help = __.access_doctab( 'priority filter argument' ) ),
 ]
-CliRoleFilter: __.typx.TypeAlias = __.typx.Annotated[
+RoleFilter: __.typx.TypeAlias = __.typx.Annotated[
     __.typx.Optional[ str ],
-    __.ddoc.Doc( ''' Filter objects by role (e.g., 'function'). ''' )
+    __.tyro.conf.arg( help = __.access_doctab( 'role filter argument' ) ),
 ]
-CliSourceArgument: __.typx.TypeAlias = __.typx.Annotated[
-    str, __.ddoc.Doc( ''' URL or file path to documentation source. ''' )
-]
-CliTermFilter: __.typx.TypeAlias = __.typx.Annotated[
-    __.typx.Optional[ str ],
-    __.ddoc.Doc( ''' Filter objects by name containing this text. ''' )
-]
-CliTransportArgument: __.typx.TypeAlias = __.typx.Annotated[
-    __.typx.Optional[ str ], __.ddoc.Doc( ''' Transport: stdio or sse. ''' )
-]
-CliQueryArgument: __.typx.TypeAlias = __.typx.Annotated[
+SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
     str,
-    __.ddoc.Doc( ''' Search query for documentation content. ''' )
+    __.tyro.conf.arg( help = __.access_doctab( 'source argument' ) ),
 ]
-CliMaxResults: __.typx.TypeAlias = __.typx.Annotated[
+TermFilter: __.typx.TypeAlias = __.typx.Annotated[
+    __.typx.Optional[ str ],
+    __.tyro.conf.arg( help = __.access_doctab( 'term filter argument' ) ),
+]
+TransportArgument: __.typx.TypeAlias = __.typx.Annotated[
+    __.typx.Optional[ str ],
+    __.tyro.conf.arg( help = __.access_doctab( 'transport argument' ) ),
+]
+QueryArgument: __.typx.TypeAlias = __.typx.Annotated[
+    str,
+    __.tyro.conf.arg( help = __.access_doctab( 'query argument' ) ),
+]
+ResultsMax: __.typx.TypeAlias = __.typx.Annotated[
     int,
-    __.ddoc.Doc( ''' Maximum number of results to return. ''' )
+    __.tyro.conf.arg( help = __.access_doctab( 'results max argument' ) ),
 ]
-CliIncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
+IncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
     bool,
-    __.ddoc.Doc( ''' Include content snippets in results. ''' )
+    __.tyro.conf.arg( help = __.access_doctab( 'include snippets argument' ) ),
 ]
 
 
@@ -87,31 +85,28 @@ class SummarizeInventoryCommand(
 ):
     ''' Provides human-readable summary of inventory. '''
 
-    source: CliSourceArgument
-    domain: CliDomainFilter = None
-    role: CliRoleFilter = None
-    term: CliTermFilter = None
-    priority: CliPriorityFilter = None
-    match_mode: CliMatchMode = _interfaces.MatchMode.Exact
-    fuzzy_threshold: CliFuzzyThreshold = 50
+    source: SourceArgument
+    domain: DomainFilter = None
+    role: RoleFilter = None
+    term: TermFilter = None
+    priority: PriorityFilter = None
+    match_mode: MatchMode = _interfaces.MatchMode.Exact
+    fuzzy_threshold: FuzzyThreshold = 50
 
     async def __call__(
         self, auxdata: __.Globals, display: __.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
-        nomargs: __.NominativeArguments = { }
-        if self.domain is not None:
-            nomargs[ 'domain' ] = self.domain
-        if self.role is not None:
-            nomargs[ 'role' ] = self.role
-        if self.term is not None:
-            nomargs[ 'term' ] = self.term
-        if self.priority is not None:
-            nomargs[ 'priority' ] = self.priority
-        nomargs[ 'match_mode' ] = self.match_mode
-        if self.match_mode == _interfaces.MatchMode.Fuzzy:
-            nomargs[ 'fuzzy_threshold' ] = self.fuzzy_threshold
-        result = await _functions.summarize_inventory( self.source, **nomargs )
+        # Build filters DTO
+        filters = _interfaces.Filters(
+            domain = self.domain or "",
+            role = self.role or "",
+            priority = self.priority or "",
+            match_mode = self.match_mode,
+            fuzzy_threshold = self.fuzzy_threshold
+        )
+        result = await _functions.summarize_inventory(
+            self.source, self.term or "", filters = filters )
         print( result, file = stream )
 
 
@@ -123,14 +118,14 @@ class QueryDocumentationCommand(
 ):
     ''' Queries documentation content with relevance ranking. '''
 
-    source: CliSourceArgument
-    query: CliQueryArgument
+    source: SourceArgument
+    query: QueryArgument
     filters: __.typx.Annotated[
         _interfaces.Filters,
         __.tyro.conf.arg( prefix_name = False ),
     ] = _filters_default
-    max_results: CliMaxResults = 10
-    include_snippets: CliIncludeSnippets = True
+    max_results: ResultsMax = 10
+    include_snippets: IncludeSnippets = True
 
     async def __call__(
         self, auxdata: __.Globals, display: __.ConsoleDisplay
@@ -153,18 +148,20 @@ class ExploreCommand(
 ):
     ''' Explores objects by combining inventory search with documentation. '''
 
-    source: CliSourceArgument
-    query: CliQueryArgument
+    source: SourceArgument
+    query: QueryArgument
     filters: __.typx.Annotated[
         _interfaces.Filters,
         __.tyro.conf.arg( prefix_name = False ),
     ] = _filters_default
     max_objects: __.typx.Annotated[
-        int, __.ddoc.Doc( ''' Maximum number of objects to process. ''' )
+        int,
+        __.tyro.conf.arg( help = __.access_doctab( 'objects max argument' ) ),
     ] = 5
     include_documentation: __.typx.Annotated[
         bool,
-        __.ddoc.Doc( ''' Whether to extract documentation for objects. ''' )
+        __.tyro.conf.arg(
+            help = __.access_doctab( 'include documentation argument' ) ),
     ] = True
 
     async def __call__(
@@ -217,8 +214,8 @@ class ServeCommand(
 ):
     ''' Starts MCP server. '''
 
-    port: CliPortArgument = None
-    transport: CliTransportArgument = None
+    port: PortArgument = None
+    transport: TransportArgument = None
     serve_function: __.typx.Callable[
         [ __.Globals ], __.cabc.Awaitable[ None ]
     ] = _server.serve
@@ -249,7 +246,8 @@ class Cli( __.immut.DataclassObject, decorators = ( __.simple_tyro_class, ) ):
     ]
     logfile: __.typx.Annotated[
         __.typx.Optional[ str ],
-        __.ddoc.Doc( ''' Path to log capture file. ''' ),
+        __.tyro.conf.arg(
+            help = __.access_doctab( 'log file path argument' ) ),
     ] = None
 
     async def __call__( self ):

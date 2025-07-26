@@ -29,45 +29,22 @@ from . import xtnsapi as _xtnsapi
 
 DocumentationResult: __.typx.TypeAlias = __.cabc.Mapping[ str, __.typx.Any ]
 DomainFilter: __.typx.TypeAlias = __.typx.Annotated[
-    __.Absential[ str ],
-    __.ddoc.Doc( '''
-        Filter objects by Sphinx domain. Built-in domains:
-        'py' (Python), 'std' (standard), 'c' (C), 'cpp' (C++),
-        'js' (JavaScript), 'rst' (reStructuredText),
-        'math' (Mathematics). Empty string shows all domains.
-    ''' )
-]
+    __.Absential[ str ], __.ddoc.Fname( 'domain filter argument' ) ]
 FuzzyThreshold: __.typx.TypeAlias = __.typx.Annotated[
-    int,
-    __.ddoc.Doc( ''' Fuzzy matching threshold (0-100, higher = stricter). ''' )
-]
+    int, __.ddoc.Fname( 'fuzzy threshold argument' ) ]
 RoleFilter: __.typx.TypeAlias = __.typx.Annotated[
-    __.Absential[ str ],
-    __.ddoc.Doc( ''' Filter objects by role (e.g., 'function'). ''' )
-]
+    __.Absential[ str ], __.ddoc.Fname( 'role filter argument' ) ]
 TermFilter: __.typx.TypeAlias = __.typx.Annotated[
-    __.Absential[ str ],
-    __.ddoc.Doc( ''' Filter objects by name containing this text. ''' )
-]
+    __.Absential[ str ], __.ddoc.Fname( 'term filter argument' ) ]
 MatchModeArgument: __.typx.TypeAlias = __.typx.Annotated[
-    _interfaces.MatchMode,
-    __.ddoc.Doc( ''' Term matching mode: exact, regex, or fuzzy. ''' )
-]
+    _interfaces.MatchMode, __.ddoc.Fname( 'match mode argument' ) ]
 PriorityFilter: __.typx.TypeAlias = __.typx.Annotated[
-    __.Absential[ str ],
-    __.ddoc.Doc( ''' Filter objects by priority level (e.g., '1', '0'). ''' )
-]
-RegexFlag: __.typx.TypeAlias = __.typx.Annotated[
-    bool, __.ddoc.Doc( ''' Use regex pattern matching for term filter. ''' )
-]
+    __.Absential[ str ], __.ddoc.Fname( 'priority filter argument' ) ]
 SearchResult: __.typx.TypeAlias = __.cabc.Mapping[ str, __.typx.Any ]
 SectionFilter: __.typx.TypeAlias = __.typx.Annotated[
-    __.Absential[ list[ str ] ],
-    __.ddoc.Doc( ''' Sections to include (signature, description). ''' )
-]
+    __.Absential[ list[ str ] ], __.ddoc.Fname( 'section filter argument' ) ]
 SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
-    str, __.ddoc.Doc( ''' URL or file path to documentation source. ''' )
-]
+    str, __.ddoc.Fname( 'source argument' ) ]
 
 
 async def query_documentation(
@@ -77,14 +54,12 @@ async def query_documentation(
     max_results: int = 10,
     include_snippets: bool = True
 ) -> __.typx.Annotated[
-    dict[ str, __.typx.Any ],
-    __.ddoc.Doc( ''' Search results with metadata in explore format. ''' )
-]:
+    dict[ str, __.typx.Any ], __.ddoc.Fname( 'documentation return' ) ]:
     ''' Queries documentation content with relevance ranking. '''
     if filters is None:
         filters = _interfaces.Filters( )
     processor = await _select_processor_for_source( source )
-    
+
     # Get raw query results from processor
     raw_results = await processor.query_documentation(
         source, query,
@@ -95,38 +70,24 @@ async def query_documentation(
         fuzzy_threshold = filters.fuzzy_threshold,
         max_results = max_results,
         include_snippets = include_snippets )
-    
+
     # Transform to explore-style format
-    return _build_query_result_structure( 
+    return _build_query_result_structure(
         source, query, raw_results, max_results, filters )
 
 
-async def summarize_inventory( # noqa: PLR0913
-    source: SourceArgument, /, *,
-    domain: DomainFilter = __.absent,
-    role: RoleFilter = __.absent,
-    term: TermFilter = __.absent,
-    priority: PriorityFilter = __.absent,
-    match_mode: MatchModeArgument = _interfaces.MatchMode.Exact,
-    fuzzy_threshold: FuzzyThreshold = 50,
+async def summarize_inventory(
+    source: SourceArgument,
+    query: str = "", /, *,
+    filters: _interfaces.Filters | None = None,
 ) -> __.typx.Annotated[
-    str,
-    __.ddoc.Doc( ''' Human-readable summary of inventory contents. ''' )
-]:
+    str, __.ddoc.Fname( 'inventory summary return' ) ]:
     ''' Provides human-readable summary of inventory. '''
-    # Build filters DTO for explore function
-    filters = _interfaces.Filters(
-        domain = domain if not __.is_absent( domain ) else "",
-        role = role if not __.is_absent( role ) else "",
-        priority = priority if not __.is_absent( priority ) else "",
-        match_mode = match_mode,
-        fuzzy_threshold = fuzzy_threshold
-    )
+    if filters is None:
+        filters = _interfaces.Filters( )
     # Use explore with no documentation to get inventory data
     explore_result = await explore(
-        source, 
-        term if not __.is_absent( term ) else "",
-        filters = filters,
+        source, query, filters = filters,
         max_objects = 1000,  # Large number to get all matches
         include_documentation = False
     )
@@ -171,13 +132,7 @@ async def explore(
     max_objects: int = 5,
     include_documentation: bool = True,
 ) -> __.typx.Annotated[
-    dict[ str, __.typx.Any ],
-    __.ddoc.Doc( '''
-        Combined inventory search and documentation extraction results.
-        Contains search metadata, matching objects, successful documentation
-        extractions, and any errors encountered.
-    ''' )
-]:
+    dict[ str, __.typx.Any ], __.ddoc.Fname( 'explore return' ) ]:
     '''
     Explores objects related to a query by combining inventory search
     with documentation extraction.
@@ -191,7 +146,7 @@ async def explore(
         filters = _interfaces.Filters( )
     processor = await _select_processor_for_source( source )
     result_mapping = await processor.extract_inventory(
-        source, 
+        source,
         domain = filters.domain if filters.domain else __.absent,
         role = filters.role if filters.role else __.absent,
         term = query,
@@ -204,7 +159,7 @@ async def explore(
     inventory_data[ 'source' ] = source
     domains_summary: dict[ str, int ] = {
         domain_name: len( objs )
-        for domain_name, objs in inventory_data[ 'objects' ].items( ) 
+        for domain_name, objs in inventory_data[ 'objects' ].items( )
     }
     inventory_data[ 'domains' ] = domains_summary
     selected_objects = _select_top_objects( inventory_data, max_objects )

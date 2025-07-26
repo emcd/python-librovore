@@ -29,6 +29,7 @@ from . import exceptions
 # --- END: Injected by Copier ---
 
 
+__version__: str
 __version__ = '1.0a0'
 
 
@@ -38,4 +39,5 @@ def main( ):
     execute( )
 
 
-__.immut.finalize_module( __name__, recursive = True )
+__.immut.finalize_module(
+    __name__, dynadoc_table = __.doctab, recursive = True )
