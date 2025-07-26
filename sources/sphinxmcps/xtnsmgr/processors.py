@@ -63,15 +63,8 @@ async def _ensure_external_packages(
     count = len( specifications )
     _scribe.info( f"Ensuring {count} external packages available." )
     tasks = [ _cachemgr.ensure_package( spec ) for spec in specifications ]
-    try:
-        await __.asyncf.gather_async(
-            *tasks, error_message = "Failed to install external packages." )
-    except __.excg.ExceptionGroup as exc_group:
-        for exc in exc_group.exceptions:
-            _scribe.error( f"Package installation failed: {exc}." )
-        raise
-    else:
-        _scribe.info( "Successfully ensured all external packages." )
+    await __.asyncf.gather_async(
+        *tasks, error_message = "Failed to install external packages." )
 
 
 def _register_extension(

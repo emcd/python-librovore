@@ -18,9 +18,22 @@
 #============================================================================#
 
 
-''' Common constants, imports, and utilities. '''
+''' Logging utilities. '''
 
 
-from .imports import *
-from .inscription import *
-from .nomina import *
+import logging as _logging
+
+from . import imports as __
+
+
+def report_exceptions(
+    exception: BaseException | __.excg.ExceptionGroup[ Exception ],
+    scribe: _logging.Logger,
+) -> None:
+    ''' Reports exception groups or individual exceptions to logger. '''
+    if isinstance( exception, __.excg.ExceptionGroup ):
+        for exc in exception.exceptions: # pyright: ignore
+            report_exceptions( exc, scribe ) # pyright: ignore
+    else:
+        scribe.error( "{exception_class}: {exception}".format(
+            exception_class = type( exception ), exception = exception ) )

@@ -138,9 +138,9 @@ class QueryDocumentationCommand(
         stream = await display.provide_stream( )
         try:
             result = await _functions.query_documentation(
-                self.source, self.query, 
+                self.source, self.query,
                 filters = self.filters,
-                max_results = self.max_results, 
+                max_results = self.max_results,
                 include_snippets = self.include_snippets )
             print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
@@ -278,18 +278,13 @@ class Cli(
 
 def execute( ) -> None:
     ''' Entrypoint for CLI execution. '''
-    from asyncio import run
     config = (
         __.tyro.conf.HelptextFromCommentsOff,
     )
-    try: run( __.tyro.cli( Cli, config = config )( ) )
+    try: __.asyncio.run( __.tyro.cli( Cli, config = config )( ) )
     except SystemExit: raise
-    except __.excg.ExceptionGroup as exc_group:
-        for exc in exc_group.exceptions:
-            _scribe.error( f"CLI command failed: {exc}" )
-        raise SystemExit( 1 ) from None
     except BaseException as exc:
-        _scribe.error( f"CLI command failed: {exc}" )
+        __.report_exceptions( exc, _scribe )
         raise SystemExit( 1 ) from None
 
 
