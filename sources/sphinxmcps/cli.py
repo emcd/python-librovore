@@ -105,12 +105,9 @@ class ExtractInventoryCommand(
             nomargs[ 'term' ] = self.term
         if self.priority is not None:
             nomargs[ 'priority' ] = self.priority
-
-        # Pass through match mode directly
         nomargs[ 'match_mode' ] = self.match_mode
         if self.match_mode == _interfaces.MatchMode.Fuzzy:
             nomargs[ 'fuzzy_threshold' ] = self.fuzzy_threshold
-
         data = await _functions.extract_inventory( self.source, **nomargs )
         print( __.json.dumps( data, indent = 2 ), file = stream )
 
@@ -141,12 +138,9 @@ class SummarizeInventoryCommand(
             nomargs[ 'term' ] = self.term
         if self.priority is not None:
             nomargs[ 'priority' ] = self.priority
-
-        # Pass through match mode directly
         nomargs[ 'match_mode' ] = self.match_mode
         if self.match_mode == _interfaces.MatchMode.Fuzzy:
             nomargs[ 'fuzzy_threshold' ] = self.fuzzy_threshold
-
         result = await _functions.summarize_inventory( self.source, **nomargs )
         print( result, file = stream )
 
@@ -166,7 +160,6 @@ class ExtractDocumentationCommand(
         self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
-
         result = await _functions.extract_documentation(
             self.source, self.object_name )
         print( __.json.dumps( result, indent = 2 ), file = stream )
@@ -192,21 +185,53 @@ class QueryDocumentationCommand(
     ) -> None:
         stream = await display.provide_stream( )
         nomargs: __.NominativeArguments = { }
-
         if self.domain is not None:
             nomargs[ 'domain' ] = self.domain
         if self.role is not None:
             nomargs[ 'role' ] = self.role
         if self.priority is not None:
             nomargs[ 'priority' ] = self.priority
-
         nomargs[ 'match_mode' ] = self.match_mode
         nomargs[ 'fuzzy_threshold' ] = self.fuzzy_threshold
         nomargs[ 'max_results' ] = self.max_results
         nomargs[ 'include_snippets' ] = self.include_snippets
-
         result = await _functions.query_documentation(
             self.source, self.query, **nomargs )
+        print( __.json.dumps( result, indent = 2 ), file = stream )
+
+
+_filters_default = _functions.Filters( )
+
+
+class ExploreCommand(
+    _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
+):
+    ''' Explores objects by combining inventory search with documentation. '''
+
+    source: CliSourceArgument
+    query: CliQueryArgument
+    filters: __.typx.Annotated[
+        _functions.Filters,
+        __.tyro.conf.arg( prefix_name = False ),
+    ] = _filters_default
+    max_objects: __.typx.Annotated[
+        int, __.ddoc.Doc( ''' Maximum number of objects to process. ''' )
+    ] = 5
+    include_documentation: __.typx.Annotated[
+        bool,
+        __.ddoc.Doc( ''' Whether to extract documentation for objects. ''' )
+    ] = True
+
+    async def __call__(
+        self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
+    ) -> None:
+        stream = await display.provide_stream( )
+        result = await _functions.explore(
+            self.source,
+            self.query,
+            filters = self.filters,
+            max_objects = self.max_objects,
+            include_documentation = self.include_documentation )
         print( __.json.dumps( result, indent = 2 ), file = stream )
 
 
@@ -219,26 +244,26 @@ class UseCommand(
         __.typx.Annotated[
             ExtractInventoryCommand,
             __.tyro.conf.subcommand(
-                'extract-inventory', prefix_name = False
-            ),
+                'extract-inventory', prefix_name = False ),
         ],
         __.typx.Annotated[
             SummarizeInventoryCommand,
             __.tyro.conf.subcommand(
-                'summarize-inventory', prefix_name = False
-            ),
+                'summarize-inventory', prefix_name = False ),
         ],
         __.typx.Annotated[
             ExtractDocumentationCommand,
             __.tyro.conf.subcommand(
-                'extract-documentation', prefix_name = False
-            ),
+                'extract-documentation', prefix_name = False ),
         ],
         __.typx.Annotated[
             QueryDocumentationCommand,
             __.tyro.conf.subcommand(
-                'query-documentation', prefix_name = False
-            ),
+                'query-documentation', prefix_name = False ),
+        ],
+        __.typx.Annotated[
+            ExploreCommand,
+            __.tyro.conf.subcommand( 'explore', prefix_name = False ),
         ],
     ]
 

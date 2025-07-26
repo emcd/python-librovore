@@ -70,6 +70,16 @@ SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
 ]
 
 
+class Filters( __.immut.DataclassObject ):
+    ''' Common filters for inventory and documentation search. '''
+
+    domain: str = ""
+    role: str = ""
+    priority: str = ""
+    match_mode: _interfaces.MatchMode = _interfaces.MatchMode.Fuzzy
+    fuzzy_threshold: int = 50
+
+
 async def extract_documentation(
     source: SourceArgument,
     object_name: str, /, *,
@@ -154,6 +164,166 @@ async def summarize_inventory( # noqa: PLR0913
         priority = priority, match_mode = match_mode,
         fuzzy_threshold = fuzzy_threshold )
     return _format_inventory_summary( inventory_data )
+
+
+async def explore(
+    source: SourceArgument,
+    query: str, /, *,
+    filters: Filters | None = None,
+    max_objects: int = 5,
+    include_documentation: bool = True,
+) -> __.typx.Annotated[
+    dict[ str, __.typx.Any ],
+    __.ddoc.Doc( '''
+        Combined inventory search and documentation extraction results.
+        Contains search metadata, matching objects, successful documentation
+        extractions, and any errors encountered.
+    ''' )
+]:
+    '''
+    Explores objects related to a query by combining inventory search
+    with documentation extraction.
+
+    This function streamlines the common workflow of searching inventory
+    for relevant objects and then extracting detailed documentation for
+    each match. It handles errors gracefully by separating successful
+    results from failed extractions.
+    '''
+    if filters is None:
+        filters = Filters( )
+    inventory_data = await extract_inventory(
+        source,
+        domain = filters.domain if filters.domain else __.absent,
+        role = filters.role if filters.role else __.absent,
+        term = query,
+        priority = filters.priority if filters.priority else __.absent,
+        match_mode = filters.match_mode,
+        fuzzy_threshold = filters.fuzzy_threshold
+    )
+    selected_objects = _select_top_objects( inventory_data, max_objects )
+    result = _build_explore_result_structure(
+        inventory_data, query, selected_objects, max_objects, filters )
+    if include_documentation:
+        await _add_documentation_to_results( source, selected_objects, result )
+    else:
+        _add_object_metadata_to_results( selected_objects, result )
+    return result
+
+
+def _select_top_objects(
+    inventory_data: dict[ str, __.typx.Any ],
+    max_objects: int
+) -> list[ dict[ str, __.typx.Any ] ]:
+    ''' Selects top objects from inventory, sorted by fuzzy score. '''
+    all_objects: list[ dict[ str, __.typx.Any ] ] = [ ]
+    for domain_objects in inventory_data[ 'objects' ].values( ):
+        all_objects.extend( domain_objects )
+    all_objects.sort(
+        key = lambda obj: obj.get( 'fuzzy_score', 0 ),
+        reverse = True
+    )
+    return all_objects[ :max_objects ]
+
+
+def _build_explore_result_structure(
+    inventory_data: dict[ str, __.typx.Any ],
+    query: str,
+    selected_objects: list[ dict[ str, __.typx.Any ] ],
+    max_objects: int,
+    filters: Filters,
+) -> dict[ str, __.typx.Any ]:
+    ''' Builds the base result structure with metadata. '''
+    filter_metadata: dict[ str, __.typx.Any ] = { }
+    _populate_filter_metadata( filter_metadata, filters )
+
+    search_metadata: dict[ str, __.typx.Any ] = {
+        'object_count': len( selected_objects ),
+        'max_objects': max_objects,
+        'total_matches': inventory_data[ 'object_count' ],
+        'filters': filter_metadata
+    }
+
+    result: dict[ str, __.typx.Any ] = {
+        'project': inventory_data[ 'project' ],
+        'version': inventory_data[ 'version' ],
+        'query': query,
+        'search_metadata': search_metadata,
+        'documents': [ ],
+        'errors': [ ]
+    }
+    return result
+
+
+def _populate_filter_metadata(
+    metadata: dict[ str, __.typx.Any ],
+    filters: Filters
+) -> None:
+    ''' Populates filter metadata dictionary with non-empty filters. '''
+    if filters.domain:
+        metadata[ 'domain' ] = filters.domain
+    if filters.role:
+        metadata[ 'role' ] = filters.role
+    if filters.priority:
+        metadata[ 'priority' ] = filters.priority
+    metadata[ 'match_mode' ] = filters.match_mode.value
+    if filters.match_mode == _interfaces.MatchMode.Fuzzy:
+        metadata[ 'fuzzy_threshold' ] = filters.fuzzy_threshold
+
+
+async def _add_documentation_to_results(
+    source: str,
+    selected_objects: list[ dict[ str, __.typx.Any ] ],
+    result: dict[ str, __.typx.Any ],
+) -> None:
+    ''' Extracts documentation for objects and adds to results. '''
+    for obj in selected_objects:
+        try:
+            doc_result = await extract_documentation( source, obj[ 'name' ] )
+            document = _create_document_with_docs( obj, doc_result )
+            result[ 'documents' ].append( document )
+        except Exception as exc:  # noqa: PERF203
+            error_info: dict[ str, __.typx.Any ] = {
+                'name': obj[ 'name' ],
+                'domain': obj.get( 'domain', '' ),
+                'error': f"Documentation extraction failed: {exc}"
+            }
+            result[ 'errors' ].append( error_info )
+
+
+def _add_object_metadata_to_results(
+    selected_objects: list[ dict[ str, __.typx.Any ] ],
+    result: dict[ str, __.typx.Any ],
+) -> None:
+    ''' Adds object metadata without documentation to results. '''
+    for obj in selected_objects:
+        document = _create_document_metadata( obj )
+        result[ 'documents' ].append( document )
+
+
+def _create_document_with_docs(
+    obj: dict[ str, __.typx.Any ],
+    doc_result: __.cabc.Mapping[ str, __.typx.Any ],
+) -> dict[ str, __.typx.Any ]:
+    ''' Creates document structure with documentation content. '''
+    document = _create_document_metadata( obj )
+    document[ 'documentation' ] = doc_result
+    return document
+
+
+def _create_document_metadata(
+    obj: dict[ str, __.typx.Any ]
+) -> dict[ str, __.typx.Any ]:
+    ''' Creates base document structure from object metadata. '''
+    document = {
+        'name': obj[ 'name' ],
+        'role': obj[ 'role' ],
+        'domain': obj.get( 'domain', '' ),
+        'uri': obj[ 'uri' ],
+        'dispname': obj[ 'dispname' ]
+    }
+    if 'fuzzy_score' in obj:
+        document[ 'fuzzy_score' ] = obj[ 'fuzzy_score' ]
+    return document
 
 
 def _format_inventory_summary(
