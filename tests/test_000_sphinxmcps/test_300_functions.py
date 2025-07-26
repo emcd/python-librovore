@@ -36,58 +36,66 @@ from .fixtures import get_test_inventory_path
 async def test_100_extract_inventory_local_file( ):
     ''' Extract inventory processes local inventory files. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = await module.extract_inventory( inventory_path )
+    result = await module.explore( 
+        inventory_path, "", include_documentation = False )
     assert 'project' in result
-    assert 'objects' in result
+    assert 'documents' in result
 
 
 @pytest.mark.asyncio
 async def test_110_extract_inventory_with_domain_filter( ):
     ''' Extract inventory applies domain filtering correctly. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = await module.extract_inventory( inventory_path, domain = 'py' )
-    assert 'filters' in result
-    assert result[ 'filters' ][ 'domain' ] == 'py'
+    filters = _interfaces.Filters( domain = 'py' )
+    result = await module.explore( 
+        inventory_path, "", filters = filters, include_documentation = False )
+    assert 'search_metadata' in result
+    assert result[ 'search_metadata' ][ 'filters' ][ 'domain' ] == 'py'
 
 
 @pytest.mark.asyncio
 async def test_120_extract_inventory_with_role_filter( ):
     ''' Extract inventory applies role filtering correctly. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = await module.extract_inventory(
-        inventory_path, role = 'module' )
-    assert 'filters' in result
-    assert result[ 'filters' ][ 'role' ] == 'module'
+    filters = _interfaces.Filters( role = 'module' )
+    result = await module.explore(
+        inventory_path, "", filters = filters, include_documentation = False )
+    assert 'search_metadata' in result
+    assert result[ 'search_metadata' ][ 'filters' ][ 'role' ] == 'module'
 
 
 @pytest.mark.asyncio
 async def test_130_extract_inventory_with_search_filter( ):
     ''' Extract inventory applies search filtering correctly. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = await module.extract_inventory(
-        inventory_path, term = 'test' )
-    assert 'filters' in result
-    assert result[ 'filters' ][ 'term' ] == 'test'
+    result = await module.explore(
+        inventory_path, "test", include_documentation = False )
+    assert 'search_metadata' in result
+    # Note: term is now the query parameter, not in filters
+    assert result[ 'query' ] == 'test'
 
 
 @pytest.mark.asyncio
 async def test_140_extract_inventory_with_all_filters( ):
     ''' Extract inventory applies multiple filters correctly. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = await module.extract_inventory(
-        inventory_path, domain = 'py', role = 'module', term = 'test' )
-    assert 'filters' in result
-    filters = result[ 'filters' ]
-    assert filters[ 'domain' ] == 'py'
-    assert filters[ 'role' ] == 'module'
-    assert filters[ 'term' ] == 'test'
+    filters = _interfaces.Filters( domain = 'py', role = 'module' )
+    result = await module.explore(
+        inventory_path, "test", filters = filters, 
+        include_documentation = False )
+    assert 'search_metadata' in result
+    search_filters = result[ 'search_metadata' ][ 'filters' ]
+    assert search_filters[ 'domain' ] == 'py'
+    assert search_filters[ 'role' ] == 'module'
+    assert result[ 'query' ] == 'test'
 
 
 @pytest.mark.asyncio
 async def test_150_extract_inventory_nonexistent_file( ):
     ''' Extract inventory raises appropriate exception for missing files. '''
     with pytest.raises( _exceptions.ProcessorNotFound ):
-        await module.extract_inventory( "/nonexistent/path.inv" )
+        await module.explore( 
+            "/nonexistent/path.inv", "", include_documentation = False )
 
 
 @pytest.mark.asyncio
@@ -96,9 +104,10 @@ async def test_160_extract_inventory_auto_append_objects_inv( ):
     real_inventory_path = get_test_inventory_path( 'sphinxmcps' )
     inventory_dir = str( Path( real_inventory_path ).parent )
     # Test without objects.inv suffix
-    result = await module.extract_inventory( inventory_dir )
+    result = await module.explore( 
+        inventory_dir, "", include_documentation = False )
     assert 'project' in result
-    assert 'objects' in result
+    assert 'documents' in result
 
 
 @pytest.mark.asyncio
@@ -524,9 +533,10 @@ async def test_660_query_documentation_result_structure( ):
 async def test_700_extract_documentation_with_object_not_found( ):
     ''' Extract documentation handles object not found gracefully. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = await module.extract_documentation(
-        inventory_path, 'nonexistent_object' )
-    assert 'error' in result
+    result = await module.explore(
+        inventory_path, 'nonexistent_object', max_objects = 1 )
+    # explore returns errors array instead of error field
+    assert 'errors' in result
     assert 'not found in inventory' in result[ 'error' ]
 
 
