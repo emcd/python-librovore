@@ -79,39 +79,6 @@ CliIncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
 ]
 
 
-class ExtractInventoryCommand(
-    _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
-):
-    ''' Extracts inventory with optional filtering. '''
-
-    source: CliSourceArgument
-    domain: CliDomainFilter = None
-    role: CliRoleFilter = None
-    term: CliTermFilter = None
-    priority: CliPriorityFilter = None
-    match_mode: CliMatchMode = _interfaces.MatchMode.Exact
-    fuzzy_threshold: CliFuzzyThreshold = 50
-
-    async def __call__(
-        self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
-    ) -> None:
-        stream = await display.provide_stream( )
-        nomargs: __.NominativeArguments = { }
-        if self.domain is not None:
-            nomargs[ 'domain' ] = self.domain
-        if self.role is not None:
-            nomargs[ 'role' ] = self.role
-        if self.term is not None:
-            nomargs[ 'term' ] = self.term
-        if self.priority is not None:
-            nomargs[ 'priority' ] = self.priority
-        nomargs[ 'match_mode' ] = self.match_mode
-        if self.match_mode == _interfaces.MatchMode.Fuzzy:
-            nomargs[ 'fuzzy_threshold' ] = self.fuzzy_threshold
-        data = await _functions.extract_inventory( self.source, **nomargs )
-        print( __.json.dumps( data, indent = 2 ), file = stream )
-
-
 class SummarizeInventoryCommand(
     _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
@@ -143,26 +110,6 @@ class SummarizeInventoryCommand(
             nomargs[ 'fuzzy_threshold' ] = self.fuzzy_threshold
         result = await _functions.summarize_inventory( self.source, **nomargs )
         print( result, file = stream )
-
-
-class ExtractDocumentationCommand(
-    _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
-):
-    ''' Extracts documentation for a specific object from source. '''
-
-    source: CliSourceArgument
-    object_name: __.typx.Annotated[
-        str, __.ddoc.Doc(
-            ''' Name of the object to extract documentation for. ''' )
-    ]
-
-    async def __call__(
-        self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
-    ) -> None:
-        stream = await display.provide_stream( )
-        result = await _functions.extract_documentation(
-            self.source, self.object_name )
-        print( __.json.dumps( result, indent = 2 ), file = stream )
 
 
 class QueryDocumentationCommand(
@@ -242,19 +189,9 @@ class UseCommand(
 
     operation: __.typx.Union[
         __.typx.Annotated[
-            ExtractInventoryCommand,
-            __.tyro.conf.subcommand(
-                'extract-inventory', prefix_name = False ),
-        ],
-        __.typx.Annotated[
             SummarizeInventoryCommand,
             __.tyro.conf.subcommand(
                 'summarize-inventory', prefix_name = False ),
-        ],
-        __.typx.Annotated[
-            ExtractDocumentationCommand,
-            __.tyro.conf.subcommand(
-                'extract-documentation', prefix_name = False ),
         ],
         __.typx.Annotated[
             QueryDocumentationCommand,

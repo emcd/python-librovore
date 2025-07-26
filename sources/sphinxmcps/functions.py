@@ -70,17 +70,6 @@ SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
 ]
 
 
-async def extract_documentation(
-    source: SourceArgument,
-    object_name: str, /, *,
-    include_sections: SectionFilter = __.absent,
-) -> DocumentationResult:
-    ''' Extracts documentation for a specific object from source. '''
-    processor = await _select_processor_for_source( source )
-    return await processor.extract_documentation(
-        source, object_name, include_sections = include_sections )
-
-
 async def query_documentation(  # noqa: PLR0913
     source: SourceArgument,
     query: str, /, *,
@@ -103,39 +92,6 @@ async def query_documentation(  # noqa: PLR0913
         max_results = max_results, include_snippets = include_snippets )
 
 
-async def extract_inventory( # noqa: PLR0913
-    source: SourceArgument, /, *,
-    domain: DomainFilter = __.absent,
-    role: RoleFilter = __.absent,
-    term: TermFilter = __.absent,
-    priority: PriorityFilter = __.absent,
-    match_mode: MatchModeArgument = _interfaces.MatchMode.Exact,
-    fuzzy_threshold: FuzzyThreshold = 50,
-) -> __.typx.Annotated[
-    dict[ str, __.typx.Any ],
-    __.ddoc.Doc(
-        ''' Dictionary containing inventory metadata and filtered objects.
-
-            Contains project info, version, source, object counts, domain
-            summary, and the actual objects grouped by domain.
-        ''' )
-]:
-    ''' Extracts inventory from source with optional filtering. '''
-    processor = await _select_processor_for_source( source )
-    result_mapping = await processor.extract_inventory(
-        source, domain = domain, role = role, term = term,
-        priority = priority, match_mode = match_mode,
-        fuzzy_threshold = fuzzy_threshold )
-    # Convert to mutable dict so we can add fields
-    result = dict( result_mapping )
-    result[ 'source' ] = source
-    domains_summary: dict[ str, int ] = {
-        domain_name: len( objs )
-        for domain_name, objs in result[ 'objects' ].items( ) }
-    result[ 'domains' ] = domains_summary
-    return result
-
-
 async def summarize_inventory( # noqa: PLR0913
     source: SourceArgument, /, *,
     domain: DomainFilter = __.absent,
@@ -149,11 +105,54 @@ async def summarize_inventory( # noqa: PLR0913
     __.ddoc.Doc( ''' Human-readable summary of inventory contents. ''' )
 ]:
     ''' Provides human-readable summary of inventory. '''
-    inventory_data = await extract_inventory(
-        source, domain = domain, role = role, term = term,
-        priority = priority, match_mode = match_mode,
-        fuzzy_threshold = fuzzy_threshold )
+    # Build filters DTO for explore function
+    filters = _interfaces.Filters(
+        domain = domain if not __.is_absent( domain ) else "",
+        role = role if not __.is_absent( role ) else "",
+        priority = priority if not __.is_absent( priority ) else "",
+        match_mode = match_mode,
+        fuzzy_threshold = fuzzy_threshold
+    )
+    # Use explore with no documentation to get inventory data
+    explore_result = await explore(
+        source, 
+        term if not __.is_absent( term ) else "",
+        filters = filters,
+        max_objects = 1000,  # Large number to get all matches
+        include_documentation = False
+    )
+    # Convert explore result back to extract_inventory format for formatting
+    inventory_data: dict[ str, __.typx.Any ] = {
+        'project': explore_result[ 'project' ],
+        'version': explore_result[ 'version' ],
+        'object_count': explore_result[ 'search_metadata' ][ 'total_matches' ],
+        'objects': _group_documents_by_domain( explore_result[ 'documents' ] ),
+        'filters': explore_result[ 'search_metadata' ][ 'filters' ]
+    }
     return _format_inventory_summary( inventory_data )
+
+
+def _group_documents_by_domain(
+    documents: list[ dict[ str, __.typx.Any ] ]
+) -> dict[ str, list[ dict[ str, __.typx.Any ] ] ]:
+    ''' Groups documents by domain for inventory format compatibility. '''
+    groups: dict[ str, list[ dict[ str, __.typx.Any ] ] ] = { }
+    for doc in documents:
+        domain = doc.get( 'domain', '' )
+        if domain not in groups:
+            groups[ domain ] = [ ]
+        # Convert document format back to inventory object format
+        inventory_obj = {
+            'name': doc[ 'name' ],
+            'role': doc[ 'role' ],
+            'domain': doc[ 'domain' ],
+            'uri': doc[ 'uri' ],
+            'dispname': doc[ 'dispname' ]
+        }
+        if 'fuzzy_score' in doc:
+            inventory_obj[ 'fuzzy_score' ] = doc[ 'fuzzy_score' ]
+        groups[ domain ].append( inventory_obj )
+    return groups
 
 
 async def explore(
@@ -181,8 +180,9 @@ async def explore(
     '''
     if filters is None:
         filters = _interfaces.Filters( )
-    inventory_data = await extract_inventory(
-        source,
+    processor = await _select_processor_for_source( source )
+    result_mapping = await processor.extract_inventory(
+        source, 
         domain = filters.domain if filters.domain else __.absent,
         role = filters.role if filters.role else __.absent,
         term = query,
@@ -190,6 +190,14 @@ async def explore(
         match_mode = filters.match_mode,
         fuzzy_threshold = filters.fuzzy_threshold
     )
+    # Convert to mutable dict and add additional fields
+    inventory_data = dict( result_mapping )
+    inventory_data[ 'source' ] = source
+    domains_summary: dict[ str, int ] = {
+        domain_name: len( objs )
+        for domain_name, objs in inventory_data[ 'objects' ].items( ) 
+    }
+    inventory_data[ 'domains' ] = domains_summary
     selected_objects = _select_top_objects( inventory_data, max_objects )
     result = _build_explore_result_structure(
         inventory_data, query, selected_objects, max_objects, filters )
@@ -266,9 +274,11 @@ async def _add_documentation_to_results(
     result: dict[ str, __.typx.Any ],
 ) -> None:
     ''' Extracts documentation for objects and adds to results. '''
+    processor = await _select_processor_for_source( source )
     for obj in selected_objects:
         try:
-            doc_result = await extract_documentation( source, obj[ 'name' ] )
+            doc_result = await processor.extract_documentation(
+                source, obj[ 'name' ] )
             document = _create_document_with_docs( obj, doc_result )
             result[ 'documents' ].append( document )
         except Exception as exc:  # noqa: PERF203

@@ -107,32 +107,6 @@ McpTermFilter: __.typx.TypeAlias = __.typx.Annotated[
 _scribe = __.acquire_scribe( __name__ )
 
 
-async def extract_documentation(
-    source: McpSourceArgument,
-    object_name: McpObjectName,
-) -> __.cabc.Mapping[ str, __.typx.Any ]:
-    ''' Extract documentation for a specific object from source. '''
-    _scribe.debug(
-        "extract_documentation called: source=%s, object_name=%s",
-        source, object_name )
-    try:
-        return await _functions.extract_documentation( source, object_name )
-    except KeyError as exc:
-        param_name = str( exc ).strip( "'" )
-        _scribe.error( 
-            "Missing parameter in extract_documentation: %s", param_name )
-        return { 'error': (
-            f"Missing required parameter '{param_name}'. "
-            "Check function signature for required arguments." ) }
-    except ValueError as exc:
-        _scribe.error( 
-            "Invalid parameter value in extract_documentation: %s", exc )
-        return { 'error': f"Invalid parameter value: {exc}" }
-    except Exception as exc:
-        _scribe.error( "Error extracting documentation: %s", exc )
-        return { 'error': f"Documentation extraction failed: {exc}" }
-
-
 async def query_documentation(  # noqa: PLR0913
     source: McpSourceArgument,
     query: McpQuery,
@@ -179,47 +153,6 @@ async def query_documentation(  # noqa: PLR0913
         return [ { 'error': f"Documentation query failed: {exc}" } ]
 
 
-async def extract_inventory( # noqa: PLR0913
-    source: McpSourceArgument,
-    domain: McpDomainFilter = '',
-    role: McpRoleFilter = '',
-    term: McpTermFilter = '',
-    priority: McpPriorityFilter = '',
-    match_mode: McpMatchMode = _interfaces.MatchMode.Exact,
-    fuzzy_threshold: McpFuzzyThreshold = 50,
-) -> dict[ str, __.typx.Any ]:
-    ''' Extracts inventory from location with optional filtering. '''
-    _scribe.debug(
-        "extract_inventory called: source=%s, domain=%s, role=%s, term=%s, "
-        "priority=%s, match_mode=%s, fuzzy_threshold=%s",
-        source, domain, role, term, priority, match_mode, fuzzy_threshold )
-    _scribe.debug( "Processing extract_inventory request with RELOADEROO!" )
-    nomargs: __.NominativeArguments = { }
-    if domain: nomargs[ 'domain' ] = domain
-    if role: nomargs[ 'role' ] = role
-    if term: nomargs[ 'term' ] = term
-    if priority: nomargs[ 'priority' ] = priority
-    nomargs[ 'match_mode' ] = match_mode
-    if match_mode == _interfaces.MatchMode.Fuzzy:
-        nomargs[ 'fuzzy_threshold' ] = fuzzy_threshold
-    try:
-        return await _functions.extract_inventory( source, **nomargs )
-    except KeyError as exc:
-        param_name = str( exc ).strip( "'" )
-        _scribe.error( 
-            "Missing parameter in extract_inventory: %s", param_name )
-        return { 'error': (
-            f"Missing required parameter '{param_name}'. "
-            "Check function signature for required arguments." ) }
-    except ValueError as exc:
-        _scribe.error( 
-            "Invalid parameter value in extract_inventory: %s", exc )
-        return { 'error': f"Invalid parameter value: {exc}" }
-    except Exception as exc:
-        _scribe.error( "Error extracting inventory: %s", exc )
-        return { 'error': f"Inventory extraction failed: {exc}" }
-
-
 async def summarize_inventory( # noqa: PLR0913
     source: McpSourceArgument,
     domain: McpDomainFilter = '',
@@ -260,6 +193,48 @@ async def summarize_inventory( # noqa: PLR0913
         return f"Error: Inventory summarization failed: {exc}"
 
 
+async def explore(  # noqa: PLR0913
+    source: McpSourceArgument,
+    query: McpQuery,
+    domain: McpDomainFilter = '',
+    role: McpRoleFilter = '',
+    priority: McpPriorityFilter = '',
+    match_mode: McpMatchMode = _interfaces.MatchMode.Fuzzy,
+    fuzzy_threshold: McpFuzzyThreshold = 50,
+    max_objects: __.typx.Annotated[
+        int,
+        __.ddoc.Doc( ''' Maximum number of objects to process. ''' )
+    ] = 5,
+    include_documentation: __.typx.Annotated[
+        bool,
+        __.ddoc.Doc( ''' Whether to extract documentation for objects. ''' )
+    ] = True,
+) -> dict[ str, __.typx.Any ]:
+    ''' Explores objects by combining inventory search with documentation. '''
+    _scribe.debug(
+        "explore called: source=%s, query=%s, domain=%s, role=%s, "
+        "priority=%s, match_mode=%s, fuzzy_threshold=%s, max_objects=%s, "
+        "include_documentation=%s",
+        source, query, domain, role, priority, match_mode, fuzzy_threshold,
+        max_objects, include_documentation )
+    # Build filters DTO
+    filters = _interfaces.Filters(
+        domain = domain,
+        role = role,
+        priority = priority,
+        match_mode = match_mode,
+        fuzzy_threshold = fuzzy_threshold
+    )
+    try:
+        return await _functions.explore(
+            source, query, filters = filters,
+            max_objects = max_objects,
+            include_documentation = include_documentation )
+    except Exception as exc:
+        _scribe.error( "Error exploring: %s", exc )
+        return { 'error': f"Exploration failed: {exc}" }
+
+
 async def serve(
     auxdata: __.Globals, /, *,
     port: int = 0,
@@ -268,14 +243,12 @@ async def serve(
     ''' Runs MCP server. '''
     _scribe.debug( "Initializing FastMCP server" )
     mcp = _FastMCP( 'Sphinx MCP Server', port = port )
-    _scribe.debug( "Registering extract_inventory tool" )
-    mcp.tool( )( extract_inventory )
     _scribe.debug( "Registering summarize_inventory tool" )
     mcp.tool( )( summarize_inventory )
-    _scribe.debug( "Registering extract_documentation tool" )
-    mcp.tool( )( extract_documentation )
     _scribe.debug( "Registering query_documentation tool" )
     mcp.tool( )( query_documentation )
+    _scribe.debug( "Registering explore tool" )
+    mcp.tool( )( explore )
     _scribe.debug( "Tools registered successfully" )
     match transport:
         case 'sse': await mcp.run_sse_async( mount_path = None )
