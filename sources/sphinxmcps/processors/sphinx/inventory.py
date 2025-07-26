@@ -28,14 +28,20 @@ import sphobjinv as _sphobjinv
 from . import __
 
 
+FilterCriteria: __.typx.TypeAlias = __.cabc.Mapping[ str, __.typx.Any ]
+
+
 def collect_matching_objects(
     inventory: _sphobjinv.Inventory,
-    domain: __.Absential[ str ],
-    role: __.Absential[ str ],
-    priority: __.Absential[ str ],
-    term_matcher: __.cabc.Callable[ [ __.typx.Any ], bool ],
+    criteria: FilterCriteria,
 ) -> tuple[ dict[ str, __.typx.Any ], int ]:
     ''' Collects objects that match all filters. '''
+    domain = criteria.get( 'domain' )
+    role = criteria.get( 'role' )
+    priority = criteria.get( 'priority' )
+    term_matcher = criteria[ 'term_matcher' ]
+    fuzzy_scores = criteria.get( 'fuzzy_scores' )
+    
     objects: __.cabc.MutableMapping[
         str, list[ __.cabc.Mapping[ str, __.typx.Any ] ]
     ] = __.collections.defaultdict(
@@ -46,7 +52,9 @@ def collect_matching_objects(
         if role and objct.role != role: continue
         if priority and objct.priority != priority: continue
         if not term_matcher( objct ): continue
-        objects[ objct.domain ].append( format_inventory_object( objct ) )
+        fuzzy_score = fuzzy_scores.get( objct.name ) if fuzzy_scores else None
+        objects[ objct.domain ].append(
+            format_inventory_object( objct, fuzzy_score ) )
         selections_total += 1
     return objects, selections_total
 
@@ -98,6 +106,18 @@ def extract_names_from_suggestions(
     return fuzzy_names
 
 
+def extract_names_and_scores_from_suggestions(
+    suggestions: list[ tuple[ str, int ] ]
+) -> dict[ str, int ]:
+    ''' Extracts object names and scores from sphobjinv suggestion format. '''
+    fuzzy_names_scores: dict[ str, int ] = { }
+    for suggestion, score in suggestions:
+        if '`' in suggestion:
+            name = suggestion.split( '`' )[ 1 ]
+            fuzzy_names_scores[ name ] = score
+    return fuzzy_names_scores
+
+
 def filter_exact_and_regex_matching( # noqa: PLR0913
     inventory: _sphobjinv.Inventory,
     domain: __.Absential[ str ],
@@ -108,8 +128,13 @@ def filter_exact_and_regex_matching( # noqa: PLR0913
 ) -> tuple[ dict[ str, __.typx.Any ], int ]:
     ''' Filters inventory using exact or regex matching. '''
     term_matcher = create_term_matcher( term, match_mode )
-    return collect_matching_objects(
-        inventory, domain, role, priority, term_matcher )
+    criteria: FilterCriteria = {
+        'domain': domain,
+        'role': role,
+        'priority': priority,
+        'term_matcher': term_matcher,
+    }
+    return collect_matching_objects( inventory, criteria )
 
 
 def filter_fuzzy_matching( # noqa: PLR0913
@@ -121,11 +146,35 @@ def filter_fuzzy_matching( # noqa: PLR0913
     fuzzy_threshold: int,
 ) -> tuple[ dict[ str, __.typx.Any ], int ]:
     ''' Filters inventory using fuzzy matching via sphobjinv.suggest(). '''
-    suggestions = inventory.suggest( term, thresh = fuzzy_threshold )
-    fuzzy_names = extract_names_from_suggestions( suggestions )
-    return collect_matching_objects(
-        inventory, domain, role, priority,
-        lambda obj: obj.name in fuzzy_names )
+    suggestions_with_scores = inventory.suggest(
+        term, thresh = fuzzy_threshold, with_score = True )
+    if (
+        suggestions_with_scores
+        and isinstance( suggestions_with_scores[ 0 ], tuple )
+    ):
+        scored_suggestions = __.typx.cast( 
+            list[ tuple[ str, int ] ], suggestions_with_scores )
+        fuzzy_names_scores = extract_names_and_scores_from_suggestions(
+            scored_suggestions )
+    else:
+        string_suggestions = inventory.suggest( 
+            term, thresh = fuzzy_threshold, with_score = False )
+        str_suggestions = __.typx.cast( list[ str ], string_suggestions )
+        fuzzy_names_set = extract_names_from_suggestions( str_suggestions )
+        fuzzy_names_scores = { 
+            name: fuzzy_threshold for name in fuzzy_names_set 
+        }
+    fuzzy_names = set( fuzzy_names_scores.keys( ) )
+    def fuzzy_term_matcher( obj: _sphobjinv.DataObjStr ) -> bool:
+        return obj.name in fuzzy_names
+    criteria: FilterCriteria = {
+        'domain': domain,
+        'role': role,
+        'priority': priority,
+        'term_matcher': fuzzy_term_matcher,
+        'fuzzy_scores': fuzzy_names_scores,
+    }
+    return collect_matching_objects( inventory, criteria )
 
 
 def filter_inventory( # noqa: PLR0913
@@ -147,10 +196,11 @@ def filter_inventory( # noqa: PLR0913
 
 
 def format_inventory_object(
-    objct: __.typx.Any
+    objct: __.typx.Any,
+    fuzzy_score: int | None = None,
 ) -> __.cabc.Mapping[ str, __.typx.Any ]:
     ''' Formats an inventory object for output. '''
-    return {
+    result = {
         'name': objct.name,
         'role': objct.role,
         'priority': objct.priority,
@@ -159,3 +209,6 @@ def format_inventory_object(
             objct.dispname if objct.dispname != '-' else objct.name
         ),
     }
+    if fuzzy_score is not None:
+        result[ 'fuzzy_score' ] = fuzzy_score
+    return result

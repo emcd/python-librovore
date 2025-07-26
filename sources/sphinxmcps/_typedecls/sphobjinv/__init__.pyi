@@ -1,7 +1,7 @@
 """Minimal type stubs for sphobjinv - only what we actually use."""
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, overload
 
 class DataObjStr:
     """Sphinx inventory object data."""
@@ -26,6 +26,29 @@ class Inventory:
         **kwargs: Any
     ) -> None: ...
     
-    def suggest(self, term: str, *, thresh: int = 75) -> list[str]:
-        """Return fuzzy match suggestions for the given term."""
+    @overload
+    def suggest(
+        self, 
+        term: str, 
+        *, 
+        thresh: int = 75
+    ) -> list[str]: ...
+    
+    @overload
+    def suggest(
+        self, 
+        term: str, 
+        *, 
+        thresh: int = 75,
+        with_score: bool
+    ) -> list[str] | list[tuple[str, int]]: ...
+    
+    def suggest(
+        self, 
+        term: str, 
+        *, 
+        thresh: int = 75,
+        with_score: bool = False
+    ) -> list[str] | list[tuple[str, int]]:
+        """Return fuzzy match suggestions, optionally with scores."""
         ...

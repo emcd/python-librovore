@@ -44,7 +44,10 @@ def html_to_markdown( html_text: str ) -> str:
         text = link.get_text( )
         if href: link.replace_with( f"[{text}]({href})" )
         else: link.replace_with( text )
-    text = soup.get_text( )
+    # Use separator to preserve spacing between elements
+    text = soup.get_text( separator = ' ' )
+    # Clean up multiple spaces but preserve single spaces
+    text = __.re.sub( r' +', ' ', text )
     text = __.re.sub( r'\n\s*\n', '\n\n', text )
     text = __.re.sub( r'^\s+|\s+$', '', text, flags = __.re.MULTILINE )
     return text.strip( )
