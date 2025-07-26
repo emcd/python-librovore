@@ -83,7 +83,7 @@ CliIncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
 
 
 class SummarizeInventoryCommand(
-    _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
+    __.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
     ''' Provides human-readable summary of inventory. '''
 
@@ -96,7 +96,7 @@ class SummarizeInventoryCommand(
     fuzzy_threshold: CliFuzzyThreshold = 50
 
     async def __call__(
-        self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
+        self, auxdata: __.Globals, display: __.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
         nomargs: __.NominativeArguments = { }
@@ -119,7 +119,7 @@ _filters_default = _interfaces.Filters( )
 
 
 class QueryDocumentationCommand(
-    _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
+    __.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
     ''' Queries documentation content with relevance ranking. '''
 
@@ -133,7 +133,7 @@ class QueryDocumentationCommand(
     include_snippets: CliIncludeSnippets = True
 
     async def __call__(
-        self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
+        self, auxdata: __.Globals, display: __.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
         try:
@@ -149,7 +149,7 @@ class QueryDocumentationCommand(
 
 
 class ExploreCommand(
-    _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
+    __.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
     ''' Explores objects by combining inventory search with documentation. '''
 
@@ -168,7 +168,7 @@ class ExploreCommand(
     ] = True
 
     async def __call__(
-        self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
+        self, auxdata: __.Globals, display: __.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
         try:
@@ -185,7 +185,7 @@ class ExploreCommand(
 
 
 class UseCommand(
-    _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
+    __.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
     ''' Use MCP server tools. '''
 
@@ -207,13 +207,13 @@ class UseCommand(
     ]
 
     async def __call__(
-        self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
+        self, auxdata: __.Globals, display: __.ConsoleDisplay
     ) -> None:
         await self.operation( auxdata = auxdata, display = display )
 
 
 class ServeCommand(
-    _interfaces.CliCommand, decorators = ( __.standard_tyro_class, ),
+    __.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
     ''' Starts MCP server. '''
 
@@ -223,7 +223,7 @@ class ServeCommand(
         [ __.Globals ], __.cabc.Awaitable[ None ]
     ] = _server.serve
     async def __call__(
-        self, auxdata: __.Globals, display: _interfaces.ConsoleDisplay
+        self, auxdata: __.Globals, display: __.ConsoleDisplay
     ) -> None:
         nomargs: __.NominativeArguments = { }
         if self.port is not None:
@@ -233,13 +233,10 @@ class ServeCommand(
         await self.serve_function( auxdata, **nomargs )
 
 
-class Cli(
-    __.immut.DataclassObject,
-    decorators = ( __.simple_tyro_class, ),
-):
+class Cli( __.immut.DataclassObject, decorators = ( __.simple_tyro_class, ) ):
     ''' MCP server CLI. '''
 
-    display: _interfaces.ConsoleDisplay
+    display: __.ConsoleDisplay
     command: __.typx.Union[
         __.typx.Annotated[
             UseCommand,

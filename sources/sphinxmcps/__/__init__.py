@@ -23,4 +23,5 @@
 
 from .imports import *
 from .inscription import *
+from .interfaces import *
 from .nomina import *
