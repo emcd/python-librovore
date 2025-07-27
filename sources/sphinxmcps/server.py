@@ -31,6 +31,10 @@ from . import functions as _functions
 from . import interfaces as _interfaces
 
 
+class FiltersMutable( _interfaces.Filters, instances_mutables = '*' ):
+    ''' Mutable version of Filters for FastMCP/Pydantic compatibility. '''
+
+
 DomainFilter: __.typx.TypeAlias = __.typx.Annotated[
     str, _Field( description = __.access_doctab( 'domain filter argument' ) ) ]
 FuzzyThreshold: __.typx.TypeAlias = __.typx.Annotated[
@@ -63,7 +67,7 @@ TermFilter: __.typx.TypeAlias = __.typx.Annotated[
     str, _Field( description = __.access_doctab( 'term filter argument' ) ) ]
 
 
-_filters_default = _interfaces.Filters( )
+_filters_default = FiltersMutable( )
 _scribe = __.acquire_scribe( __name__ )
 
 
@@ -71,7 +75,7 @@ async def explore(
     source: SourceArgument,
     query: Query,
     filters: __.typx.Annotated[
-        _interfaces.Filters,
+        FiltersMutable,
         _Field( description = "Search and filtering options" ),
     ] = _filters_default,
     objects_max: __.typx.Annotated[
@@ -91,8 +95,9 @@ async def explore(
         "include_documentation=%s",
         source, query, filters, objects_max, include_documentation )
     try:
+        immutable_filters = _to_immutable_filters( filters )
         return await _functions.explore(
-            source, query, filters = filters,
+            source, query, filters = immutable_filters,
             max_objects = objects_max,
             include_documentation = include_documentation )
     except Exception as exc:
@@ -104,7 +109,7 @@ async def query_documentation(
     source: SourceArgument,
     query: Query,
     filters: __.typx.Annotated[
-        _interfaces.Filters,
+        FiltersMutable,
         _Field( description = "Search and filtering options" ),
     ] = _filters_default,
     results_max: ResultsMax = 10,
@@ -114,23 +119,25 @@ async def query_documentation(
     _scribe.debug(
         "query_documentation called: source=%s, query=%s, filters=%s",
         source, query, filters )
+    immutable_filters = _to_immutable_filters( filters )
     return await _functions.query_documentation(
-        source, query, filters = filters,
+        source, query, filters = immutable_filters,
         max_results = results_max, include_snippets = include_snippets )
 
 
 async def summarize_inventory(
     source: SourceArgument,
     filters: __.typx.Annotated[
-        _interfaces.Filters,
+        FiltersMutable,
         _Field( description = "Search and filtering options" ),
     ] = _filters_default,
     term: TermFilter = '',
 ) -> str:
     ''' Provides human-readable summary of inventory. '''
     try:
+        immutable_filters = _to_immutable_filters( filters )
         return await _functions.summarize_inventory(
-            source, term, filters = filters )
+            source, term, filters = immutable_filters )
     except Exception as exc:
         _scribe.error( "Error summarizing inventory: %s", exc )
         raise RuntimeError from exc
@@ -155,3 +162,15 @@ async def serve(
         case 'sse': await mcp.run_sse_async( mount_path = None )
         case 'stdio': await mcp.run_stdio_async( )
         case _: raise ValueError
+
+
+def _to_immutable_filters(
+    mutable_filters: FiltersMutable
+) -> _interfaces.Filters:
+    ''' Converts mutable filters to immutable filters. '''
+    return _interfaces.Filters(
+        domain = mutable_filters.domain,
+        role = mutable_filters.role,
+        priority = mutable_filters.priority,
+        match_mode = mutable_filters.match_mode,
+        fuzzy_threshold = mutable_filters.fuzzy_threshold )
