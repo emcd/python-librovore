@@ -80,37 +80,28 @@ IncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
 ]
 
 
+_filters_default = _interfaces.Filters( )
+
+
 class SummarizeInventoryCommand(
     __.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
     ''' Provides human-readable summary of inventory. '''
 
     source: SourceArgument
-    domain: DomainFilter = None
-    role: RoleFilter = None
     term: TermFilter = None
-    priority: PriorityFilter = None
-    match_mode: MatchMode = _interfaces.MatchMode.Exact
-    fuzzy_threshold: FuzzyThreshold = 50
+    filters: __.typx.Annotated[
+        _interfaces.Filters,
+        __.tyro.conf.arg( prefix_name = False ),
+    ] = _filters_default
 
     async def __call__(
         self, auxdata: __.Globals, display: __.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
-        # Build filters DTO
-        filters = _interfaces.Filters(
-            domain = self.domain or "",
-            role = self.role or "",
-            priority = self.priority or "",
-            match_mode = self.match_mode,
-            fuzzy_threshold = self.fuzzy_threshold
-        )
         result = await _functions.summarize_inventory(
-            self.source, self.term or "", filters = filters )
+            self.source, self.term or '', filters = self.filters )
         print( result, file = stream )
-
-
-_filters_default = _interfaces.Filters( )
 
 
 class QueryDocumentationCommand(
@@ -246,8 +237,7 @@ class Cli( __.immut.DataclassObject, decorators = ( __.simple_tyro_class, ) ):
     ]
     logfile: __.typx.Annotated[
         __.typx.Optional[ str ],
-        __.tyro.conf.arg(
-            help = __.access_doctab( 'log file path argument' ) ),
+        __.ddoc.Doc( ''' Path to log capture file. ''' ),
     ] = None
 
     async def __call__( self ):
@@ -276,11 +266,17 @@ def execute( ) -> None:
     config = (
         __.tyro.conf.HelptextFromCommentsOff,
     )
-    try: __.asyncio.run( __.tyro.cli( Cli, config = config )( ) )
-    except SystemExit: raise
-    except BaseException as exc:
-        __.report_exceptions( exc, _scribe )
-        raise SystemExit( 1 ) from None
+    with __.warnings.catch_warnings( ):
+        __.warnings.filterwarnings(
+            'ignore',
+            message = r'Mutable type .* is used as a default value.*',
+            category = UserWarning,
+            module = 'tyro.constructors._struct_spec_dataclass' )
+        try: __.asyncio.run( __.tyro.cli( Cli, config = config )( ) )
+        except SystemExit: raise
+        except BaseException as exc:
+            __.report_exceptions( exc, _scribe )
+            raise SystemExit( 1 ) from None
 
 
 async def _prepare(

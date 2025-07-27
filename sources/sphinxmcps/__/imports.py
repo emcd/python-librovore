@@ -43,6 +43,7 @@ import                      subprocess
 import                      sys
 import                      time
 import                      types
+import                      warnings
 
 from logging import getLogger as acquire_scribe
 from pathlib import Path

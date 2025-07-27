@@ -56,9 +56,6 @@ fragments: __.cabc.Mapping[ str, str ] = __.types.MappingProxyType( {
     'include snippets argument':
     ''' Include content snippets in results. ''',
 
-    'log file path argument':
-    ''' Path to log capture file. ''',
-
     'match mode argument':
     ''' Term matching mode: exact, regex, or fuzzy. ''',
 
@@ -83,6 +80,9 @@ fragments: __.cabc.Mapping[ str, str ] = __.types.MappingProxyType( {
     'role filter argument':
     ''' Filter objects by role (e.g., 'function'). ''',
 
+    'section filter argument':
+    ''' Sections to include (signature, description). ''',
+
     'server port argument':
     ''' TCP port for server. ''',
 
@@ -95,7 +95,6 @@ fragments: __.cabc.Mapping[ str, str ] = __.types.MappingProxyType( {
     'transport argument':
     ''' Transport: stdio or sse. ''',
 
-    # Return type documentation
     'documentation return':
     ''' Search results with metadata in explore format. ''',
 
@@ -107,8 +106,5 @@ fragments: __.cabc.Mapping[ str, str ] = __.types.MappingProxyType( {
 
     'inventory summary return':
     ''' Human-readable summary of inventory contents. ''',
-
-    'section filter argument':
-    ''' Sections to include (signature, description). ''',
 
 } )
