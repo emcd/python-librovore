@@ -25,6 +25,7 @@ import asyncio
 
 from unittest.mock import patch, Mock
 from urllib.parse import ParseResult as Url
+import urllib.robotparser as _urllib_robotparser
 
 import httpx as _httpx
 import appcore.generics as _generics
@@ -2306,5 +2307,117 @@ async def test_912_retrieve_url_http_status_error( ):
     with pytest.raises( _httpx.HTTPStatusError ):
         await module.retrieve_url(
             url, cache = cache, client_factory = client_factory )
+
+
+# Exception coverage tests for uncovered lines
+
+@pytest.mark.asyncio
+async def test_500_check_robots_txt_can_fetch_exception( ):
+    ''' Exception in robots_parser.can_fetch() returns True (line 343-345). '''
+    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    
+    # Create a mock RobotFileParser that raises an exception on can_fetch
+    class FaultyRobotFileParser:
+        def can_fetch( self, user_agent, url ):
+            raise ValueError( "Simulated can_fetch exception" )
+    
+    # Store faulty parser in cache
+    faulty_parser = FaultyRobotFileParser( )
+    await robots_cache.store( 
+        'https://faulty-example.com', 
+        __.generics.Value( faulty_parser ), 
+        ttl = 3600 )
+    
+    url = Url(
+        scheme = 'https', netloc = 'faulty-example.com', path = '/test',
+        params = '', query = '', fragment = '' )
+    
+    # Should return True when can_fetch raises exception
+    result = await module._check_robots_txt(
+        url, robots_cache = robots_cache )
+    assert result is True
+
+
+@pytest.mark.asyncio
+async def test_501_retrieve_robots_txt_crawl_delay_exception( ):
+    ''' Exception in robots_parser.crawl_delay() is handled (line 466-467). '''
+    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    
+    # Create robots.txt content that will parse successfully with crawl delay
+    robots_txt_content = "User-agent: *\nCrawl-delay: 2\nAllow: /"
+    
+    def handler( request ):
+        if 'robots.txt' in request.url.path:
+            return _httpx.Response( 200, text = robots_txt_content )
+        return _httpx.Response( 200, text = "test content" )
+    
+    mock_transport = _httpx.MockTransport( handler )
+    
+    def client_factory( ):
+        return _httpx.AsyncClient( transport = mock_transport )
+    
+    # First populate the robots cache with successful robots.txt
+    url = Url(
+        scheme = 'https', netloc = 'crawl-delay-exception.com', path = '/test',
+        params = '', query = '', fragment = '' )
+    
+    # Patch the RobotFileParser to raise exception on crawl_delay
+    original_crawl_delay = _urllib_robotparser.RobotFileParser.crawl_delay
+    
+    def faulty_crawl_delay( self, user_agent ):
+        raise RuntimeError( "Simulated crawl_delay exception" )
+    
+    _urllib_robotparser.RobotFileParser.crawl_delay = faulty_crawl_delay
+    
+    try:
+        # This should trigger _apply_request_delay which calls crawl_delay
+        result = await module.probe_url(
+            url, client_factory = client_factory )
+        # Should still succeed despite crawl_delay exception
+        assert not __.is_absent( result )
+        # Domain should not have delay assigned due to exception
+        delay_remainder = robots_cache.calculate_delay_remainder(
+            'https://crawl-delay-exception.com' )
+        assert delay_remainder == 0.0
+    finally:
+        # Restore original method
+        _urllib_robotparser.RobotFileParser.crawl_delay = original_crawl_delay
+
+
+@pytest.mark.asyncio
+async def test_502_retrieve_robots_txt_parse_exception( ):
+    ''' Exception in robots_parser.parse() returns Error result (564-567). '''
+    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    
+    # Return content that will trigger parse exception
+    def handler( request ):
+        return _httpx.Response( 200, text = "valid http response" )
+    
+    mock_transport = _httpx.MockTransport( handler )
+    
+    def client_factory( ):
+        return _httpx.AsyncClient( transport = mock_transport )
+    
+    # Patch the RobotFileParser to raise exception on parse
+    original_parse = _urllib_robotparser.RobotFileParser.parse
+    
+    def faulty_parse( self, lines ):
+        raise ValueError( "Simulated parse exception" )
+    
+    _urllib_robotparser.RobotFileParser.parse = faulty_parse
+    
+    try:
+        result = await module._retrieve_robots_txt(
+            'https://parse-exception.com', robots_cache,
+            client_factory = client_factory )
+        # Should return absent due to parse exception
+        assert __.is_absent( result )
+        # Verify the error is stored in cache as Error result
+        assert 'https://parse-exception.com' in robots_cache._cache
+        cache_entry = robots_cache._cache[ 'https://parse-exception.com' ]
+        assert not cache_entry.response.is_value( )
+    finally:
+        # Restore original method
+        _urllib_robotparser.RobotFileParser.parse = original_parse
 
 
