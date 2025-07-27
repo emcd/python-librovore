@@ -54,13 +54,9 @@ class Processor( __.immut.DataclassProtocol ):
         raise NotImplementedError
 
     @__.abc.abstractmethod
-    async def extract_inventory( self, source: str, /, *, # noqa: PLR0913
-        domain: __.Absential[ str ] = __.absent,
-        role: __.Absential[ str ] = __.absent,
+    async def extract_inventory( self, source: str, /, *,
         term: __.Absential[ str ] = __.absent,
-        priority: __.Absential[ str ] = __.absent,
-        match_mode: MatchMode = MatchMode.Exact,
-        fuzzy_threshold: int = 50,
+        filters: Filters,
     ) -> __.cabc.Mapping[ str, __.typx.Any ]:
         ''' Extracts inventory from source with optional filtering. '''
         raise NotImplementedError
@@ -74,12 +70,8 @@ class Processor( __.immut.DataclassProtocol ):
         raise NotImplementedError
 
     @__.abc.abstractmethod
-    async def query_documentation( self, source: str, query: str, /, *, # noqa: PLR0913
-        domain: __.Absential[ str ] = __.absent,
-        role: __.Absential[ str ] = __.absent,
-        priority: __.Absential[ str ] = __.absent,
-        match_mode: MatchMode = MatchMode.Fuzzy,
-        fuzzy_threshold: int = 50,
+    async def query_documentation( self, source: str, query: str, /, *,
+        filters: Filters,
         max_results: int = 10,
         include_snippets: bool = True,
     ) -> list[ __.cabc.Mapping[ str, __.typx.Any ] ]:

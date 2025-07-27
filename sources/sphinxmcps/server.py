@@ -63,79 +63,18 @@ TermFilter: __.typx.TypeAlias = __.typx.Annotated[
     str, _Field( description = __.access_doctab( 'term filter argument' ) ) ]
 
 
+_filters_default = _interfaces.Filters( )
 _scribe = __.acquire_scribe( __name__ )
 
 
-async def query_documentation(  # noqa: PLR0913
+async def explore(
     source: SourceArgument,
     query: Query,
-    domain: DomainFilter = '',
-    role: RoleFilter = '',
-    priority: PriorityFilter = '',
-    match_mode: MatchMode = _interfaces.MatchMode.Fuzzy,
-    fuzzy_threshold: FuzzyThreshold = 50,
-    max_results: ResultsMax = 10,
-    include_snippets: IncludeSnippets = True,
-) -> dict[ str, __.typx.Any ]:
-    ''' Query documentation content with relevance ranking. '''
-    _scribe.debug(
-        "query_documentation called: source=%s, query=%s", source, query )
-
-    # Build filters DTO
-    filters = _interfaces.Filters(
-        domain = domain,
-        role = role,
-        priority = priority,
-        match_mode = match_mode,
-        fuzzy_threshold = fuzzy_threshold
-    )
-
-    return await _functions.query_documentation(
-        source, query, filters = filters,
-        max_results = max_results, include_snippets = include_snippets )
-
-
-async def summarize_inventory( # noqa: PLR0913
-    source: SourceArgument,
-    domain: DomainFilter = '',
-    role: RoleFilter = '',
-    term: TermFilter = '',
-    priority: PriorityFilter = '',
-    match_mode: MatchMode = _interfaces.MatchMode.Exact,
-    fuzzy_threshold: FuzzyThreshold = 50,
-) -> str:
-    ''' Provides human-readable summary of inventory. '''
-    _scribe.debug(
-        "summarize_inventory called: source=%s, domain=%s, role=%s, term=%s, "
-        "priority=%s, match_mode=%s, fuzzy_threshold=%s",
-        source, domain, role, term, priority, match_mode, fuzzy_threshold )
-
-    # Build filters DTO
-    filters = _interfaces.Filters(
-        domain = domain,
-        role = role,
-        priority = priority,
-        match_mode = match_mode,
-        fuzzy_threshold = fuzzy_threshold
-    )
-
-    try:
-        return await _functions.summarize_inventory(
-            source, term, filters = filters )
-    except Exception as exc:
-        _scribe.error( "Error summarizing inventory: %s", exc )
-        raise RuntimeError from exc
-
-
-async def explore(  # noqa: PLR0913
-    source: SourceArgument,
-    query: Query,
-    domain: DomainFilter = '',
-    role: RoleFilter = '',
-    priority: PriorityFilter = '',
-    match_mode: MatchMode = _interfaces.MatchMode.Fuzzy,
-    fuzzy_threshold: FuzzyThreshold = 50,
-    max_objects: __.typx.Annotated[
+    filters: __.typx.Annotated[
+        _interfaces.Filters,
+        _Field( description = "Search and filtering options" ),
+    ] = _filters_default,
+    objects_max: __.typx.Annotated[
         int,
         _Field( description = __.access_doctab( 'objects max argument' ) ),
     ] = 5,
@@ -148,27 +87,54 @@ async def explore(  # noqa: PLR0913
 ) -> dict[ str, __.typx.Any ]:
     ''' Explores objects by combining inventory search with documentation. '''
     _scribe.debug(
-        "explore called: source=%s, query=%s, domain=%s, role=%s, "
-        "priority=%s, match_mode=%s, fuzzy_threshold=%s, max_objects=%s, "
+        "explore called: source=%s, query=%s, filters=%s, max_objects=%s, "
         "include_documentation=%s",
-        source, query, domain, role, priority, match_mode, fuzzy_threshold,
-        max_objects, include_documentation )
-    # Build filters DTO
-    filters = _interfaces.Filters(
-        domain = domain,
-        role = role,
-        priority = priority,
-        match_mode = match_mode,
-        fuzzy_threshold = fuzzy_threshold
-    )
+        source, query, filters, objects_max, include_documentation )
     try:
         return await _functions.explore(
             source, query, filters = filters,
-            max_objects = max_objects,
+            max_objects = objects_max,
             include_documentation = include_documentation )
     except Exception as exc:
         _scribe.error( "Error exploring: %s", exc )
         raise RuntimeError from exc
+
+
+async def query_documentation(
+    source: SourceArgument,
+    query: Query,
+    filters: __.typx.Annotated[
+        _interfaces.Filters,
+        _Field( description = "Search and filtering options" ),
+    ] = _filters_default,
+    results_max: ResultsMax = 10,
+    include_snippets: IncludeSnippets = True,
+) -> dict[ str, __.typx.Any ]:
+    ''' Query documentation content with relevance ranking. '''
+    _scribe.debug(
+        "query_documentation called: source=%s, query=%s, filters=%s",
+        source, query, filters )
+    return await _functions.query_documentation(
+        source, query, filters = filters,
+        max_results = results_max, include_snippets = include_snippets )
+
+
+async def summarize_inventory(
+    source: SourceArgument,
+    filters: __.typx.Annotated[
+        _interfaces.Filters,
+        _Field( description = "Search and filtering options" ),
+    ] = _filters_default,
+    term: TermFilter = '',
+) -> str:
+    ''' Provides human-readable summary of inventory. '''
+    try:
+        return await _functions.summarize_inventory(
+            source, term, filters = filters )
+    except Exception as exc:
+        _scribe.error( "Error summarizing inventory: %s", exc )
+        raise RuntimeError from exc
+
 
 async def serve(
     auxdata: __.Globals, /, *,

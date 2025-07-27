@@ -32,6 +32,21 @@ from . import conversion as _conversion
 _scribe = __.acquire_scribe( __name__ )
 
 
+def _extract_filter_parameters( 
+    filters: __.Filters
+) -> tuple[ 
+    __.Absential[ str ], __.Absential[ str ], __.Absential[ str ],
+    __.MatchMode, int
+]:
+    ''' Extracts filter parameters from DTO. '''
+    domain = filters.domain if filters.domain else __.absent
+    role = filters.role if filters.role else __.absent
+    priority = filters.priority if filters.priority else __.absent
+    match_mode = filters.match_mode
+    fuzzy_threshold = filters.fuzzy_threshold
+    return domain, role, priority, match_mode, fuzzy_threshold
+
+
 class SphinxProcessor( __.Processor ):
     ''' Processor for Sphinx documentation sources. '''
 
@@ -64,19 +79,17 @@ class SphinxProcessor( __.Processor ):
             normalized_source = base_url.geturl( ),
             theme = theme )
 
-    async def extract_inventory( # noqa: PLR0913
+    async def extract_inventory(
         self,
         source: str, /, *,
-        domain: __.Absential[ str ] = __.absent,
-        role: __.Absential[ str ] = __.absent,
         term: __.Absential[ str ] = __.absent,
-        priority: __.Absential[ str ] = __.absent,
-        match_mode: __.MatchMode = __.MatchMode.Exact,
-        fuzzy_threshold: int = 50,
+        filters: __.Filters,
     ) -> dict[ str, __.typx.Any ]:
         ''' Extracts inventory from Sphinx documentation source. '''
         base_url = _urls.normalize_base_url( source )
         inventory = _inventory.extract_inventory( base_url )
+        domain, role, priority, match_mode, fuzzy_threshold = (
+            _extract_filter_parameters( filters ) )
         filtered_objects, object_count = _inventory.filter_inventory(
             inventory, domain = domain, role = role, term = term,
             priority = priority,
@@ -87,17 +100,18 @@ class SphinxProcessor( __.Processor ):
             'objects': filtered_objects,
             'object_count': object_count,
         }
-        filters: dict[ str, __.typx.Any ] = { }
-        if not __.is_absent( domain ): filters[ 'domain' ] = domain
-        if not __.is_absent( role ): filters[ 'role' ] = role
-        if not __.is_absent( term ): filters[ 'term' ] = term
-        if not __.is_absent( priority ): filters[ 'priority' ] = priority
+        filters_metadata: dict[ str, __.typx.Any ] = { }
+        if not __.is_absent( domain ): filters_metadata[ 'domain' ] = domain
+        if not __.is_absent( role ): filters_metadata[ 'role' ] = role
+        if not __.is_absent( term ): filters_metadata[ 'term' ] = term
+        if not __.is_absent( priority ):
+            filters_metadata[ 'priority' ] = priority
         if match_mode != __.MatchMode.Exact:
-            filters[ 'match_mode' ] = match_mode.value
+            filters_metadata[ 'match_mode' ] = match_mode.value
         if match_mode == __.MatchMode.Fuzzy:
-            filters[ 'fuzzy_threshold' ] = fuzzy_threshold
-        if filters:
-            result[ 'filters' ] = filters
+            filters_metadata[ 'fuzzy_threshold' ] = fuzzy_threshold
+        if filters_metadata:
+            result[ 'filters' ] = filters_metadata
         return result
 
 
@@ -138,20 +152,18 @@ class SphinxProcessor( __.Processor ):
                 result[ 'description' ] )
         return result
 
-    async def query_documentation( # noqa: PLR0913,PLR0915
+    async def query_documentation( # noqa: PLR0915
         self,
         source: str, query: str, /, *,
-        domain: __.Absential[ str ] = __.absent,
-        role: __.Absential[ str ] = __.absent,
-        priority: __.Absential[ str ] = __.absent,
-        match_mode: __.MatchMode = __.MatchMode.Fuzzy,
-        fuzzy_threshold: int = 50,
+        filters: __.Filters,
         max_results: int = 10,
         include_snippets: bool = True
     ) -> list[ __.cabc.Mapping[ str, __.typx.Any ] ]:
         ''' Queries documentation content from Sphinx source. '''
         base_url = _urls.normalize_base_url( source )
         inventory = _inventory.extract_inventory( base_url )
+        domain, role, priority, match_mode, fuzzy_threshold = (
+            _extract_filter_parameters( filters ) )
         filtered_objects, _ = _inventory.filter_inventory(
             inventory, domain = domain, role = role,
             priority = priority,

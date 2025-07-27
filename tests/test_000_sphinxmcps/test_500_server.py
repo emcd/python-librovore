@@ -34,8 +34,9 @@ from .fixtures import get_test_inventory_path
 async def test_100_summarize_inventory_wrapper( ):
     ''' Server summarize_inventory delegates to functions correctly. '''
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    filters = module._interfaces.Filters( domain = 'py' )
     result = await module.summarize_inventory(
-        source = test_inventory_path, domain = 'py' )
+        source = test_inventory_path, filters = filters )
     assert isinstance( result, str )
     assert 'Project:' in result
     assert 'py' in result
@@ -54,10 +55,12 @@ async def test_110_summarize_inventory_wrapper_no_filters( ):
 async def test_120_summarize_inventory_wrapper_with_regex( ):
     ''' Server summarize_inventory handles match_mode parameter correctly. '''
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    filters = module._interfaces.Filters(
+        match_mode = _interfaces.MatchMode.Regex )
     result = await module.summarize_inventory(
         source = test_inventory_path,
         term = 'test.*pattern',
-        match_mode = _interfaces.MatchMode.Regex )
+        filters = filters )
     assert isinstance( result, str )
     assert 'Project:' in result
 
@@ -66,8 +69,9 @@ async def test_120_summarize_inventory_wrapper_with_regex( ):
 async def test_150_summarize_inventory_wrapper_with_priority( ):
     ''' Server summarize_inventory handles priority filtering correctly. '''
     test_inventory_path = get_test_inventory_path( 'sphobjinv' )
+    filters = module._interfaces.Filters( priority = '0' )
     result = await module.summarize_inventory(
-        source = test_inventory_path, priority = '0' )
+        source = test_inventory_path, filters = filters )
     assert isinstance( result, str )
     assert 'priority=0' in result
     assert 'Filters:' in result
@@ -77,9 +81,9 @@ async def test_150_summarize_inventory_wrapper_with_priority( ):
 async def test_170_explore_wrapper( ):
     ''' Server explore delegates to functions correctly. '''
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    filters = module._interfaces.Filters( domain = 'py', role = 'function' )
     result = await module.explore(
-        source = test_inventory_path, query = 'test',
-        domain = 'py', role = 'function' )
+        source = test_inventory_path, query = 'test', filters = filters )
     assert isinstance( result, dict )
     assert 'project' in result
     assert 'search_metadata' in result
@@ -104,11 +108,12 @@ async def test_180_explore_wrapper_no_filters( ):
 async def test_190_explore_wrapper_with_fuzzy( ):
     ''' Server explore handles fuzzy matching correctly. '''
     test_inventory_path = get_test_inventory_path( 'sphobjinv' )
+    filters = module._interfaces.Filters(
+        match_mode = _interfaces.MatchMode.Fuzzy, fuzzy_threshold = 60 )
     result = await module.explore(
         source = test_inventory_path,
         query = 'DataObj',
-        match_mode = _interfaces.MatchMode.Fuzzy,
-        fuzzy_threshold = 60,
+        filters = filters,
         include_documentation = False )
     assert isinstance( result, dict )
     assert 'search_metadata' in result

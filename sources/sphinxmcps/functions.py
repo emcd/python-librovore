@@ -63,11 +63,7 @@ async def query_documentation(
     # Get raw query results from processor
     raw_results = await processor.query_documentation(
         source, query,
-        domain = filters.domain if filters.domain else __.absent,
-        role = filters.role if filters.role else __.absent,
-        priority = filters.priority if filters.priority else __.absent,
-        match_mode = filters.match_mode,
-        fuzzy_threshold = filters.fuzzy_threshold,
+        filters = filters,
         max_results = max_results,
         include_snippets = include_snippets )
 
@@ -147,12 +143,8 @@ async def explore(
     processor = await _select_processor_for_source( source )
     result_mapping = await processor.extract_inventory(
         source,
-        domain = filters.domain if filters.domain else __.absent,
-        role = filters.role if filters.role else __.absent,
         term = query,
-        priority = filters.priority if filters.priority else __.absent,
-        match_mode = filters.match_mode,
-        fuzzy_threshold = filters.fuzzy_threshold
+        filters = filters
     )
     # Convert to mutable dict and add additional fields
     inventory_data = dict( result_mapping )
