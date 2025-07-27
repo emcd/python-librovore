@@ -60,6 +60,10 @@ def derive_documentation_url(
 ) -> _Url:
     ''' Derives documentation URL from base URL ParseResult and object URI. '''
     uri_with_name = object_uri.replace( '$', object_name )
+    if '#' in uri_with_name:
+        path_part, fragment_part = uri_with_name.split( '#', 1 )
+        new_path = f"{base_url.path}/{path_part}"
+        return base_url._replace( path = new_path, fragment = fragment_part )
     new_path = f"{base_url.path}/{uri_with_name}"
     return base_url._replace( path = new_path )
 
