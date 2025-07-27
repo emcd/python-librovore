@@ -29,6 +29,7 @@ This test suite follows the project standard numbering conventions:
 - `100-199`: Primary feature blocks  
 - `200-299`: Secondary feature blocks
 - `300-399`: Tertiary feature blocks
+- `400-499`: Extended feature blocks (e.g., robots.txt compliance in cacheproxy)
 - Increment by 10-20 for related test groups
 
 #### Special: Detection Module Function Organization
@@ -37,6 +38,14 @@ This test suite follows the project standard numbering conventions:
 - `200-299`: DetectionsCache tests  
 - `300-399`: determine_processor_optimal tests
 - `700-799`: Sphinx processor integration tests (future)
+
+#### Special: Cacheproxy Module Function Organization  
+`test_110_cacheproxy.py` uses feature-based numbering:
+- `100-199`: ContentCache class tests
+- `200-299`: ProbeCache class tests
+- `300-399`: retrieve_url functions tests
+- `400-499`: robots.txt compliance tests (RobotsCache, _check_robots_txt, etc.)
+- `800-999`: Legacy tests requiring reclassification
 
 ## Testing Principles Applied
 
