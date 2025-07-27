@@ -129,14 +129,14 @@ def test_001_cache_configuration_custom_values( ):
 def test_010_cache_entry_fresh_not_extant( mock_time ):
     ''' Fresh entries are not extant. '''
     entry = module.CacheEntry( timestamp = 950.0, ttl = 100.0 )
-    assert not entry.extant
+    assert not entry.invalid
 
 
 @patch.object( module.__.time, 'time', return_value = 1000.0 )
 def test_011_cache_entry_expired_is_extant( mock_time ):
     ''' Expired entries are extant. '''
     entry = module.CacheEntry( timestamp = 800.0, ttl = 100.0 )
-    assert entry.extant
+    assert entry.invalid
 
 
 @patch.object( module.__.time, 'time', return_value = 1000.0 )
@@ -144,11 +144,11 @@ def test_012_cache_entry_boundary_condition( mock_time ):
     ''' Expiration boundary is handled correctly. '''
     # Exactly at boundary - not expired (uses > not >=)
     entry_exact = module.CacheEntry( timestamp = 900.0, ttl = 100.0 )
-    assert not entry_exact.extant
+    assert not entry_exact.invalid
     # Just past boundary - expired
     mock_time.return_value = 1000.1
     entry_past = module.CacheEntry( timestamp = 900.0, ttl = 100.0 )
-    assert entry_past.extant
+    assert entry_past.invalid
 
 
 def test_015_content_cache_entry_memory_usage( ):

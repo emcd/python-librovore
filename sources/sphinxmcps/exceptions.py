@@ -197,3 +197,15 @@ class ProcessorTypeError( Omnierror, TypeError ):
         self.expected_type = expected_type
         self.actual_type = actual_type
         super( ).__init__( message )
+
+
+class RobotsTxtBlockedUrl( Omnierror, PermissionError ):
+    ''' URL access blocked by robots.txt directive. '''
+
+    def __init__( self, url: str, user_agent: str ):
+        message = (
+            f"URL '{url}' blocked by robots.txt for "
+            f"user agent '{user_agent}'" )
+        self.url = url
+        self.user_agent = user_agent
+        super( ).__init__( message )
