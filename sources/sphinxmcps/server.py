@@ -167,10 +167,9 @@ async def serve(
 def _to_immutable_filters(
     mutable_filters: FiltersMutable
 ) -> _interfaces.Filters:
-    ''' Converts mutable filters to immutable filters. '''
-    return _interfaces.Filters(
-        domain = mutable_filters.domain,
-        role = mutable_filters.role,
-        priority = mutable_filters.priority,
-        match_mode = mutable_filters.match_mode,
-        fuzzy_threshold = mutable_filters.fuzzy_threshold )
+    ''' Converts mutable filters to immutable using dataclass fields. '''
+    field_values = {
+        field.name: getattr( mutable_filters, field.name )
+        for field in __.dcls.fields( mutable_filters )
+        if not field.name.startswith( '_' ) }
+    return _interfaces.Filters( **field_values )
