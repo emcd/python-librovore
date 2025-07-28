@@ -37,16 +37,6 @@ SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
 _filters_default = _interfaces.Filters( )
 
 
-async def describe_processor(
-    processor_name: str
-) -> dict[ str, __.typx.Any ]:
-    ''' Gets detailed capabilities for a specific processor. '''
-    if processor_name not in _xtnsapi.processors:
-        raise _exceptions.ProcessorInavailability( processor_name )
-    processor = _xtnsapi.processors[ processor_name ]
-    return _serialize_dataclass( processor.capabilities )
-
-
 async def detect(
     source: SourceArgument,
     all_detections: bool = False,
@@ -127,11 +117,16 @@ async def summarize_inventory(
     return _format_inventory_summary( inventory_data )
 
 
-async def survey_processors( ) -> dict[ str, __.typx.Any ]:
-    ''' Lists all available processors and their capabilities. '''
+async def survey_processors(
+    name: __.typx.Optional[ str ] = None
+) -> dict[ str, __.typx.Any ]:
+    ''' Lists processor capabilities, optionally filtered to one processor. '''
+    if name is not None and name not in _xtnsapi.processors:
+        raise _exceptions.ProcessorInavailability( name )
     processors_capabilities = {
-        name: _serialize_dataclass( processor.capabilities )
-        for name, processor in _xtnsapi.processors.items( ) }
+        name_: _serialize_dataclass( processor.capabilities )
+        for name_, processor in _xtnsapi.processors.items( )
+        if name is None or name_ == name }
     return { 'processors': processors_capabilities }
 
 

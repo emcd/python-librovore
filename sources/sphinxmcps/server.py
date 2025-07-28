@@ -53,15 +53,6 @@ _filters_default = FiltersMutable( )
 _scribe = __.acquire_scribe( __name__ )
 
 
-async def describe_processor(
-    processor_name: __.typx.Annotated[
-        str,
-        _Field( description = "Name of processor to describe" ),
-    ],
-) -> dict[ str, __.typx.Any ]:
-    ''' Gets detailed capabilities for a specific processor. '''
-    _scribe.debug( "Describing processor: %s", processor_name )
-    return await _functions.describe_processor( processor_name )
 
 
 async def detect(
@@ -145,10 +136,17 @@ async def summarize_inventory(
         raise RuntimeError from exc
 
 
-async def survey_processors( ) -> dict[ str, __.typx.Any ]:
-    ''' Lists all available processors and their capabilities. '''
-    _scribe.debug( "Listing available processors" )
-    return await _functions.survey_processors( )
+async def survey_processors(
+    name: __.typx.Annotated[
+        __.typx.Optional[ str ],
+        _Field( 
+            default=None, 
+            description = "Optional processor name to filter results." ),
+    ] = None,
+) -> dict[ str, __.typx.Any ]:
+    ''' Lists all processors or specific processor capabilities. '''
+    _scribe.debug( "Surveying processors: %s", name or "all" )
+    return await _functions.survey_processors( name )
 
 
 async def serve(
@@ -157,17 +155,15 @@ async def serve(
     transport: str = 'stdio',
 ) -> None:
     ''' Runs MCP server. '''
-    _scribe.debug( "Initializing FastMCP server" )
+    _scribe.debug( "Initializing FastMCP server." )
     mcp = _FastMCP( 'Sphinx MCP Server', port = port )
-    _scribe.debug( "Registering core tools" )
-    mcp.tool( )( summarize_inventory )
-    mcp.tool( )( query_documentation )
-    mcp.tool( )( explore )
-    _scribe.debug( "Registering capability tools" )
+    _scribe.debug( "Registering tools." )
     mcp.tool( )( detect )
+    mcp.tool( )( explore )
+    mcp.tool( )( query_documentation )
+    mcp.tool( )( summarize_inventory )
     mcp.tool( )( survey_processors )
-    mcp.tool( )( describe_processor )
-    _scribe.debug( "All tools registered successfully" )
+    _scribe.debug( "All tools registered successfully." )
     match transport:
         case 'sse': await mcp.run_sse_async( mount_path = None )
         case 'stdio': await mcp.run_stdio_async( )

@@ -63,29 +63,6 @@ IncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
 _filters_default = _interfaces.Filters( )
 
 
-class DescribeProcessorCommand(
-    __.CliCommand, decorators = ( __.standard_tyro_class, ),
-):
-    ''' Get detailed capabilities for a specific processor. '''
-
-    processor_name: __.typx.Annotated[
-        str,
-        __.tyro.conf.arg( help = "Name of processor to describe" ),
-    ]
-
-    async def __call__(
-        self, auxdata: __.Globals, display: __.ConsoleDisplay
-    ) -> None:
-        stream = await display.provide_stream( )
-        try:
-            result = await _functions.describe_processor(
-                self.processor_name )
-            print( __.json.dumps( result, indent = 2 ), file = stream )
-        except Exception as exc:
-            _scribe.error( "describe-processor failed: %s", exc )
-            raise
-
-
 class DetectCommand(
     __.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
@@ -204,12 +181,19 @@ class SurveyProcessorsCommand(
 ):
     ''' List all available processors and their capabilities. '''
 
+    name: __.typx.Annotated[
+        __.typx.Optional[ str ],
+        __.tyro.conf.arg( help = "Name of processor to describe" ),
+    ] = None
+
     async def __call__(
         self, auxdata: __.Globals, display: __.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
+        nomargs: __.NominativeArguments = { }
+        if self.name is not None: nomargs[ 'name' ] = self.name
         try:
-            result = await _functions.survey_processors( )
+            result = await _functions.survey_processors( **nomargs )
             print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
             _scribe.error( "survey-processors failed: %s", exc )
@@ -222,11 +206,6 @@ class UseCommand(
     ''' Use MCP server tools. '''
 
     operation: __.typx.Union[
-        __.typx.Annotated[
-            DescribeProcessorCommand,
-            __.tyro.conf.subcommand(
-                'describe-processor', prefix_name = False ),
-        ],
         __.typx.Annotated[
             DetectCommand,
             __.tyro.conf.subcommand( 'detect', prefix_name = False ),
