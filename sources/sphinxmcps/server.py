@@ -53,6 +53,29 @@ _filters_default = FiltersMutable( )
 _scribe = __.acquire_scribe( __name__ )
 
 
+async def describe_processor(
+    processor_name: __.typx.Annotated[
+        str,
+        _Field( description = "Name of processor to describe" ),
+    ],
+) -> dict[ str, __.typx.Any ]:
+    ''' Gets detailed capabilities for a specific processor. '''
+    _scribe.debug( "Describing processor: %s", processor_name )
+    return await _functions.describe_processor( processor_name )
+
+
+async def detect(
+    source: SourceArgument,
+    all_detections: __.typx.Annotated[
+        bool,
+        _Field( description = "Return all detections or just best" ),
+    ] = False,
+) -> dict[ str, __.typx.Any ]:
+    ''' Detects which processor(s) can handle a documentation source. '''
+    _scribe.debug( "Starting detection for source: %s", source )
+    return await _functions.detect( source, all_detections )
+
+
 async def explore(
     source: SourceArgument,
     query: Query,
@@ -122,6 +145,12 @@ async def summarize_inventory(
         raise RuntimeError from exc
 
 
+async def survey_processors( ) -> dict[ str, __.typx.Any ]:
+    ''' Lists all available processors and their capabilities. '''
+    _scribe.debug( "Listing available processors" )
+    return await _functions.survey_processors( )
+
+
 async def serve(
     auxdata: __.Globals, /, *,
     port: int = 0,
@@ -130,13 +159,15 @@ async def serve(
     ''' Runs MCP server. '''
     _scribe.debug( "Initializing FastMCP server" )
     mcp = _FastMCP( 'Sphinx MCP Server', port = port )
-    _scribe.debug( "Registering summarize_inventory tool" )
+    _scribe.debug( "Registering core tools" )
     mcp.tool( )( summarize_inventory )
-    _scribe.debug( "Registering query_documentation tool" )
     mcp.tool( )( query_documentation )
-    _scribe.debug( "Registering explore tool" )
     mcp.tool( )( explore )
-    _scribe.debug( "Tools registered successfully" )
+    _scribe.debug( "Registering capability tools" )
+    mcp.tool( )( detect )
+    mcp.tool( )( survey_processors )
+    mcp.tool( )( describe_processor )
+    _scribe.debug( "All tools registered successfully" )
     match transport:
         case 'sse': await mcp.run_sse_async( mount_path = None )
         case 'stdio': await mcp.run_stdio_async( )

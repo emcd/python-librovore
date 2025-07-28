@@ -37,6 +37,37 @@ class SphinxProcessor( __.Processor ):
 
     name: str = 'sphinx'
 
+    @property
+    def capabilities( self ) -> __.ProcessorCapabilities:
+        ''' Returns Sphinx processor capabilities. '''
+        return __.ProcessorCapabilities(
+            processor_name = 'sphinx',
+            version = '1.0.0',
+            supported_filters = [
+                __.FilterCapability(
+                    name = 'domain',
+                    description = 'Sphinx domain (py, std, js, etc.)',
+                    type = 'string',
+                    values = None,
+                ),
+                __.FilterCapability(
+                    name = 'role',
+                    description = 'Object role (class, function, method)',
+                    type = 'string',
+                    values = None,
+                ),
+                __.FilterCapability(
+                    name = 'priority',
+                    description = 'Documentation priority level',
+                    type = 'string',
+                    values = [ '0', '1', '-1' ],
+                ),
+            ],
+            results_limit_max = 100,
+            response_time_typical = 'fast',
+            notes = 'Works with Sphinx-generated documentation sites',
+        )
+
     async def detect( self, source: str ) -> __.Detection:
         ''' Detects if can process documentation from source. '''
         try: base_url = _urls.normalize_base_url( source )

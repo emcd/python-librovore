@@ -111,6 +111,24 @@ class DetectionsCache( __.immut.DataclassObject ):
 _detections_cache = DetectionsCache( )
 
 
+async def access_detections(
+    source: str, /, *,
+    cache: DetectionsCache = _detections_cache,
+    processors: _xtnsapi.ProcessorsRegistry = _xtnsapi.processors,
+) -> tuple[ DetectionsByProcessor, __.Absential[ _interfaces.Detection ] ]:
+    ''' Gets cached detections, triggering fresh detection if needed. '''
+    detections = cache.access_entry( source )
+    if __.is_absent( detections ):
+        await _execute_processors_and_cache( source, cache, processors )
+        detections = cache.access_entry( source )
+        # After fresh execution, detections should never be absent
+        if __.is_absent( detections ):
+            # Fallback: create empty detections mapping
+            detections = __.immut.Dictionary[ str, _interfaces.Detection ]( )
+    best_detection = cache.access_best_detection( source )
+    return detections, best_detection
+
+
 async def determine_processor_optimal(
     source: str, /, *,
     cache: DetectionsCache = _detections_cache,
@@ -129,14 +147,24 @@ async def _execute_processors(
 ) -> dict[ str, _interfaces.Detection ]:
     ''' Runs all processors on the source. '''
     results: dict[ str, _interfaces.Detection ] = { }
+    # TODO: Parallel async fanout.
     for processor in processors.values( ):
         try: detection = await processor.detect( source )
         except Exception:  # noqa: PERF203,S112
             # Skip processor on detection failure
             continue
-        else:
-            results[ processor.name ] = detection
+        else: results[ processor.name ] = detection
     return results
+
+
+async def _execute_processors_and_cache(
+    source: str,
+    cache: DetectionsCache,
+    processors: _xtnsapi.ProcessorsRegistry,
+) -> None:
+    ''' Executes all processors and caches results. '''
+    detections = await _execute_processors( source, processors )
+    cache.add_entry( source, detections )
 
 
 def _select_processor_optimal(

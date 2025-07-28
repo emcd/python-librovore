@@ -25,6 +25,7 @@ from . import __
 from . import detection as _detection
 from . import exceptions as _exceptions
 from . import interfaces as _interfaces
+from . import xtnsapi as _xtnsapi # TODO: Replace with 'registries' module.
 
 
 DocumentationResult: __.typx.TypeAlias = __.cabc.Mapping[ str, __.typx.Any ]
@@ -34,6 +35,38 @@ SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
 
 
 _filters_default = _interfaces.Filters( )
+
+
+async def describe_processor(
+    processor_name: str
+) -> dict[ str, __.typx.Any ]:
+    ''' Gets detailed capabilities for a specific processor. '''
+    if processor_name not in _xtnsapi.processors:
+        raise _exceptions.ProcessorInavailability( processor_name )
+    processor = _xtnsapi.processors[ processor_name ]
+    return _serialize_dataclass( processor.capabilities )
+
+
+async def detect(
+    source: SourceArgument,
+    all_detections: bool = False,
+) -> dict[ str, __.typx.Any ]:
+    ''' Detects which processor(s) can handle a documentation source. '''
+    start_time = __.time.perf_counter( )
+    detections, best_detection = await _detection.access_detections(
+        source )
+    end_time = __.time.perf_counter( )
+    detection_time_ms = int( ( end_time - start_time ) * 1000 )
+    detections_list = list( detections.values( ) )
+    if not all_detections and not __.is_absent( best_detection ):
+        detections_list = [ best_detection ]
+    response = _interfaces.DetectionToolResponse(
+        source = source,
+        detections = detections_list,
+        detection_best = best_detection if not __.is_absent(
+            best_detection ) else None,
+        time_detection_ms = detection_time_ms )
+    return _serialize_dataclass( response )
 
 
 async def explore(
@@ -72,25 +105,6 @@ async def explore(
     return result
 
 
-async def query_documentation(
-    source: SourceArgument,
-    query: str, /, *,
-    filters: _interfaces.Filters = _filters_default,
-    include_snippets: bool = True,
-    results_max: int = 10,
-) -> __.typx.Annotated[
-    dict[ str, __.typx.Any ], __.ddoc.Fname( 'documentation return' ) ]:
-    ''' Queries documentation content with relevance ranking. '''
-    processor = await _determine_processor_optimal( source )
-    raw_results = await processor.query_documentation(
-        source, query,
-        filters = filters,
-        results_max = results_max,
-        include_snippets = include_snippets )
-    return _construct_query_result_structure(
-        source, query, raw_results, results_max, filters )
-
-
 async def summarize_inventory(
     source: SourceArgument,
     query: str = '', /, *,
@@ -111,6 +125,33 @@ async def summarize_inventory(
         'filters': explore_result[ 'search_metadata' ][ 'filters' ],
     }
     return _format_inventory_summary( inventory_data )
+
+
+async def survey_processors( ) -> dict[ str, __.typx.Any ]:
+    ''' Lists all available processors and their capabilities. '''
+    processors_capabilities = {
+        name: _serialize_dataclass( processor.capabilities )
+        for name, processor in _xtnsapi.processors.items( ) }
+    return { 'processors': processors_capabilities }
+
+
+async def query_documentation(
+    source: SourceArgument,
+    query: str, /, *,
+    filters: _interfaces.Filters = _filters_default,
+    include_snippets: bool = True,
+    results_max: int = 10,
+) -> __.typx.Annotated[
+    dict[ str, __.typx.Any ], __.ddoc.Fname( 'documentation return' ) ]:
+    ''' Queries documentation content with relevance ranking. '''
+    processor = await _determine_processor_optimal( source )
+    raw_results = await processor.query_documentation(
+        source, query,
+        filters = filters,
+        results_max = results_max,
+        include_snippets = include_snippets )
+    return _construct_query_result_structure(
+        source, query, raw_results, results_max, filters )
 
 
 async def _add_documentation_to_results(
@@ -263,6 +304,26 @@ def _format_inventory_summary(
             summary_lines.append(
                 f"  {domain_name}: {len( objects )} objects" )
     return '\n'.join( summary_lines )
+
+
+def _serialize_dataclass( obj: __.typx.Any ) -> __.typx.Any:
+    ''' Recursively serializes dataclass objects to JSON-compatible format. '''
+    if __.dcls.is_dataclass( obj ):
+        result = { }  # type: ignore[var-annotated]
+        for field in __.dcls.fields( obj ):
+            if field.name.startswith( '_' ):
+                continue  # Skip private/internal fields
+            value = getattr( obj, field.name )
+            result[ field.name ] = _serialize_dataclass( value )
+        return result  # type: ignore[return-value]
+    if isinstance( obj, list ):
+        return [ _serialize_dataclass( item ) for item in obj ]  # type: ignore[misc]
+    if isinstance( obj, ( frozenset, set ) ):
+        return list( obj )  # type: ignore[arg-type]
+    if obj is None or isinstance( obj, ( str, int, float, bool ) ):
+        return obj
+    # For other objects, try to convert to string
+    return str( obj )
 
 
 def _group_documents_by_domain(

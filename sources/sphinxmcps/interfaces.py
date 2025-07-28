@@ -36,17 +36,44 @@ class MatchMode( str, __.enum.Enum ):
 class Filters( __.immut.DataclassObject ):
     ''' Common filters for inventory and documentation search. '''
 
-    domain: str = ""
-    role: str = ""
-    priority: str = ""
+    domain: str = ''
+    role: str = ''
+    priority: str = ''
     match_mode: MatchMode = MatchMode.Fuzzy
     fuzzy_threshold: int = 50
+
+
+class FilterCapability( __.immut.DataclassObject ):
+    ''' Describes a filter supported by a processor. '''
+
+    name: str
+    description: str
+    type: str  # "string", "enum", "boolean"
+    values: __.typx.Optional[ list[ str ] ] = None  # For enums
+    required: bool = False
+
+
+class ProcessorCapabilities( __.immut.DataclassObject ):
+    ''' Complete capability description for a processor. '''
+
+    processor_name: str
+    version: str
+    supported_filters: list[ FilterCapability ]
+    results_limit_max: __.typx.Optional[ int ] = None
+    response_time_typical: __.typx.Optional[ str ] = None  # "fast", etc.
+    notes: __.typx.Optional[ str ] = None
 
 
 class Processor( __.immut.DataclassProtocol ):
     ''' Abstract base class for documentation source detectors. '''
 
     name: str
+
+    @property
+    @__.abc.abstractmethod
+    def capabilities( self ) -> ProcessorCapabilities:
+        ''' Returns processor capabilities for advertisement. '''
+        raise NotImplementedError
 
     @__.abc.abstractmethod
     async def detect( self, source: str ) -> 'Detection':
@@ -60,7 +87,6 @@ class Processor( __.immut.DataclassProtocol ):
     ) -> __.cabc.Mapping[ str, __.typx.Any ]:
         ''' Extracts inventory from source with optional filtering. '''
         raise NotImplementedError
-
 
     @__.abc.abstractmethod
     async def extract_documentation( self, source: str, object_name: str, /, *,
@@ -86,6 +112,11 @@ class Detection( __.immut.DataclassProtocol ):
     confidence: float
     timestamp: float = __.dcls.field( default_factory = __.time.time )
 
+    @property
+    def capabilities( self ) -> ProcessorCapabilities:
+        ''' Returns capabilities for this detection's processor. '''
+        return self.processor.capabilities
+
     def __post_init__( self ) -> None:
         ''' Validates confidence is in valid range [0.0, 1.0]. '''
         if not ( 0.0 <= self.confidence <= 1.0 ):
@@ -98,3 +129,12 @@ class Detection( __.immut.DataclassProtocol ):
     ) -> __.typx.Self:
         ''' Constructs detection from source location. '''
         raise NotImplementedError
+
+
+class DetectionToolResponse( __.immut.DataclassObject ):
+    ''' Response from detect tool. '''
+
+    source: str
+    detections: list[ Detection ]
+    detection_best: __.typx.Optional[ Detection ]
+    time_detection_ms: int

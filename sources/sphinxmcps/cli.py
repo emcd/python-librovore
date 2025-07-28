@@ -30,29 +30,9 @@ from . import server as _server
 _scribe = __.acquire_scribe( __name__ )
 
 
-DomainFilter: __.typx.TypeAlias = __.typx.Annotated[
-    __.typx.Optional[ str ],
-    __.tyro.conf.arg( help = __.access_doctab( 'domain filter argument' ) ),
-]
-FuzzyThreshold: __.typx.TypeAlias = __.typx.Annotated[
-    int,
-    __.tyro.conf.arg( help = __.access_doctab( 'fuzzy threshold argument' ) ),
-]
-MatchMode: __.typx.TypeAlias = __.typx.Annotated[
-    _interfaces.MatchMode,
-    __.tyro.conf.arg( help = __.access_doctab( 'match mode cli argument' ) ),
-]
 PortArgument: __.typx.TypeAlias = __.typx.Annotated[
     __.typx.Optional[ int ],
     __.tyro.conf.arg( help = __.access_doctab( 'server port argument' ) ),
-]
-PriorityFilter: __.typx.TypeAlias = __.typx.Annotated[
-    __.typx.Optional[ str ],
-    __.tyro.conf.arg( help = __.access_doctab( 'priority filter argument' ) ),
-]
-RoleFilter: __.typx.TypeAlias = __.typx.Annotated[
-    __.typx.Optional[ str ],
-    __.tyro.conf.arg( help = __.access_doctab( 'role filter argument' ) ),
 ]
 SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
     str,
@@ -83,54 +63,50 @@ IncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
 _filters_default = _interfaces.Filters( )
 
 
-class SummarizeInventoryCommand(
+class DescribeProcessorCommand(
     __.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
-    ''' Provides human-readable summary of inventory. '''
+    ''' Get detailed capabilities for a specific processor. '''
 
-    source: SourceArgument
-    term: TermFilter = None
-    filters: __.typx.Annotated[
-        _interfaces.Filters,
-        __.tyro.conf.arg( prefix_name = False ),
-    ] = _filters_default
-
-    async def __call__(
-        self, auxdata: __.Globals, display: __.ConsoleDisplay
-    ) -> None:
-        stream = await display.provide_stream( )
-        result = await _functions.summarize_inventory(
-            self.source, self.term or '', filters = self.filters )
-        print( result, file = stream )
-
-
-class QueryDocumentationCommand(
-    __.CliCommand, decorators = ( __.standard_tyro_class, ),
-):
-    ''' Queries documentation content with relevance ranking. '''
-
-    source: SourceArgument
-    query: QueryArgument
-    filters: __.typx.Annotated[
-        _interfaces.Filters,
-        __.tyro.conf.arg( prefix_name = False ),
-    ] = _filters_default
-    include_snippets: IncludeSnippets = True
-    results_max: ResultsMax = 10
+    processor_name: __.typx.Annotated[
+        str,
+        __.tyro.conf.arg( help = "Name of processor to describe" ),
+    ]
 
     async def __call__(
         self, auxdata: __.Globals, display: __.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
         try:
-            result = await _functions.query_documentation(
-                self.source, self.query,
-                filters = self.filters,
-                results_max = self.results_max,
-                include_snippets = self.include_snippets )
+            result = await _functions.describe_processor(
+                self.processor_name )
             print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
-            _scribe.error( "query_documentation failed: %s", exc )
+            _scribe.error( "describe-processor failed: %s", exc )
+            raise
+
+
+class DetectCommand(
+    __.CliCommand, decorators = ( __.standard_tyro_class, ),
+):
+    ''' Detect which processor(s) can handle a documentation source. '''
+
+    source: SourceArgument
+    all_detections: __.typx.Annotated[
+        bool,
+        __.tyro.conf.arg( help = "Return all detections or just best" ),
+    ] = False
+
+    async def __call__(
+        self, auxdata: __.Globals, display: __.ConsoleDisplay
+    ) -> None:
+        stream = await display.provide_stream( )
+        try:
+            result = await _functions.detect(
+                self.source, self.all_detections )
+            print( __.json.dumps( result, indent = 2 ), file = stream )
+        except Exception as exc:
+            _scribe.error( "detect failed: %s", exc )
             raise
 
 
@@ -172,6 +148,74 @@ class ExploreCommand(
             raise
 
 
+class QueryDocumentationCommand(
+    __.CliCommand, decorators = ( __.standard_tyro_class, ),
+):
+    ''' Queries documentation content with relevance ranking. '''
+
+    source: SourceArgument
+    query: QueryArgument
+    filters: __.typx.Annotated[
+        _interfaces.Filters,
+        __.tyro.conf.arg( prefix_name = False ),
+    ] = _filters_default
+    include_snippets: IncludeSnippets = True
+    results_max: ResultsMax = 10
+
+    async def __call__(
+        self, auxdata: __.Globals, display: __.ConsoleDisplay
+    ) -> None:
+        stream = await display.provide_stream( )
+        try:
+            result = await _functions.query_documentation(
+                self.source, self.query,
+                filters = self.filters,
+                results_max = self.results_max,
+                include_snippets = self.include_snippets )
+            print( __.json.dumps( result, indent = 2 ), file = stream )
+        except Exception as exc:
+            _scribe.error( "query_documentation failed: %s", exc )
+            raise
+
+
+class SummarizeInventoryCommand(
+    __.CliCommand, decorators = ( __.standard_tyro_class, ),
+):
+    ''' Provides human-readable summary of inventory. '''
+
+    source: SourceArgument
+    term: TermFilter = None
+    filters: __.typx.Annotated[
+        _interfaces.Filters,
+        __.tyro.conf.arg( prefix_name = False ),
+    ] = _filters_default
+
+    async def __call__(
+        self, auxdata: __.Globals, display: __.ConsoleDisplay
+    ) -> None:
+        stream = await display.provide_stream( )
+        result = await _functions.summarize_inventory(
+            self.source, self.term or '', filters = self.filters )
+        print( result, file = stream )
+
+
+class SurveyProcessorsCommand(
+    __.CliCommand, decorators = ( __.standard_tyro_class, ),
+):
+    ''' List all available processors and their capabilities. '''
+
+    async def __call__(
+        self, auxdata: __.Globals, display: __.ConsoleDisplay
+    ) -> None:
+        stream = await display.provide_stream( )
+        try:
+            result = await _functions.survey_processors( )
+            print( __.json.dumps( result, indent = 2 ), file = stream )
+        except Exception as exc:
+            _scribe.error( "survey-processors failed: %s", exc )
+            raise
+
+
 class UseCommand(
     __.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
@@ -179,9 +223,17 @@ class UseCommand(
 
     operation: __.typx.Union[
         __.typx.Annotated[
-            SummarizeInventoryCommand,
+            DescribeProcessorCommand,
             __.tyro.conf.subcommand(
-                'summarize-inventory', prefix_name = False ),
+                'describe-processor', prefix_name = False ),
+        ],
+        __.typx.Annotated[
+            DetectCommand,
+            __.tyro.conf.subcommand( 'detect', prefix_name = False ),
+        ],
+        __.typx.Annotated[
+            ExploreCommand,
+            __.tyro.conf.subcommand( 'explore', prefix_name = False ),
         ],
         __.typx.Annotated[
             QueryDocumentationCommand,
@@ -189,8 +241,14 @@ class UseCommand(
                 'query-documentation', prefix_name = False ),
         ],
         __.typx.Annotated[
-            ExploreCommand,
-            __.tyro.conf.subcommand( 'explore', prefix_name = False ),
+            SummarizeInventoryCommand,
+            __.tyro.conf.subcommand(
+                'summarize-inventory', prefix_name = False ),
+        ],
+        __.typx.Annotated[
+            SurveyProcessorsCommand,
+            __.tyro.conf.subcommand(
+                'survey-processors', prefix_name = False ),
         ],
     ]
 
