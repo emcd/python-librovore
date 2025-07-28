@@ -82,7 +82,7 @@ async def test_170_explore_wrapper( ):
     ''' Server explore delegates to functions correctly. '''
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
     filters = module._interfaces.Filters( domain = 'py', role = 'function' )
-    result = await module.explore(
+    result = await module.query_inventory(
         source = test_inventory_path, query = 'test', filters = filters )
     assert isinstance( result, dict )
     assert 'project' in result
@@ -95,9 +95,9 @@ async def test_170_explore_wrapper( ):
 async def test_180_explore_wrapper_no_filters( ):
     ''' Server explore works without filters. '''
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = await module.explore(
+    result = await module.query_inventory(
         source = test_inventory_path, query = 'test', 
-        include_documentation = False )
+        details = module._interfaces.InventoryQueryDetails.Name )
     assert isinstance( result, dict )
     assert 'project' in result
     assert 'documents' in result
@@ -110,11 +110,11 @@ async def test_190_explore_wrapper_with_fuzzy( ):
     test_inventory_path = get_test_inventory_path( 'sphobjinv' )
     filters = module._interfaces.Filters(
         match_mode = _interfaces.MatchMode.Fuzzy, fuzzy_threshold = 60 )
-    result = await module.explore(
+    result = await module.query_inventory(
         source = test_inventory_path,
         query = 'DataObj',
         filters = filters,
-        include_documentation = False )
+        details = module._interfaces.InventoryQueryDetails.Name )
     assert isinstance( result, dict )
     assert 'search_metadata' in result
     assert result[ 'search_metadata' ][ 'filters' ][ 'match_mode' ] == 'fuzzy'

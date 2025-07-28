@@ -33,10 +33,11 @@ from .fixtures import get_test_inventory_path
 
 @pytest.mark.asyncio
 async def test_100_explore_local_file( ):
-    ''' Explore function processes local inventory files. '''
+    ''' Query inventory function processes local inventory files. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = await module.explore(
-        inventory_path, "", include_documentation = False )
+    result = await module.query_inventory(
+        inventory_path, "", 
+        details = module._interfaces.InventoryQueryDetails.Name )
     assert 'project' in result
     assert 'documents' in result
 
@@ -46,8 +47,9 @@ async def test_110_explore_with_domain_filter( ):
     ''' Explore function applies domain filtering correctly. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
     filters = _interfaces.Filters( domain = 'py' )
-    result = await module.explore(
-        inventory_path, "", filters = filters, include_documentation = False )
+    result = await module.query_inventory(
+        inventory_path, "", filters = filters, 
+        details = module._interfaces.InventoryQueryDetails.Name )
     assert 'search_metadata' in result
     assert result[ 'search_metadata' ][ 'filters' ][ 'domain' ] == 'py'
 
@@ -57,8 +59,9 @@ async def test_120_explore_with_role_filter( ):
     ''' Explore function applies role filtering correctly. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
     filters = _interfaces.Filters( role = 'module' )
-    result = await module.explore(
-        inventory_path, "", filters = filters, include_documentation = False )
+    result = await module.query_inventory(
+        inventory_path, "", filters = filters, 
+        details = module._interfaces.InventoryQueryDetails.Name )
     assert 'search_metadata' in result
     assert result[ 'search_metadata' ][ 'filters' ][ 'role' ] == 'module'
 
@@ -67,8 +70,9 @@ async def test_120_explore_with_role_filter( ):
 async def test_130_explore_with_search_query( ):
     ''' Explore function applies search filtering correctly. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = await module.explore(
-        inventory_path, "test", include_documentation = False )
+    result = await module.query_inventory(
+        inventory_path, "test", 
+        details = module._interfaces.InventoryQueryDetails.Name )
     assert 'search_metadata' in result
     assert result[ 'query' ] == 'test'
 
@@ -78,9 +82,9 @@ async def test_140_explore_with_all_filters( ):
     ''' Explore function applies multiple filters correctly. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
     filters = _interfaces.Filters( domain = 'py', role = 'module' )
-    result = await module.explore(
+    result = await module.query_inventory(
         inventory_path, "test", filters = filters,
-        include_documentation = False )
+        details = module._interfaces.InventoryQueryDetails.Name )
     assert 'search_metadata' in result
     search_filters = result[ 'search_metadata' ][ 'filters' ]
     assert search_filters[ 'domain' ] == 'py'
@@ -92,8 +96,9 @@ async def test_140_explore_with_all_filters( ):
 async def test_150_explore_nonexistent_file( ):
     ''' Explore function raises appropriate exception for missing files. '''
     with pytest.raises( _exceptions.ProcessorInavailability ):
-        await module.explore(
-            "/nonexistent/path.inv", "", include_documentation = False )
+        await module.query_inventory(
+            "/nonexistent/path.inv", "", 
+            details = module._interfaces.InventoryQueryDetails.Name )
 
 
 @pytest.mark.asyncio
@@ -101,8 +106,9 @@ async def test_160_explore_auto_append_objects_inv( ):
     ''' Explore function auto-appends objects.inv to URLs/paths. '''
     real_inventory_path = get_test_inventory_path( 'sphinxmcps' )
     inventory_dir = str( Path( real_inventory_path ).parent )
-    result = await module.explore(
-        inventory_dir, "", include_documentation = False )
+    result = await module.query_inventory(
+        inventory_dir, "", 
+        details = module._interfaces.InventoryQueryDetails.Name )
     assert 'project' in result
     assert 'documents' in result
 
@@ -181,7 +187,7 @@ async def test_430_summarize_inventory_with_priority( ):
 async def test_500_query_documentation_basic( ):
     ''' Query documentation returns relevant results for basic queries. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = await module.query_documentation( inventory_path, 'inventory' )
+    result = await module.query_content( inventory_path, 'inventory' )
     assert isinstance( result, dict )
     assert 'documents' in result
     assert 'search_metadata' in result
@@ -200,7 +206,7 @@ async def test_510_query_documentation_with_domain_filter( ):
     ''' Query documentation applies domain filtering correctly. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     filters = _interfaces.Filters( domain = 'py' )
-    result = await module.query_documentation(
+    result = await module.query_content(
         inventory_path, 'inventory', filters = filters )
     assert isinstance( result, dict )
     assert 'documents' in result
@@ -213,7 +219,7 @@ async def test_520_query_documentation_with_role_filter( ):
     ''' Query documentation applies role filtering correctly. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     filters = _interfaces.Filters( role = 'function' )
-    result = await module.query_documentation(
+    result = await module.query_content(
         inventory_path, 'inventory', filters = filters )
     assert isinstance( result, dict )
     assert 'documents' in result
@@ -226,7 +232,7 @@ async def test_530_query_documentation_with_priority_filter( ):
     ''' Query documentation applies priority filtering correctly. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     filters = _interfaces.Filters( priority = '1' )
-    result = await module.query_documentation(
+    result = await module.query_content(
         inventory_path, 'inventory', filters = filters )
     assert isinstance( result, dict )
     assert 'documents' in result
@@ -239,7 +245,7 @@ async def test_540_query_documentation_with_exact_match( ):
     ''' Query documentation uses exact matching when specified. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     filters = _interfaces.Filters( match_mode = _interfaces.MatchMode.Exact )
-    result = await module.query_documentation(
+    result = await module.query_content(
         inventory_path, 'inventory', filters = filters )
     assert isinstance( result, dict )
     assert 'documents' in result
@@ -252,7 +258,7 @@ async def test_550_query_documentation_with_regex_match( ):
     ''' Query documentation uses regex matching when specified. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     filters = _interfaces.Filters( match_mode = _interfaces.MatchMode.Regex )
-    result = await module.query_documentation(
+    result = await module.query_content(
         inventory_path, r'.*inventory.*', filters = filters )
     assert isinstance( result, dict )
     assert 'documents' in result
@@ -266,7 +272,7 @@ async def test_560_query_documentation_with_fuzzy_match( ):
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     filters = _interfaces.Filters(
         match_mode = _interfaces.MatchMode.Fuzzy, fuzzy_threshold = 60 )
-    result = await module.query_documentation(
+    result = await module.query_content(
         inventory_path, 'inventori', filters = filters )
     assert isinstance( result, dict )
     assert 'documents' in result
@@ -278,7 +284,7 @@ async def test_560_query_documentation_with_fuzzy_match( ):
 async def test_570_query_documentation_with_results_max( ):
     ''' Query documentation respects results_max parameter. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = await module.query_documentation(
+    result = await module.query_content(
         inventory_path, 'inventory', results_max = 3 )
     assert isinstance( result, dict )
     assert 'documents' in result
@@ -289,7 +295,7 @@ async def test_570_query_documentation_with_results_max( ):
 async def test_580_query_documentation_with_snippets_disabled( ):
     ''' Query documentation excludes snippets when disabled. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = await module.query_documentation(
+    result = await module.query_content(
         inventory_path, 'inventory', include_snippets = False )
     assert isinstance( result, dict )
     assert 'documents' in result
@@ -301,7 +307,7 @@ async def test_580_query_documentation_with_snippets_disabled( ):
 async def test_590_query_documentation_with_snippets_enabled( ):
     ''' Query documentation includes snippets when enabled. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = await module.query_documentation(
+    result = await module.query_content(
         inventory_path, 'inventory', include_snippets = True )
     assert isinstance( result, dict )
     assert 'documents' in result
@@ -313,7 +319,7 @@ async def test_590_query_documentation_with_snippets_enabled( ):
 async def test_600_query_documentation_relevance_ranking( ):
     ''' Query documentation returns results sorted by relevance. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = await module.query_documentation(
+    result = await module.query_content(
         inventory_path, 'inventory', results_max = 5 )
     assert isinstance( result, dict )
     assert 'documents' in result
@@ -334,7 +340,7 @@ async def test_610_query_documentation_combined_filters( ):
         priority = '1',
         match_mode = _interfaces.MatchMode.Fuzzy,
         fuzzy_threshold = 70 )
-    result = await module.query_documentation(
+    result = await module.query_content(
         inventory_path, 'inventory', filters = filters )
     assert isinstance( result, dict )
     assert 'documents' in result
@@ -348,7 +354,7 @@ async def test_610_query_documentation_combined_filters( ):
 async def test_620_query_documentation_empty_query( ):
     ''' Query documentation handles empty query gracefully. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = await module.query_documentation( inventory_path, '' )
+    result = await module.query_content( inventory_path, '' )
     assert isinstance( result, dict )
     assert 'documents' in result
 
@@ -357,7 +363,7 @@ async def test_620_query_documentation_empty_query( ):
 async def test_630_query_documentation_no_matches( ):
     ''' Query documentation returns empty list when no matches found. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = await module.query_documentation(
+    result = await module.query_content(
         inventory_path, 'nonexistent_term_xyz123' )
     assert isinstance( result, dict )
     assert 'documents' in result
@@ -368,7 +374,7 @@ async def test_630_query_documentation_no_matches( ):
 async def test_640_query_documentation_nonexistent_file( ):
     ''' Query documentation handles nonexistent files gracefully. '''
     with pytest.raises( _exceptions.ProcessorInavailability ):
-        await module.query_documentation(
+        await module.query_content(
             '/nonexistent/path.inv', 'inventory' )
 
 
@@ -376,7 +382,7 @@ async def test_640_query_documentation_nonexistent_file( ):
 async def test_650_query_documentation_match_reasons( ):
     ''' Query documentation includes match reasons in results. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = await module.query_documentation(
+    result = await module.query_content(
         inventory_path, 'inventory', results_max = 1 )
     assert isinstance( result, dict )
     assert 'documents' in result
@@ -389,7 +395,7 @@ async def test_650_query_documentation_match_reasons( ):
 async def test_660_query_documentation_result_structure( ):
     ''' Query documentation returns properly structured results. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = await module.query_documentation(
+    result = await module.query_content(
         inventory_path, 'inventory', results_max = 1 )
     assert isinstance( result, dict )
     assert 'documents' in result
@@ -409,7 +415,7 @@ async def test_660_query_documentation_result_structure( ):
 async def test_700_explore_with_object_not_found( ):
     ''' Explore function handles object not found gracefully. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    result = await module.explore(
+    result = await module.query_inventory(
         inventory_path, 'nonexistent_object_xyz123', results_max = 1 )
     assert 'documents' in result
     # When no objects are found, documents should be empty

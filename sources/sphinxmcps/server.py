@@ -67,38 +67,36 @@ async def detect(
     return await _functions.detect( source, all_detections )
 
 
-async def explore(
+async def query_inventory(
     source: SourceArgument,
     query: Query,
     filters: __.typx.Annotated[
         FiltersMutable,
         _Field( description = "Search and filtering options" ),
     ] = _filters_default,
-    include_documentation: __.typx.Annotated[
-        bool,
-        _Field(
-            description = __.access_doctab(
-                'include documentation argument' ) ),
-    ] = True,
+    details: __.typx.Annotated[
+        _interfaces.InventoryQueryDetails,
+        _Field( description = "Detail level for inventory results" ),
+    ] = _interfaces.InventoryQueryDetails.Documentation,
     results_max: ResultsMax = 5,
 ) -> dict[ str, __.typx.Any ]:
-    ''' Explores objects by combining inventory search with documentation. '''
+    ''' Searches object inventory by name with fuzzy matching. '''
     _scribe.debug(
-        "explore called: source=%s, query=%s, filters=%s, results_max=%s, "
-        "include_documentation=%s",
-        source, query, filters, results_max, include_documentation )
+        "query_inventory called: source=%s, query=%s, filters=%s, "
+        "results_max=%s, details=%s",
+        source, query, filters, results_max, details )
     try:
         immutable_filters = _to_immutable_filters( filters )
-        return await _functions.explore(
+        return await _functions.query_inventory(
             source, query, filters = immutable_filters,
             results_max = results_max,
-            include_documentation = include_documentation )
+            details = details )
     except Exception as exc:
         _scribe.error( "Error exploring: %s", exc )
         raise RuntimeError from exc
 
 
-async def query_documentation(
+async def query_content(
     source: SourceArgument,
     query: Query,
     filters: __.typx.Annotated[
@@ -108,12 +106,12 @@ async def query_documentation(
     include_snippets: IncludeSnippets = True,
     results_max: ResultsMax = 10,
 ) -> dict[ str, __.typx.Any ]:
-    ''' Query documentation content with relevance ranking. '''
+    ''' Searches documentation content with relevance ranking and snippets. '''
     _scribe.debug(
-        "query_documentation called: source=%s, query=%s, filters=%s",
+        "query_content called: source=%s, query=%s, filters=%s",
         source, query, filters )
     immutable_filters = _to_immutable_filters( filters )
-    return await _functions.query_documentation(
+    return await _functions.query_content(
         source, query, filters = immutable_filters,
         results_max = results_max, include_snippets = include_snippets )
 
@@ -137,12 +135,10 @@ async def summarize_inventory(
 
 
 async def survey_processors(
-    name: __.typx.Annotated[
-        __.typx.Optional[ str ],
-        _Field( 
-            default=None, 
-            description = "Optional processor name to filter results." ),
-    ] = None,
+    name: str | None = (
+        _Field(
+            default = None,
+            description = "Optional processor name to filter results." ) ),
 ) -> dict[ str, __.typx.Any ]:
     ''' Lists all processors or specific processor capabilities. '''
     _scribe.debug( "Surveying processors: %s", name or "all" )
@@ -159,8 +155,8 @@ async def serve(
     mcp = _FastMCP( 'Sphinx MCP Server', port = port )
     _scribe.debug( "Registering tools." )
     mcp.tool( )( detect )
-    mcp.tool( )( explore )
-    mcp.tool( )( query_documentation )
+    mcp.tool( )( query_inventory )
+    mcp.tool( )( query_content )
     mcp.tool( )( summarize_inventory )
     mcp.tool( )( survey_processors )
     _scribe.debug( "All tools registered successfully." )

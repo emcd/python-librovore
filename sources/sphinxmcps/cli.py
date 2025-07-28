@@ -87,10 +87,10 @@ class DetectCommand(
             raise
 
 
-class ExploreCommand(
+class QueryInventoryCommand(
     __.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
-    ''' Explores objects by combining inventory search with documentation. '''
+    ''' Searches object inventory by name with fuzzy matching. '''
 
     source: SourceArgument
     query: QueryArgument
@@ -113,22 +113,24 @@ class ExploreCommand(
     ) -> None:
         stream = await display.provide_stream( )
         try:
-            result = await _functions.explore(
+            result = await _functions.query_inventory(
                 self.source,
                 self.query,
                 filters = self.filters,
                 results_max = self.objects_max,
-                include_documentation = self.include_documentation )
+                details = ( _interfaces.InventoryQueryDetails.Documentation 
+                    if self.include_documentation 
+                    else _interfaces.InventoryQueryDetails.Name ) )
             print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
-            _scribe.error( "explore failed: %s", exc )
+            _scribe.error( "query-inventory failed: %s", exc )
             raise
 
 
-class QueryDocumentationCommand(
+class QueryContentCommand(
     __.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
-    ''' Queries documentation content with relevance ranking. '''
+    ''' Searches documentation content with relevance ranking and snippets. '''
 
     source: SourceArgument
     query: QueryArgument
@@ -144,14 +146,14 @@ class QueryDocumentationCommand(
     ) -> None:
         stream = await display.provide_stream( )
         try:
-            result = await _functions.query_documentation(
+            result = await _functions.query_content(
                 self.source, self.query,
                 filters = self.filters,
                 results_max = self.results_max,
                 include_snippets = self.include_snippets )
             print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
-            _scribe.error( "query_documentation failed: %s", exc )
+            _scribe.error( "query-content failed: %s", exc )
             raise
 
 
@@ -211,13 +213,13 @@ class UseCommand(
             __.tyro.conf.subcommand( 'detect', prefix_name = False ),
         ],
         __.typx.Annotated[
-            ExploreCommand,
-            __.tyro.conf.subcommand( 'explore', prefix_name = False ),
+            QueryInventoryCommand,
+            __.tyro.conf.subcommand( 'query-inventory', prefix_name = False ),
         ],
         __.typx.Annotated[
-            QueryDocumentationCommand,
+            QueryContentCommand,
             __.tyro.conf.subcommand(
-                'query-documentation', prefix_name = False ),
+                'query-content', prefix_name = False ),
         ],
         __.typx.Annotated[
             SummarizeInventoryCommand,

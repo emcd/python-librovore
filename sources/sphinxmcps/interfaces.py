@@ -33,6 +33,15 @@ class MatchMode( str, __.enum.Enum ):
     Fuzzy = 'fuzzy'
 
 
+class InventoryQueryDetails( __.enum.IntFlag ):
+    ''' Enumeration for inventory query detail levels. '''
+
+    Name = 0                           # Object names only (baseline)
+    Signature = __.enum.auto( )        # Include signatures
+    Summary = __.enum.auto( )          # Include brief descriptions
+    Documentation = __.enum.auto( )    # Include full documentation
+
+
 class Filters( __.immut.DataclassObject ):
     ''' Common filters for inventory and documentation search. '''
 

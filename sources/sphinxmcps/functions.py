@@ -59,22 +59,20 @@ async def detect(
     return _serialize_dataclass( response )
 
 
-async def explore(
+async def query_inventory(
     source: SourceArgument,
     query: str, /, *,
     filters: _interfaces.Filters = _filters_default,
-    include_documentation: bool = True,
+    details: _interfaces.InventoryQueryDetails = (
+        _interfaces.InventoryQueryDetails.Documentation ),
     results_max: int = 5,
 ) -> __.typx.Annotated[
-    dict[ str, __.typx.Any ], __.ddoc.Fname( 'explore return' ) ]:
-    ''' Explores objects related to a query.
+    dict[ str, __.typx.Any ], __.ddoc.Fname( 'inventory query return' ) ]:
+    ''' Searches object inventory by name with fuzzy matching.
 
-        Combines inventory search with documentation extraction.
-
-        This function streamlines the common workflow of searching inventory
-        for relevant objects and then extracting detailed documentation for
-        each match. It handles errors gracefully by separating successful
-        results from failed extractions.
+        Finds objects in documentation inventory using fuzzy name matching
+        and returns configurable detail levels. Always includes object names
+        plus requested detail flags (signatures, summaries, documentation).
     '''
     processor = await _determine_processor_optimal( source )
     result_mapping = await processor.extract_inventory(
@@ -88,7 +86,7 @@ async def explore(
     selected_objects = _select_top_objects( inventory_data, results_max )
     result = _construct_explore_result_structure(
         inventory_data, query, selected_objects, results_max, filters )
-    if include_documentation:
+    if _interfaces.InventoryQueryDetails.Documentation in details:
         await _add_documentation_to_results( source, selected_objects, result )
     else:
         _add_object_metadata_to_results( selected_objects, result )
@@ -102,17 +100,19 @@ async def summarize_inventory(
 ) -> __.typx.Annotated[
     str, __.ddoc.Fname( 'inventory summary return' ) ]:
     ''' Provides human-readable summary of inventory. '''
-    # Use explore with no documentation to get inventory data
-    explore_result = await explore(
+    # Use query_inventory with name-only details to get inventory data
+    inventory_result = await query_inventory(
         source, query, filters = filters,
         results_max = 1000,  # Large number to get all matches
-        include_documentation = False )
+        details = _interfaces.InventoryQueryDetails.Name )
     inventory_data: dict[ str, __.typx.Any ] = {
-        'project': explore_result[ 'project' ],
-        'version': explore_result[ 'version' ],
-        'object_count': explore_result[ 'search_metadata' ][ 'total_matches' ],
-        'objects': _group_documents_by_domain( explore_result[ 'documents' ] ),
-        'filters': explore_result[ 'search_metadata' ][ 'filters' ],
+        'project': inventory_result[ 'project' ],
+        'version': inventory_result[ 'version' ],
+        'object_count': inventory_result[ 'search_metadata' ][ 
+            'total_matches' ],
+        'objects': _group_documents_by_domain( 
+            inventory_result[ 'documents' ] ),
+        'filters': inventory_result[ 'search_metadata' ][ 'filters' ],
     }
     return _format_inventory_summary( inventory_data )
 
@@ -130,15 +130,15 @@ async def survey_processors(
     return { 'processors': processors_capabilities }
 
 
-async def query_documentation(
+async def query_content(
     source: SourceArgument,
     query: str, /, *,
     filters: _interfaces.Filters = _filters_default,
     include_snippets: bool = True,
     results_max: int = 10,
 ) -> __.typx.Annotated[
-    dict[ str, __.typx.Any ], __.ddoc.Fname( 'documentation return' ) ]:
-    ''' Queries documentation content with relevance ranking. '''
+    dict[ str, __.typx.Any ], __.ddoc.Fname( 'content query return' ) ]:
+    ''' Searches documentation content with relevance ranking. '''
     processor = await _determine_processor_optimal( source )
     raw_results = await processor.query_documentation(
         source, query,
