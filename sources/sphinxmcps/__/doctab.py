@@ -50,8 +50,9 @@ fragments: __.cabc.Mapping[ str, str ] = __.types.MappingProxyType( {
         Range 0 to 100. Higher is stricter.
     ''',
 
-    'include documentation argument':
-    ''' Whether to extract documentation for objects. ''',
+    'query details argument':
+    ''' Detail level for inventory results (Name, Signature, Summary, 
+        Documentation). ''',
 
     'include snippets argument':
     ''' Include content snippets in results. ''',

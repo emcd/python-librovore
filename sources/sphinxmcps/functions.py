@@ -76,7 +76,7 @@ async def query_inventory(
     '''
     processor = await _determine_processor_optimal( source )
     result_mapping = await processor.extract_inventory(
-        source, term = query, filters = filters )
+        source, term = query, filters = filters, details = details )
     inventory_data = dict( result_mapping )
     inventory_data[ 'source' ] = source
     domains_summary: dict[ str, int ] = {

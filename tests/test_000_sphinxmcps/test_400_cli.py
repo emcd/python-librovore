@@ -143,9 +143,8 @@ async def test_500_cli_explore_local_file( ):
     ''' CLI explore processes local files. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
     result = await run_cli_command( [
-        'use', 'explore', '--source', inventory_path, '--query', 'test',
-        '--no-include-documentation'
-    ] )
+        'use', 'query-inventory', '--source', inventory_path, 
+        '--query', 'test', '--details', 'Name' ] )
     assert result.returncode == 0
     assert 'project' in result.stdout or 'project' in result.stderr
     assert 'documents' in result.stdout or 'documents' in result.stderr

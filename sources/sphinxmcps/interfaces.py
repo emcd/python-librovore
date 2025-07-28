@@ -93,8 +93,9 @@ class Processor( __.immut.DataclassProtocol ):
     async def extract_inventory( self, source: str, /, *,
         term: __.Absential[ str ] = __.absent,
         filters: Filters,
+        details: InventoryQueryDetails = InventoryQueryDetails.Documentation,
     ) -> __.cabc.Mapping[ str, __.typx.Any ]:
-        ''' Extracts inventory from source with optional filtering. '''
+        ''' Extracts inventory from source with configurable detail levels. '''
         raise NotImplementedError
 
     @__.abc.abstractmethod

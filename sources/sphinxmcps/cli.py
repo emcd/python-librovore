@@ -98,11 +98,11 @@ class QueryInventoryCommand(
         _interfaces.Filters,
         __.tyro.conf.arg( prefix_name = False ),
     ] = _filters_default
-    include_documentation: __.typx.Annotated[
-        bool,
+    details: __.typx.Annotated[
+        _interfaces.InventoryQueryDetails,
         __.tyro.conf.arg(
-            help = __.access_doctab( 'include documentation argument' ) ),
-    ] = True
+            help = __.access_doctab( 'query details argument' ) ),
+    ] = _interfaces.InventoryQueryDetails.Documentation
     objects_max: __.typx.Annotated[
         int,
         __.tyro.conf.arg( help = __.access_doctab( 'objects max argument' ) ),
@@ -118,9 +118,7 @@ class QueryInventoryCommand(
                 self.query,
                 filters = self.filters,
                 results_max = self.objects_max,
-                details = ( _interfaces.InventoryQueryDetails.Documentation 
-                    if self.include_documentation 
-                    else _interfaces.InventoryQueryDetails.Name ) )
+                details = self.details )
             print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
             _scribe.error( "query-inventory failed: %s", exc )

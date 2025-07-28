@@ -100,8 +100,12 @@ class SphinxProcessor( __.Processor ):
         source: str, /, *,
         term: __.Absential[ str ] = __.absent,
         filters: __.Filters,
+        details: __.InventoryQueryDetails = (
+            __.InventoryQueryDetails.Documentation ),
     ) -> dict[ str, __.typx.Any ]:
         ''' Extracts inventory from Sphinx documentation source. '''
+        # TODO: Use details parameter to conditionally extract different levels
+        # of information (Name, Signature, Summary, Documentation)
         base_url = _urls.normalize_base_url( source )
         inventory = _inventory.extract_inventory( base_url )
         domain, role, priority, match_mode, fuzzy_threshold = (
