@@ -108,4 +108,16 @@ fragments: __.cabc.Mapping[ str, str ] = __.types.MappingProxyType( {
     'inventory summary return':
     ''' Human-readable summary of inventory contents. ''',
 
+    'inventory query return':
+    ''' Inventory search results with configurable detail levels.
+        Contains project metadata, matching objects, and search metadata
+        with applied filters.
+    ''',
+
+    'content query return':
+    ''' Documentation content search results with relevance ranking.
+        Contains documents with signatures, descriptions, content snippets,
+        relevance scores, and match reasons.
+    ''',
+
 } )
