@@ -398,7 +398,7 @@ async def retrieve_url(
             return result.extract( )
         case _:
             raise _exceptions.DocumentationInaccessibility(
-                url_s, ValueError( f"Unsupported scheme: {url.scheme}" ) )
+                url_s, f"Unsupported scheme: {url.scheme}" )
 
 
 async def retrieve_url_as_text(
@@ -439,7 +439,7 @@ async def retrieve_url_as_text(
             return content_bytes.decode( charset )
         case _:
             raise _exceptions.DocumentationInaccessibility(
-                url_s, ValueError( f"Unsupported scheme: {url.scheme}" ) )
+                url_s, f"Unsupported scheme: {url.scheme}" )
 
 
 async def _apply_request_delay(
@@ -522,7 +522,7 @@ async def _probe_url(
     url_s = url.geturl( )
     if not await _check_robots_txt( url, client_factory = client_factory ):
         _scribe.debug( f"URL blocked by robots.txt: {url_s}" )
-        return _generics.Error( _exceptions.RobotsTxtBlockedUrl(
+        return _generics.Error( _exceptions.UrlImpermissibility(
             url_s, _configuration_default.user_agent ) )
     await _apply_request_delay( url, client_factory = client_factory )
     async with (
@@ -580,7 +580,7 @@ async def _retrieve_url(
     url_s = url.geturl( )
     if not await _check_robots_txt( url, client_factory = client_factory ):
         return (
-            _generics.Error( _exceptions.RobotsTxtBlockedUrl(
+            _generics.Error( _exceptions.UrlImpermissibility(
                 url_s, _configuration_default.user_agent ) ),
             _httpx.Headers( ) )
     await _apply_request_delay( url, client_factory = client_factory )

@@ -25,7 +25,7 @@ import pytest
 from pathlib import Path
 
 import sphinxmcps.functions as module
-import sphinxmcps.exceptions as _exceptions  
+import sphinxmcps.exceptions as _exceptions
 import sphinxmcps.interfaces as _interfaces
 
 from .fixtures import get_test_inventory_path
@@ -35,7 +35,7 @@ from .fixtures import get_test_inventory_path
 async def test_100_explore_local_file( ):
     ''' Explore function processes local inventory files. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = await module.explore( 
+    result = await module.explore(
         inventory_path, "", include_documentation = False )
     assert 'project' in result
     assert 'documents' in result
@@ -46,7 +46,7 @@ async def test_110_explore_with_domain_filter( ):
     ''' Explore function applies domain filtering correctly. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
     filters = _interfaces.Filters( domain = 'py' )
-    result = await module.explore( 
+    result = await module.explore(
         inventory_path, "", filters = filters, include_documentation = False )
     assert 'search_metadata' in result
     assert result[ 'search_metadata' ][ 'filters' ][ 'domain' ] == 'py'
@@ -79,7 +79,7 @@ async def test_140_explore_with_all_filters( ):
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
     filters = _interfaces.Filters( domain = 'py', role = 'module' )
     result = await module.explore(
-        inventory_path, "test", filters = filters, 
+        inventory_path, "test", filters = filters,
         include_documentation = False )
     assert 'search_metadata' in result
     search_filters = result[ 'search_metadata' ][ 'filters' ]
@@ -91,8 +91,8 @@ async def test_140_explore_with_all_filters( ):
 @pytest.mark.asyncio
 async def test_150_explore_nonexistent_file( ):
     ''' Explore function raises appropriate exception for missing files. '''
-    with pytest.raises( _exceptions.ProcessorNotFound ):
-        await module.explore( 
+    with pytest.raises( _exceptions.ProcessorInavailability ):
+        await module.explore(
             "/nonexistent/path.inv", "", include_documentation = False )
 
 
@@ -101,7 +101,7 @@ async def test_160_explore_auto_append_objects_inv( ):
     ''' Explore function auto-appends objects.inv to URLs/paths. '''
     real_inventory_path = get_test_inventory_path( 'sphinxmcps' )
     inventory_dir = str( Path( real_inventory_path ).parent )
-    result = await module.explore( 
+    result = await module.explore(
         inventory_dir, "", include_documentation = False )
     assert 'project' in result
     assert 'documents' in result
@@ -162,7 +162,7 @@ async def test_260_match_mode_enum_values( ):
 @pytest.mark.asyncio
 async def test_270_summarize_inventory_nonexistent_file( ):
     ''' Summarize inventory raises appropriate exception for missing files. '''
-    with pytest.raises( _exceptions.ProcessorNotFound ):
+    with pytest.raises( _exceptions.ProcessorInavailability ):
         await module.summarize_inventory( "/nonexistent/path.inv" )
 
 
@@ -264,7 +264,7 @@ async def test_550_query_documentation_with_regex_match( ):
 async def test_560_query_documentation_with_fuzzy_match( ):
     ''' Query documentation uses fuzzy matching when specified. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    filters = _interfaces.Filters( 
+    filters = _interfaces.Filters(
         match_mode = _interfaces.MatchMode.Fuzzy, fuzzy_threshold = 60 )
     result = await module.query_documentation(
         inventory_path, 'inventori', filters = filters )
@@ -275,11 +275,11 @@ async def test_560_query_documentation_with_fuzzy_match( ):
 
 
 @pytest.mark.asyncio
-async def test_570_query_documentation_with_max_results( ):
-    ''' Query documentation respects max_results parameter. '''
+async def test_570_query_documentation_with_results_max( ):
+    ''' Query documentation respects results_max parameter. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     result = await module.query_documentation(
-        inventory_path, 'inventory', max_results = 3 )
+        inventory_path, 'inventory', results_max = 3 )
     assert isinstance( result, dict )
     assert 'documents' in result
     assert len( result[ 'documents' ] ) <= 3
@@ -314,7 +314,7 @@ async def test_600_query_documentation_relevance_ranking( ):
     ''' Query documentation returns results sorted by relevance. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     result = await module.query_documentation(
-        inventory_path, 'inventory', max_results = 5 )
+        inventory_path, 'inventory', results_max = 5 )
     assert isinstance( result, dict )
     assert 'documents' in result
     if len( result[ 'documents' ] ) > 1:
@@ -367,7 +367,7 @@ async def test_630_query_documentation_no_matches( ):
 @pytest.mark.asyncio
 async def test_640_query_documentation_nonexistent_file( ):
     ''' Query documentation handles nonexistent files gracefully. '''
-    with pytest.raises( _exceptions.ProcessorNotFound ):
+    with pytest.raises( _exceptions.ProcessorInavailability ):
         await module.query_documentation(
             '/nonexistent/path.inv', 'inventory' )
 
@@ -377,7 +377,7 @@ async def test_650_query_documentation_match_reasons( ):
     ''' Query documentation includes match reasons in results. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     result = await module.query_documentation(
-        inventory_path, 'inventory', max_results = 1 )
+        inventory_path, 'inventory', results_max = 1 )
     assert isinstance( result, dict )
     assert 'documents' in result
     for document in result[ 'documents' ]:
@@ -390,7 +390,7 @@ async def test_660_query_documentation_result_structure( ):
     ''' Query documentation returns properly structured results. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     result = await module.query_documentation(
-        inventory_path, 'inventory', max_results = 1 )
+        inventory_path, 'inventory', results_max = 1 )
     assert isinstance( result, dict )
     assert 'documents' in result
     if result[ 'documents' ]:
@@ -410,7 +410,7 @@ async def test_700_explore_with_object_not_found( ):
     ''' Explore function handles object not found gracefully. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     result = await module.explore(
-        inventory_path, 'nonexistent_object_xyz123', max_objects = 1 )
+        inventory_path, 'nonexistent_object_xyz123', results_max = 1 )
     assert 'documents' in result
     # When no objects are found, documents should be empty
     assert len( result[ 'documents' ] ) == 0

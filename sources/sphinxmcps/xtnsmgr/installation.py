@@ -32,21 +32,20 @@ _scribe = __.acquire_scribe( __name__ )
 async def install_package(
     specification: str,
     cache_path: __.Path, *,
-    max_retries: int = 3
+    retries_max: int = 3
 ) -> __.Path:
     ''' Installs package to specified path with retry logic.
 
         Returns path to installed package for sys.path manipulation.
     '''
-    for attempt in range( max_retries + 1 ):
+    for attempt in range( retries_max + 1 ):
         try: return await _install_with_uv( specification, cache_path )
         except __.ExtensionInstallFailure as exc:  # noqa: PERF203
-            if attempt == max_retries:
+            if attempt == retries_max:
                 _scribe.error(
                     f"Failed to install {specification} after "
-                    f"{max_retries + 1} attempts: {exc}" )
+                    f"{retries_max + 1} attempts: {exc}" )
                 raise
-            # Exponential backoff
             delay = 2 ** attempt
             _scribe.warning(
                 f"Installation attempt {attempt + 1} failed for "

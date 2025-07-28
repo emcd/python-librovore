@@ -141,8 +141,8 @@ class SphinxProcessor( __.Processor ):
         self,
         source: str, query: str, /, *,
         filters: __.Filters,
-        max_results: int = 10,
-        include_snippets: bool = True
+        include_snippets: bool = True,
+        results_max: int = 10,
     ) -> list[ __.cabc.Mapping[ str, __.typx.Any ] ]:
         ''' Queries documentation content from Sphinx source. '''
         base_url = _urls.normalize_base_url( source )
@@ -162,7 +162,7 @@ class SphinxProcessor( __.Processor ):
         name_scored_candidates = _prescore_candidates(
             candidates, query_lower )
         name_scored_candidates.sort( key = lambda x: x[ 0 ], reverse = True )
-        fetch_limit = min( len( name_scored_candidates ), max_results * 3 )
+        fetch_limit = min( len( name_scored_candidates ), results_max * 3 )
         top_candidates = [
             candidate for _, candidate in
             name_scored_candidates[ : fetch_limit ] ]
@@ -172,14 +172,14 @@ class SphinxProcessor( __.Processor ):
             for candidate in top_candidates ]
         candidate_results = await __.asyncf.gather_async(
             *tasks, return_exceptions = True )
-        # Filter successful results and sort by relevance  
+        # Filter successful results and sort by relevance
         results: list[ __.cabc.Mapping[ str, __.typx.Any ] ] = [
             result.value for result in candidate_results
             if __.generics.is_value( result ) and result.value is not None
         ]
         results.sort(
             key = lambda x: x[ 'relevance_score' ], reverse = True )
-        return results[ : max_results ]
+        return results[ : results_max ]
 
 
 def _extract_filter_parameters(
@@ -226,7 +226,7 @@ async def _process_candidate(
     doc_url = _urls.derive_documentation_url(
         base_url, candidate[ 'uri' ], candidate[ 'name' ] )
     try: html_content = await __.retrieve_url_as_text( doc_url )
-    except Exception as exc: 
+    except Exception as exc:
         _scribe.debug( "Failed to retrieve %s: %s", doc_url, exc )
         return None
     anchor = doc_url.fragment or str( candidate[ 'name' ] )

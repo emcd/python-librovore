@@ -35,32 +35,14 @@ class FiltersMutable( _interfaces.Filters, instances_mutables = '*' ):
     ''' Mutable version of Filters for FastMCP/Pydantic compatibility. '''
 
 
-DomainFilter: __.typx.TypeAlias = __.typx.Annotated[
-    str, _Field( description = __.access_doctab( 'domain filter argument' ) ) ]
-FuzzyThreshold: __.typx.TypeAlias = __.typx.Annotated[
-    int,
-    _Field( description = __.access_doctab( 'fuzzy threshold argument' ) ),
-]
 IncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
     bool,
     _Field( description = __.access_doctab( 'include snippets argument' ) ),
 ]
-MatchMode: __.typx.TypeAlias = __.typx.Annotated[
-    _interfaces.MatchMode,
-    _Field( description = __.access_doctab( 'match mode argument' ) ),
-]
 ResultsMax: __.typx.TypeAlias = __.typx.Annotated[
     int, _Field( description = __.access_doctab( 'results max argument' ) ) ]
-ObjectName: __.typx.TypeAlias = __.typx.Annotated[
-    str, _Field( description = __.access_doctab( 'object name' ) ) ]
-PriorityFilter: __.typx.TypeAlias = __.typx.Annotated[
-    str,
-    _Field( description = __.access_doctab( 'priority filter argument' ) ),
-]
 Query: __.typx.TypeAlias = __.typx.Annotated[
     str, _Field( description = __.access_doctab( 'query argument' ) ) ]
-RoleFilter: __.typx.TypeAlias = __.typx.Annotated[
-    str, _Field( description = __.access_doctab( 'role filter argument' ) ) ]
 SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
     str, _Field( description = __.access_doctab( 'source argument' ) ) ]
 TermFilter: __.typx.TypeAlias = __.typx.Annotated[
@@ -78,27 +60,24 @@ async def explore(
         FiltersMutable,
         _Field( description = "Search and filtering options" ),
     ] = _filters_default,
-    objects_max: __.typx.Annotated[
-        int,
-        _Field( description = __.access_doctab( 'objects max argument' ) ),
-    ] = 5,
     include_documentation: __.typx.Annotated[
         bool,
         _Field(
             description = __.access_doctab(
                 'include documentation argument' ) ),
     ] = True,
+    results_max: ResultsMax = 5,
 ) -> dict[ str, __.typx.Any ]:
     ''' Explores objects by combining inventory search with documentation. '''
     _scribe.debug(
-        "explore called: source=%s, query=%s, filters=%s, max_objects=%s, "
+        "explore called: source=%s, query=%s, filters=%s, results_max=%s, "
         "include_documentation=%s",
-        source, query, filters, objects_max, include_documentation )
+        source, query, filters, results_max, include_documentation )
     try:
         immutable_filters = _to_immutable_filters( filters )
         return await _functions.explore(
             source, query, filters = immutable_filters,
-            max_objects = objects_max,
+            results_max = results_max,
             include_documentation = include_documentation )
     except Exception as exc:
         _scribe.error( "Error exploring: %s", exc )
@@ -112,8 +91,8 @@ async def query_documentation(
         FiltersMutable,
         _Field( description = "Search and filtering options" ),
     ] = _filters_default,
-    results_max: ResultsMax = 10,
     include_snippets: IncludeSnippets = True,
+    results_max: ResultsMax = 10,
 ) -> dict[ str, __.typx.Any ]:
     ''' Query documentation content with relevance ranking. '''
     _scribe.debug(
@@ -122,7 +101,7 @@ async def query_documentation(
     immutable_filters = _to_immutable_filters( filters )
     return await _functions.query_documentation(
         source, query, filters = immutable_filters,
-        max_results = results_max, include_snippets = include_snippets )
+        results_max = results_max, include_snippets = include_snippets )
 
 
 async def summarize_inventory(

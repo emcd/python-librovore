@@ -169,7 +169,7 @@ def clear_package_cache( specification: str ) -> bool:
 async def ensure_package(
     specification: str, *,
     cache_ttl: int = 24,
-    max_retries: int = 3
+    retries_max: int = 3
 ) -> __.typx.Annotated[
     None,
     __.ddoc.Raises( __.ExtensionConfigurationInvalidity, 'Invalid spec.' ),
@@ -186,7 +186,7 @@ async def ensure_package(
             clear_package_cache( specification )
         cache_path = calculate_cache_path( specification )
         package_path = await _installation.install_package(
-            specification, cache_path, max_retries = max_retries )
+            specification, cache_path, retries_max = retries_max )
         cache_info = CacheInfo(
             specification = specification,
             ctime = __.datetime.datetime.now( ),

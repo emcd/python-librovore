@@ -26,9 +26,8 @@ import urllib.parse as _urlparse
 from . import __
 
 
-class Omniexception( BaseException ):
+class Omniexception( __.immut.Object, BaseException ):
     ''' Base for all exceptions raised by package API. '''
-    # TODO: Class and instance attribute concealment and immutability.
 
     _attribute_visibility_includes_: __.cabc.Collection[ str ] = (
         frozenset( ( '__cause__', '__context__', ) ) )
@@ -58,7 +57,7 @@ class DocumentationContentAbsence( Omnierror, ValueError ):
 class DocumentationInaccessibility( Omnierror, RuntimeError ):
     ''' Documentation file or resource absent or inaccessible. '''
 
-    def __init__( self, url: str, cause: Exception ):
+    def __init__( self, url: str, cause: str | Exception ):
         message = f"Documentation at '{url}' is inaccessible. Cause: {cause}"
         self.url = url
         super( ).__init__( message )
@@ -67,7 +66,7 @@ class DocumentationInaccessibility( Omnierror, RuntimeError ):
 class DocumentationParseFailure( Omnierror, ValueError ):
     ''' Documentation HTML parsing failed or content malformed. '''
 
-    def __init__( self, url: str, cause: Exception ):
+    def __init__( self, url: str, cause: str | Exception ):
         message = f"Cannot parse documentation at '{url}'. Cause: {cause}"
         self.url = url
         super( ).__init__( message )
@@ -139,7 +138,7 @@ class InventoryFilterInvalidity( Omnierror, ValueError ):
 class InventoryInaccessibility( Omnierror, RuntimeError ):
     ''' Inventory file or resource absent or inaccessible. '''
 
-    def __init__( self, source: str, cause: Exception ):
+    def __init__( self, source: str, cause: str | Exception ):
         message = f"Inventory at '{source}' is inaccessible. Cause: {cause}"
         self.source = source
         super( ).__init__( message )
@@ -148,7 +147,7 @@ class InventoryInaccessibility( Omnierror, RuntimeError ):
 class InventoryInvalidity( Omnierror, ValueError ):
     ''' Inventory has invalid format or cannot be parsed. '''
 
-    def __init__( self, source: str, cause: Exception ):
+    def __init__( self, source: str, cause: str | Exception ):
         message = f"Inventory at '{source}' is invalid. Cause: {cause}"
         self.source = source
         super( ).__init__( message )
@@ -180,7 +179,7 @@ class InventoryUrlNoSupport( Omnierror, NotImplementedError ):
         super( ).__init__( message )
 
 
-class ProcessorNotFound( Omnierror, RuntimeError ):
+class ProcessorInavailability( Omnierror, RuntimeError ):
     ''' No processor found to handle source. '''
 
     def __init__( self, source: str ):
@@ -189,17 +188,17 @@ class ProcessorNotFound( Omnierror, RuntimeError ):
         super( ).__init__( message )
 
 
-class ProcessorTypeError( Omnierror, TypeError ):
+class ProcessorInvalidity( Omnierror, TypeError ):
     ''' Processor has wrong type. '''
 
-    def __init__( self, expected_type: str, actual_type: type ):
-        message = f"Expected {expected_type}, got {actual_type}"
-        self.expected_type = expected_type
-        self.actual_type = actual_type
+    def __init__( self, expected: str, actual: type ):
+        message = f"Expected {expected}, got {actual}"
+        self.expected_type = expected
+        self.actual_type = actual
         super( ).__init__( message )
 
 
-class RobotsTxtBlockedUrl( Omnierror, PermissionError ):
+class UrlImpermissibility( Omnierror, PermissionError ):
     ''' URL access blocked by robots.txt directive. '''
 
     def __init__( self, url: str, user_agent: str ):

@@ -1890,7 +1890,7 @@ async def test_480_probe_url_robots_txt_blocked( robots_txt_samples ):
     url = Url(
         scheme = 'https', netloc = 'block-test.com', path = '/test',
         params = '', query = '', fragment = '' )
-    with pytest.raises( _exceptions.RobotsTxtBlockedUrl ):
+    with pytest.raises( _exceptions.UrlImpermissibility ):
         await module.probe_url(
             url, cache = probe_cache, client_factory = client_factory )
 
@@ -1930,7 +1930,7 @@ async def test_482_retrieve_url_robots_txt_blocked( robots_txt_samples ):
     url = Url(
         scheme = 'https', netloc = 'blocked-retrieve.com', path = '/test',
         params = '', query = '', fragment = '' )
-    with pytest.raises( _exceptions.RobotsTxtBlockedUrl ):
+    with pytest.raises( _exceptions.UrlImpermissibility ):
         await module.retrieve_url(
             url, cache = content_cache, client_factory = client_factory )
 
@@ -1974,7 +1974,7 @@ async def test_484_retrieve_url_as_text_robots_txt_blocked(
     url = Url(
         scheme = 'https', netloc = 'blocked-text.com', path = '/test',
         params = '', query = '', fragment = '' )
-    with pytest.raises( _exceptions.RobotsTxtBlockedUrl ):
+    with pytest.raises( _exceptions.UrlImpermissibility ):
         await module.retrieve_url_as_text(
             url, cache = content_cache, client_factory = client_factory )
 
@@ -2117,7 +2117,7 @@ def test_490_robots_txt_blocked_url_exception( ):
     ''' RobotsTxtBlockedUrl exception creates correctly. '''
     url = 'https://example.com/blocked'
     user_agent = 'test-bot/1.0'
-    exc = _exceptions.RobotsTxtBlockedUrl( url, user_agent )
+    exc = _exceptions.UrlImpermissibility( url, user_agent )
     assert exc.url == url
     assert exc.user_agent == user_agent
     expected_message = (
@@ -2129,7 +2129,7 @@ def test_491_robots_txt_blocked_url_exception_attributes( ):
     ''' Exception attributes are accessible and correct. '''
     url = 'https://example.com/test'
     user_agent = 'custom-agent'
-    exc = _exceptions.RobotsTxtBlockedUrl( url, user_agent )
+    exc = _exceptions.UrlImpermissibility( url, user_agent )
     assert hasattr( exc, 'url' )
     assert hasattr( exc, 'user_agent' )
     assert exc.url == url
@@ -2138,7 +2138,7 @@ def test_491_robots_txt_blocked_url_exception_attributes( ):
 
 def test_492_robots_txt_blocked_url_exception_inheritance( ):
     ''' Exception inherits from correct base classes. '''
-    exc = _exceptions.RobotsTxtBlockedUrl( 'test-url', 'test-agent' )
+    exc = _exceptions.UrlImpermissibility( 'test-url', 'test-agent' )
     assert isinstance( exc, _exceptions.Omnierror )
     assert isinstance( exc, PermissionError )
     assert isinstance( exc, Exception )
@@ -2148,7 +2148,7 @@ def test_493_robots_txt_blocked_url_exception_message( ):
     ''' Error message format is consistent and informative. '''
     url = 'https://api.example.com/v1/data'
     user_agent = 'my-scraper/2.1'
-    exc = _exceptions.RobotsTxtBlockedUrl( url, user_agent )
+    exc = _exceptions.UrlImpermissibility( url, user_agent )
     message = str( exc )
     assert url in message
     assert user_agent in message
@@ -2315,23 +2315,23 @@ async def test_912_retrieve_url_http_status_error( ):
 async def test_500_check_robots_txt_can_fetch_exception( ):
     ''' Exception in robots_parser.can_fetch() returns True (line 343-345). '''
     robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
-    
+
     # Create a mock RobotFileParser that raises an exception on can_fetch
     class FaultyRobotFileParser:
         def can_fetch( self, user_agent, url ):
             raise ValueError( "Simulated can_fetch exception" )
-    
+
     # Store faulty parser in cache
     faulty_parser = FaultyRobotFileParser( )
-    await robots_cache.store( 
-        'https://faulty-example.com', 
-        __.generics.Value( faulty_parser ), 
+    await robots_cache.store(
+        'https://faulty-example.com',
+        __.generics.Value( faulty_parser ),
         ttl = 3600 )
-    
+
     url = Url(
         scheme = 'https', netloc = 'faulty-example.com', path = '/test',
         params = '', query = '', fragment = '' )
-    
+
     # Should return True when can_fetch raises exception
     result = await module._check_robots_txt(
         url, robots_cache = robots_cache )
@@ -2342,33 +2342,33 @@ async def test_500_check_robots_txt_can_fetch_exception( ):
 async def test_501_retrieve_robots_txt_crawl_delay_exception( ):
     ''' Exception in robots_parser.crawl_delay() is handled (line 466-467). '''
     robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
-    
+
     # Create robots.txt content that will parse successfully with crawl delay
     robots_txt_content = "User-agent: *\nCrawl-delay: 2\nAllow: /"
-    
+
     def handler( request ):
         if 'robots.txt' in request.url.path:
             return _httpx.Response( 200, text = robots_txt_content )
         return _httpx.Response( 200, text = "test content" )
-    
+
     mock_transport = _httpx.MockTransport( handler )
-    
+
     def client_factory( ):
         return _httpx.AsyncClient( transport = mock_transport )
-    
+
     # First populate the robots cache with successful robots.txt
     url = Url(
         scheme = 'https', netloc = 'crawl-delay-exception.com', path = '/test',
         params = '', query = '', fragment = '' )
-    
+
     # Patch the RobotFileParser to raise exception on crawl_delay
     original_crawl_delay = _urllib_robotparser.RobotFileParser.crawl_delay
-    
+
     def faulty_crawl_delay( self, user_agent ):
         raise RuntimeError( "Simulated crawl_delay exception" )
-    
+
     _urllib_robotparser.RobotFileParser.crawl_delay = faulty_crawl_delay
-    
+
     try:
         # This should trigger _apply_request_delay which calls crawl_delay
         result = await module.probe_url(
@@ -2388,24 +2388,24 @@ async def test_501_retrieve_robots_txt_crawl_delay_exception( ):
 async def test_502_retrieve_robots_txt_parse_exception( ):
     ''' Exception in robots_parser.parse() returns Error result (564-567). '''
     robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
-    
+
     # Return content that will trigger parse exception
     def handler( request ):
         return _httpx.Response( 200, text = "valid http response" )
-    
+
     mock_transport = _httpx.MockTransport( handler )
-    
+
     def client_factory( ):
         return _httpx.AsyncClient( transport = mock_transport )
-    
+
     # Patch the RobotFileParser to raise exception on parse
     original_parse = _urllib_robotparser.RobotFileParser.parse
-    
+
     def faulty_parse( self, lines ):
         raise ValueError( "Simulated parse exception" )
-    
+
     _urllib_robotparser.RobotFileParser.parse = faulty_parse
-    
+
     try:
         result = await module._retrieve_robots_txt(
             'https://parse-exception.com', robots_cache,

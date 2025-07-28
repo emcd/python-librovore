@@ -72,8 +72,8 @@ class Processor( __.immut.DataclassProtocol ):
     @__.abc.abstractmethod
     async def query_documentation( self, source: str, query: str, /, *,
         filters: Filters,
-        max_results: int = 10,
         include_snippets: bool = True,
+        results_max: int = 10,
     ) -> list[ __.cabc.Mapping[ str, __.typx.Any ] ]:
         ''' Queries documentation content with relevance ranking. '''
         raise NotImplementedError

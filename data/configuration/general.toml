@@ -19,8 +19,8 @@ enabled = true
 # enabled = true
 # [extensions.arguments]
 # timeout = 60
-# validate_schemas = true
-# spec_version = "3.0"
+# validate-schemas = true
+# version = "3.0"
 
 # Example: GitHub-hosted custom processor
 # [[extensions]]
@@ -28,8 +28,8 @@ enabled = true
 # package = "git+https://github.com/user/sphinxmcps-plugin.git@main"  # PEP 508 URL
 # enabled = false
 # [extensions.arguments]
-# custom_param = "value"
-# debug_mode = false
+# custom-argument = "value"
+# debug = false
 
 # Example: Local development processor
 # [[extensions]]
@@ -37,7 +37,7 @@ enabled = true
 # package = "file:///path/to/local/plugin"  # Local file system
 # enabled = false
 # [extensions.arguments]
-# dev_mode = true
+# develop = true
 
 # Example: PyPI package with specific version constraints
 # [[extensions]]
@@ -46,13 +46,13 @@ enabled = true
 # enabled = false
 # [extensions.arguments]
 # theme = "material"
-# strict_mode = true
+# strict = true
 
 # Global Configuration (Future)
 # These settings would apply to all extensions unless overridden.
 
 # [global]
-# cache_ttl = 3600  # Cache time-to-live in seconds
+# cache-ttl = 3600  # Cache time-to-live in seconds
 # timeout = 30      # Default network timeout
-# max_concurrent = 10  # Maximum concurrent operations
-# log_level = "INFO"   # Logging level
+# concurrent-max = 10  # Maximum concurrent operations
+# log-level = "INFO"   # Logging level

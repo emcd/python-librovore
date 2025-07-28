@@ -115,8 +115,8 @@ class QueryDocumentationCommand(
         _interfaces.Filters,
         __.tyro.conf.arg( prefix_name = False ),
     ] = _filters_default
-    max_results: ResultsMax = 10
     include_snippets: IncludeSnippets = True
+    results_max: ResultsMax = 10
 
     async def __call__(
         self, auxdata: __.Globals, display: __.ConsoleDisplay
@@ -126,7 +126,7 @@ class QueryDocumentationCommand(
             result = await _functions.query_documentation(
                 self.source, self.query,
                 filters = self.filters,
-                max_results = self.max_results,
+                results_max = self.results_max,
                 include_snippets = self.include_snippets )
             print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
@@ -145,15 +145,15 @@ class ExploreCommand(
         _interfaces.Filters,
         __.tyro.conf.arg( prefix_name = False ),
     ] = _filters_default
-    max_objects: __.typx.Annotated[
-        int,
-        __.tyro.conf.arg( help = __.access_doctab( 'objects max argument' ) ),
-    ] = 5
     include_documentation: __.typx.Annotated[
         bool,
         __.tyro.conf.arg(
             help = __.access_doctab( 'include documentation argument' ) ),
     ] = True
+    objects_max: __.typx.Annotated[
+        int,
+        __.tyro.conf.arg( help = __.access_doctab( 'objects max argument' ) ),
+    ] = 5
 
     async def __call__(
         self, auxdata: __.Globals, display: __.ConsoleDisplay
@@ -164,7 +164,7 @@ class ExploreCommand(
                 self.source,
                 self.query,
                 filters = self.filters,
-                max_objects = self.max_objects,
+                results_max = self.objects_max,
                 include_documentation = self.include_documentation )
             print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
