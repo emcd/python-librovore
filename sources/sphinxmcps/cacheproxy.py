@@ -528,7 +528,9 @@ async def _probe_url(
     async with (
         cache.acquire_mutex_for( url_s ), client_factory( ) as client
     ):
-        try: response = await client.head( url_s, timeout = duration_max )
+        try:
+            response = await client.head(
+                url_s, timeout = duration_max, follow_redirects = True )
         except Exception as exc:
             _scribe.debug( f"HEAD request failed for {url_s}: {exc}" )
             return _generics.Error( exc )
@@ -551,7 +553,8 @@ async def _retrieve_robots_txt(
         try:
             response = await client.get(
                 robots_url,
-                timeout = _configuration_default.robots_request_timeout )
+                timeout = _configuration_default.robots_request_timeout,
+                follow_redirects = True )
             response.raise_for_status( )
         except Exception as exc:
             _scribe.debug( f"Failed to fetch robots.txt from {domain}: {exc}" )
@@ -588,7 +591,8 @@ async def _retrieve_url(
         cache.acquire_mutex_for( url_s ), client_factory( ) as client
     ):
         try:
-            response = await client.get( url_s, timeout = duration_max )
+            response = await client.get(
+                url_s, timeout = duration_max, follow_redirects = True )
             response.raise_for_status( )
         except Exception as exc:
             _scribe.debug( f"GET request failed for {url_s}: {exc}" )
