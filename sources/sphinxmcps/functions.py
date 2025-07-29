@@ -25,6 +25,7 @@ from . import __
 from . import detection as _detection
 from . import exceptions as _exceptions
 from . import interfaces as _interfaces
+from . import search as _search
 from . import xtnsapi as _xtnsapi # TODO: Replace with 'registries' module.
 
 
@@ -43,18 +44,19 @@ async def detect(
 ) -> dict[ str, __.typx.Any ]:
     ''' Detects which processor(s) can handle a documentation source. '''
     start_time = __.time.perf_counter( )
-    detections, best_detection = await _detection.access_detections(
-        source )
+    detections, detection_optimal = (
+        await _detection.access_detections( source ) )
     end_time = __.time.perf_counter( )
     detection_time_ms = int( ( end_time - start_time ) * 1000 )
     detections_list = list( detections.values( ) )
-    if not all_detections and not __.is_absent( best_detection ):
-        detections_list = [ best_detection ]
+    if not all_detections and not __.is_absent( detection_optimal ):
+        detections_list = [ detection_optimal ]
     response = _interfaces.DetectionToolResponse(
         source = source,
         detections = detections_list,
-        detection_best = best_detection if not __.is_absent(
-            best_detection ) else None,
+        detection_best = (
+            detection_optimal
+            if not __.is_absent( detection_optimal ) else None ),
         time_detection_ms = detection_time_ms )
     return _serialize_dataclass( response )
 
@@ -74,22 +76,41 @@ async def query_inventory(
         and returns configurable detail levels. Always includes object names
         plus requested detail flags (signatures, summaries, documentation).
     '''
+    # 1. Get processor and extract raw inventory with processor filters
     processor = await _determine_processor_optimal( source )
+    processor_filters = {
+        'domain': filters.domain,
+        'role': filters.role,
+        'priority': filters.priority,
+    }
+    # Remove empty filters
+    processor_filters = { k: v for k, v in processor_filters.items( ) if v }
     result_mapping = await processor.extract_inventory(
-        source, term = query, filters = filters, details = details )
+        source, extra_filters = processor_filters, details = details )
     inventory_data = dict( result_mapping )
     inventory_data[ 'source' ] = source
+    # 2. Apply universal search matching at engine level
+    search_engine = _search.SearchEngine( )
+    all_objects: list[ dict[ str, __.typx.Any ] ] = [ ]
+    for domain_objects in inventory_data[ 'objects' ].values( ):
+        all_objects.extend( domain_objects )
+    search_results = search_engine.filter_by_name(
+        all_objects, query,
+        match_mode = filters.match_mode,
+        fuzzy_threshold = filters.fuzzy_threshold )
+    # 3. Convert search results back to inventory format
+    selected_objects = [
+        result.object for result in search_results[ : results_max ] ]
+    # 4. Build result structure
     domains_summary: dict[ str, int ] = {
         domain_name: len( objs )
         for domain_name, objs in inventory_data[ 'objects' ].items( ) }
     inventory_data[ 'domains' ] = domains_summary
-    selected_objects = _select_top_objects( inventory_data, results_max )
     result = _construct_explore_result_structure(
         inventory_data, query, selected_objects, results_max, filters )
     if _interfaces.InventoryQueryDetails.Documentation in details:
         await _add_documentation_to_results( source, selected_objects, result )
-    else:
-        _add_object_metadata_to_results( selected_objects, result )
+    else: _add_object_metadata_to_results( selected_objects, result )
     return result
 
 
@@ -108,9 +129,9 @@ async def summarize_inventory(
     inventory_data: dict[ str, __.typx.Any ] = {
         'project': inventory_result[ 'project' ],
         'version': inventory_result[ 'version' ],
-        'object_count': inventory_result[ 'search_metadata' ][ 
+        'object_count': inventory_result[ 'search_metadata' ][
             'total_matches' ],
-        'objects': _group_documents_by_domain( 
+        'objects': _group_documents_by_domain(
             inventory_result[ 'documents' ] ),
         'filters': inventory_result[ 'search_metadata' ][ 'filters' ],
     }

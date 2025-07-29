@@ -98,22 +98,21 @@ class SphinxProcessor( __.Processor ):
     async def extract_inventory(
         self,
         source: str, /, *,
-        term: __.Absential[ str ] = __.absent,
-        filters: __.Filters,
+        extra_filters: __.typx.Optional[ dict[ str, __.typx.Any ] ] = None,
         details: __.InventoryQueryDetails = (
             __.InventoryQueryDetails.Documentation ),
     ) -> dict[ str, __.typx.Any ]:
         ''' Extracts inventory from Sphinx documentation source. '''
         # TODO: Use details parameter to conditionally extract different levels
         # of information (Name, Signature, Summary, Documentation)
+        filters = extra_filters or { }
+        domain = filters.get( 'domain', '' ) or __.absent
+        role = filters.get( 'role', '' ) or __.absent
+        priority = filters.get( 'priority', '' ) or __.absent
         base_url = _urls.normalize_base_url( source )
         inventory = _inventory.extract_inventory( base_url )
-        domain, role, priority, match_mode, fuzzy_threshold = (
-            _extract_filter_parameters( filters ) )
-        filtered_objects, object_count = _inventory.filter_inventory(
-            inventory, domain = domain, role = role, term = term,
-            priority = priority,
-            match_mode = match_mode, fuzzy_threshold = fuzzy_threshold )
+        filtered_objects, object_count = _inventory.filter_inventory_basic(
+            inventory, domain = domain, role = role, priority = priority )
         result: dict[ str, __.typx.Any ] = {
             'project': inventory.project,
             'version': inventory.version,
@@ -123,15 +122,9 @@ class SphinxProcessor( __.Processor ):
         filters_metadata: dict[ str, __.typx.Any ] = { }
         if not __.is_absent( domain ): filters_metadata[ 'domain' ] = domain
         if not __.is_absent( role ): filters_metadata[ 'role' ] = role
-        if not __.is_absent( term ): filters_metadata[ 'term' ] = term
         if not __.is_absent( priority ):
             filters_metadata[ 'priority' ] = priority
-        if match_mode != __.MatchMode.Exact:
-            filters_metadata[ 'match_mode' ] = match_mode.value
-        if match_mode == __.MatchMode.Fuzzy:
-            filters_metadata[ 'fuzzy_threshold' ] = fuzzy_threshold
-        if filters_metadata:
-            result[ 'filters' ] = filters_metadata
+        if filters_metadata: result[ 'filters' ] = filters_metadata
         return result
 
 
@@ -152,8 +145,7 @@ class SphinxProcessor( __.Processor ):
                 break
         if not found_object:
             return {
-                'error': f"Object '{object_name}' not found in inventory"
-            }
+                'error': f"Object '{object_name}' not found in inventory" }
         doc_url = _urls.derive_documentation_url(
             base_url, found_object.uri, object_name )
         html_content = await __.retrieve_url_as_text( doc_url )
@@ -210,8 +202,7 @@ class SphinxProcessor( __.Processor ):
         # Filter successful results and sort by relevance
         results: list[ __.cabc.Mapping[ str, __.typx.Any ] ] = [
             result.value for result in candidate_results
-            if __.generics.is_value( result ) and result.value is not None
-        ]
+            if __.generics.is_value( result ) and result.value is not None ]
         results.sort(
             key = lambda x: x[ 'relevance_score' ], reverse = True )
         return results[ : results_max ]

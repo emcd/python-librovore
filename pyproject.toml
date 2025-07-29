@@ -26,6 +26,7 @@ dependencies = [
   'httpx',
   'lxml',
   'mcp',
+  'rapidfuzz',
   'sphobjinv',
   'typing-extensions',
   'uv',

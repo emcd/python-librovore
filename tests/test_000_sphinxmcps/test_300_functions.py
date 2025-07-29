@@ -46,7 +46,8 @@ async def test_100_explore_local_file( ):
 async def test_110_explore_with_domain_filter( ):
     ''' Explore function applies domain filtering correctly. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    filters = _interfaces.Filters( domain = 'py' )
+    filters = _interfaces.Filters( 
+        processor = _interfaces.ProcessorFilters( domain = 'py' ) )
     result = await module.query_inventory(
         inventory_path, "", filters = filters, 
         details = module._interfaces.InventoryQueryDetails.Name )
@@ -58,7 +59,8 @@ async def test_110_explore_with_domain_filter( ):
 async def test_120_explore_with_role_filter( ):
     ''' Explore function applies role filtering correctly. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    filters = _interfaces.Filters( role = 'module' )
+    filters = _interfaces.Filters( 
+        processor = _interfaces.ProcessorFilters( role = 'module' ) )
     result = await module.query_inventory(
         inventory_path, "", filters = filters, 
         details = module._interfaces.InventoryQueryDetails.Name )
@@ -81,7 +83,9 @@ async def test_130_explore_with_search_query( ):
 async def test_140_explore_with_all_filters( ):
     ''' Explore function applies multiple filters correctly. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    filters = _interfaces.Filters( domain = 'py', role = 'module' )
+    filters = _interfaces.Filters( 
+        processor = _interfaces.ProcessorFilters( 
+            domain = 'py', role = 'module' ) )
     result = await module.query_inventory(
         inventory_path, "test", filters = filters,
         details = module._interfaces.InventoryQueryDetails.Name )
@@ -125,7 +129,8 @@ async def test_200_summarize_inventory_basic( ):
 async def test_210_summarize_inventory_with_filters( ):
     ''' Summarize inventory includes filter information when provided. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    filters = module._interfaces.Filters( domain = 'py' )
+    filters = module._interfaces.Filters( 
+        processor = _interfaces.ProcessorFilters( domain = 'py' ) )
     result = await module.summarize_inventory(
         inventory_path, filters = filters )
     assert 'objects' in result
@@ -137,7 +142,8 @@ async def test_215_summarize_inventory_with_regex( ):
     ''' Summarize inventory includes regex filter information. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     filters = module._interfaces.Filters(
-        match_mode = _interfaces.MatchMode.Regex )
+        universal = _interfaces.UniversalFilters( 
+            match_mode = _interfaces.MatchMode.Regex ) )
     result = await module.summarize_inventory(
         inventory_path, '.*inventory.*', filters = filters )
     assert 'objects' in result
@@ -149,7 +155,8 @@ async def test_250_summarize_inventory_with_fuzzy( ):
     ''' Summarize inventory includes fuzzy filter information. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     filters = module._interfaces.Filters(
-        match_mode = _interfaces.MatchMode.Fuzzy, fuzzy_threshold = 70 )
+        universal = _interfaces.UniversalFilters( 
+            match_mode = _interfaces.MatchMode.Fuzzy, fuzzy_threshold = 70 ) )
     result = await module.summarize_inventory(
         inventory_path, 'inventory', filters = filters )
     assert 'objects' in result
@@ -176,7 +183,8 @@ async def test_270_summarize_inventory_nonexistent_file( ):
 async def test_430_summarize_inventory_with_priority( ):
     ''' Summarize inventory includes priority filter information. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    filters = module._interfaces.Filters( priority = '1' )
+    filters = module._interfaces.Filters( 
+        processor = _interfaces.ProcessorFilters( priority = '1' ) )
     result = await module.summarize_inventory(
         inventory_path, filters = filters )
     assert 'priority=1' in result
@@ -205,7 +213,8 @@ async def test_500_query_documentation_basic( ):
 async def test_510_query_documentation_with_domain_filter( ):
     ''' Query documentation applies domain filtering correctly. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    filters = _interfaces.Filters( domain = 'py' )
+    filters = _interfaces.Filters( 
+        processor = _interfaces.ProcessorFilters( domain = 'py' ) )
     result = await module.query_content(
         inventory_path, 'inventory', filters = filters )
     assert isinstance( result, dict )
@@ -218,7 +227,8 @@ async def test_510_query_documentation_with_domain_filter( ):
 async def test_520_query_documentation_with_role_filter( ):
     ''' Query documentation applies role filtering correctly. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    filters = _interfaces.Filters( role = 'function' )
+    filters = _interfaces.Filters( 
+        processor = _interfaces.ProcessorFilters( role = 'function' ) )
     result = await module.query_content(
         inventory_path, 'inventory', filters = filters )
     assert isinstance( result, dict )
@@ -231,7 +241,8 @@ async def test_520_query_documentation_with_role_filter( ):
 async def test_530_query_documentation_with_priority_filter( ):
     ''' Query documentation applies priority filtering correctly. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    filters = _interfaces.Filters( priority = '1' )
+    filters = _interfaces.Filters( 
+        processor = _interfaces.ProcessorFilters( priority = '1' ) )
     result = await module.query_content(
         inventory_path, 'inventory', filters = filters )
     assert isinstance( result, dict )
@@ -244,7 +255,9 @@ async def test_530_query_documentation_with_priority_filter( ):
 async def test_540_query_documentation_with_exact_match( ):
     ''' Query documentation uses exact matching when specified. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    filters = _interfaces.Filters( match_mode = _interfaces.MatchMode.Exact )
+    filters = _interfaces.Filters( 
+        universal = _interfaces.UniversalFilters( 
+            match_mode = _interfaces.MatchMode.Exact ) )
     result = await module.query_content(
         inventory_path, 'inventory', filters = filters )
     assert isinstance( result, dict )
@@ -257,7 +270,9 @@ async def test_540_query_documentation_with_exact_match( ):
 async def test_550_query_documentation_with_regex_match( ):
     ''' Query documentation uses regex matching when specified. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    filters = _interfaces.Filters( match_mode = _interfaces.MatchMode.Regex )
+    filters = _interfaces.Filters( 
+        universal = _interfaces.UniversalFilters( 
+            match_mode = _interfaces.MatchMode.Regex ) )
     result = await module.query_content(
         inventory_path, r'.*inventory.*', filters = filters )
     assert isinstance( result, dict )
@@ -271,7 +286,8 @@ async def test_560_query_documentation_with_fuzzy_match( ):
     ''' Query documentation uses fuzzy matching when specified. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     filters = _interfaces.Filters(
-        match_mode = _interfaces.MatchMode.Fuzzy, fuzzy_threshold = 60 )
+        universal = _interfaces.UniversalFilters( 
+            match_mode = _interfaces.MatchMode.Fuzzy, fuzzy_threshold = 60 ) )
     result = await module.query_content(
         inventory_path, 'inventori', filters = filters )
     assert isinstance( result, dict )
@@ -335,11 +351,10 @@ async def test_610_query_documentation_combined_filters( ):
     ''' Query documentation applies multiple filters correctly. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     filters = _interfaces.Filters(
-        domain = 'py',
-        role = 'function',
-        priority = '1',
-        match_mode = _interfaces.MatchMode.Fuzzy,
-        fuzzy_threshold = 70 )
+        processor = _interfaces.ProcessorFilters( 
+            domain = 'py', role = 'function', priority = '1' ),
+        universal = _interfaces.UniversalFilters( 
+            match_mode = _interfaces.MatchMode.Fuzzy, fuzzy_threshold = 70 ) )
     result = await module.query_content(
         inventory_path, 'inventory', filters = filters )
     assert isinstance( result, dict )

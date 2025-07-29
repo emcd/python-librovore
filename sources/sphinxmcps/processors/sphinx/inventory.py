@@ -94,28 +94,6 @@ def extract_inventory( base_url: _Url ) -> _sphobjinv.Inventory:
         raise __.InventoryInvalidity( url_s, cause = exc ) from exc
 
 
-def extract_names_from_suggestions(
-    suggestions: list[ str ]
-) -> set[ str ]:
-    ''' Extracts object names from sphobjinv suggestion format. '''
-    fuzzy_names: set[ str ] = set( )
-    for suggestion in suggestions:
-        if '`' in suggestion:
-            name = suggestion.split( '`' )[ 1 ]
-            fuzzy_names.add( name )
-    return fuzzy_names
-
-
-def extract_names_and_scores_from_suggestions(
-    suggestions: list[ tuple[ str, int ] ]
-) -> dict[ str, int ]:
-    ''' Extracts object names and scores from sphobjinv suggestion format. '''
-    fuzzy_names_scores: dict[ str, int ] = { }
-    for suggestion, score in suggestions:
-        if '`' in suggestion:
-            name = suggestion.split( '`' )[ 1 ]
-            fuzzy_names_scores[ name ] = score
-    return fuzzy_names_scores
 
 
 def filter_exact_and_regex_matching( # noqa: PLR0913
@@ -137,44 +115,17 @@ def filter_exact_and_regex_matching( # noqa: PLR0913
     return collect_matching_objects( inventory, criteria )
 
 
-def filter_fuzzy_matching( # noqa: PLR0913
+
+
+def filter_inventory_basic(
     inventory: _sphobjinv.Inventory,
-    domain: __.Absential[ str ],
-    role: __.Absential[ str ],
-    priority: __.Absential[ str ],
-    term: str,
-    fuzzy_threshold: int,
+    domain: __.Absential[ str ] = __.absent,
+    role: __.Absential[ str ] = __.absent,
+    priority: __.Absential[ str ] = __.absent,
 ) -> tuple[ dict[ str, __.typx.Any ], int ]:
-    ''' Filters inventory using fuzzy matching via sphobjinv.suggest(). '''
-    suggestions_with_scores = inventory.suggest(
-        term, thresh = fuzzy_threshold, with_score = True )
-    if (
-        suggestions_with_scores
-        and isinstance( suggestions_with_scores[ 0 ], tuple )
-    ):
-        scored_suggestions = __.typx.cast( 
-            list[ tuple[ str, int ] ], suggestions_with_scores )
-        fuzzy_names_scores = extract_names_and_scores_from_suggestions(
-            scored_suggestions )
-    else:
-        string_suggestions = inventory.suggest( 
-            term, thresh = fuzzy_threshold, with_score = False )
-        str_suggestions = __.typx.cast( list[ str ], string_suggestions )
-        fuzzy_names_set = extract_names_from_suggestions( str_suggestions )
-        fuzzy_names_scores = { 
-            name: fuzzy_threshold for name in fuzzy_names_set 
-        }
-    fuzzy_names = set( fuzzy_names_scores.keys( ) )
-    def fuzzy_term_matcher( obj: _sphobjinv.DataObjStr ) -> bool:
-        return obj.name in fuzzy_names
-    criteria: FilterCriteria = {
-        'domain': domain,
-        'role': role,
-        'priority': priority,
-        'term_matcher': fuzzy_term_matcher,
-        'fuzzy_scores': fuzzy_names_scores,
-    }
-    return collect_matching_objects( inventory, criteria )
+    ''' Filters inventory objects by domain, role, priority only. '''
+    return filter_exact_and_regex_matching(
+        inventory, domain, role, priority, '', __.MatchMode.Exact )
 
 
 def filter_inventory( # noqa: PLR0913
@@ -186,11 +137,13 @@ def filter_inventory( # noqa: PLR0913
     match_mode: __.MatchMode = __.MatchMode.Exact,
     fuzzy_threshold: int = 50,
 ) -> tuple[ dict[ str, __.typx.Any ], int ]:
-    ''' Filters inventory objects by domain, role, term, match mode. '''
+    ''' Filters inventory objects by domain, role, term, match mode. 
+        
+        NOTE: Fuzzy matching is now handled by centralized search engine.
+        This function only supports exact and regex matching for backward
+        compatibility.
+    '''
     term_ = '' if __.is_absent( term ) else term
-    if term_ and match_mode == __.MatchMode.Fuzzy:
-        return filter_fuzzy_matching(
-            inventory, domain, role, priority, term_, fuzzy_threshold )
     return filter_exact_and_regex_matching(
         inventory, domain, role, priority, term_, match_mode )
 

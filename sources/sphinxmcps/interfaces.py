@@ -25,33 +25,6 @@ from . import __
 from . import exceptions as _exceptions
 
 
-class MatchMode( str, __.enum.Enum ):
-    ''' Enumeration for different term matching modes. '''
-
-    Exact = 'exact'
-    Regex = 'regex'
-    Fuzzy = 'fuzzy'
-
-
-class InventoryQueryDetails( __.enum.IntFlag ):
-    ''' Enumeration for inventory query detail levels. '''
-
-    Name = 0                           # Object names only (baseline)
-    Signature = __.enum.auto( )        # Include signatures
-    Summary = __.enum.auto( )          # Include brief descriptions
-    Documentation = __.enum.auto( )    # Include full documentation
-
-
-class Filters( __.immut.DataclassObject ):
-    ''' Common filters for inventory and documentation search. '''
-
-    domain: str = ''
-    role: str = ''
-    priority: str = ''
-    match_mode: MatchMode = MatchMode.Fuzzy
-    fuzzy_threshold: int = 50
-
-
 class FilterCapability( __.immut.DataclassObject ):
     ''' Describes a filter supported by a processor. '''
 
@@ -60,6 +33,67 @@ class FilterCapability( __.immut.DataclassObject ):
     type: str  # "string", "enum", "boolean"
     values: __.typx.Optional[ list[ str ] ] = None  # For enums
     required: bool = False
+
+
+class InventoryQueryDetails( __.enum.IntFlag ):
+    ''' Enumeration for inventory query detail levels. '''
+
+    Name =          0               # Object names only (baseline)
+    Signature =     __.enum.auto( ) # Include signatures
+    Summary =       __.enum.auto( ) # Include brief descriptions
+    Documentation = __.enum.auto( ) # Include full documentation
+
+
+class MatchMode( str, __.enum.Enum ):
+    ''' Enumeration for different term matching modes. '''
+
+    Exact = 'exact'
+    Regex = 'regex'
+    Fuzzy = 'fuzzy'
+
+
+class ProcessorFilters( __.immut.DataclassObject ):
+    ''' Processor-specific filters (Sphinx: domain, role, priority). '''
+
+    domain: str = ''
+    role: str = ''
+    priority: str = ''
+
+
+class UniversalFilters( __.immut.DataclassObject ):
+    ''' Universal search filters handled by the search engine. '''
+
+    match_mode: MatchMode = MatchMode.Fuzzy
+    fuzzy_threshold: int = 50
+
+
+class Filters( __.immut.DataclassObject ):
+    ''' Combined filters for backward compatibility. '''
+
+    universal: UniversalFilters = __.dcls.field(
+        default_factory = UniversalFilters )
+    processor: ProcessorFilters = __.dcls.field(
+        default_factory = ProcessorFilters )
+
+    @property
+    def match_mode( self ) -> MatchMode:
+        return self.universal.match_mode
+
+    @property
+    def fuzzy_threshold( self ) -> int:
+        return self.universal.fuzzy_threshold
+
+    @property
+    def domain( self ) -> str:
+        return self.processor.domain
+
+    @property
+    def role( self ) -> str:
+        return self.processor.role
+
+    @property
+    def priority( self ) -> str:
+        return self.processor.priority
 
 
 class ProcessorCapabilities( __.immut.DataclassObject ):
@@ -91,11 +125,10 @@ class Processor( __.immut.DataclassProtocol ):
 
     @__.abc.abstractmethod
     async def extract_inventory( self, source: str, /, *,
-        term: __.Absential[ str ] = __.absent,
-        filters: Filters,
         details: InventoryQueryDetails = InventoryQueryDetails.Documentation,
+        extra_filters: __.typx.Optional[ dict[ str, __.typx.Any ] ] = None,
     ) -> __.cabc.Mapping[ str, __.typx.Any ]:
-        ''' Extracts inventory from source with configurable detail levels. '''
+        ''' Extracts inventory from source with filters. '''
         raise NotImplementedError
 
     @__.abc.abstractmethod
