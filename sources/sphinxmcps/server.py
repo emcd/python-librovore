@@ -125,7 +125,7 @@ async def query_content(  # noqa: PLR0913
     ] = _filters_default,
     include_snippets: IncludeSnippets = True,
     results_max: ResultsMax = 10,
-) -> list[ __.cabc.Mapping[ str, __.typx.Any ] ]:
+) -> dict[ str, __.typx.Any ]:
     ''' Searches documentation content with relevance ranking and snippets. '''
     _scribe.debug(
         "query_content called: source=%s, query=%s, "

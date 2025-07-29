@@ -25,6 +25,7 @@ from . import __
 from . import detection as _detection
 from . import exceptions as _exceptions
 from . import interfaces as _interfaces
+from . import search as _search
 from . import xtnsapi as _xtnsapi # TODO: Replace with 'registries' module.
 
 
@@ -61,6 +62,76 @@ async def detect(
     return _serialize_dataclass( response )
 
 
+async def query_content(  # noqa: PLR0913
+    source: SourceArgument,
+    query: str, /, *,
+    search_behaviors: _interfaces.SearchBehaviors = _search_behaviors_default,
+    filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
+    include_snippets: bool = True,
+    results_max: int = 10,
+) -> __.typx.Annotated[
+    dict[ str, __.typx.Any ],
+    __.ddoc.Fname( 'content query return' ) ]:
+    ''' Searches documentation content with relevance ranking. '''
+    processor = await _determine_processor_optimal( source )
+    filtered_objects = await processor.extract_filtered_inventory(
+        source, filters = filters,
+        details = _interfaces.InventoryQueryDetails.Name )
+    search_results = _search.filter_by_name(
+        filtered_objects, query,
+        match_mode = search_behaviors.match_mode,
+        fuzzy_threshold = search_behaviors.fuzzy_threshold )
+    candidate_objects = [
+        result.object for result in search_results[ : results_max * 3 ] ]
+    if not candidate_objects:
+        filter_metadata: dict[ str, __.typx.Any ] = { }
+        _populate_filter_metadata( filter_metadata, search_behaviors, filters )
+        return {
+            'source': source,
+            'query': query,
+            'search_metadata': {
+                'result_count': 0,
+                'max_results': results_max,
+                'filters': filter_metadata,
+            },
+            'documents': [ ],
+        }
+    raw_results = await processor.extract_documentation_for_objects(
+        source, candidate_objects, include_snippets = include_snippets )
+    sorted_results = sorted(
+        raw_results,
+        key = lambda x: x.get( 'relevance_score', 0.0 ),
+        reverse = True )
+    limited_results = list( sorted_results[ : results_max ] )
+    filter_metadata: dict[ str, __.typx.Any ] = { }
+    _populate_filter_metadata( filter_metadata, search_behaviors, filters )
+    search_metadata: dict[ str, __.typx.Any ] = {
+        'result_count': len( limited_results ),
+        'max_results': results_max,
+        'filters': filter_metadata,
+    }
+    documents = [
+        {
+            'name': result[ 'object_name' ],
+            'type': result[ 'object_type' ],
+            'domain': result[ 'domain' ],
+            'priority': result[ 'priority' ],
+            'url': result[ 'url' ],
+            'signature': result[ 'signature' ],
+            'description': result[ 'description' ],
+            'content_snippet': result[ 'content_snippet' ],
+            'relevance_score': result[ 'relevance_score' ],
+            'match_reasons': result[ 'match_reasons' ]
+        }
+        for result in limited_results ]
+    return {
+        'source': source,
+        'query': query,
+        'search_metadata': search_metadata,
+        'documents': documents,
+    }
+
+
 async def query_inventory(  # noqa: PLR0913
     source: SourceArgument,
     query: str, /, *,
@@ -71,21 +142,50 @@ async def query_inventory(  # noqa: PLR0913
     results_max: int = 5,
 ) -> __.typx.Annotated[
     dict[ str, __.typx.Any ], __.ddoc.Fname( 'inventory query return' ) ]:
-    ''' Searches object inventory by name with fuzzy matching.
+    ''' Searches object inventory by name.
 
-        Finds objects in documentation inventory using fuzzy name matching
-        and returns configurable detail levels. Always includes object names
+        Returns configurable detail levels. Always includes object names
         plus requested detail flags (signatures, summaries, documentation).
     '''
-    # Delegate directly to processor - it handles search and filtering
     processor = await _determine_processor_optimal( source )
-    result_mapping = await processor.query_inventory(
-        source, query,
-        search_behaviors = search_behaviors,
-        filters = filters,
-        details = details,
-        results_max = results_max )
-    return dict( result_mapping )
+    filtered_objects = await processor.extract_filtered_inventory(
+        source, filters = filters, details = details )
+    search_results = _search.filter_by_name(
+        filtered_objects, query,
+        match_mode = search_behaviors.match_mode,
+        fuzzy_threshold = search_behaviors.fuzzy_threshold )
+    selected_objects = [
+        result.object for result in search_results[ : results_max ] ]
+    documents = [
+        {
+            'name': obj[ 'name' ],
+            'role': obj[ 'role' ],
+            'domain': obj.get( 'domain', '' ),
+            'uri': obj[ 'uri' ],
+            'dispname': obj[ 'dispname' ],
+        }
+        for obj in selected_objects ]
+    filter_metadata: dict[ str, __.typx.Any ] = { }
+    _populate_filter_metadata( filter_metadata, search_behaviors, filters )
+    search_metadata: dict[ str, __.typx.Any ] = {
+        'object_count': len( selected_objects ),
+        'max_objects': results_max,
+        'total_matches': len( filtered_objects ),
+        'filters': filter_metadata,
+    }
+    return {
+        'project': (
+            filtered_objects[ 0 ].get( '_inventory_project', 'Unknown' )
+            if filtered_objects else 'Unknown' ),
+        'version': (
+            filtered_objects[ 0 ].get( '_inventory_version', 'Unknown' )
+            if filtered_objects else 'Unknown' ),
+        'query': query,
+        'documents': documents,
+        'search_metadata': search_metadata,
+        'object_count': len( selected_objects ),
+        'source': source,
+    }
 
 
 async def summarize_inventory(
@@ -96,7 +196,6 @@ async def summarize_inventory(
 ) -> __.typx.Annotated[
     str, __.ddoc.Fname( 'inventory summary return' ) ]:
     ''' Provides human-readable summary of inventory. '''
-    # Use query_inventory with name-only details to get inventory data
     inventory_result = await query_inventory(
         source, query, search_behaviors = search_behaviors, filters = filters,
         results_max = 1000,  # Large number to get all matches
@@ -124,27 +223,6 @@ async def survey_processors(
         for name_, processor in _xtnsapi.processors.items( )
         if name is None or name_ == name }
     return { 'processors': processors_capabilities }
-
-
-async def query_content(  # noqa: PLR0913
-    source: SourceArgument,
-    query: str, /, *,
-    search_behaviors: _interfaces.SearchBehaviors = _search_behaviors_default,
-    filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
-    include_snippets: bool = True,
-    results_max: int = 10,
-) -> __.typx.Annotated[
-    list[ __.cabc.Mapping[ str, __.typx.Any ] ], 
-    __.ddoc.Fname( 'content query return' ) ]:
-    ''' Searches documentation content with relevance ranking. '''
-    processor = await _determine_processor_optimal( source )
-    raw_results = await processor.query_content(
-        source, query,
-        search_behaviors = search_behaviors,
-        filters = filters,
-        results_max = results_max,
-        include_snippets = include_snippets )
-    return list( raw_results )
 
 
 async def _add_documentation_to_results(

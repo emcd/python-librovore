@@ -97,61 +97,6 @@ class SphinxProcessor( __.Processor ):
             normalized_source = base_url.geturl( ),
             theme = theme )
 
-    async def query_inventory( self, source: str, query: str, /, *,  # noqa: PLR0913
-        search_behaviors: __.SearchBehaviors = _search_behaviors_default,
-        filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
-        details: __.InventoryQueryDetails = (
-            __.InventoryQueryDetails.Documentation ),
-        results_max: int = 5,
-    ) -> __.cabc.Mapping[ str, __.typx.Any ]:
-        ''' Searches object inventory by name with fuzzy matching. '''
-        # 1. Extract and filter inventory
-        domain = filters.get( 'domain', '' ) or __.absent
-        role = filters.get( 'role', '' ) or __.absent
-        priority = filters.get( 'priority', '' ) or __.absent
-        base_url = _urls.normalize_base_url( source )
-        inventory = _inventory.extract_inventory( base_url )
-        filtered_objects, object_count = _inventory.filter_inventory_basic(
-            inventory, domain = domain, role = role, priority = priority )
-        
-        # 2. Apply universal search matching
-        from ...search import filter_by_name
-        all_objects: list[ dict[ str, __.typx.Any ] ] = [ ]
-        for domain_objects in filtered_objects.values( ):
-            all_objects.extend( domain_objects )
-        
-        search_results = filter_by_name(
-            all_objects, query,
-            match_mode = search_behaviors.match_mode,
-            fuzzy_threshold = search_behaviors.fuzzy_threshold )
-        
-        # 3. Build result with search results
-        selected_objects = [
-            result.object for result in search_results[ : results_max ] ]
-        
-        result: dict[ str, __.typx.Any ] = {
-            'project': inventory.project,
-            'version': inventory.version,
-            'objects': { domain: selected_objects },  # Simplified structure
-            'object_count': len( selected_objects ),
-            'source': source,
-        }
-        
-        # Add metadata 
-        filters_metadata: dict[ str, __.typx.Any ] = { }
-        if not __.is_absent( domain ): filters_metadata[ 'domain' ] = domain
-        if not __.is_absent( role ): filters_metadata[ 'role' ] = role
-        if not __.is_absent( priority ):
-            filters_metadata[ 'priority' ] = priority
-        filters_metadata[ 'match_mode' ] = search_behaviors.match_mode.value
-        if search_behaviors.match_mode == __.MatchMode.Fuzzy:
-            filters_metadata[ 'fuzzy_threshold' ] = (
-                search_behaviors.fuzzy_threshold )
-        if filters_metadata: result[ 'filters' ] = filters_metadata
-        
-        return result
-
-
     async def extract_documentation(
         self,
         source: str,
@@ -188,61 +133,85 @@ class SphinxProcessor( __.Processor ):
                 result[ 'description' ] )
         return result
 
-    async def query_content(  # noqa: PLR0913
-        self,
-        source: str, query: str, /, *,
-        search_behaviors: __.SearchBehaviors = _search_behaviors_default,
-        filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
+    async def extract_documentation_for_objects(
+        self, source: str, objects: list[ dict[ str, __.typx.Any ] ], /, *,
         include_snippets: bool = True,
-        results_max: int = 10,
     ) -> list[ __.cabc.Mapping[ str, __.typx.Any ] ]:
-        ''' Searches documentation content with relevance ranking and 
-        snippets. '''
+        ''' Extracts documentation content for specified objects. '''
         base_url = _urls.normalize_base_url( source )
-        
-        inventory_result = await self.query_inventory(
-            source, '',  # Empty query to get all objects
-            search_behaviors = search_behaviors,
-            filters = filters,
-            details = __.InventoryQueryDetails.Name,
-            results_max = 1000 )
-        
-        # 2. Apply universal search matching
-        from ...search import filter_by_name
-        all_objects: list[ dict[ str, __.typx.Any ] ] = [ ]
-        for domain_objects in inventory_result[ 'objects' ].values( ):
-            all_objects.extend( domain_objects )
-        
-        search_results = filter_by_name(
-            all_objects, query,
-            match_mode = search_behaviors.match_mode,
-            fuzzy_threshold = search_behaviors.fuzzy_threshold )
-        
-        # 3. Get candidates from search results
-        candidates = [ result.object for result in search_results ]
-        if not candidates: return [ ]
-        query_lower = query.lower( )
-        # Pre-filter candidates by name relevance before HTTP requests
-        name_scored_candidates = _prescore_candidates(
-            candidates, query_lower )
-        name_scored_candidates.sort( key = lambda x: x[ 0 ], reverse = True )
-        fetch_limit = min( len( name_scored_candidates ), results_max * 3 )
-        top_candidates = [
-            candidate for _, candidate in
-            name_scored_candidates[ : fetch_limit ] ]
+        if not objects: return [ ]
         tasks = [
-            _process_candidate(
-                base_url, candidate, query_lower, query, include_snippets )
-            for candidate in top_candidates ]
+            _extract_object_documentation(
+                base_url, obj, include_snippets )
+            for obj in objects ]
         candidate_results = await __.asyncf.gather_async(
             *tasks, return_exceptions = True )
-        # Filter successful results and sort by relevance
         results: list[ __.cabc.Mapping[ str, __.typx.Any ] ] = [
             result.value for result in candidate_results
             if __.generics.is_value( result ) and result.value is not None ]
-        results.sort(
-            key = lambda x: x[ 'relevance_score' ], reverse = True )
-        return results[ : results_max ]
+        return results
+
+    async def extract_filtered_inventory( self, source: str, /, *,
+        filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
+        details: __.InventoryQueryDetails = (
+            __.InventoryQueryDetails.Documentation ),
+    ) -> list[ dict[ str, __.typx.Any ] ]:
+        ''' Extracts and filters inventory objects from documentation source.
+        '''
+        domain = filters.get( 'domain', '' ) or __.absent
+        role = filters.get( 'role', '' ) or __.absent
+        priority = filters.get( 'priority', '' ) or __.absent
+        base_url = _urls.normalize_base_url( source )
+        inventory = _inventory.extract_inventory( base_url )
+        filtered_objects, object_count = _inventory.filter_inventory_basic(
+            inventory, domain = domain, role = role, priority = priority )
+        all_objects: list[ dict[ str, __.typx.Any ] ] = [ ]
+        for domain_objects in filtered_objects.values( ):
+            all_objects.extend( domain_objects )
+        for obj in all_objects:
+            obj[ '_inventory_project' ] = inventory.project
+            obj[ '_inventory_version' ] = inventory.version
+        return all_objects
+
+
+async def _extract_object_documentation(
+    base_url: __.typx.Any, obj: dict[ str, __.typx.Any ],
+    include_snippets: bool
+) -> __.cabc.Mapping[ str, __.typx.Any ] | None:
+    ''' Extracts documentation for a single object without query matching. '''
+    doc_url = _urls.derive_documentation_url(
+        base_url, obj[ 'uri' ], obj[ 'name' ] )
+    try: html_content = await __.retrieve_url_as_text( doc_url )
+    except Exception as exc:
+        _scribe.debug( "Failed to retrieve %s: %s", doc_url, exc )
+        return None
+    anchor = doc_url.fragment or str( obj[ 'name' ] )
+    try:
+        parsed_content = _extraction.parse_documentation_html(
+            html_content, anchor )
+    except Exception: return None
+    if 'error' in parsed_content: return None
+    description = _conversion.html_to_markdown(
+        parsed_content[ 'description' ] )
+    snippet_max_length = 200
+    if include_snippets:
+        content_snippet = (
+            description[ : snippet_max_length ] + '...'
+            if len( description ) > snippet_max_length
+            else description )
+    else: content_snippet = ''
+    return {
+        'object_name': obj[ 'name' ],
+        'object_type': obj[ 'role' ],
+        'domain': obj[ 'domain' ],
+        'priority': obj[ 'priority' ],
+        'url': doc_url.geturl( ),
+        'signature': parsed_content[ 'signature' ],
+        'description': description,
+        'content_snippet': content_snippet,
+        'relevance_score': 1.0,  # Default score since no query matching
+        'match_reasons': [ 'direct extraction' ],
+    }
 
 
 def _prescore_candidates(
