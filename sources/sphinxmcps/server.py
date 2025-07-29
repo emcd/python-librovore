@@ -31,24 +31,27 @@ from . import functions as _functions
 from . import interfaces as _interfaces
 
 
-class SearchBehaviorsMutable(
-    _interfaces.SearchBehaviors, instances_mutables = '*'
-):
-    ''' Mutable version of SearchBehaviors for FastMCP/Pydantic compatibility. 
+@__.dcls.dataclass( kw_only = True, slots = True )
+class SearchBehaviorsMutable:
+    ''' Mutable version of SearchBehaviors for FastMCP/Pydantic compatibility.
+
+        Note: Fields are manually duplicated from SearchBehaviors to avoid
+        immutable dataclass internals leaking into JSON schema generation.
     '''
+
+    match_mode: _interfaces.MatchMode = _interfaces.MatchMode.Fuzzy
+    fuzzy_threshold: int = 50
 
 
 FiltersMutable: __.typx.TypeAlias = dict[ str, __.typx.Any ]
-
-
 IncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
     bool,
     _Field( description = __.access_doctab( 'include snippets argument' ) ),
 ]
-ResultsMax: __.typx.TypeAlias = __.typx.Annotated[
-    int, _Field( description = __.access_doctab( 'results max argument' ) ) ]
 Query: __.typx.TypeAlias = __.typx.Annotated[
     str, _Field( description = __.access_doctab( 'query argument' ) ) ]
+ResultsMax: __.typx.TypeAlias = __.typx.Annotated[
+    int, _Field( description = __.access_doctab( 'results max argument' ) ) ]
 SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
     str, _Field( description = __.access_doctab( 'source argument' ) ) ]
 TermFilter: __.typx.TypeAlias = __.typx.Annotated[
@@ -58,8 +61,6 @@ TermFilter: __.typx.TypeAlias = __.typx.Annotated[
 _search_behaviors_default = SearchBehaviorsMutable( )
 _filters_default = FiltersMutable( )
 _scribe = __.acquire_scribe( __name__ )
-
-
 
 
 async def detect(
@@ -107,8 +108,8 @@ async def query_inventory(  # noqa: PLR0913
             results_max = results_max,
             details = details )
     except Exception as exc:
-        _scribe.error( "Error exploring: %s", exc )
-        raise RuntimeError from exc
+        _scribe.error( "Error in query_inventory: %s", exc )
+        raise
 
 
 async def query_content(  # noqa: PLR0913
@@ -162,8 +163,8 @@ async def summarize_inventory(
             search_behaviors = immutable_search_behaviors,
             filters = immutable_filters )
     except Exception as exc:
-        _scribe.error( "Error summarizing inventory: %s", exc )
-        raise RuntimeError from exc
+        _scribe.error( "Error in summarize_inventory: %s", exc )
+        raise
 
 
 async def survey_processors(
