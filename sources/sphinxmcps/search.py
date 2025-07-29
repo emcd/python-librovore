@@ -37,116 +37,112 @@ class SearchResult( __.immut.DataclassObject ):
     match_reasons: list[ str ]
 
 
-class SearchEngine:
-    ''' Centralized search logic for all processors. '''
-
-    def filter_by_name(
-        self,
-        objects: list[ dict[ str, __.typx.Any ] ],
-        query: str, /, *,
-        match_mode: _interfaces.MatchMode = _interfaces.MatchMode.Fuzzy,
-        fuzzy_threshold: int = 50,
-    ) -> list[ SearchResult ]:
-        ''' Filter objects by name using specified match mode. '''
-        if not query:
-            # Empty query returns all objects with neutral score
-            return [
-                SearchResult( 
-                    object = obj, score = 1.0, 
-                    match_reasons = [ 'empty query' ] )
-                for obj in objects
-            ]
-        
-        query_lower = query.lower( )
-        results: list[ SearchResult ] = [ ]
-        
-        if match_mode == _interfaces.MatchMode.Exact:
-            results = self._filter_exact( objects, query_lower )
-        elif match_mode == _interfaces.MatchMode.Regex:
-            results = self._filter_regex( objects, query )
-        elif match_mode == _interfaces.MatchMode.Fuzzy:
-            results = self._filter_fuzzy( 
-                objects, query_lower, fuzzy_threshold )
-        
-        return sorted( results, key = lambda r: r.score, reverse = True )
-
-    def _filter_exact( 
-        self, 
-        objects: list[ dict[ str, __.typx.Any ] ], 
-        query_lower: str 
-    ) -> list[ SearchResult ]:
-        ''' Apply exact matching to objects. '''
-        results: list[ SearchResult ] = [ ]
-        for obj in objects:
-            obj_name_lower = obj[ 'name' ].lower( )
-            if query_lower in obj_name_lower:
-                # Score based on how well the query matches
-                if obj_name_lower == query_lower:
-                    score = 1.0
-                    reason = 'exact name match'
-                elif obj_name_lower.startswith( query_lower ):
-                    score = 0.9
-                    reason = 'name starts with query'
-                else:
-                    score = 0.7
-                    reason = 'name contains query'
-                
-                results.append( SearchResult(
-                    object = obj, score = score, match_reasons = [ reason ] ) )
-        return results
-
-    def _filter_regex(
-        self,
-        objects: list[ dict[ str, __.typx.Any ] ],
-        query: str
-    ) -> list[ SearchResult ]:
-        ''' Apply regex matching to objects. '''
-        try:
-            pattern = _re.compile( query, _re.IGNORECASE )
-        except _re.error:
-            # Invalid regex, return no results
-            return [ ]
-        
+def filter_by_name(
+    objects: list[ dict[ str, __.typx.Any ] ],
+    query: str, /, *,
+    match_mode: _interfaces.MatchMode = _interfaces.MatchMode.Fuzzy,
+    fuzzy_threshold: int = 50,
+) -> list[ SearchResult ]:
+    ''' Filter objects by name using specified match mode. '''
+    if not query:
+        # Empty query returns all objects with neutral score
         return [
-            SearchResult(
-                object = obj, score = 1.0, match_reasons = [ 'regex match' ] )
-            for obj in objects if pattern.search( obj[ 'name' ] )
+            SearchResult( 
+                object = obj, score = 1.0, 
+                match_reasons = [ 'empty query' ] )
+            for obj in objects
         ]
+    
+    query_lower = query.lower( )
+    results: list[ SearchResult ] = [ ]
+    
+    if match_mode == _interfaces.MatchMode.Exact:
+        results = _filter_exact( objects, query_lower )
+    elif match_mode == _interfaces.MatchMode.Regex:
+        results = _filter_regex( objects, query )
+    elif match_mode == _interfaces.MatchMode.Fuzzy:
+        results = _filter_fuzzy( 
+            objects, query_lower, fuzzy_threshold )
+    
+    return sorted( results, key = lambda r: r.score, reverse = True )
 
-    def _filter_fuzzy(
-        self,
-        objects: list[ dict[ str, __.typx.Any ] ],
-        query_lower: str,
-        fuzzy_threshold: int
-    ) -> list[ SearchResult ]:
-        ''' Apply fuzzy matching to objects using rapidfuzz. '''
-        results: list[ SearchResult ] = [ ]
-        
-        for obj in objects:
-            obj_name = obj[ 'name' ]
-            obj_name_lower = obj_name.lower( )
-            
-            # Use rapidfuzz ratio for basic fuzzy matching
-            ratio = _rapidfuzz.fuzz.ratio( query_lower, obj_name_lower )
-            
-            if ratio >= fuzzy_threshold:
-                # Normalize score to 0.0-1.0 range
-                score = ratio / 100.0
-                results.append( SearchResult(
-                    object = obj,
-                    score = score,
-                    match_reasons = [ f'fuzzy match ({ratio}%)' ]
-                ) )
-        
-        return results
 
-    def score_by_relevance(
-        self,
-        results: list[ SearchResult ],
-        query: str
-    ) -> list[ SearchResult ]:
-        ''' Score and rank results by relevance 
-            (already done by filter_by_name). '''
-        # Results are already scored and sorted by filter_by_name
-        # This method exists for future enhancement opportunities
-        return results
+def _filter_exact( 
+    objects: list[ dict[ str, __.typx.Any ] ], 
+    query_lower: str 
+) -> list[ SearchResult ]:
+    ''' Apply exact matching to objects. '''
+    results: list[ SearchResult ] = [ ]
+    for obj in objects:
+        obj_name_lower = obj[ 'name' ].lower( )
+        if query_lower in obj_name_lower:
+            # Score based on how well the query matches
+            if obj_name_lower == query_lower:
+                score = 1.0
+                reason = 'exact name match'
+            elif obj_name_lower.startswith( query_lower ):
+                score = 0.9
+                reason = 'name starts with query'
+            else:
+                score = 0.7
+                reason = 'name contains query'
+            
+            results.append( SearchResult(
+                object = obj, score = score, match_reasons = [ reason ] ) )
+    return results
+
+
+def _filter_regex(
+    objects: list[ dict[ str, __.typx.Any ] ],
+    query: str
+) -> list[ SearchResult ]:
+    ''' Apply regex matching to objects. '''
+    try:
+        pattern = _re.compile( query, _re.IGNORECASE )
+    except _re.error:
+        # Invalid regex, return no results
+        return [ ]
+    
+    return [
+        SearchResult(
+            object = obj, score = 1.0, match_reasons = [ 'regex match' ] )
+        for obj in objects if pattern.search( obj[ 'name' ] )
+    ]
+
+
+def _filter_fuzzy(
+    objects: list[ dict[ str, __.typx.Any ] ],
+    query_lower: str,
+    fuzzy_threshold: int
+) -> list[ SearchResult ]:
+    ''' Apply fuzzy matching to objects using rapidfuzz. '''
+    results: list[ SearchResult ] = [ ]
+    
+    for obj in objects:
+        obj_name = obj[ 'name' ]
+        obj_name_lower = obj_name.lower( )
+        
+        # Use rapidfuzz ratio for basic fuzzy matching
+        ratio = _rapidfuzz.fuzz.ratio( query_lower, obj_name_lower )
+        
+        if ratio >= fuzzy_threshold:
+            # Normalize score to 0.0-1.0 range
+            score = ratio / 100.0
+            results.append( SearchResult(
+                object = obj,
+                score = score,
+                match_reasons = [ f'fuzzy match ({ratio}%)' ]
+            ) )
+    
+    return results
+
+
+def score_by_relevance(
+    results: list[ SearchResult ],
+    query: str
+) -> list[ SearchResult ]:
+    ''' Score and rank results by relevance (already done by filter_by_name).
+    '''
+    # Results are already scored and sorted by filter_by_name
+    # This method exists for future enhancement opportunities
+    return results

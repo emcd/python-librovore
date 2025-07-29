@@ -85,15 +85,14 @@ async def query_inventory(  # noqa: PLR0913
         k: v for k, v in filters.items( ) if v }
     
     result_mapping = await processor.extract_inventory(
-        source, extra_filters = processor_filters, details = details )
+        source, filters = processor_filters, details = details )
     inventory_data = dict( result_mapping )
     inventory_data[ 'source' ] = source
-    # 2. Apply universal search matching at engine level
-    search_engine = _search.SearchEngine( )
+    # 2. Apply universal search matching at module level
     all_objects: list[ dict[ str, __.typx.Any ] ] = [ ]
     for domain_objects in inventory_data[ 'objects' ].values( ):
         all_objects.extend( domain_objects )
-    search_results = search_engine.filter_by_name(
+    search_results = _search.filter_by_name(
         all_objects, query,
         match_mode = search_behaviors.match_mode,
         fuzzy_threshold = search_behaviors.fuzzy_threshold )

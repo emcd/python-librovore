@@ -94,7 +94,7 @@ class Processor( __.immut.DataclassProtocol ):
     @__.abc.abstractmethod
     async def extract_inventory( self, source: str, /, *,
         details: InventoryQueryDetails = InventoryQueryDetails.Documentation,
-        extra_filters: __.typx.Optional[ dict[ str, __.typx.Any ] ] = None,
+        filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
     ) -> __.cabc.Mapping[ str, __.typx.Any ]:
         ''' Extracts inventory from source with filters. '''
         raise NotImplementedError

@@ -100,14 +100,13 @@ class SphinxProcessor( __.Processor ):
     async def extract_inventory(
         self,
         source: str, /, *,
-        extra_filters: __.typx.Optional[ dict[ str, __.typx.Any ] ] = None,
         details: __.InventoryQueryDetails = (
             __.InventoryQueryDetails.Documentation ),
+        filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
     ) -> dict[ str, __.typx.Any ]:
         ''' Extracts inventory from Sphinx documentation source. '''
         # TODO: Use details parameter to conditionally extract different levels
         # of information (Name, Signature, Summary, Documentation)
-        filters = extra_filters or { }
         domain = filters.get( 'domain', '' ) or __.absent
         role = filters.get( 'role', '' ) or __.absent
         priority = filters.get( 'priority', '' ) or __.absent
@@ -183,17 +182,16 @@ class SphinxProcessor( __.Processor ):
             k: v for k, v in filters.items( ) if v }
         
         inventory_result = await self.extract_inventory(
-            source, extra_filters = processor_filters,
+            source, filters = processor_filters,
             details = __.InventoryQueryDetails.Name )
         
         # 2. Apply universal search matching
-        from ...search import SearchEngine as _SearchEngine
-        search_engine = _SearchEngine( )
+        from ...search import filter_by_name
         all_objects: list[ dict[ str, __.typx.Any ] ] = [ ]
         for domain_objects in inventory_result[ 'objects' ].values( ):
             all_objects.extend( domain_objects )
         
-        search_results = search_engine.filter_by_name(
+        search_results = filter_by_name(
             all_objects, query,
             match_mode = search_behaviors.match_mode,
             fuzzy_threshold = search_behaviors.fuzzy_threshold )
