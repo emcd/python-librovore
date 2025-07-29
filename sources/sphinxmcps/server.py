@@ -31,8 +31,14 @@ from . import functions as _functions
 from . import interfaces as _interfaces
 
 
-class FiltersMutable( _interfaces.Filters, instances_mutables = '*' ):
-    ''' Mutable version of Filters for FastMCP/Pydantic compatibility. '''
+class SearchBehaviorsMutable(
+    _interfaces.SearchBehaviors, instances_mutables = '*'
+):
+    ''' Mutable version of SearchBehaviors for FastMCP/Pydantic compatibility. 
+    '''
+
+
+FiltersMutable: __.typx.TypeAlias = dict[ str, __.typx.Any ]
 
 
 IncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
@@ -49,6 +55,7 @@ TermFilter: __.typx.TypeAlias = __.typx.Annotated[
     str, _Field( description = __.access_doctab( 'term filter argument' ) ) ]
 
 
+_search_behaviors_default = SearchBehaviorsMutable( )
 _filters_default = FiltersMutable( )
 _scribe = __.acquire_scribe( __name__ )
 
@@ -67,12 +74,16 @@ async def detect(
     return await _functions.detect( source, all_detections )
 
 
-async def query_inventory(
+async def query_inventory(  # noqa: PLR0913
     source: SourceArgument,
     query: Query,
+    search_behaviors: __.typx.Annotated[
+        SearchBehaviorsMutable,
+        _Field( description = "Search behavior configuration" ),
+    ] = _search_behaviors_default,
     filters: __.typx.Annotated[
         FiltersMutable,
-        _Field( description = "Search and filtering options" ),
+        _Field( description = "Processor-specific filters" ),
     ] = _filters_default,
     details: __.typx.Annotated[
         _interfaces.InventoryQueryDetails,
@@ -82,13 +93,17 @@ async def query_inventory(
 ) -> dict[ str, __.typx.Any ]:
     ''' Searches object inventory by name with fuzzy matching. '''
     _scribe.debug(
-        "query_inventory called: source=%s, query=%s, filters=%s, "
-        "results_max=%s, details=%s",
-        source, query, filters, results_max, details )
+        "query_inventory called: source=%s, query=%s, "
+        "search_behaviors=%s, filters=%s, results_max=%s, details=%s",
+        source, query, search_behaviors, filters, results_max, details )
     try:
+        immutable_search_behaviors = _to_immutable_search_behaviors(
+            search_behaviors )
         immutable_filters = _to_immutable_filters( filters )
         return await _functions.query_inventory(
-            source, query, filters = immutable_filters,
+            source, query,
+            search_behaviors = immutable_search_behaviors,
+            filters = immutable_filters,
             results_max = results_max,
             details = details )
     except Exception as exc:
@@ -96,39 +111,56 @@ async def query_inventory(
         raise RuntimeError from exc
 
 
-async def query_content(
+async def query_content(  # noqa: PLR0913
     source: SourceArgument,
     query: Query,
+    search_behaviors: __.typx.Annotated[
+        SearchBehaviorsMutable,
+        _Field( description = "Search behavior configuration" ),
+    ] = _search_behaviors_default,
     filters: __.typx.Annotated[
         FiltersMutable,
-        _Field( description = "Search and filtering options" ),
+        _Field( description = "Processor-specific filters" ),
     ] = _filters_default,
     include_snippets: IncludeSnippets = True,
     results_max: ResultsMax = 10,
 ) -> dict[ str, __.typx.Any ]:
     ''' Searches documentation content with relevance ranking and snippets. '''
     _scribe.debug(
-        "query_content called: source=%s, query=%s, filters=%s",
-        source, query, filters )
+        "query_content called: source=%s, query=%s, "
+        "search_behaviors=%s, filters=%s",
+        source, query, search_behaviors, filters )
+    immutable_search_behaviors = _to_immutable_search_behaviors(
+        search_behaviors )
     immutable_filters = _to_immutable_filters( filters )
     return await _functions.query_content(
-        source, query, filters = immutable_filters,
+        source, query,
+        search_behaviors = immutable_search_behaviors,
+        filters = immutable_filters,
         results_max = results_max, include_snippets = include_snippets )
 
 
 async def summarize_inventory(
     source: SourceArgument,
+    search_behaviors: __.typx.Annotated[
+        SearchBehaviorsMutable,
+        _Field( description = "Search behavior configuration" ),
+    ] = _search_behaviors_default,
     filters: __.typx.Annotated[
         FiltersMutable,
-        _Field( description = "Search and filtering options" ),
+        _Field( description = "Processor-specific filters" ),
     ] = _filters_default,
     term: TermFilter = '',
 ) -> str:
     ''' Provides human-readable summary of inventory. '''
     try:
+        immutable_search_behaviors = _to_immutable_search_behaviors(
+            search_behaviors )
         immutable_filters = _to_immutable_filters( filters )
         return await _functions.summarize_inventory(
-            source, term, filters = immutable_filters )
+            source, term,
+            search_behaviors = immutable_search_behaviors,
+            filters = immutable_filters )
     except Exception as exc:
         _scribe.error( "Error summarizing inventory: %s", exc )
         raise RuntimeError from exc
@@ -166,12 +198,20 @@ async def serve(
         case _: raise ValueError
 
 
+def _to_immutable_search_behaviors(
+    mutable_behaviors: SearchBehaviorsMutable
+) -> _interfaces.SearchBehaviors:
+    ''' Converts mutable search behaviors to immutable using dataclass
+    fields. '''
+    field_values = {
+        field.name: getattr( mutable_behaviors, field.name )
+        for field in __.dcls.fields( mutable_behaviors )
+        if not field.name.startswith( '_' ) }
+    return _interfaces.SearchBehaviors( **field_values )
+
+
 def _to_immutable_filters(
     mutable_filters: FiltersMutable
-) -> _interfaces.Filters:
-    ''' Converts mutable filters to immutable using dataclass fields. '''
-    field_values = {
-        field.name: getattr( mutable_filters, field.name )
-        for field in __.dcls.fields( mutable_filters )
-        if not field.name.startswith( '_' ) }
-    return _interfaces.Filters( **field_values )
+) -> __.immut.Dictionary[ str, __.typx.Any ]:
+    ''' Converts mutable filters dict to immutable dictionary. '''
+    return __.immut.Dictionary[ str, __.typx.Any ]( mutable_filters )

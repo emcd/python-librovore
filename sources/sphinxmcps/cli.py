@@ -60,7 +60,8 @@ IncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
 ]
 
 
-_filters_default = _interfaces.Filters( )
+_search_behaviors_default = _interfaces.SearchBehaviors( )
+_filters_default = __.immut.Dictionary[ str, __.typx.Any ]( )
 
 
 class DetectCommand(
@@ -94,10 +95,14 @@ class QueryInventoryCommand(
 
     source: SourceArgument
     query: QueryArgument
-    filters: __.typx.Annotated[
-        _interfaces.Filters,
+    search_behaviors: __.typx.Annotated[
+        _interfaces.SearchBehaviors,
         __.tyro.conf.arg( prefix_name = False ),
-    ] = _filters_default
+    ] = _search_behaviors_default
+    filters: __.typx.Annotated[
+        dict[ str, __.typx.Any ],
+        __.tyro.conf.arg( prefix_name = False ),
+    ] = __.dcls.field( default_factory = lambda: dict( _filters_default ) )
     details: __.typx.Annotated[
         _interfaces.InventoryQueryDetails,
         __.tyro.conf.arg(
@@ -116,6 +121,7 @@ class QueryInventoryCommand(
             result = await _functions.query_inventory(
                 self.source,
                 self.query,
+                search_behaviors = self.search_behaviors,
                 filters = self.filters,
                 results_max = self.objects_max,
                 details = self.details )
@@ -132,10 +138,14 @@ class QueryContentCommand(
 
     source: SourceArgument
     query: QueryArgument
-    filters: __.typx.Annotated[
-        _interfaces.Filters,
+    search_behaviors: __.typx.Annotated[
+        _interfaces.SearchBehaviors,
         __.tyro.conf.arg( prefix_name = False ),
-    ] = _filters_default
+    ] = _search_behaviors_default
+    filters: __.typx.Annotated[
+        dict[ str, __.typx.Any ],
+        __.tyro.conf.arg( prefix_name = False ),
+    ] = __.dcls.field( default_factory = lambda: dict( _filters_default ) )
     include_snippets: IncludeSnippets = True
     results_max: ResultsMax = 10
 
@@ -146,6 +156,7 @@ class QueryContentCommand(
         try:
             result = await _functions.query_content(
                 self.source, self.query,
+                search_behaviors = self.search_behaviors,
                 filters = self.filters,
                 results_max = self.results_max,
                 include_snippets = self.include_snippets )
@@ -162,17 +173,23 @@ class SummarizeInventoryCommand(
 
     source: SourceArgument
     term: TermFilter = None
-    filters: __.typx.Annotated[
-        _interfaces.Filters,
+    search_behaviors: __.typx.Annotated[
+        _interfaces.SearchBehaviors,
         __.tyro.conf.arg( prefix_name = False ),
-    ] = _filters_default
+    ] = _search_behaviors_default
+    filters: __.typx.Annotated[
+        dict[ str, __.typx.Any ],
+        __.tyro.conf.arg( prefix_name = False ),
+    ] = __.dcls.field( default_factory = lambda: dict( _filters_default ) )
 
     async def __call__(
         self, auxdata: __.Globals, display: __.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
         result = await _functions.summarize_inventory(
-            self.source, self.term or '', filters = self.filters )
+            self.source, self.term or '',
+            search_behaviors = self.search_behaviors,
+            filters = self.filters )
         print( result, file = stream )
 
 

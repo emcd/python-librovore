@@ -52,48 +52,16 @@ class MatchMode( str, __.enum.Enum ):
     Fuzzy = 'fuzzy'
 
 
-class ProcessorFilters( __.immut.DataclassObject ):
-    ''' Processor-specific filters (Sphinx: domain, role, priority). '''
-
-    domain: str = ''
-    role: str = ''
-    priority: str = ''
-
-
-class UniversalFilters( __.immut.DataclassObject ):
-    ''' Universal search filters handled by the search engine. '''
+class SearchBehaviors( __.immut.DataclassObject ):
+    ''' Search behavior configuration for the search engine. '''
 
     match_mode: MatchMode = MatchMode.Fuzzy
     fuzzy_threshold: int = 50
 
 
-class Filters( __.immut.DataclassObject ):
-    ''' Combined filters for backward compatibility. '''
-
-    universal: UniversalFilters = __.dcls.field(
-        default_factory = UniversalFilters )
-    processor: ProcessorFilters = __.dcls.field(
-        default_factory = ProcessorFilters )
-
-    @property
-    def match_mode( self ) -> MatchMode:
-        return self.universal.match_mode
-
-    @property
-    def fuzzy_threshold( self ) -> int:
-        return self.universal.fuzzy_threshold
-
-    @property
-    def domain( self ) -> str:
-        return self.processor.domain
-
-    @property
-    def role( self ) -> str:
-        return self.processor.role
-
-    @property
-    def priority( self ) -> str:
-        return self.processor.priority
+# Module-level defaults for function signatures
+_search_behaviors_default = SearchBehaviors( )
+_filters_default = __.immut.Dictionary[ str, __.typx.Any ]( )
 
 
 class ProcessorCapabilities( __.immut.DataclassObject ):
@@ -139,8 +107,9 @@ class Processor( __.immut.DataclassProtocol ):
         raise NotImplementedError
 
     @__.abc.abstractmethod
-    async def query_documentation( self, source: str, query: str, /, *,
-        filters: Filters,
+    async def query_documentation( self, source: str, query: str, /, *,  # noqa: PLR0913
+        search_behaviors: SearchBehaviors = _search_behaviors_default,
+        filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
         include_snippets: bool = True,
         results_max: int = 10,
     ) -> list[ __.cabc.Mapping[ str, __.typx.Any ] ]:

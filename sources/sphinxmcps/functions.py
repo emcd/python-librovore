@@ -35,7 +35,8 @@ SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
     str, __.ddoc.Fname( 'source argument' ) ]
 
 
-_filters_default = _interfaces.Filters( )
+_search_behaviors_default = _interfaces.SearchBehaviors( )
+_filters_default = __.immut.Dictionary[ str, __.typx.Any ]( )
 
 
 async def detect(
@@ -61,10 +62,11 @@ async def detect(
     return _serialize_dataclass( response )
 
 
-async def query_inventory(
+async def query_inventory(  # noqa: PLR0913
     source: SourceArgument,
     query: str, /, *,
-    filters: _interfaces.Filters = _filters_default,
+    search_behaviors: _interfaces.SearchBehaviors = _search_behaviors_default,
+    filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
     details: _interfaces.InventoryQueryDetails = (
         _interfaces.InventoryQueryDetails.Documentation ),
     results_max: int = 5,
@@ -78,13 +80,10 @@ async def query_inventory(
     '''
     # 1. Get processor and extract raw inventory with processor filters
     processor = await _determine_processor_optimal( source )
+    # Use filters dict directly - remove empty values
     processor_filters = {
-        'domain': filters.domain,
-        'role': filters.role,
-        'priority': filters.priority,
-    }
-    # Remove empty filters
-    processor_filters = { k: v for k, v in processor_filters.items( ) if v }
+        k: v for k, v in filters.items( ) if v }
+    
     result_mapping = await processor.extract_inventory(
         source, extra_filters = processor_filters, details = details )
     inventory_data = dict( result_mapping )
@@ -96,8 +95,8 @@ async def query_inventory(
         all_objects.extend( domain_objects )
     search_results = search_engine.filter_by_name(
         all_objects, query,
-        match_mode = filters.match_mode,
-        fuzzy_threshold = filters.fuzzy_threshold )
+        match_mode = search_behaviors.match_mode,
+        fuzzy_threshold = search_behaviors.fuzzy_threshold )
     # 3. Convert search results back to inventory format
     selected_objects = [
         result.object for result in search_results[ : results_max ] ]
@@ -107,7 +106,8 @@ async def query_inventory(
         for domain_name, objs in inventory_data[ 'objects' ].items( ) }
     inventory_data[ 'domains' ] = domains_summary
     result = _construct_explore_result_structure(
-        inventory_data, query, selected_objects, results_max, filters )
+        inventory_data, query, selected_objects, results_max,
+        search_behaviors, filters )
     if _interfaces.InventoryQueryDetails.Documentation in details:
         await _add_documentation_to_results( source, selected_objects, result )
     else: _add_object_metadata_to_results( selected_objects, result )
@@ -117,13 +117,14 @@ async def query_inventory(
 async def summarize_inventory(
     source: SourceArgument,
     query: str = '', /, *,
-    filters: _interfaces.Filters = _filters_default,
+    search_behaviors: _interfaces.SearchBehaviors = _search_behaviors_default,
+    filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
 ) -> __.typx.Annotated[
     str, __.ddoc.Fname( 'inventory summary return' ) ]:
     ''' Provides human-readable summary of inventory. '''
     # Use query_inventory with name-only details to get inventory data
     inventory_result = await query_inventory(
-        source, query, filters = filters,
+        source, query, search_behaviors = search_behaviors, filters = filters,
         results_max = 1000,  # Large number to get all matches
         details = _interfaces.InventoryQueryDetails.Name )
     inventory_data: dict[ str, __.typx.Any ] = {
@@ -151,10 +152,11 @@ async def survey_processors(
     return { 'processors': processors_capabilities }
 
 
-async def query_content(
+async def query_content(  # noqa: PLR0913
     source: SourceArgument,
     query: str, /, *,
-    filters: _interfaces.Filters = _filters_default,
+    search_behaviors: _interfaces.SearchBehaviors = _search_behaviors_default,
+    filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
     include_snippets: bool = True,
     results_max: int = 10,
 ) -> __.typx.Annotated[
@@ -163,11 +165,13 @@ async def query_content(
     processor = await _determine_processor_optimal( source )
     raw_results = await processor.query_documentation(
         source, query,
+        search_behaviors = search_behaviors,
         filters = filters,
         results_max = results_max,
         include_snippets = include_snippets )
     return _construct_query_result_structure(
-        source, query, raw_results, results_max, filters )
+        source, query, raw_results, results_max,
+        search_behaviors, filters )
 
 
 async def _add_documentation_to_results(
@@ -197,16 +201,17 @@ def _add_object_metadata_to_results(
         result[ 'documents' ].append( document )
 
 
-def _construct_explore_result_structure(
+def _construct_explore_result_structure(  # noqa: PLR0913
     inventory_data: dict[ str, __.typx.Any ],
     query: str,
     selected_objects: list[ dict[ str, __.typx.Any ] ],
     results_max: int,
-    filters: _interfaces.Filters,
+    search_behaviors: _interfaces.SearchBehaviors,
+    filters: __.cabc.Mapping[ str, __.typx.Any ],
 ) -> dict[ str, __.typx.Any ]:
     ''' Builds the base result structure with metadata. '''
     filter_metadata: dict[ str, __.typx.Any ] = { }
-    _populate_filter_metadata( filter_metadata, filters )
+    _populate_filter_metadata( filter_metadata, search_behaviors, filters )
     search_metadata: dict[ str, __.typx.Any ] = {
         'object_count': len( selected_objects ),
         'max_objects': results_max,
@@ -223,16 +228,17 @@ def _construct_explore_result_structure(
     return result
 
 
-def _construct_query_result_structure(
+def _construct_query_result_structure(  # noqa: PLR0913
     source: str,
     query: str,
     raw_results: list[ __.cabc.Mapping[ str, __.typx.Any ] ],
     results_max: int,
-    filters: _interfaces.Filters,
+    search_behaviors: _interfaces.SearchBehaviors,
+    filters: __.cabc.Mapping[ str, __.typx.Any ],
 ) -> dict[ str, __.typx.Any ]:
     ''' Builds query result structure in explore format. '''
     filter_metadata: dict[ str, __.typx.Any ] = { }
-    _populate_filter_metadata( filter_metadata, filters )
+    _populate_filter_metadata( filter_metadata, search_behaviors, filters )
     search_metadata: dict[ str, __.typx.Any ] = {
         'result_count': len( raw_results ),
         'max_results': results_max,
@@ -367,18 +373,15 @@ def _group_documents_by_domain(
 
 def _populate_filter_metadata(
     metadata: dict[ str, __.typx.Any ],
-    filters: _interfaces.Filters
+    search_behaviors: _interfaces.SearchBehaviors,
+    filters: __.cabc.Mapping[ str, __.typx.Any ]
 ) -> None:
     ''' Populates filter metadata dictionary with non-empty filters. '''
-    if filters.domain:
-        metadata[ 'domain' ] = filters.domain
-    if filters.role:
-        metadata[ 'role' ] = filters.role
-    if filters.priority:
-        metadata[ 'priority' ] = filters.priority
-    metadata[ 'match_mode' ] = filters.match_mode.value
-    if filters.match_mode == _interfaces.MatchMode.Fuzzy:
-        metadata[ 'fuzzy_threshold' ] = filters.fuzzy_threshold
+    metadata.update( {
+        key: value for key, value in filters.items( ) if value } )
+    metadata[ 'match_mode' ] = search_behaviors.match_mode.value
+    if search_behaviors.match_mode == _interfaces.MatchMode.Fuzzy:
+        metadata[ 'fuzzy_threshold' ] = search_behaviors.fuzzy_threshold
 
 
 def _select_top_objects(

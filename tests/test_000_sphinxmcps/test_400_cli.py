@@ -51,10 +51,12 @@ async def test_030_summarize_inventory_command_unit( ):
     display = MockConsoleDisplay( )
     auxdata = create_test_auxdata( )
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    filters = module._interfaces.Filters( 
-        processor = module._interfaces.ProcessorFilters( domain = 'py' ) )
+    search_behaviors = module._interfaces.SearchBehaviors( )
+    filters = { 'domain': 'py' }
     cmd = module.SummarizeInventoryCommand(
-        source = test_inventory_path, filters = filters )
+        source = test_inventory_path,
+        search_behaviors = search_behaviors,
+        filters = filters )
     await cmd( auxdata, display )
     output = display.stream.getvalue( )
     assert 'Project:' in output
@@ -79,10 +81,12 @@ async def test_060_use_command_summarize_delegation( ):
     display = MockConsoleDisplay( )
     auxdata = create_test_auxdata( )
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    filters = module._interfaces.Filters( 
-        processor = module._interfaces.ProcessorFilters( domain = 'py' ) )
+    search_behaviors = module._interfaces.SearchBehaviors( )
+    filters = { 'domain': 'py' }
     summarize_cmd = module.SummarizeInventoryCommand(
-        source = test_inventory_path, filters = filters )
+        source = test_inventory_path,
+        search_behaviors = search_behaviors,
+        filters = filters )
     use_cmd = module.UseCommand( operation = summarize_cmd )
     await use_cmd( auxdata, display )
     output = display.stream.getvalue( )

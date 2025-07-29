@@ -30,6 +30,8 @@ from . import urls as _urls
 
 
 _scribe = __.acquire_scribe( __name__ )
+_search_behaviors_default = __.SearchBehaviors( )
+_filters_default = __.immut.Dictionary[ str, __.typx.Any ]( )
 
 
 class SphinxProcessor( __.Processor ):
@@ -164,25 +166,40 @@ class SphinxProcessor( __.Processor ):
                 result[ 'description' ] )
         return result
 
-    async def query_documentation(
+    async def query_documentation(  # noqa: PLR0913
         self,
         source: str, query: str, /, *,
-        filters: __.Filters,
+        search_behaviors: __.SearchBehaviors = _search_behaviors_default,
+        filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
         include_snippets: bool = True,
         results_max: int = 10,
     ) -> list[ __.cabc.Mapping[ str, __.typx.Any ] ]:
         ''' Queries documentation content from Sphinx source. '''
         base_url = _urls.normalize_base_url( source )
-        inventory = _inventory.extract_inventory( base_url )
-        domain, role, priority, match_mode, fuzzy_threshold = (
-            _extract_filter_parameters( filters ) )
-        filtered_objects, _ = _inventory.filter_inventory(
-            inventory, domain = domain, role = role,
-            priority = priority,
-            match_mode = match_mode, fuzzy_threshold = fuzzy_threshold )
-        candidates: list[ __.cabc.Mapping[ str, __.typx.Any ] ] = [ ]
-        for domain_objects in filtered_objects.values( ):
-            candidates.extend( domain_objects )
+        
+        # 1. Extract inventory with processor-specific filtering
+        # Use filters dict directly - remove empty values
+        processor_filters = {
+            k: v for k, v in filters.items( ) if v }
+        
+        inventory_result = await self.extract_inventory(
+            source, extra_filters = processor_filters,
+            details = __.InventoryQueryDetails.Name )
+        
+        # 2. Apply universal search matching
+        from ...search import SearchEngine as _SearchEngine
+        search_engine = _SearchEngine( )
+        all_objects: list[ dict[ str, __.typx.Any ] ] = [ ]
+        for domain_objects in inventory_result[ 'objects' ].values( ):
+            all_objects.extend( domain_objects )
+        
+        search_results = search_engine.filter_by_name(
+            all_objects, query,
+            match_mode = search_behaviors.match_mode,
+            fuzzy_threshold = search_behaviors.fuzzy_threshold )
+        
+        # 3. Get candidates from search results
+        candidates = [ result.object for result in search_results ]
         if not candidates: return [ ]
         query_lower = query.lower( )
         # Pre-filter candidates by name relevance before HTTP requests
@@ -208,28 +225,13 @@ class SphinxProcessor( __.Processor ):
         return results[ : results_max ]
 
 
-def _extract_filter_parameters(
-    filters: __.Filters
-) -> tuple[
-    __.Absential[ str ], __.Absential[ str ], __.Absential[ str ],
-    __.MatchMode, int
-]:
-    ''' Extracts filter parameters from DTO. '''
-    domain = filters.domain if filters.domain else __.absent
-    role = filters.role if filters.role else __.absent
-    priority = filters.priority if filters.priority else __.absent
-    match_mode = filters.match_mode
-    fuzzy_threshold = filters.fuzzy_threshold
-    return domain, role, priority, match_mode, fuzzy_threshold
-
-
 def _prescore_candidates(
-    candidates: list[ __.cabc.Mapping[ str, __.typx.Any ] ],
+    candidates: __.cabc.Sequence[ dict[ str, __.typx.Any ] ],
     query_lower: str
-) -> list[ tuple[ float, __.cabc.Mapping[ str, __.typx.Any ] ] ]:
+) -> list[ tuple[ float, dict[ str, __.typx.Any ] ] ]:
     ''' Pre-scores candidates by name relevance to avoid HTTP requests. '''
     name_scored_candidates: list[ tuple[
-        float, __.cabc.Mapping[ str, __.typx.Any ]
+        float, dict[ str, __.typx.Any ]
     ] ] = [ ]
     for candidate in candidates:
         name_score = 0.0

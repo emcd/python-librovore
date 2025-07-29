@@ -34,10 +34,12 @@ from .fixtures import get_test_inventory_path
 async def test_100_summarize_inventory_wrapper( ):
     ''' Server summarize_inventory delegates to functions correctly. '''
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    filters = module._interfaces.Filters( 
-        processor = module._interfaces.ProcessorFilters( domain = 'py' ) )
+    search_behaviors = module._interfaces.SearchBehaviors( )
+    filters = module.FiltersMutable( { 'domain': 'py' } )
     result = await module.summarize_inventory(
-        source = test_inventory_path, filters = filters )
+        source = test_inventory_path,
+        search_behaviors = search_behaviors,
+        filters = filters )
     assert isinstance( result, str )
     assert 'Project:' in result
     assert 'py' in result
@@ -56,12 +58,13 @@ async def test_110_summarize_inventory_wrapper_no_filters( ):
 async def test_120_summarize_inventory_wrapper_with_regex( ):
     ''' Server summarize_inventory handles match_mode parameter correctly. '''
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    filters = module._interfaces.Filters(
-        universal = module._interfaces.UniversalFilters( 
-            match_mode = _interfaces.MatchMode.Regex ) )
+    search_behaviors = module.SearchBehaviorsMutable(
+        match_mode = _interfaces.MatchMode.Regex )
+    filters = module.FiltersMutable( )
     result = await module.summarize_inventory(
         source = test_inventory_path,
         term = 'test.*pattern',
+        search_behaviors = search_behaviors,
         filters = filters )
     assert isinstance( result, str )
     assert 'Project:' in result
@@ -71,10 +74,12 @@ async def test_120_summarize_inventory_wrapper_with_regex( ):
 async def test_150_summarize_inventory_wrapper_with_priority( ):
     ''' Server summarize_inventory handles priority filtering correctly. '''
     test_inventory_path = get_test_inventory_path( 'sphobjinv' )
-    filters = module._interfaces.Filters( 
-        processor = module._interfaces.ProcessorFilters( priority = '0' ) )
+    search_behaviors = module._interfaces.SearchBehaviors( )
+    filters = module.FiltersMutable( { 'priority': '0' } )
     result = await module.summarize_inventory(
-        source = test_inventory_path, filters = filters )
+        source = test_inventory_path,
+        search_behaviors = search_behaviors,
+        filters = filters )
     assert isinstance( result, str )
     assert 'priority=0' in result
     assert 'Filters:' in result
@@ -84,11 +89,12 @@ async def test_150_summarize_inventory_wrapper_with_priority( ):
 async def test_170_explore_wrapper( ):
     ''' Server explore delegates to functions correctly. '''
     test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    filters = module._interfaces.Filters( 
-        processor = module._interfaces.ProcessorFilters( 
-            domain = 'py', role = 'function' ) )
+    search_behaviors = module._interfaces.SearchBehaviors( )
+    filters = module.FiltersMutable( { 'domain': 'py', 'role': 'function' } )
     result = await module.query_inventory(
-        source = test_inventory_path, query = 'test', filters = filters )
+        source = test_inventory_path, query = 'test',
+        search_behaviors = search_behaviors,
+        filters = filters )
     assert isinstance( result, dict )
     assert 'project' in result
     assert 'search_metadata' in result
@@ -113,12 +119,13 @@ async def test_180_explore_wrapper_no_filters( ):
 async def test_190_explore_wrapper_with_fuzzy( ):
     ''' Server explore handles fuzzy matching correctly. '''
     test_inventory_path = get_test_inventory_path( 'sphobjinv' )
-    filters = module._interfaces.Filters(
-        universal = module._interfaces.UniversalFilters( 
-            match_mode = _interfaces.MatchMode.Fuzzy, fuzzy_threshold = 60 ) )
+    search_behaviors = module.SearchBehaviorsMutable(
+        match_mode = _interfaces.MatchMode.Fuzzy, fuzzy_threshold = 60 )
+    filters = module.FiltersMutable( )
     result = await module.query_inventory(
         source = test_inventory_path,
         query = 'DataObj',
+        search_behaviors = search_behaviors,
         filters = filters,
         details = module._interfaces.InventoryQueryDetails.Name )
     assert isinstance( result, dict )
