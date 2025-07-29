@@ -25,7 +25,6 @@ from . import __
 from . import detection as _detection
 from . import exceptions as _exceptions
 from . import interfaces as _interfaces
-from . import search as _search
 from . import xtnsapi as _xtnsapi # TODO: Replace with 'registries' module.
 
 
@@ -78,39 +77,15 @@ async def query_inventory(  # noqa: PLR0913
         and returns configurable detail levels. Always includes object names
         plus requested detail flags (signatures, summaries, documentation).
     '''
-    # 1. Get processor and extract raw inventory with processor filters
+    # Delegate directly to processor - it handles search and filtering
     processor = await _determine_processor_optimal( source )
-    # Use filters dict directly - remove empty values
-    processor_filters = {
-        k: v for k, v in filters.items( ) if v }
-    
-    result_mapping = await processor.extract_inventory(
-        source, filters = processor_filters, details = details )
-    inventory_data = dict( result_mapping )
-    inventory_data[ 'source' ] = source
-    # 2. Apply universal search matching at module level
-    all_objects: list[ dict[ str, __.typx.Any ] ] = [ ]
-    for domain_objects in inventory_data[ 'objects' ].values( ):
-        all_objects.extend( domain_objects )
-    search_results = _search.filter_by_name(
-        all_objects, query,
-        match_mode = search_behaviors.match_mode,
-        fuzzy_threshold = search_behaviors.fuzzy_threshold )
-    # 3. Convert search results back to inventory format
-    selected_objects = [
-        result.object for result in search_results[ : results_max ] ]
-    # 4. Build result structure
-    domains_summary: dict[ str, int ] = {
-        domain_name: len( objs )
-        for domain_name, objs in inventory_data[ 'objects' ].items( ) }
-    inventory_data[ 'domains' ] = domains_summary
-    result = _construct_explore_result_structure(
-        inventory_data, query, selected_objects, results_max,
-        search_behaviors, filters )
-    if _interfaces.InventoryQueryDetails.Documentation in details:
-        await _add_documentation_to_results( source, selected_objects, result )
-    else: _add_object_metadata_to_results( selected_objects, result )
-    return result
+    result_mapping = await processor.query_inventory(
+        source, query,
+        search_behaviors = search_behaviors,
+        filters = filters,
+        details = details,
+        results_max = results_max )
+    return dict( result_mapping )
 
 
 async def summarize_inventory(
@@ -159,18 +134,17 @@ async def query_content(  # noqa: PLR0913
     include_snippets: bool = True,
     results_max: int = 10,
 ) -> __.typx.Annotated[
-    dict[ str, __.typx.Any ], __.ddoc.Fname( 'content query return' ) ]:
+    list[ __.cabc.Mapping[ str, __.typx.Any ] ], 
+    __.ddoc.Fname( 'content query return' ) ]:
     ''' Searches documentation content with relevance ranking. '''
     processor = await _determine_processor_optimal( source )
-    raw_results = await processor.query_documentation(
+    raw_results = await processor.query_content(
         source, query,
         search_behaviors = search_behaviors,
         filters = filters,
         results_max = results_max,
         include_snippets = include_snippets )
-    return _construct_query_result_structure(
-        source, query, raw_results, results_max,
-        search_behaviors, filters )
+    return list( raw_results )
 
 
 async def _add_documentation_to_results(

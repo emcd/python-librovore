@@ -92,11 +92,33 @@ class Processor( __.immut.DataclassProtocol ):
         raise NotImplementedError
 
     @__.abc.abstractmethod
-    async def extract_inventory( self, source: str, /, *,
-        details: InventoryQueryDetails = InventoryQueryDetails.Documentation,
+    async def query_inventory( self, source: str, query: str, /, *,  # noqa: PLR0913
+        search_behaviors: SearchBehaviors = _search_behaviors_default,
         filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
+        details: InventoryQueryDetails = InventoryQueryDetails.Documentation,
+        results_max: int = 5,
     ) -> __.cabc.Mapping[ str, __.typx.Any ]:
-        ''' Extracts inventory from source with filters. '''
+        ''' Searches object inventory by name with fuzzy matching.
+        
+        This method searches the documentation inventory (object names, 
+        signatures, etc.) and returns matching objects with metadata.
+        The search is performed on object names, not page content.
+        '''
+        raise NotImplementedError
+
+    @__.abc.abstractmethod
+    async def query_content( self, source: str, query: str, /, *,  # noqa: PLR0913
+        search_behaviors: SearchBehaviors = _search_behaviors_default,
+        filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
+        include_snippets: bool = True,
+        results_max: int = 10,
+    ) -> list[ __.cabc.Mapping[ str, __.typx.Any ] ]:
+        ''' Searches documentation content with relevance ranking and snippets.
+        
+        This method searches actual page content (guided by the inventory)
+        and returns relevant documentation sections with snippets.
+        The search is performed on page text content, not just object names.
+        '''
         raise NotImplementedError
 
     @__.abc.abstractmethod
@@ -104,16 +126,6 @@ class Processor( __.immut.DataclassProtocol ):
         include_sections: __.Absential[ list[ str ] ] = __.absent,
     ) -> __.cabc.Mapping[ str, __.typx.Any ]:
         ''' Extracts documentation for a specific object from source. '''
-        raise NotImplementedError
-
-    @__.abc.abstractmethod
-    async def query_documentation( self, source: str, query: str, /, *,  # noqa: PLR0913
-        search_behaviors: SearchBehaviors = _search_behaviors_default,
-        filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
-        include_snippets: bool = True,
-        results_max: int = 10,
-    ) -> list[ __.cabc.Mapping[ str, __.typx.Any ] ]:
-        ''' Queries documentation content with relevance ranking. '''
         raise NotImplementedError
 
 

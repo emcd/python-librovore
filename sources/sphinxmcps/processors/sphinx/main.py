@@ -97,16 +97,15 @@ class SphinxProcessor( __.Processor ):
             normalized_source = base_url.geturl( ),
             theme = theme )
 
-    async def extract_inventory(
-        self,
-        source: str, /, *,
+    async def query_inventory( self, source: str, query: str, /, *,  # noqa: PLR0913
+        search_behaviors: __.SearchBehaviors = _search_behaviors_default,
+        filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
         details: __.InventoryQueryDetails = (
             __.InventoryQueryDetails.Documentation ),
-        filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
-    ) -> dict[ str, __.typx.Any ]:
-        ''' Extracts inventory from Sphinx documentation source. '''
-        # TODO: Use details parameter to conditionally extract different levels
-        # of information (Name, Signature, Summary, Documentation)
+        results_max: int = 5,
+    ) -> __.cabc.Mapping[ str, __.typx.Any ]:
+        ''' Searches object inventory by name with fuzzy matching. '''
+        # 1. Extract and filter inventory
         domain = filters.get( 'domain', '' ) or __.absent
         role = filters.get( 'role', '' ) or __.absent
         priority = filters.get( 'priority', '' ) or __.absent
@@ -114,18 +113,42 @@ class SphinxProcessor( __.Processor ):
         inventory = _inventory.extract_inventory( base_url )
         filtered_objects, object_count = _inventory.filter_inventory_basic(
             inventory, domain = domain, role = role, priority = priority )
+        
+        # 2. Apply universal search matching
+        from ...search import filter_by_name
+        all_objects: list[ dict[ str, __.typx.Any ] ] = [ ]
+        for domain_objects in filtered_objects.values( ):
+            all_objects.extend( domain_objects )
+        
+        search_results = filter_by_name(
+            all_objects, query,
+            match_mode = search_behaviors.match_mode,
+            fuzzy_threshold = search_behaviors.fuzzy_threshold )
+        
+        # 3. Build result with search results
+        selected_objects = [
+            result.object for result in search_results[ : results_max ] ]
+        
         result: dict[ str, __.typx.Any ] = {
             'project': inventory.project,
             'version': inventory.version,
-            'objects': filtered_objects,
-            'object_count': object_count,
+            'objects': { domain: selected_objects },  # Simplified structure
+            'object_count': len( selected_objects ),
+            'source': source,
         }
+        
+        # Add metadata 
         filters_metadata: dict[ str, __.typx.Any ] = { }
         if not __.is_absent( domain ): filters_metadata[ 'domain' ] = domain
         if not __.is_absent( role ): filters_metadata[ 'role' ] = role
         if not __.is_absent( priority ):
             filters_metadata[ 'priority' ] = priority
+        filters_metadata[ 'match_mode' ] = search_behaviors.match_mode.value
+        if search_behaviors.match_mode == __.MatchMode.Fuzzy:
+            filters_metadata[ 'fuzzy_threshold' ] = (
+                search_behaviors.fuzzy_threshold )
         if filters_metadata: result[ 'filters' ] = filters_metadata
+        
         return result
 
 
@@ -165,7 +188,7 @@ class SphinxProcessor( __.Processor ):
                 result[ 'description' ] )
         return result
 
-    async def query_documentation(  # noqa: PLR0913
+    async def query_content(  # noqa: PLR0913
         self,
         source: str, query: str, /, *,
         search_behaviors: __.SearchBehaviors = _search_behaviors_default,
@@ -173,17 +196,16 @@ class SphinxProcessor( __.Processor ):
         include_snippets: bool = True,
         results_max: int = 10,
     ) -> list[ __.cabc.Mapping[ str, __.typx.Any ] ]:
-        ''' Queries documentation content from Sphinx source. '''
+        ''' Searches documentation content with relevance ranking and 
+        snippets. '''
         base_url = _urls.normalize_base_url( source )
         
-        # 1. Extract inventory with processor-specific filtering
-        # Use filters dict directly - remove empty values
-        processor_filters = {
-            k: v for k, v in filters.items( ) if v }
-        
-        inventory_result = await self.extract_inventory(
-            source, filters = processor_filters,
-            details = __.InventoryQueryDetails.Name )
+        inventory_result = await self.query_inventory(
+            source, '',  # Empty query to get all objects
+            search_behaviors = search_behaviors,
+            filters = filters,
+            details = __.InventoryQueryDetails.Name,
+            results_max = 1000 )
         
         # 2. Apply universal search matching
         from ...search import filter_by_name
