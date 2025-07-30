@@ -155,6 +155,7 @@ def format_inventory_object(
     ''' Formats an inventory object for output. '''
     result = {
         'name': objct.name,
+        'domain': objct.domain,
         'role': objct.role,
         'priority': objct.priority,
         'uri': objct.uri,

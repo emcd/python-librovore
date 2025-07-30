@@ -203,7 +203,7 @@ async def _extract_object_documentation(
     return {
         'object_name': obj[ 'name' ],
         'object_type': obj[ 'role' ],
-        'domain': obj.get( 'domain', '' ),
+        'domain': obj[ 'domain' ],
         'priority': obj[ 'priority' ],
         'url': doc_url.geturl( ),
         'signature': parsed_content[ 'signature' ],

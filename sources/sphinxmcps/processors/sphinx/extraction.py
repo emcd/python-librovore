@@ -74,7 +74,7 @@ def parse_documentation_html(
     except Exception as exc:
         raise __.DocumentationParseFailure(
             element_id, exc ) from exc
-    main_content = soup.find( 'article', { 'role': 'main' } )
+    main_content = _find_main_content_container( soup )
     if not main_content:
         raise __.DocumentationContentAbsence( element_id )
     object_element = main_content.find( id = element_id )
@@ -104,3 +104,20 @@ def parse_documentation_html(
         'description': description,
         'object_name': element_id,
     }
+
+
+def _find_main_content_container( soup: __.typx.Any ) -> __.typx.Any | None:
+    ''' Finds the main content container using multiple strategies. '''
+    containers = [
+        soup.find( 'article', { 'role': 'main' } ),  # Furo theme
+        soup.find( 'div', { 'id': 'furo-main-content' } ),  # Furo variant
+        soup.find( 'div', { 'class': 'body' } ),  # Basic theme
+        soup.find( 'div', { 'class': 'content' } ),  # Nature theme
+        soup.find( 'div', { 'class': 'main' } ),  # Generic main
+        soup.find( 'main' ),  # HTML5 main element
+        soup.find( 'div', { 'role': 'main' } ),  # Role-based
+        soup.body,  # Fallback to body if nothing else works
+    ]
+    for container in containers:
+        if container: return container
+    return None
