@@ -26,49 +26,39 @@ from bs4 import BeautifulSoup as _BeautifulSoup
 from . import __
 
 
-def calculate_relevance_score(
-    query_lower: str, candidate: __.cabc.Mapping[ str, __.typx.Any ],
-    doc_result: __.cabc.Mapping[ str, __.typx.Any ]
-) -> tuple[ float, list[ str ] ]:
-    ''' Calculates relevance score and match reasons for doc result. '''
-    score = 0.0
-    match_reasons: list[ str ] = [ ]
-    if query_lower in candidate[ 'name' ].lower( ):
-        score += 10.0
-        match_reasons.append( 'name match' )
-    if query_lower in doc_result[ 'signature' ].lower( ):
-        score += 5.0
-        match_reasons.append( 'signature match' )
-    if query_lower in doc_result[ 'description' ].lower( ):
-        score += 3.0
-        match_reasons.append( 'description match' )
-    if candidate[ 'priority' ] == '1':
-        score += 2.0
-    elif candidate[ 'priority' ] == '0':
-        score += 1.0
-    return score, match_reasons
+def parse_documentation_html(
+    content: str, element_id: str, *, theme: __.Absential[ str ] = __.absent
+) -> __.cabc.Mapping[ str, str ]:
+    ''' Parses HTML content to extract documentation sections. '''
+    try: soup = _BeautifulSoup( content, 'lxml' )
+    except Exception as exc:
+        raise __.DocumentationParseFailure(
+            element_id, exc ) from exc
+    if __.is_absent( theme ):
+        theme = _detect_theme_from_html( content )
+    container = _find_main_content_container( soup, theme )
+    if __.is_absent( container ):
+        raise __.DocumentationContentAbsence( element_id )
+    element = container.find( id = element_id )
+    if not element:
+        return { 'error': f"Object '{element_id}' not found in page" }
+    if element.name == 'dt':
+        signature, description = _extract_dt_content( element )
+    elif element.name == 'section':
+        signature, description = _extract_section_content( element )
+    else:
+        signature = element.get_text( strip = True )
+        description = ''
+    return {
+        'signature': signature,
+        'description': description,
+        'object_name': element_id,
+    }
 
 
-def extract_content_snippet(
-    query_lower: str, query: str, description: str
-) -> str:
-    ''' Extracts content snippet around query match in description. '''
-    if not description or query_lower not in description.lower( ):
-        return ''
-    query_pos = description.lower( ).find( query_lower )
-    start = max( 0, query_pos - 50 )
-    end = min( len( description ), query_pos + len( query ) + 50 )
-    content_snippet = description[ start:end ]
-    if start > 0:
-        content_snippet = '...' + content_snippet
-    if end < len( description ):
-        content_snippet = content_snippet + '...'
-    return content_snippet
-
-
-def _detect_theme_from_html( html_content: str ) -> str | None:
+def _detect_theme_from_html( content: str ) -> __.Absential[ str ]:
     ''' Detects theme from HTML content using CSS file patterns. '''
-    html_lower = html_content.lower( )
+    content_l = content.lower( )
     theme_patterns = {
         'furo': [ 'furo', 'css/furo.css' ],
         'sphinx_rtd_theme': [ 'sphinx_rtd_theme', 'css/theme.css' ],
@@ -78,15 +68,15 @@ def _detect_theme_from_html( html_content: str ) -> str | None:
         'nature': [ 'css/nature.css' ],
     }
     for theme_name, patterns in theme_patterns.items( ):
-        if any( pattern in html_lower for pattern in patterns ):
+        if any( pattern in content_l for pattern in patterns ):
             return theme_name
-    return None
+    return __.absent
 
 
-def _extract_dt_content( object_element: __.typx.Any ) -> tuple[ str, str ]:
+def _extract_dt_content( element: __.typx.Any ) -> tuple[ str, str ]:
     ''' Extracts signature and description from dt/dd elements. '''
-    signature = object_element.get_text( strip = True )
-    description_element = object_element.find_next_sibling( 'dd' )
+    signature = element.get_text( strip = True )
+    description_element = element.find_next_sibling( 'dd' )
     if description_element:
         for header_link in description_element.find_all(
             'a', class_ = 'headerlink'
@@ -97,57 +87,22 @@ def _extract_dt_content( object_element: __.typx.Any ) -> tuple[ str, str ]:
 
 
 def _extract_section_content(
-    object_element: __.typx.Any
+    element: __.typx.Any
 ) -> tuple[ str, str ]:
     ''' Extracts signature and description from section elements. '''
-    header = object_element.find( [ 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' ] )
+    header = element.find( [ 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' ] )
     signature = header.get_text( strip = True ) if header else ''
-    description_element = object_element.find( 'p' )
+    description_element = element.find( 'p' )
     if description_element:
         description = description_element.get_text( strip = True )
     else: description = ''
     return signature, description
 
 
-def parse_documentation_html(
-    html_content: str, element_id: str, *, theme: str | None = None
-) -> __.cabc.Mapping[ str, str ]:
-    ''' Parses HTML content to extract documentation sections. '''
-    try: soup = _BeautifulSoup( html_content, 'lxml' )
-    except Exception as exc:
-        raise __.DocumentationParseFailure(
-            element_id, exc ) from exc
-    # Auto-detect theme if not provided
-    if theme is None:
-        theme = _detect_theme_from_html( html_content )
-    main_content = _find_main_content_container( soup, theme )
-    if not main_content:
-        raise __.DocumentationContentAbsence( element_id )
-    object_element = main_content.find( id = element_id )
-    if not object_element:
-        return { 'error': f"Object '{element_id}' not found in page" }
-    
-    # Extract content based on element type
-    if object_element.name == 'dt':
-        signature, description = _extract_dt_content( object_element )
-    elif object_element.name == 'section':
-        signature, description = _extract_section_content( object_element )
-    else:
-        signature = object_element.get_text( strip = True )
-        description = ''
-    
-    return {
-        'signature': signature,
-        'description': description,
-        'object_name': element_id,
-    }
-
-
-def _find_main_content_container( 
-    soup: __.typx.Any, theme: str | None = None
-) -> __.typx.Any | None:
+def _find_main_content_container(
+    soup: __.typx.Any, theme: __.Absential[ str ] = __.absent
+) -> __.Absential[ __.typx.Any ]:
     ''' Finds the main content container using theme-specific strategies. '''
-    # Theme-specific strategies first
     if theme == 'furo':
         containers = [
             soup.find( 'article', { 'role': 'main' } ),
@@ -186,8 +141,6 @@ def _find_main_content_container(
             soup.find( 'div', { 'role': 'main' } ),  # Role-based
             soup.body,  # Fallback to body if nothing else works
         ]
-    
-    # Return the first container that exists
     for container in containers:
         if container: return container
-    return None
+    return __.absent
