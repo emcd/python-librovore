@@ -60,11 +60,18 @@ Tested our Sphinx MCP processor against various documentation sites to evaluate 
 - **Issue**: Results show `"fuzzy_score": 60` which confuses users
 - **Status**: Fixed during search architecture refactoring - fuzzy_score no longer appears in user output
 
-### 4. **Error Handling**
+### 4. **Content Extraction Issues** 
+- **Issue**: Some sites (like pytest) return empty signatures/descriptions/content snippets
+- **Evidence**: pytest queries return empty `"signature": ""`, `"description": ""`, `"content_snippet": ""`  
+- **Works Fine**: Python docs extract content perfectly
+- **Likely Cause**: Theme-specific HTML structure differences (pytest uses Furo theme, may have different markup)
+- **Status**: HIGH PRIORITY - Needs diagnosis and theme-specific extraction improvements
+
+### 5. **Error Handling**
 - **Issue**: Generic "Error executing tool explore" messages
 - **Need**: More specific error messages for debugging
 
-### 5. **Performance on Large Sites** ✅ MOSTLY RESOLVED
+### 6. **Performance on Large Sites** ✅ MOSTLY RESOLVED
 - **Issue**: Timeouts on sites with many objects (Requests: 221 objects)
 - **Status**: Significantly improved during search optimization work - large inventories now handle well
 
@@ -87,6 +94,19 @@ Tested our Sphinx MCP processor against various documentation sites to evaluate 
 3. ~~**Timeout handling** for large sites~~ ✅ MOSTLY RESOLVED
 4. **HTML-to-Markdown algorithm optimization** - Consider single-pass tag iteration instead of multiple passes, reduce regex usage
 
+## Next Steps Discussion 💬
+
+### **A. Error Handling Improvements**
+- **Question**: Should we implement a structured error hierarchy with recovery suggestions?
+- **Answer**: Yes - implement structured error handling with specific error codes and user-friendly messages
+- **Examples**: "Site timeout", "Invalid theme structure", "Network connection failed"
+
+### **B. HTML-to-Markdown Algorithm Optimization**  
+- **Current Issue**: Multiple O(n) passes over HTML document, one per tag type
+- **Question**: Should we refactor to use a proper HTML parser tree traversal instead of regex?
+- **Answer**: Yes - implement single-pass algorithm with `match..case` and convert/emit as we go
+- **Benefits**: Better performance, more reliable parsing, easier theme adaptation
+
 ## Overall Assessment ⭐
 
 The Sphinx processor works well for most modern Sphinx sites! Key strengths:
@@ -95,4 +115,4 @@ The Sphinx processor works well for most modern Sphinx sites! Key strengths:
 - ✅ **Accurate search** - Fuzzy matching finds relevant results
 - ✅ **Documentation extraction** - Successfully extracts content from objects
 
-Main areas for improvement focus on **output formatting** and **error handling** rather than core functionality.
+**Current Priority**: Fix content extraction issues for theme-specific HTML structures (pytest/Furo theme).
