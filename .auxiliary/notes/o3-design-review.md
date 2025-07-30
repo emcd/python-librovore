@@ -124,16 +124,18 @@ sphinxmcps/
 
 ### Risks / weaknesses & why they matter
 
-1. **Two detection paths; only one is used**
+1. ✅ ~~**Two detection paths; only one is used**~~ **RESOLVED**
 
-   * `functions._select_processor_for_source` does ad‑hoc per‑call iteration over all processors and calls `detect()` each time.
-   * There is a richer `detection.py` with a **DetectionsCache** and ordering policy, but it is **not used**.
-   * *Impact*: duplicate logic, extra HEAD/GET traffic, missed cache benefits.
+   * ~~`functions._select_processor_for_source` does ad‑hoc per‑call iteration over all processors and calls `detect()` each time.~~
+   * ~~There is a richer `detection.py` with a **DetectionsCache** and ordering policy, but it is **not used**.~~
+   * ~~*Impact*: duplicate logic, extra HEAD/GET traffic, missed cache benefits.~~
+   * **Status**: Detection is now unified and working correctly with proper caching.
 
-2. **Ambiguous naming in caching**
+2. ✅ ~~**Ambiguous naming in caching**~~ **RESOLVED**
 
-   * `CacheEntry.extant` returns `True` when the entry is **expired** (per docstring), and code treats it as such. The name “extant” reads as “still valid”.
-   * *Impact*: maintainability trap; future changes may invert logic accidentally.
+   * ~~`CacheEntry.extant` returns `True` when the entry is **expired** (per docstring), and code treats it as such. The name "extant" reads as "still valid".~~
+   * ~~*Impact*: maintainability trap; future changes may invert logic accidentally.~~
+   * **Status**: Fixed with clear `CacheEntry.invalid` property using `time() - timestamp > ttl`.
 
 3. **TTL policy is under‑specified**
 
@@ -145,20 +147,27 @@ sphinxmcps/
    * A new `httpx.AsyncClient()` is created per request; keep‑alive pooling is not reused across calls.
    * *Impact*: unnecessary connection setup & TLS handshakes under load.
 
-5. **HTML parsing assumptions**
+5. ✅ ~~**HTML parsing assumptions**~~ **FULLY RESOLVED**
 
-   * `extraction.parse_documentation_html` assumes `article[role="main"]` and specific Sphinx markup (`dt/dd`, `section`), and `conversion` does coarse HTML→MD.
-   * *Impact*: Theme variations or non‑standard Sphinx pages can fail parsing or degrade quality. Limited theme detection (string contains furo/alabaster/rtd) is brittle.
+   * ~~`extraction.parse_documentation_html` assumes `article[role="main"]` and specific Sphinx markup (`dt/dd`, `section`), and `conversion` does coarse HTML→MD.~~
+   * ~~*Impact*: Theme variations or non‑standard Sphinx pages can fail parsing or degrade quality. Limited theme detection (string contains furo/alabaster/rtd) is brittle.~~
+   * **Status**: **COMPLETELY RESOLVED** with DSL-driven content extraction:
+     - Theme-specific extraction patterns (Furo, pydoctheme, ReadTheDocs, custom themes)
+     - Configurable content strategies per theme and element type
+     * Generic fallback patterns for unknown themes
+     * Single-pass HTML-to-Markdown conversion with proper spacing preservation
+     * Tested successfully across all major Sphinx themes
 
-6. **Security posture of `.pth` processing**
+6. **Security posture of `.pth` processing** *(DEFERRED)*
 
    * `.pth` lines beginning with `import` are executed.
-   * *Impact*: This mirrors Python’s own `.pth` behavior, but increases **supply‑chain risk** for untrusted extension packages.
+   * *Impact*: This mirrors Python's own `.pth` behavior, but increases **supply‑chain risk** for untrusted extension packages.
 
-7. **Result typing ergonomics**
+7. **Result typing ergonomics** *(HIGH PRIORITY)*
 
    * Some functions return dicts that may contain an `'error'` string; others raise typed exceptions.
    * *Impact*: Mixed error patterns complicate downstream handling.
+   * **Note**: This is the primary remaining issue from testing - users get generic "Error executing tool explore" messages instead of meaningful, actionable error descriptions.
 
 8. **Relevance and snippet scoring**
 
@@ -168,44 +177,45 @@ sphinxmcps/
 9. **Charset & content-type handling**
 
    * `retrieve_url_as_text` relies on `Content-Type` charset; no HTML meta fallback.
-   * `HttpContentTypeInvalidity` is raised when mimetype isn’t in a fixed allowlist.
+   * `HttpContentTypeInvalidity` is raised when mimetype isn't in a fixed allowlist.
    * *Impact*: Some servers omit charset or return generic types; strictness may cause avoidable failures.
 
-10. **Inventory fuzzy matching**
+10. ✅ ~~**Inventory fuzzy matching**~~ **RESOLVED**
 
-    * Uses `sphobjinv.suggest()`; when `with_score=False` the code sets all matches to `fuzzy_threshold` as score.
-    * *Impact*: Score ordering may be coarse; combination with query ranking could be improved.
+    * ~~Uses `sphobjinv.suggest()`; when `with_score=False` the code sets all matches to `fuzzy_threshold` as score.~~
+    * ~~*Impact*: Score ordering may be coarse; combination with query ranking could be improved.~~
+    * **Status**: Fuzzy matching is working well with proper scoring and ranking.
 
 ### Concrete recommendations (prioritized)
 
-1. **Unify detection & cache results**
+1. ✅ ~~**Unify detection & cache results**~~ **RESOLVED**
 
-   * Replace `functions._select_processor_for_source` with `detection.determine_processor_optimal(...)`.
-   * Keep a module‑level `DetectionsCache` and **reuse** detections across requests.
-   * Consider initializing detections during CLI/MCP startup for configured sources.
+   * ~~Replace `functions._select_processor_for_source` with `detection.determine_processor_optimal(...)`.~~
+   * ~~Keep a module‑level `DetectionsCache` and **reuse** detections across requests.~~
+   * ~~Consider initializing detections during CLI/MCP startup for configured sources.~~
 
-2. **Fix naming & TTL policy in caches**
+2. ✅ ~~**Fix naming & TTL policy in caches**~~ **PARTIALLY RESOLVED**
 
-   * Rename `CacheEntry.extant` → `expired` (and invert use) or update property to `not expired`.
-   * Use **distinct TTLs**:
-
+   * ✅ ~~Rename `CacheEntry.extant` → `expired` (and invert use) or update property to `not expired`.~~
+   * ⏳ Use **distinct TTLs**: *(still to be implemented)*
      * success (2–10 min),
      * HTTP 4xx/5xx (e.g., 60–120 s),
      * network/timeouts/DNS (short, e.g., 10–30 s using `network_error_ttl`).
-   * Optionally store a lightweight **status enum** in entries to set TTL precisely.
+   * ⏳ Optionally store a lightweight **status enum** in entries to set TTL precisely.
 
 3. **Reuse HTTP clients**
 
    * Provide an `AsyncClient` pool or a single shared `httpx.AsyncClient` per process with proper lifetime management (context at server startup).
    * Keep request‑level timeouts; still deduplicate with per‑URL locks.
 
-4. **Parsing robustness**
+4. ✅ ~~**Parsing robustness**~~ **LARGELY RESOLVED**
 
-   * Fallback parser: if `lxml` unavailable or parse fails, retry with `html.parser`.
-   * Make the main content selector **configurable** by theme (e.g., lookup table for common themes).
-   * When deriving the element to extract, if the `id` anchor is missing, search by nearest header anchors or by linkbacks.
+   * ⏳ Fallback parser: if `lxml` unavailable or parse fails, retry with `html.parser`. *(minor enhancement)*
+   * ✅ ~~Make the main content selector **configurable** by theme (e.g., lookup table for common themes).~~
+   * ✅ ~~When deriving the element to extract, if the `id` anchor is missing, search by nearest header anchors or by linkbacks.~~
+   * **Status**: DSL implementation handles theme variations and content extraction robustly.
 
-5. **Safer `.pth` handling**
+5. **Safer `.pth` handling** *(DEFERRED)*
 
    * Allow `.pth` processing only for **trusted origins** (e.g., allow‑list packages or a configuration flag).
    * Alternatively, **ignore import lines** in `.pth` and only add paths (common enough for wheels).
@@ -215,21 +225,23 @@ sphinxmcps/
    * If `Content-Type` is missing/unknown and the resource looks like text (`<html` prefix), proceed with a heuristic decode (`utf‑8`, backoff to `latin‑1`) and **warn** rather than hard‑fail.
    * Parse `<meta charset>` or `<meta http-equiv="content-type">` as a fallback.
 
-7. **Ranking improvements**
+7. ✅ ~~**Ranking improvements**~~ **MOSTLY RESOLVED**
 
-   * Normalize scores (min‑max) and combine inventory fuzzy score with content relevance.
-   * Add simple proximity boosts (query near start of signature/title).
-   * Add a light **BM25** or TF‑IDF on paragraph chunks (kept in memory per page) if performance allows.
+   * ✅ ~~Normalize scores (min‑max) and combine inventory fuzzy score with content relevance.~~
+   * ⏳ Add simple proximity boosts (query near start of signature/title). *(enhancement)*
+   * ⏳ Add a light **BM25** or TF‑IDF on paragraph chunks (kept in memory per page) if performance allows. *(enhancement)*
+   * **Status**: Current ranking system works well for tested use cases.
 
-8. **Consistent error model**
+8. **Consistent error model** *(HIGH PRIORITY)*
 
    * Prefer **exceptions** for exceptional flows; keep result payloads free of `'error'` fields.
    * Map exceptions at the server boundary to structured MCP error responses.
+   * **Status**: This is the primary remaining high-priority issue - users need meaningful error messages.
 
 9. **Configuration clarity**
 
    * For external processors, config uses `name` as module path and `package` as pip spec; document this explicitly.
-   * Validate that a module’s `register(arguments)` actually registers **exactly one** processor (helpful diagnostics).
+   * Validate that a module's `register(arguments)` actually registers **exactly one** processor (helpful diagnostics).
 
 10. **Observability**
 
