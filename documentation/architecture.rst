@@ -75,6 +75,21 @@ Key Principles
 Search Architecture
 -------------------
 
+The search architecture has been refactored to eliminate duplicate search logic and follows a clean separation of concerns between universal search logic and processor-specific data extraction:
+
+**Current Clean Architecture**:
+
+.. code-block:: text
+
+    ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+    │   functions.py  │───▶│ inventory.py     │───▶│   search.py     │
+    │                 │    │                  │    │                 │
+    │ Query handling  │    │ Structural       │    │ Term matching   │
+    │                 │    │ filtering only   │    │ (exact/regex/   │
+    │                 │    │ (domain/role/    │    │  fuzzy)         │
+    │                 │    │  priority)       │    │                 │
+    └─────────────────┘    └──────────────────┘    └─────────────────┘
+
 The search architecture follows a clear separation of concerns between universal search logic and processor-specific data extraction:
 
 .. code-block:: text

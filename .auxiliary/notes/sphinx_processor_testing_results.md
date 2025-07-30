@@ -50,10 +50,11 @@ Tested our Sphinx MCP processor against various documentation sites to evaluate 
 - **Status**: Fixed HTML-to-Markdown conversion - now properly creates paragraph breaks between block elements
 - **Details**: Improved algorithm processes block elements (p, div, section, etc.) to add paragraph separators and fixed whitespace cleaning regex that was removing newlines
 
-### 2. **Domain Information Missing**
+### 2. **Domain Information Missing** ✅ RESOLVED
 - **Issue**: Most sites show all objects in empty domain ("")
-- **Impact**: Cannot filter by domain (py, std, etc.) as expected
-- **Cause**: Many Sphinx sites don't properly categorize objects by domain
+- **Impact**: Cannot filter by domain (py, std, etc.) as expected  
+- **Status**: Fixed during search architecture refactoring - domain information now properly flows through inventory extraction and is available for filtering
+- **Details**: Improved structural filtering in inventory module ensures domain metadata is preserved and accessible
 
 ### 3. **Fuzzy Score Noise** ✅ RESOLVED
 - **Issue**: Results show `"fuzzy_score": 60` which confuses users
