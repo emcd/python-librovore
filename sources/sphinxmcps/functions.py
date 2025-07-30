@@ -42,7 +42,6 @@ _filters_default = __.immut.Dictionary[ str, __.typx.Any ]( )
 async def detect(
     source: SourceArgument,
     processor_name: __.Absential[ str ] = __.absent,
-    all_detections: bool = False,
 ) -> dict[ str, __.typx.Any ]:
     ''' Detects which processor(s) can handle a documentation source. '''
     start_time = __.time.perf_counter( )
@@ -50,17 +49,15 @@ async def detect(
         await _detection.access_detections( source ) )
     end_time = __.time.perf_counter( )
     detection_time_ms = int( ( end_time - start_time ) * 1000 )
-    detections_list = list( detections.values( ) )
     if not __.is_absent( processor_name ):
-        # Filter to specific processor if requested
         if processor_name in detections:
             detections_list = [ detections[ processor_name ] ]
-        else:
-            detections_list = [ ]
-    elif not all_detections and not __.is_absent( detection_optimal ):
-        # Return only best detection if not requesting all
+        else: detections_list = [ ]
+    elif not __.is_absent( detection_optimal ):
         detections_list = [ detection_optimal ]
-    # If all_detections=True, keep all detections in detections_list
+    else:
+        # Return all detections if no optimal detection found
+        detections_list = list( detections.values( ) )
     response = _interfaces.DetectionToolResponse(
         source = source,
         detections = detections_list,
@@ -84,9 +81,7 @@ async def query_content(  # noqa: PLR0913
     __.ddoc.Fname( 'content query return' ) ]:
     ''' Searches documentation content with relevance ranking. '''
     detection = await _get_detection( source, processor_name )
-    # For now, assume all detections support these methods
-    # TODO: Add proper interface hierarchy
-    filtered_objects = await detection.extract_filtered_inventory(  # type: ignore[attr-defined]
+    filtered_objects = await detection.extract_filtered_inventory(
         source, filters = filters,
         details = _interfaces.InventoryQueryDetails.Name )
     search_results = _search.filter_by_name(
@@ -108,7 +103,7 @@ async def query_content(  # noqa: PLR0913
             },
             'documents': [ ],
         }
-    raw_results = await detection.extract_documentation_for_objects(  # type: ignore[attr-defined]
+    raw_results = await detection.extract_documentation_for_objects(
         source, candidate_objects, include_snippets = include_snippets )
     sorted_results = sorted(
         raw_results,
@@ -161,7 +156,7 @@ async def query_inventory(  # noqa: PLR0913
         plus requested detail flags (signatures, summaries, documentation).
     '''
     detection = await _get_detection( source, processor_name )
-    filtered_objects = await detection.extract_filtered_inventory(  # type: ignore[attr-defined]
+    filtered_objects = await detection.extract_filtered_inventory(
         source, filters = filters, details = details )
     search_results = _search.filter_by_name(
         filtered_objects, query,

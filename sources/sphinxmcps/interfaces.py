@@ -59,7 +59,6 @@ class SearchBehaviors( __.immut.DataclassObject ):
     fuzzy_threshold: int = 50
 
 
-# Module-level defaults for function signatures
 _search_behaviors_default = SearchBehaviors( )
 _filters_default = __.immut.Dictionary[ str, __.typx.Any ]( )
 
@@ -102,7 +101,7 @@ class Detection( __.immut.DataclassProtocol ):
 
     @property
     def capabilities( self ) -> ProcessorCapabilities:
-        ''' Returns capabilities for this detection's processor. '''
+        ''' Returns capabilities for processor. '''
         return self.processor.capabilities
 
     def __post_init__( self ) -> None:
@@ -116,6 +115,26 @@ class Detection( __.immut.DataclassProtocol ):
         selfclass, processor: Processor, source: str
     ) -> __.typx.Self:
         ''' Constructs detection from source location. '''
+        raise NotImplementedError
+
+    @__.abc.abstractmethod
+    async def extract_documentation_for_objects(
+        self, source: str,
+        objects: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ], /, *,
+        include_snippets: bool = True,
+    ) -> list[ dict[ str, __.typx.Any ] ]:
+        ''' Extracts documentation content for specified objects. '''
+        raise NotImplementedError
+
+    @__.abc.abstractmethod
+    async def extract_filtered_inventory(
+        self, source: str, /, *,
+        filters: __.typx.Optional[
+            __.cabc.Mapping[ str, __.typx.Any ] ] = None,
+        details: 'InventoryQueryDetails' = (
+            InventoryQueryDetails.Documentation ),
+    ) -> list[ dict[ str, __.typx.Any ] ]:
+        ''' Extracts and filters inventory objects from source. '''
         raise NotImplementedError
 
 

@@ -70,14 +70,17 @@ _scribe = __.acquire_scribe( __name__ )
 
 async def detect(
     source: SourceArgument,
-    all_detections: __.typx.Annotated[
-        bool,
-        _Field( description = "Return all detections or just best" ),
-    ] = False,
+    processor_name: __.typx.Annotated[
+        __.typx.Optional[ str ],
+        _Field( description = "Optional processor name to filter results" ),
+    ] = None,
 ) -> dict[ str, __.typx.Any ]:
     ''' Detects which processor(s) can handle a documentation source. '''
     _scribe.debug( "Starting detection for source: %s", source )
-    return await _functions.detect( source, all_detections = all_detections )
+    processor_name_arg = (
+        processor_name if processor_name is not None else __.absent )
+    return await _functions.detect(
+        source, processor_name = processor_name_arg )
 
 
 async def query_inventory(  # noqa: PLR0913

@@ -74,18 +74,21 @@ class DetectCommand(
     ''' Detect which processor(s) can handle a documentation source. '''
 
     source: SourceArgument
-    all_detections: __.typx.Annotated[
-        bool,
-        __.tyro.conf.arg( help = "Return all detections or just best." ),
-    ] = False
+    processor_name: __.typx.Annotated[
+        __.typx.Optional[ str ],
+        __.tyro.conf.arg( help = "Specific processor to use." ),
+    ] = None
 
     async def __call__(
         self, auxdata: __.Globals, display: __.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
         try:
+            processor_name = (
+                self.processor_name if self.processor_name is not None
+                else __.absent )
             result = await _functions.detect(
-                self.source, all_detections = self.all_detections )
+                self.source, processor_name = processor_name )
             print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
             _scribe.error( "detect failed: %s", exc )
