@@ -31,54 +31,90 @@ def html_to_markdown( html_text: str ) -> str:
     if not html_text.strip( ): return ''
     try: soup = _BeautifulSoup( html_text, 'lxml' )
     except Exception: return html_text
-    _clean_navigation_elements( soup )
-    _process_inline_elements( soup )
-    _add_paragraph_separators( soup )
-    # Extract text with unique separator that we can replace later
-    separator = '***PARAGRAPH_BREAK***'
-    text = soup.get_text( separator = separator )
-    # Replace our separator with actual paragraph breaks
-    text = text.replace( separator, '\n\n' )
-    return _clean_whitespace( text )
+    context = _MarkdownContext( )
+    result = _convert_element_to_markdown( soup, context )
+    return _clean_whitespace( result )
 
 
-def _process_inline_elements( soup: _BeautifulSoup ) -> None:
-    ''' Processes inline HTML elements for markdown conversion. '''
-    for code in soup.find_all( 'code' ):
-        code.replace_with( f"`{code.get_text( )}`" )
-    for pre in soup.find_all( 'pre' ):
-        pre.replace_with( f"```\n{pre.get_text( )}\n```" )
-    for strong in soup.find_all( 'strong' ):
-        strong.replace_with( f"**{strong.get_text( )}**" )
-    for em in soup.find_all( 'em' ):
-        em.replace_with( f"*{em.get_text( )}*" )
-    for link in soup.find_all( 'a' ):
-        href = link.get( 'href', '' )
-        text = link.get_text( )
-        if href: link.replace_with( f"[{text}]({href})" )
-        else: link.replace_with( text )
+class _MarkdownContext:
+    ''' Context for tracking state during HTML-to-Markdown conversion. '''
+    pass
 
 
-def _add_paragraph_separators( soup: _BeautifulSoup ) -> None:
-    ''' Adds paragraph separators after block elements. '''
-    block_elements = [
-        'p', 'div', 'section', 'article', 'li', 'dt', 'dd',
-        'h1', 'h2', 'h3', 'h4', 'h5', 'h6' ]
-    
-    # Replace each block element with its text plus unique separator
-    separator = '***PARAGRAPH_BREAK***'
-    for element_name in block_elements:
-        for element in soup.find_all( element_name ):
-            element_text = element.get_text( strip = True )
-            if element_text:
-                # Replace with text plus separator
-                element.replace_with( element_text + separator )
+def _convert_element_to_markdown(
+    element: __.typx.Any, context: _MarkdownContext
+) -> str:
+    ''' Converts HTML element to markdown using single-pass traversal. '''
+    if hasattr( element, 'name' ) and element.name:
+        return _convert_tag_to_markdown( element, context )
+    # Text node
+    return str( element ).strip( )
 
 
-def _clean_navigation_elements( soup: _BeautifulSoup ) -> None:
-    ''' Removes navigation and header link elements. '''
-    for header_link in soup.find_all( 'a', class_ = 'headerlink' ):
-        header_link.decompose( )
+def _convert_tag_to_markdown(  # noqa: PLR0911
+    element: __.typx.Any, context: _MarkdownContext
+) -> str:
+    ''' Converts HTML tag to markdown using pattern matching. '''
+    match element.name:
+        case 'code':
+            return '`{}`'.format( element.get_text( ) )
+        case 'pre':
+            return '```\n{}\n```'.format( element.get_text( ) )
+        case 'strong':
+            children = _convert_children( element, context )
+            return '**{}**'.format( children )
+        case 'em':
+            children = _convert_children( element, context )
+            return '*{}*'.format( children )
+        case 'a':
+            return _convert_link( element, context )
+        case 'p' | 'div' | 'section' | 'article' | 'li' | 'dt' | 'dd':
+            children = _convert_children( element, context )
+            return '{}\n\n'.format( children ) if children.strip( ) else ''
+        case 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6':
+            return _convert_header( element, context )
+        case 'br':
+            return '\n'
+        case _:
+            # Skip navigation elements
+            if _is_navigation_element( element ):
+                return ''
+            return _convert_children( element, context )
+
+
+def _convert_children(
+    element: __.typx.Any, context: _MarkdownContext
+) -> str:
+    ''' Converts all child elements to markdown. '''
+    result_parts: list[ str ] = [ ]
+    for child in element.children:
+        converted = _convert_element_to_markdown( child, context )
+        if converted: result_parts.append( converted )
+    return ''.join( result_parts )
+
+
+def _convert_link( element: __.typx.Any, context: _MarkdownContext ) -> str:
+    ''' Converts anchor element to markdown link. '''
+    href = element.get( 'href', '' )
+    text = element.get_text( )
+    if href:
+        return '[{}]({})'.format( text, href )
+    return text
+
+
+def _convert_header( element: __.typx.Any, context: _MarkdownContext ) -> str:
+    ''' Converts header element to markdown. '''
+    text = element.get_text( strip = True )
+    return '{}\n\n'.format( text ) if text else ''
+
+
+def _is_navigation_element( element: __.typx.Any ) -> bool:
+    ''' Checks if element should be skipped as navigation. '''
+    if element.get( 'class' ):
+        classes = element.get( 'class' )
+        if isinstance( classes, list ) and 'headerlink' in classes:
+            return True
+    return False
 
 
 def _clean_whitespace( text: str ) -> str:
