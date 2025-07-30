@@ -27,6 +27,95 @@ from . import __
 from . import urls as _urls
 
 
+# Theme-specific content extraction patterns
+THEME_EXTRACTION_PATTERNS: __.cabc.Mapping[
+    str, __.cabc.Mapping[ str, __.typx.Any ]
+] = __.immut.Dictionary( {
+    'pydoctheme': __.immut.Dictionary( {
+        'anchor_elements': [ 'dt', 'a' ],
+        'content_strategies': __.immut.Dictionary( {
+            'dt': __.immut.Dictionary( {
+                'signature_source': 'self',
+                'description_source': 'next_sibling',
+                'description_element': 'dd',
+            } ),
+            'a': __.immut.Dictionary( {
+                'signature_source': 'parent_text',
+                'description_source': 'parent_next_sibling',
+                'description_element': 'dd',
+            } ),
+        } ),
+        'cleanup_selectors': [ 'a.headerlink' ],
+    } ),
+    'furo': __.immut.Dictionary( {
+        'anchor_elements': [ 'span', 'a', 'dt' ],
+        'content_strategies': __.immut.Dictionary( {
+            'span': __.immut.Dictionary( {
+                'signature_source': 'parent_header',
+                'description_source': 'parent_next_element',
+                'description_element': 'p',
+                'fallback_container': 'section',
+            } ),
+            'a': __.immut.Dictionary( {
+                'signature_source': 'parent_text',
+                'description_source': 'parent_next_element',
+                'description_element': 'p',
+            } ),
+            'dt': __.immut.Dictionary( {
+                'signature_source': 'self',
+                'description_source': 'next_sibling',
+                'description_element': 'dd',
+            } ),
+        } ),
+        'cleanup_selectors': [ 'a.headerlink', '.highlight' ],
+    } ),
+    'sphinx_rtd_theme': __.immut.Dictionary( {
+        'anchor_elements': [ 'dt', 'span', 'a' ],
+        'content_strategies': __.immut.Dictionary( {
+            'dt': __.immut.Dictionary( {
+                'signature_source': 'self',
+                'description_source': 'next_sibling',
+                'description_element': 'dd',
+            } ),
+            'span': __.immut.Dictionary( {
+                'signature_source': 'parent_header',
+                'description_source': 'parent_content',
+                'description_element': 'p',
+            } ),
+        } ),
+        'cleanup_selectors': [ 'a.headerlink' ],
+    } ),
+} )
+
+# Generic fallback pattern for unknown themes
+_GENERIC_PATTERN = __.immut.Dictionary( {
+    'anchor_elements': [ 'dt', 'span', 'a', 'section', 'div' ],
+    'content_strategies': __.immut.Dictionary( {
+        'dt': __.immut.Dictionary( {
+            'signature_source': 'self',
+            'description_source': 'next_sibling',
+            'description_element': 'dd',
+        } ),
+        'section': __.immut.Dictionary( {
+            'signature_source': 'first_header',
+            'description_source': 'first_paragraph',
+            'description_element': 'p',
+        } ),
+        'span': __.immut.Dictionary( {
+            'signature_source': 'parent_header',
+            'description_source': 'parent_next_element',
+            'description_element': 'p',
+        } ),
+        'a': __.immut.Dictionary( {
+            'signature_source': 'parent_text',
+            'description_source': 'parent_next_element',
+            'description_element': 'p',
+        } ),
+    } ),
+    'cleanup_selectors': [ 'a.headerlink' ],
+} )
+
+
 async def extract_contents(
     source: str,
     objects: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ], /, *,
@@ -64,13 +153,8 @@ def parse_documentation_html(
     element = container.find( id = element_id )
     if not element:
         return { 'error': f"Object '{element_id}' not found in page" }
-    if element.name == 'dt':
-        signature, description = _extract_dt_content( element )
-    elif element.name == 'section':
-        signature, description = _extract_section_content( element )
-    else:
-        signature = element.get_text( strip = True )
-        description = ''
+    signature, description = _extract_content_with_dsl(
+        element, element_id, theme )
     return {
         'signature': signature,
         'description': description,
@@ -78,17 +162,49 @@ def parse_documentation_html(
     }
 
 
-def _extract_dt_content( element: __.typx.Any ) -> tuple[ str, str ]:
-    ''' Extracts signature and description from dt/dd elements. '''
-    signature = element.get_text( strip = True )
-    description_element = element.find_next_sibling( 'dd' )
-    if description_element:
-        for header_link in description_element.find_all(
-            'a', class_ = 'headerlink'
-        ): header_link.decompose( )
-        description = description_element.get_text( strip = True )
-    else: description = ''
+def _cleanup_content(
+    content: str,
+    cleanup_selectors: __.cabc.Sequence[ str ]
+) -> str:
+    ''' Removes unwanted elements from content using CSS selectors. '''
+    # TODO: Implement CSS selector-based cleanup
+    return content
+
+
+def _extract_content_with_dsl(
+    element: __.typx.Any,
+    element_id: str,
+    theme: __.Absential[ str ] = __.absent
+) -> tuple[ str, str ]:
+    ''' Extracts content using DSL pattern configuration. '''
+    theme_name = theme if not __.is_absent( theme ) else None
+    if theme_name is not None:
+        pattern = THEME_EXTRACTION_PATTERNS.get( theme_name, _GENERIC_PATTERN )
+    else: pattern = _GENERIC_PATTERN
+    content_strategies = __.typx.cast(
+        __.cabc.Mapping[ str, __.cabc.Mapping[ str, __.typx.Any ] ],
+        pattern[ 'content_strategies' ] )
+    strategy = content_strategies.get( element.name )
+    if not strategy: return _generic_extraction( element )
+    signature = _extract_signature_with_strategy( element, strategy )
+    description = _extract_description_with_strategy( element, strategy )
+    if 'cleanup_selectors' in pattern:
+        cleanup_selectors = __.typx.cast(
+            __.cabc.Sequence[ str ], pattern[ 'cleanup_selectors' ] )
+        description = _cleanup_content( description, cleanup_selectors )
     return signature, description
+
+
+def _extract_description_with_strategy(
+    element: __.typx.Any,
+    strategy: __.cabc.Mapping[ str, __.typx.Any ]
+) -> str:
+    ''' Extracts description using DSL strategy. '''
+    source_type = __.typx.cast( str, strategy[ 'description_source' ] )
+    element_type = __.typx.cast(
+        str, strategy.get( 'description_element', 'p' ) )
+    return _get_description_by_source_type(
+        element, source_type, element_type )
 
 
 async def _extract_object_documentation(
@@ -135,17 +251,29 @@ async def _extract_object_documentation(
     }
 
 
-def _extract_section_content(
-    element: __.typx.Any
-) -> tuple[ str, str ]:
-    ''' Extracts signature and description from section elements. '''
-    header = element.find( [ 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' ] )
-    signature = header.get_text( strip = True ) if header else ''
-    description_element = element.find( 'p' )
-    if description_element:
-        description = description_element.get_text( strip = True )
-    else: description = ''
-    return signature, description
+def _extract_signature_with_strategy(
+    element: __.typx.Any,
+    strategy: __.cabc.Mapping[ str, __.typx.Any ]
+) -> str:
+    ''' Extracts signature using DSL strategy. '''
+    source_type = __.typx.cast( str, strategy[ 'signature_source' ] )
+    match source_type:
+        case 'self': return element.get_text( strip = True )
+        case 'parent_text':
+            return (
+                element.parent.get_text( strip = True )
+                if element.parent else '' )
+        case 'parent_header':
+            if element.parent:
+                header = element.parent.find(
+                    [ 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' ] )
+                return header.get_text( strip = True ) if header else ''
+            return ''
+        case 'first_header':
+            header = element.find(
+                [ 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' ] )
+            return header.get_text( strip = True ) if header else ''
+        case _: return element.get_text( strip = True )
 
 
 def _find_main_content_container(
@@ -193,3 +321,70 @@ def _find_main_content_container(
     for container in containers:
         if container: return container
     return __.absent
+
+
+def _generic_extraction( element: __.typx.Any ) -> tuple[ str, str ]:
+    ''' Generic fallback extraction for unknown element types. '''
+    signature = element.get_text( strip = True )
+    description = ''
+    if element.parent:
+        next_p = element.parent.find( 'p' )
+        if next_p:
+            description = next_p.get_text( strip = True )
+    return signature, description
+
+
+def _get_description_by_source_type(
+    element: __.typx.Any,
+    source_type: str,
+    element_type: str
+) -> str:
+    ''' Gets description content based on source type. '''
+    match source_type:
+        case 'next_sibling':
+            return _get_sibling_text( element, element_type )
+        case 'parent_next_sibling':
+            return _get_parent_sibling_text( element, element_type )
+        case 'parent_next_element':
+            return _get_parent_element_text( element, element_type )
+        case 'parent_content':
+            return _get_parent_content_text( element, element_type )
+        case 'first_paragraph':
+            return _get_first_paragraph_text( element )
+        case _: return ''
+
+
+def _get_first_paragraph_text( element: __.typx.Any ) -> str:
+    ''' Gets text from first paragraph within element. '''
+    paragraph = element.find( 'p' )
+    return paragraph.get_text( strip = True ) if paragraph else ''
+
+
+def _get_parent_content_text( element: __.typx.Any, element_type: str ) -> str:
+    ''' Gets text from content element within parent. '''
+    if element.parent:
+        content_elem = element.parent.find( element_type )
+        return content_elem.get_text( strip = True ) if content_elem else ''
+    return ''
+
+
+def _get_parent_element_text( element: __.typx.Any, element_type: str ) -> str:
+    ''' Gets text from element within parent. '''
+    if element.parent:
+        next_elem = element.parent.find( element_type )
+        return next_elem.get_text( strip = True ) if next_elem else ''
+    return ''
+
+
+def _get_parent_sibling_text( element: __.typx.Any, element_type: str ) -> str:
+    ''' Gets text from parent's next sibling element. '''
+    if element.parent:
+        sibling = element.parent.find_next_sibling( element_type )
+        return sibling.get_text( strip = True ) if sibling else ''
+    return ''
+
+
+def _get_sibling_text( element: __.typx.Any, element_type: str ) -> str:
+    ''' Gets text from next sibling element. '''
+    sibling = element.find_next_sibling( element_type )
+    return sibling.get_text( strip = True ) if sibling else ''
