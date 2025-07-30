@@ -169,7 +169,7 @@ async def query_inventory(  # noqa: PLR0913
     _populate_filter_metadata( filter_metadata, search_behaviors, filters )
     search_metadata: dict[ str, __.typx.Any ] = {
         'object_count': len( selected_objects ),
-        'max_objects': results_max,
+        'results_max': results_max,
         'total_matches': len( filtered_objects ),
         'filters': filter_metadata,
     }
@@ -270,7 +270,7 @@ def _construct_explore_result_structure(  # noqa: PLR0913
     _populate_filter_metadata( filter_metadata, search_behaviors, filters )
     search_metadata: dict[ str, __.typx.Any ] = {
         'object_count': len( selected_objects ),
-        'max_objects': results_max,
+        'results_max': results_max,
         'total_matches': inventory_data[ 'object_count' ],
         'filters': filter_metadata,
     }

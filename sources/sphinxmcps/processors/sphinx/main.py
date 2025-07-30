@@ -175,17 +175,18 @@ class SphinxProcessor( __.Processor ):
 
 
 async def _extract_object_documentation(
-    base_url: __.typx.Any, obj: dict[ str, __.typx.Any ],
+    base_url: __.typx.Any,
+    objct: dict[ str, __.typx.Any ],
     include_snippets: bool
-) -> __.cabc.Mapping[ str, __.typx.Any ] | None:
+) -> __.typx.Optional[ __.cabc.Mapping[ str, __.typx.Any ] ]:
     ''' Extracts documentation for a single object without query matching. '''
     doc_url = _urls.derive_documentation_url(
-        base_url, obj[ 'uri' ], obj[ 'name' ] )
+        base_url, objct[ 'uri' ], objct[ 'name' ] )
     try: html_content = await __.retrieve_url_as_text( doc_url )
     except Exception as exc:
         _scribe.debug( "Failed to retrieve %s: %s", doc_url, exc )
         return None
-    anchor = doc_url.fragment or str( obj[ 'name' ] )
+    anchor = doc_url.fragment or str( objct[ 'name' ] )
     try:
         parsed_content = _extraction.parse_documentation_html(
             html_content, anchor )
@@ -201,10 +202,10 @@ async def _extract_object_documentation(
             else description )
     else: content_snippet = ''
     return {
-        'object_name': obj[ 'name' ],
-        'object_type': obj[ 'role' ],
-        'domain': obj[ 'domain' ],
-        'priority': obj[ 'priority' ],
+        'object_name': objct[ 'name' ],
+        'object_type': objct[ 'role' ],
+        'domain': objct[ 'domain' ],
+        'priority': objct[ 'priority' ],
         'url': doc_url.geturl( ),
         'signature': parsed_content[ 'signature' ],
         'description': description,

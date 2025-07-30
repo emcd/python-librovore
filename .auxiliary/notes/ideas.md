@@ -7,7 +7,7 @@
 
 **Proposed name**: `librovore` (from Latin *librovorus* - "book devourer")
 - **Perfect metaphor**: Captures how LLMs "devour" and process documentation
-- **Morphologically correct**: Follows Latin o-stem pattern (library, librovore)  
+- **Morphologically correct**: Follows Latin o-stem pattern (library, librovore)
 - **Memorable**: Evocative and immediately suggests the purpose
 - **Available**: Not taken on PyPI (as of 2025-01-19)
 - **Future-proof**: Not tied to any specific documentation tool
@@ -25,7 +25,7 @@
 
 ### Release Strategy: Graduated Rollout
 **Phase 1 (Current)**: Ship with Sphinx processor to establish pattern and get community feedback
-**Phase 2**: Add high-impact processors that demonstrate cross-tool capability  
+**Phase 2**: Add high-impact processors that demonstrate cross-tool capability
 **Phase 3**: Expand to specialized/niche documentation systems
 
 ### Immediate Priority Processors (Phase 2)
@@ -53,11 +53,10 @@
 
 #### Documentation Systems
 - **rustdoc**: Growing Rust ecosystem, JSON output available
-- **godoc**: Go documentation (less structured output)
-- **JSDoc**: JavaScript/TypeScript ecosystem  
+- **JSDoc**: JavaScript/TypeScript ecosystem
 - **Doxygen**: C/C++ documentation with XML output
 
-#### API/Schema Systems  
+#### API/Schema Systems
 - **GraphQL Introspection** 🎯 **INNOVATIVE**: Schema exploration perfect for LLMs
 - **AsyncAPI**: Async API specifications
 - **JSON Schema**: Schema documentation and validation
@@ -72,7 +71,7 @@
 #### MCP Sweet Spot Analysis
 **Ideal processors provide**:
 - **Semantic search capabilities**: Not just static file serving
-- **Contextual relationships**: Understanding connections between concepts  
+- **Contextual relationships**: Understanding connections between concepts
 - **Structured exploration**: Inventory-style browsing and discovery
 - **LLM-friendly output**: Clean, parseable, context-rich responses
 
@@ -173,16 +172,6 @@
 
 ## Technical Implementation Notes
 
-### Fuzzy Matching Implementation (Reference)
-Current implementation uses `sphobjinv.suggest()` which provides:
-- Built-in fuzzy matching via fuzzywuzzy internally
-- Configurable threshold (0-100, default 50)
-- No additional dependencies required
-- Optimized for inventory object names specifically
-- Battle-tested in sphobjinv CLI
-
-**Future enhancement**: Consider `rapidfuzz` for better performance if needed.
-
 ### HTML Processing Architecture (Reference)
 Current documentation extraction implementation:
 - **Multi-format parsing**: Handles section elements (modules) and dt/dd pairs (functions/classes)
@@ -204,14 +193,9 @@ Understanding of Sphinx search mechanisms:
 - **Unified search**: Search across multiple documentation sites
 
 ### Caching and Performance
-- [ ] **Documentation caching**: Cache fetched HTML content with TTL
 - [ ] **Inventory caching**: Cache downloaded inventories with TTL
-- [ ] **Incremental updates**: Check inventory freshness
-- [ ] **Parallel loading**: Load multiple inventories concurrently
-- [ ] **Compression**: Store cached inventories efficiently
 
 ### Discovery and Automation
-- **Auto-discovery**: Find `objects.inv` from base documentation URLs
 - **Sitemap parsing**: Extract inventory URLs from sitemaps
 
 ## Developer Experience
@@ -243,7 +227,7 @@ Understanding of Sphinx search mechanisms:
 - [x] **HTML content extraction**: Use BeautifulSoup to extract object documentation ✅
 - [ ] **JavaScript search analysis**: Reverse-engineer Sphinx search.js functionality
 - [ ] **Site mapping**: Build complete site maps from Sphinx documentation
-- [ ] **Full-text search**: Index and search complete documentation content beyond just objects.inv
+- [x] **Full-text search**: Index and search complete documentation content beyond just objects.inv
 - [ ] **Search suggestion**: Provide auto-complete and search suggestions
 
 ### Object Detail and Relationships
@@ -252,9 +236,7 @@ Understanding of Sphinx search mechanisms:
 - [ ] **Cross-reference validation**: Verify that object links are valid and accessible
 
 ### Batch Operations and Advanced Search
-- [ ] **Batch processing**: Process multiple documentation sources in one call
-- [ ] **Multi-site search**: Search across multiple inventories simultaneously
-- [ ] **Search result ranking**: Score and rank search results by relevance
+- [x] **Search result ranking**: Score and rank search results by relevance
 
 ### CLI and UX Improvements
 - [ ] **Interactive inventory browser**: Navigate inventories with arrow keys/search
@@ -265,7 +247,6 @@ Understanding of Sphinx search mechanisms:
 
 ### Error Handling and Robustness
 - **Better error messages**: More descriptive failure information
-- **Retry mechanisms**: Handle temporary network failures
 - **Fallback strategies**: Alternative inventory sources
 - **Validation**: Comprehensive inventory format validation
 
@@ -315,7 +296,6 @@ for child in fake_dir.iterdir():  # Returns FakePath objects
 ## Community and Ecosystem
 
 ### Integration Ecosystem
-- **Plugin architecture**: Allow community extensions
 - **Template system**: Customizable output formats
 
 ### Documentation and Examples

@@ -326,14 +326,13 @@ _scribe = __.acquire_scribe( __name__ )
 async def _check_robots_txt(
     url: _Url, *,
     robots_cache: RobotsCache = _robots_cache_default,
-    user_agent: str | None = None,
+    user_agent: str = _configuration_default.user_agent,
     client_factory: __.cabc.Callable[ [ ], _httpx.AsyncClient ] = (
         _httpx.AsyncClient )
 ) -> bool:
     ''' Checks if URL is allowed by robots.txt. '''
     if url.scheme not in ( 'http', 'https' ): return True
     domain = _extract_domain( url )
-    user_agent = user_agent or _configuration_default.user_agent
     robots_parser = await robots_cache.access( domain )
     if __.is_absent( robots_parser ):
         robots_parser = await _retrieve_robots_txt(
