@@ -124,7 +124,7 @@ async def test_200_summarize_inventory_basic( ):
     ''' Summarize inventory provides human-readable summary. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
     result = await module.summarize_inventory( inventory_path )
-    assert 'objects' in result
+    assert 'objects' in result.lower( )
 
 
 @pytest.mark.asyncio
@@ -136,7 +136,7 @@ async def test_210_summarize_inventory_with_filters( ):
     result = await module.summarize_inventory(
         inventory_path, search_behaviors = search_behaviors,
         filters = filters )
-    assert 'objects' in result
+    assert 'objects' in result.lower( )
     assert 'filter' in result.lower( ) or 'domain' in result.lower( )
 
 
@@ -148,7 +148,7 @@ async def test_215_summarize_inventory_with_regex( ):
         match_mode = _interfaces.MatchMode.Regex )
     result = await module.summarize_inventory(
         inventory_path, '.*inventory.*', search_behaviors = search_behaviors )
-    assert 'objects' in result
+    assert 'objects' in result.lower( )
     assert 'regex' in result.lower( )
 
 
@@ -160,7 +160,7 @@ async def test_250_summarize_inventory_with_fuzzy( ):
         match_mode = _interfaces.MatchMode.Fuzzy, fuzzy_threshold = 70 )
     result = await module.summarize_inventory(
         inventory_path, 'inventory', search_behaviors = search_behaviors )
-    assert 'objects' in result
+    assert 'objects' in result.lower( )
     assert 'fuzzy' in result.lower( )
     assert '70' in result
 

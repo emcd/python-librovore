@@ -31,58 +31,25 @@ def access_doctab( name: str ) -> str:
 
 fragments: __.cabc.Mapping[ str, str ] = __.types.MappingProxyType( {
 
-    'domain filter argument':
-    ''' Filter objects by domain.
+    # Arguments
 
-        A domain is a category of objects in the site inventory.
-
-        E.g., built-in domains for Sphinx:
-        'py' (Python), 'std' (standard), 'c' (C), 'cpp' (C++),
-        'js' (JavaScript), 'rst' (reStructuredText),
-        'math' (Mathematics)
-
-        Empty string shows all domains.
-    ''',
-
-    'fuzzy threshold argument':
-    ''' Fuzzy-matching threshold.
-
-        Range 0 to 100. Higher is stricter.
-    ''',
-
-    'query details argument':
-    ''' Detail level for inventory results (Name, Signature, Summary, 
-        Documentation). ''',
+    'group by argument':
+    ''' Field to group results by (e.g., 'domain', 'role', 'priority'). ''',
 
     'include snippets argument':
     ''' Include content snippets in results. ''',
 
-    'match mode argument':
-    ''' Term matching mode: exact, regex, or fuzzy. ''',
-
-    'match mode cli argument':
-    ''' Term matching mode: Exact, Regex, or Fuzzy. ''',
-
-    'objects max argument':
-    ''' Maximum number of objects to process. ''',
-
-    'results max argument':
-    ''' Maximum number of results to return. ''',
-
-    'object name':
-    ''' Name of the object to extract documentation for. ''',
-
-    'priority filter argument':
-    ''' Filter objects by priority level (e.g., '1', '0'). ''',
-
     'query argument':
     ''' Search query for documentation content. ''',
 
-    'role filter argument':
-    ''' Filter objects by role (e.g., 'function'). ''',
+    'query details argument':
+    ''' Detail level for inventory results.
 
-    'section filter argument':
-    ''' Sections to include (signature, description). ''',
+        One of: Name, Signature, Summary, Documentation
+    ''',
+
+    'results max argument':
+    ''' Maximum number of results to return. ''',
 
     'server port argument':
     ''' TCP port for server. ''',
@@ -96,17 +63,13 @@ fragments: __.cabc.Mapping[ str, str ] = __.types.MappingProxyType( {
     'transport argument':
     ''' Transport: stdio or sse. ''',
 
-    'documentation return':
-    ''' Search results with metadata in explore format. ''',
+    # Returns
 
-    'explore return':
-    ''' Combined inventory search and documentation extraction returns.
-        Contains search metadata, matching objects, successful documentation
-        extractions, and any errors encountered.
+    'content query return':
+    ''' Documentation content search results with relevance ranking.
+        Contains documents with signatures, descriptions, content snippets,
+        relevance scores, and match reasons.
     ''',
-
-    'inventory summary return':
-    ''' Human-readable summary of inventory contents. ''',
 
     'inventory query return':
     ''' Inventory search results with configurable detail levels.
@@ -114,10 +77,7 @@ fragments: __.cabc.Mapping[ str, str ] = __.types.MappingProxyType( {
         with applied filters.
     ''',
 
-    'content query return':
-    ''' Documentation content search results with relevance ranking.
-        Contains documents with signatures, descriptions, content snippets,
-        relevance scores, and match reasons.
-    ''',
+    'inventory summary return':
+    ''' Human-readable summary of inventory contents. ''',
 
 } )

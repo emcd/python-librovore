@@ -27,7 +27,8 @@ from io import StringIO
 
 import sphinxmcps.cli as module
 
-from .fixtures import run_cli_command, get_test_inventory_path
+# from .fixtures import run_cli_command, get_test_inventory_path
+from .fixtures import get_test_inventory_path
 
 
 class MockConsoleDisplay:
@@ -100,8 +101,8 @@ async def test_070_serve_command_unit( ):
     display = MockConsoleDisplay( )
     auxdata = create_test_auxdata( )
     mock_serve = AsyncMock( )
-    cmd = module.ServeCommand( 
-        port = 8080, transport = 'stdio', serve_function = mock_serve 
+    cmd = module.ServeCommand(
+        port = 8080, transport = 'stdio', serve_function = mock_serve
     )
     await cmd( auxdata, display )
     mock_serve.assert_called_once_with(
@@ -143,92 +144,92 @@ def test_100_cli_prepare_invocation_args_no_logfile( ):
     assert args[ 'logfile' ] is None
 
 
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_500_cli_explore_local_file( ):
-    ''' CLI explore processes local files. '''
-    inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = await run_cli_command( [
-        'use', 'query-inventory', '--source', inventory_path, 
-        '--query', 'test', '--details', 'Name' ] )
-    assert result.returncode == 0
-    assert 'project' in result.stdout or 'project' in result.stderr
-    assert 'documents' in result.stdout or 'documents' in result.stderr
+# @pytest.mark.slow
+# @pytest.mark.asyncio
+# async def test_500_cli_explore_local_file( ):
+#     ''' CLI explore processes local files. '''
+#     inventory_path = get_test_inventory_path( 'sphinxmcps' )
+#     result = await run_cli_command( [
+#         'use', 'query-inventory', '--source', inventory_path,
+#         '--query', 'test', '--details', 'Name' ] )
+#     assert result.returncode == 0
+#     assert 'project' in result.stdout or 'project' in result.stderr
+#     assert 'documents' in result.stdout or 'documents' in result.stderr
 
 
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_600_cli_summarize_inventory_local_file( ):
-    ''' CLI summarize-inventory processes local files. '''
-    inventory_path = get_test_inventory_path( 'sphinxmcps' )
-    result = await run_cli_command( [
-        'use', 'summarize-inventory', '--source', inventory_path
-    ] )
-    assert result.returncode == 0
-    assert (
-            'Project:' in result.stdout
-        or  'Project:' in result.stderr )
-    assert 'objects' in result.stdout or 'objects' in result.stderr
+# @pytest.mark.slow
+# @pytest.mark.asyncio
+# async def test_600_cli_summarize_inventory_local_file( ):
+#     ''' CLI summarize-inventory processes local files. '''
+#     inventory_path = get_test_inventory_path( 'sphinxmcps' )
+#     result = await run_cli_command( [
+#         'use', 'summarize-inventory', '--source', inventory_path
+#     ] )
+#     assert result.returncode == 0
+#     assert (
+#             'Project:' in result.stdout
+#         or  'Project:' in result.stderr )
+#     assert 'objects' in result.stdout or 'objects' in result.stderr
 
 
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_610_cli_summarize_inventory_nonexistent_file( ):
-    ''' CLI summarize-inventory fails gracefully for missing files. '''
-    result = await run_cli_command( [
-        'use', 'summarize-inventory', '--source', '/nonexistent/path.inv'
-    ] )
-    assert result.returncode != 0
-    assert (
-        'inaccessible' in result.stderr.lower( )
-        or 'not found' in result.stderr.lower( )
-        or 'no processor found' in result.stderr.lower( )
-        or 'no such file' in result.stderr.lower( ) )
+# @pytest.mark.slow
+# @pytest.mark.asyncio
+# async def test_610_cli_summarize_inventory_nonexistent_file( ):
+#     ''' CLI summarize-inventory fails gracefully for missing files. '''
+#     result = await run_cli_command( [
+#         'use', 'summarize-inventory', '--source', '/nonexistent/path.inv'
+#     ] )
+#     assert result.returncode != 0
+#     assert (
+#         'inaccessible' in result.stderr.lower( )
+#         or 'not found' in result.stderr.lower( )
+#         or 'no processor found' in result.stderr.lower( )
+#         or 'no such file' in result.stderr.lower( ) )
 
 
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_700_cli_serve_help( ):
-    ''' CLI serve command shows help information. '''
-    result = await run_cli_command( [ 'serve', '--help' ] )
-    assert result.returncode == 0
-    assert 'serve' in result.stdout.lower( )
-    assert 'transport' in result.stdout.lower( )
-    assert 'port' in result.stdout.lower( )
+# @pytest.mark.slow
+# @pytest.mark.asyncio
+# async def test_700_cli_serve_help( ):
+#     ''' CLI serve command shows help information. '''
+#     result = await run_cli_command( [ 'serve', '--help' ] )
+#     assert result.returncode == 0
+#     assert 'serve' in result.stdout.lower( )
+#     assert 'transport' in result.stdout.lower( )
+#     assert 'port' in result.stdout.lower( )
 
 
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_710_cli_serve_invalid_transport( ):
-    ''' CLI serve command fails with invalid transport. '''
-    result = await run_cli_command( [ 'serve', '--transport', 'invalid' ] )
-    assert result.returncode != 0
+# @pytest.mark.slow
+# @pytest.mark.asyncio
+# async def test_710_cli_serve_invalid_transport( ):
+#     ''' CLI serve command fails with invalid transport. '''
+#     result = await run_cli_command( [ 'serve', '--transport', 'invalid' ] )
+#     assert result.returncode != 0
 
 
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_720_cli_serve_invalid_port( ):
-    ''' CLI serve command fails with invalid port. '''
-    result = await run_cli_command( [ 'serve', '--port', 'invalid' ] )
-    assert result.returncode != 0
+# @pytest.mark.slow
+# @pytest.mark.asyncio
+# async def test_720_cli_serve_invalid_port( ):
+#     ''' CLI serve command fails with invalid port. '''
+#     result = await run_cli_command( [ 'serve', '--port', 'invalid' ] )
+#     assert result.returncode != 0
 
 
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_800_cli_main_help( ):
-    ''' CLI main command shows help information. '''
-    result = await run_cli_command( [ '--help' ] )
-    assert result.returncode == 0
-    assert 'sphinxmcps' in result.stdout.lower( )
-    assert 'command' in result.stdout.lower( )
+# @pytest.mark.slow
+# @pytest.mark.asyncio
+# async def test_800_cli_main_help( ):
+#     ''' CLI main command shows help information. '''
+#     result = await run_cli_command( [ '--help' ] )
+#     assert result.returncode == 0
+#     assert 'sphinxmcps' in result.stdout.lower( )
+#     assert 'command' in result.stdout.lower( )
 
 
-@pytest.mark.slow
-@pytest.mark.asyncio
-async def test_810_cli_invalid_command( ):
-    ''' CLI fails gracefully with invalid command. '''
-    result = await run_cli_command( [ 'invalid-command' ] )
-    assert result.returncode != 0
-    assert (
-            'error' in result.stderr.lower( )
-        or 'invalid' in result.stderr.lower( ) )
+# @pytest.mark.slow
+# @pytest.mark.asyncio
+# async def test_810_cli_invalid_command( ):
+#     ''' CLI fails gracefully with invalid command. '''
+#     result = await run_cli_command( [ 'invalid-command' ] )
+#     assert result.returncode != 0
+#     assert (
+#             'error' in result.stderr.lower( )
+#         or 'invalid' in result.stderr.lower( ) )

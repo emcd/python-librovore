@@ -44,6 +44,10 @@ class SearchBehaviorsMutable:
 
 
 FiltersMutable: __.typx.TypeAlias = dict[ str, __.typx.Any ]
+GroupByArgument: __.typx.TypeAlias = __.typx.Annotated[
+    __.typx.Optional[ str ],
+    _Field( description = __.access_doctab( 'group by argument' ) ),
+]
 IncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
     bool,
     _Field( description = __.access_doctab( 'include snippets argument' ) ),
@@ -58,8 +62,9 @@ TermFilter: __.typx.TypeAlias = __.typx.Annotated[
     str, _Field( description = __.access_doctab( 'term filter argument' ) ) ]
 
 
-_search_behaviors_default = SearchBehaviorsMutable( )
 _filters_default = FiltersMutable( )
+_search_behaviors_default = SearchBehaviorsMutable( )
+
 _scribe = __.acquire_scribe( __name__ )
 
 
@@ -108,6 +113,7 @@ async def query_inventory(  # noqa: PLR0913
             results_max = results_max,
             details = details )
     except Exception as exc:
+        # TODO: No log-and-raise pattern.
         _scribe.error( "Error in query_inventory: %s", exc )
         raise
 
@@ -145,12 +151,13 @@ async def summarize_inventory(
     source: SourceArgument,
     search_behaviors: __.typx.Annotated[
         SearchBehaviorsMutable,
-        _Field( description = "Search behavior configuration" ),
+        _Field( description = "Search behavior configuration." ),
     ] = _search_behaviors_default,
     filters: __.typx.Annotated[
         FiltersMutable,
-        _Field( description = "Processor-specific filters" ),
+        _Field( description = "Processor-specific filters." ),
     ] = _filters_default,
+    group_by: GroupByArgument = None,
     term: TermFilter = '',
 ) -> str:
     ''' Provides human-readable summary of inventory. '''
@@ -161,17 +168,19 @@ async def summarize_inventory(
         return await _functions.summarize_inventory(
             source, term,
             search_behaviors = immutable_search_behaviors,
-            filters = immutable_filters )
+            filters = immutable_filters,
+            group_by = group_by )
     except Exception as exc:
+        # TODO: No log-and-raise pattern.
         _scribe.error( "Error in summarize_inventory: %s", exc )
         raise
 
 
 async def survey_processors(
-    name: str | None = (
-        _Field(
-            default = None,
-            description = "Optional processor name to filter results." ) ),
+    name: __.typx.Annotated[
+        __.typx.Optional[ str ],
+        _Field( description = "Optional processor name to filter results." )
+    ] = None,
 ) -> dict[ str, __.typx.Any ]:
     ''' Lists all processors or specific processor capabilities. '''
     _scribe.debug( "Surveying processors: %s", name or "all" )
@@ -199,20 +208,19 @@ async def serve(
         case _: raise ValueError
 
 
-def _to_immutable_search_behaviors(
-    mutable_behaviors: SearchBehaviorsMutable
-) -> _interfaces.SearchBehaviors:
-    ''' Converts mutable search behaviors to immutable using dataclass
-    fields. '''
-    field_values = {
-        field.name: getattr( mutable_behaviors, field.name )
-        for field in __.dcls.fields( mutable_behaviors )
-        if not field.name.startswith( '_' ) }
-    return _interfaces.SearchBehaviors( **field_values )
-
-
 def _to_immutable_filters(
     mutable_filters: FiltersMutable
 ) -> __.immut.Dictionary[ str, __.typx.Any ]:
     ''' Converts mutable filters dict to immutable dictionary. '''
     return __.immut.Dictionary[ str, __.typx.Any ]( mutable_filters )
+
+
+def _to_immutable_search_behaviors(
+    mutable_behaviors: SearchBehaviorsMutable
+) -> _interfaces.SearchBehaviors:
+    ''' Converts mutable search behaviors to immutable. '''
+    field_values = {
+        field.name: getattr( mutable_behaviors, field.name )
+        for field in __.dcls.fields( mutable_behaviors )
+        if not field.name.startswith( '_' ) }
+    return _interfaces.SearchBehaviors( **field_values )

@@ -193,20 +193,25 @@ async def summarize_inventory(
     query: str = '', /, *,
     search_behaviors: _interfaces.SearchBehaviors = _search_behaviors_default,
     filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
+    group_by: __.typx.Optional[ str ] = None,
 ) -> __.typx.Annotated[
     str, __.ddoc.Fname( 'inventory summary return' ) ]:
     ''' Provides human-readable summary of inventory. '''
+    details = _interfaces.InventoryQueryDetails.Name
     inventory_result = await query_inventory(
         source, query, search_behaviors = search_behaviors, filters = filters,
         results_max = 1000,  # Large number to get all matches
-        details = _interfaces.InventoryQueryDetails.Name )
+        details = details )
+    if group_by is not None:
+        objects_data = _group_documents_by_field(
+            inventory_result[ 'documents' ], group_by )
+    else: objects_data = inventory_result[ 'documents' ]
     inventory_data: dict[ str, __.typx.Any ] = {
         'project': inventory_result[ 'project' ],
         'version': inventory_result[ 'version' ],
-        'object_count': inventory_result[ 'search_metadata' ][
-            'total_matches' ],
-        'objects': _group_documents_by_domain(
-            inventory_result[ 'documents' ] ),
+        'object_count':
+            inventory_result[ 'search_metadata' ][ 'total_matches' ],
+        'objects': objects_data,
         'filters': inventory_result[ 'search_metadata' ][ 'filters' ],
     }
     return _format_inventory_summary( inventory_data )
@@ -372,10 +377,19 @@ def _format_inventory_summary(
         if filter_strings:
             summary_lines.append( f"Filters: {', '.join( filter_strings )}" )
     if inventory_data[ 'objects' ]:
-        summary_lines.append( "\nDomain breakdown:" )
-        for domain_name, objects in inventory_data[ 'objects' ].items( ):
-            summary_lines.append(
-                f"  {domain_name}: {len( objects )} objects" )
+        if isinstance( inventory_data[ 'objects' ], dict ):
+            summary_lines.append( "\nBreakdown by groups:" )
+            grouped_objects = __.typx.cast(
+                dict[ str, list[ dict[ str, __.typx.Any ] ] ],
+                inventory_data[ 'objects' ] )
+            for group_name, objects in grouped_objects.items( ):
+                object_count = len( objects )
+                summary_lines.append(
+                    "  {group}: {count} objects".format(
+                        group = group_name, count = object_count ) )
+        else:
+            objects = inventory_data[ 'objects' ]
+            summary_lines.append( "\nObjects listed without grouping." )
     return '\n'.join( summary_lines )
 
 
@@ -399,26 +413,41 @@ def _serialize_dataclass( obj: __.typx.Any ) -> __.typx.Any:
     return str( obj )
 
 
-def _group_documents_by_domain(
-    documents: list[ dict[ str, __.typx.Any ] ]
+def _group_documents_by_field(
+    documents: list[ dict[ str, __.typx.Any ] ],
+    field_name: __.typx.Optional[ str ]
 ) -> dict[ str, list[ dict[ str, __.typx.Any ] ] ]:
-    ''' Groups documents by domain for inventory format compatibility. '''
+    ''' Groups documents by specified field for inventory format compatibility.
+    '''
+    if field_name is None:
+        return { }
+
     groups: dict[ str, list[ dict[ str, __.typx.Any ] ] ] = { }
     for doc in documents:
-        domain = doc.get( 'domain', '' )
-        if domain not in groups:
-            groups[ domain ] = [ ]
+        # Get grouping value, with fallback for missing field
+        group_value = doc.get( field_name, f'(missing {field_name})' )
+        if isinstance( group_value, ( list, dict ) ):
+            # Handle complex field types by converting to string
+            group_value = str( group_value )  # type: ignore[arg-type]
+        elif group_value is None or group_value == '':
+            group_value = f'(missing {field_name})'
+        else:
+            group_value = str( group_value )
+
+        if group_value not in groups:
+            groups[ group_value ] = [ ]
+
         # Convert document format back to inventory object format
         inventory_obj = {
             'name': doc[ 'name' ],
             'role': doc[ 'role' ],
-            'domain': doc[ 'domain' ],
+            'domain': doc.get( 'domain', '' ),
             'uri': doc[ 'uri' ],
             'dispname': doc[ 'dispname' ]
         }
         if 'fuzzy_score' in doc:
             inventory_obj[ 'fuzzy_score' ] = doc[ 'fuzzy_score' ]
-        groups[ domain ].append( inventory_obj )
+        groups[ group_value ].append( inventory_obj )
     return groups
 
 

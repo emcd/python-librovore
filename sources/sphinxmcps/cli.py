@@ -30,9 +30,25 @@ from . import server as _server
 _scribe = __.acquire_scribe( __name__ )
 
 
+GroupByArgument: __.typx.TypeAlias = __.typx.Annotated[
+    __.typx.Optional[ str ],
+    __.tyro.conf.arg( help = __.access_doctab( 'group by argument' ) ),
+]
+IncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
+    bool,
+    __.tyro.conf.arg( help = __.access_doctab( 'include snippets argument' ) ),
+]
 PortArgument: __.typx.TypeAlias = __.typx.Annotated[
     __.typx.Optional[ int ],
     __.tyro.conf.arg( help = __.access_doctab( 'server port argument' ) ),
+]
+QueryArgument: __.typx.TypeAlias = __.typx.Annotated[
+    str,
+    __.tyro.conf.arg( help = __.access_doctab( 'query argument' ) ),
+]
+ResultsMax: __.typx.TypeAlias = __.typx.Annotated[
+    int,
+    __.tyro.conf.arg( help = __.access_doctab( 'results max argument' ) ),
 ]
 SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
     str,
@@ -45,18 +61,6 @@ TermFilter: __.typx.TypeAlias = __.typx.Annotated[
 TransportArgument: __.typx.TypeAlias = __.typx.Annotated[
     __.typx.Optional[ str ],
     __.tyro.conf.arg( help = __.access_doctab( 'transport argument' ) ),
-]
-QueryArgument: __.typx.TypeAlias = __.typx.Annotated[
-    str,
-    __.tyro.conf.arg( help = __.access_doctab( 'query argument' ) ),
-]
-ResultsMax: __.typx.TypeAlias = __.typx.Annotated[
-    int,
-    __.tyro.conf.arg( help = __.access_doctab( 'results max argument' ) ),
-]
-IncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
-    bool,
-    __.tyro.conf.arg( help = __.access_doctab( 'include snippets argument' ) ),
 ]
 
 
@@ -72,7 +76,7 @@ class DetectCommand(
     source: SourceArgument
     all_detections: __.typx.Annotated[
         bool,
-        __.tyro.conf.arg( help = "Return all detections or just best" ),
+        __.tyro.conf.arg( help = "Return all detections or just best." ),
     ] = False
 
     async def __call__(
@@ -95,22 +99,22 @@ class QueryInventoryCommand(
 
     source: SourceArgument
     query: QueryArgument
-    search_behaviors: __.typx.Annotated[
-        _interfaces.SearchBehaviors,
-        __.tyro.conf.arg( prefix_name = False ),
-    ] = _search_behaviors_default
-    filters: __.typx.Annotated[
-        dict[ str, __.typx.Any ],
-        __.tyro.conf.arg( prefix_name = False ),
-    ] = __.dcls.field( default_factory = lambda: dict( _filters_default ) )
     details: __.typx.Annotated[
         _interfaces.InventoryQueryDetails,
         __.tyro.conf.arg(
             help = __.access_doctab( 'query details argument' ) ),
     ] = _interfaces.InventoryQueryDetails.Documentation
-    objects_max: __.typx.Annotated[
+    filters: __.typx.Annotated[
+        dict[ str, __.typx.Any ],
+        __.tyro.conf.arg( prefix_name = False ),
+    ] = __.dcls.field( default_factory = lambda: dict( _filters_default ) )
+    search_behaviors: __.typx.Annotated[
+        _interfaces.SearchBehaviors,
+        __.tyro.conf.arg( prefix_name = False ),
+    ] = _search_behaviors_default
+    results_max: __.typx.Annotated[
         int,
-        __.tyro.conf.arg( help = __.access_doctab( 'objects max argument' ) ),
+        __.tyro.conf.arg( help = __.access_doctab( 'results max argument' ) ),
     ] = 5
 
     async def __call__(
@@ -123,7 +127,7 @@ class QueryInventoryCommand(
                 self.query,
                 search_behaviors = self.search_behaviors,
                 filters = self.filters,
-                results_max = self.objects_max,
+                results_max = self.results_max,
                 details = self.details )
             print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
@@ -173,14 +177,15 @@ class SummarizeInventoryCommand(
 
     source: SourceArgument
     term: TermFilter = None
-    search_behaviors: __.typx.Annotated[
-        _interfaces.SearchBehaviors,
-        __.tyro.conf.arg( prefix_name = False ),
-    ] = _search_behaviors_default
     filters: __.typx.Annotated[
         dict[ str, __.typx.Any ],
         __.tyro.conf.arg( prefix_name = False ),
     ] = __.dcls.field( default_factory = lambda: dict( _filters_default ) )
+    group_by: GroupByArgument = None
+    search_behaviors: __.typx.Annotated[
+        _interfaces.SearchBehaviors,
+        __.tyro.conf.arg( prefix_name = False ),
+    ] = _search_behaviors_default
 
     async def __call__(
         self, auxdata: __.Globals, display: __.ConsoleDisplay
@@ -189,7 +194,8 @@ class SummarizeInventoryCommand(
         result = await _functions.summarize_inventory(
             self.source, self.term or '',
             search_behaviors = self.search_behaviors,
-            filters = self.filters )
+            filters = self.filters,
+            group_by = self.group_by )
         print( result, file = stream )
 
 
