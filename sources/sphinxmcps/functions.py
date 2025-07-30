@@ -41,6 +41,7 @@ _filters_default = __.immut.Dictionary[ str, __.typx.Any ]( )
 
 async def detect(
     source: SourceArgument,
+    processor_name: __.Absential[ str ] = __.absent,
     all_detections: bool = False,
 ) -> dict[ str, __.typx.Any ]:
     ''' Detects which processor(s) can handle a documentation source. '''
@@ -50,8 +51,16 @@ async def detect(
     end_time = __.time.perf_counter( )
     detection_time_ms = int( ( end_time - start_time ) * 1000 )
     detections_list = list( detections.values( ) )
-    if not all_detections and not __.is_absent( detection_optimal ):
+    if not __.is_absent( processor_name ):
+        # Filter to specific processor if requested
+        if processor_name in detections:
+            detections_list = [ detections[ processor_name ] ]
+        else:
+            detections_list = [ ]
+    elif not all_detections and not __.is_absent( detection_optimal ):
+        # Return only best detection if not requesting all
         detections_list = [ detection_optimal ]
+    # If all_detections=True, keep all detections in detections_list
     response = _interfaces.DetectionToolResponse(
         source = source,
         detections = detections_list,
@@ -65,6 +74,7 @@ async def detect(
 async def query_content(  # noqa: PLR0913
     source: SourceArgument,
     query: str, /, *,
+    processor_name: __.Absential[ str ] = __.absent,
     search_behaviors: _interfaces.SearchBehaviors = _search_behaviors_default,
     filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
     include_snippets: bool = True,
@@ -73,8 +83,10 @@ async def query_content(  # noqa: PLR0913
     dict[ str, __.typx.Any ],
     __.ddoc.Fname( 'content query return' ) ]:
     ''' Searches documentation content with relevance ranking. '''
-    processor = await _determine_processor_optimal( source )
-    filtered_objects = await processor.extract_filtered_inventory(
+    detection = await _get_detection( source, processor_name )
+    # For now, assume all detections support these methods
+    # TODO: Add proper interface hierarchy
+    filtered_objects = await detection.extract_filtered_inventory(  # type: ignore[attr-defined]
         source, filters = filters,
         details = _interfaces.InventoryQueryDetails.Name )
     search_results = _search.filter_by_name(
@@ -96,7 +108,7 @@ async def query_content(  # noqa: PLR0913
             },
             'documents': [ ],
         }
-    raw_results = await processor.extract_documentation_for_objects(
+    raw_results = await detection.extract_documentation_for_objects(  # type: ignore[attr-defined]
         source, candidate_objects, include_snippets = include_snippets )
     sorted_results = sorted(
         raw_results,
@@ -135,6 +147,7 @@ async def query_content(  # noqa: PLR0913
 async def query_inventory(  # noqa: PLR0913
     source: SourceArgument,
     query: str, /, *,
+    processor_name: __.Absential[ str ] = __.absent,
     search_behaviors: _interfaces.SearchBehaviors = _search_behaviors_default,
     filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
     details: _interfaces.InventoryQueryDetails = (
@@ -147,8 +160,8 @@ async def query_inventory(  # noqa: PLR0913
         Returns configurable detail levels. Always includes object names
         plus requested detail flags (signatures, summaries, documentation).
     '''
-    processor = await _determine_processor_optimal( source )
-    filtered_objects = await processor.extract_filtered_inventory(
+    detection = await _get_detection( source, processor_name )
+    filtered_objects = await detection.extract_filtered_inventory(  # type: ignore[attr-defined]
         source, filters = filters, details = details )
     search_results = _search.filter_by_name(
         filtered_objects, query,
@@ -188,9 +201,10 @@ async def query_inventory(  # noqa: PLR0913
     }
 
 
-async def summarize_inventory(
+async def summarize_inventory(  # noqa: PLR0913
     source: SourceArgument,
     query: str = '', /, *,
+    processor_name: __.Absential[ str ] = __.absent,
     search_behaviors: _interfaces.SearchBehaviors = _search_behaviors_default,
     filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
     group_by: __.typx.Optional[ str ] = None,
@@ -199,7 +213,8 @@ async def summarize_inventory(
     ''' Provides human-readable summary of inventory. '''
     details = _interfaces.InventoryQueryDetails.Name
     inventory_result = await query_inventory(
-        source, query, search_behaviors = search_behaviors, filters = filters,
+        source, query, processor_name = processor_name,
+        search_behaviors = search_behaviors, filters = filters,
         results_max = 1000,  # Large number to get all matches
         details = details )
     if group_by is not None:
@@ -230,21 +245,6 @@ async def survey_processors(
     return { 'processors': processors_capabilities }
 
 
-async def _add_documentation_to_results(
-    source: str,
-    selected_objects: list[ dict[ str, __.typx.Any ] ],
-    result: dict[ str, __.typx.Any ],
-) -> None:
-    ''' Extracts documentation for objects and adds to results. '''
-    detection = await _detection.determine_processor_optimal( source )
-    if __.is_absent( detection ):
-        raise _exceptions.ProcessorInavailability( source )
-    processor = detection.processor
-    for obj in selected_objects:
-        doc_result = await processor.extract_documentation(
-            source, obj[ 'name' ] )
-        document = _create_document_with_docs( obj, doc_result )
-        result[ 'documents' ].append( document )
 
 
 def _add_object_metadata_to_results(
@@ -351,13 +351,22 @@ def _create_document_metadata(
     return document
 
 
-async def _determine_processor_optimal(
-    source: SourceArgument
-) -> _interfaces.Processor:
+async def _get_detection(
+    source: SourceArgument,
+    processor_name: __.Absential[ str ] = __.absent
+) -> _interfaces.Detection:
+    ''' Gets detection object for given source and optional processor name. '''
+    if not __.is_absent( processor_name ):
+        # Get specific processor detection
+        detections, _ = await _detection.access_detections( source )
+        if processor_name in detections:
+            return detections[ processor_name ]
+        raise _exceptions.ProcessorInavailability( processor_name )
+    # Get best detection
     detection = await _detection.determine_processor_optimal( source )
     if __.is_absent( detection ):
         raise _exceptions.ProcessorInavailability( source )
-    return detection.processor
+    return detection
 
 
 def _format_inventory_summary(

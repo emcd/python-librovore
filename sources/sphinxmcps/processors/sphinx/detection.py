@@ -51,6 +51,32 @@ class SphinxDetection( __.Detection ):
         detection = await processor.detect( source )
         return __.typx.cast( __.typx.Self, detection )
 
+    async def extract_documentation_for_objects(
+        self, source: str,
+        objects: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ], /, *,
+        include_snippets: bool = True,
+    ) -> list[ dict[ str, __.typx.Any ] ]:
+        ''' Extracts documentation content for specified objects. '''
+        from . import extraction as _extraction
+        theme = self.theme if self.theme is not None else __.absent
+        return await _extraction.extract_documentation_for_objects(
+            source, objects, 
+            theme = theme,
+            include_snippets = include_snippets
+        )
+    
+    async def extract_filtered_inventory(
+        self, source: str, /, *,
+        filters: __.typx.Optional[
+            __.cabc.Mapping[ str, __.typx.Any ] ] = None,
+        details: __.InventoryQueryDetails = (
+            __.InventoryQueryDetails.Documentation ),
+    ) -> list[ dict[ str, __.typx.Any ] ]:
+        ''' Extracts and filters inventory objects from source. '''
+        from . import inventory as _inventory
+        return await _inventory.extract_filtered_inventory(
+            source, filters = filters, details = details )
+
 
 async def check_objects_inv( source: _Url ) -> bool:
     ''' Checks if objects.inv exists at the source. '''

@@ -26,6 +26,7 @@ from urllib.parse import ParseResult as _Url
 import sphobjinv as _sphobjinv
 
 from . import __
+from . import urls as _urls
 
 
 FilterCriteria: __.typx.TypeAlias = __.cabc.Mapping[ str, __.typx.Any ]
@@ -166,3 +167,28 @@ def format_inventory_object(
     if fuzzy_score is not None:
         result[ 'fuzzy_score' ] = fuzzy_score
     return result
+
+
+async def extract_filtered_inventory(
+    source: str, /, *,
+    filters: __.typx.Optional[ __.cabc.Mapping[ str, __.typx.Any ] ] = None,
+    details: __.InventoryQueryDetails = (
+        __.InventoryQueryDetails.Documentation ),
+) -> list[ dict[ str, __.typx.Any ] ]:
+    ''' Extracts and filters inventory objects from documentation source. '''
+    if filters is None:
+        filters = __.immut.Dictionary( )
+    domain = filters.get( 'domain', '' ) or __.absent
+    role = filters.get( 'role', '' ) or __.absent
+    priority = filters.get( 'priority', '' ) or __.absent
+    base_url = _urls.normalize_base_url( source )
+    inventory = extract_inventory( base_url )
+    filtered_objects, object_count = filter_inventory_basic(
+        inventory, domain = domain, role = role, priority = priority )
+    all_objects: list[ dict[ str, __.typx.Any ] ] = [ ]
+    for domain_objects in filtered_objects.values( ):
+        all_objects.extend( domain_objects )
+    for obj in all_objects:
+        obj[ '_inventory_project' ] = inventory.project
+        obj[ '_inventory_version' ] = inventory.version
+    return all_objects

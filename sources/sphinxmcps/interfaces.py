@@ -91,39 +91,6 @@ class Processor( __.immut.DataclassProtocol ):
         ''' Detects if can process documentation from source. '''
         raise NotImplementedError
 
-    @__.abc.abstractmethod
-    async def extract_filtered_inventory(
-        self, source: str, /, *,
-        filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
-        details: InventoryQueryDetails = InventoryQueryDetails.Documentation,
-    ) -> list[ dict[ str, __.typx.Any ] ]:
-        ''' Extracts and filters inventory objects from documentation source.
-
-            Extracts the documentation inventory and applies processor-specific
-            filters (domain, role, priority, etc.). No search matching is
-            performed - that happens in functions layer.
-        '''
-        raise NotImplementedError
-
-    @__.abc.abstractmethod
-    async def extract_documentation_for_objects(
-        self, source: str, objects: list[ dict[ str, __.typx.Any ] ], /, *,
-        include_snippets: bool = True,
-    ) -> list[ __.cabc.Mapping[ str, __.typx.Any ] ]:
-        ''' Extracts documentation content for specified objects.
-
-            Fetches actual documentation content for the provided objects and
-            returns it with relevance scoring and optional snippets. Objects
-            are typically pre-filtered by universal search matching.
-        '''
-        raise NotImplementedError
-
-    @__.abc.abstractmethod
-    async def extract_documentation( self, source: str, object_name: str, /, *,
-        include_sections: __.Absential[ list[ str ] ] = __.absent,
-    ) -> __.cabc.Mapping[ str, __.typx.Any ]:
-        ''' Extracts documentation for a specific object from source. '''
-        raise NotImplementedError
 
 
 class Detection( __.immut.DataclassProtocol ):

@@ -77,7 +77,7 @@ async def detect(
 ) -> dict[ str, __.typx.Any ]:
     ''' Detects which processor(s) can handle a documentation source. '''
     _scribe.debug( "Starting detection for source: %s", source )
-    return await _functions.detect( source, all_detections )
+    return await _functions.detect( source, all_detections = all_detections )
 
 
 async def query_inventory(  # noqa: PLR0913

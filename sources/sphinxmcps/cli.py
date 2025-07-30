@@ -85,7 +85,7 @@ class DetectCommand(
         stream = await display.provide_stream( )
         try:
             result = await _functions.detect(
-                self.source, self.all_detections )
+                self.source, all_detections = self.all_detections )
             print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
             _scribe.error( "detect failed: %s", exc )
