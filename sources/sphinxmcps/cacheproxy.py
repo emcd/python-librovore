@@ -21,6 +21,7 @@
 ''' HTTP cache for documentation URL access. '''
 
 
+from http import HTTPStatus as _HttpStatus
 from urllib.parse import ParseResult as _Url
 from urllib.robotparser import RobotFileParser as _RobotFileParser
 
@@ -469,6 +470,22 @@ async def _apply_request_delay(
                 robots_cache.assign_delay( domain, float( delay ) )
 
 
+async def _cache_robots_txt_error(
+    domain: str, cache: RobotsCache, error: Exception
+) -> __.Absential[ _RobotFileParser ]:
+    _scribe.debug( f"Failed to fetch/parse robots.txt from {domain}: {error}" )
+    result: RobotsResponse = _generics.Error( error )
+    return await _cache_robots_txt_result( domain, cache, result )
+
+
+async def _cache_robots_txt_result(
+    domain: str, cache: RobotsCache, result: RobotsResponse
+) -> __.Absential[ _RobotFileParser ]:
+    ttl = cache.determine_ttl( result )
+    await cache.store( domain, result, ttl )
+    return result.extract( ) if result.is_value( ) else __.absent
+
+
 def _extract_charset_from_headers(
     headers: _httpx.Headers, default: str
 ) -> str:
@@ -539,38 +556,36 @@ async def _probe_url(
 
 
 async def _retrieve_robots_txt(
-    domain: str, robots_cache: RobotsCache, *,
+    domain: str, cache: RobotsCache, *,
     client_factory: __.cabc.Callable[ [ ], _httpx.AsyncClient ] = (
         _httpx.AsyncClient )
 ) -> __.Absential[ _RobotFileParser ]:
     ''' Fetches and parses robots.txt for domain. '''
     robots_url = f"{domain}/robots.txt"
     async with (
-        robots_cache.acquire_mutex_for( domain ), client_factory( ) as client
+        cache.acquire_mutex_for( domain ), client_factory( ) as client
     ):
-        result: RobotsResponse
+        # TODO: Propagate actual configuration.
+        timeout = _configuration_default.robots_request_timeout
         try:
             response = await client.get(
-                robots_url,
-                timeout = _configuration_default.robots_request_timeout,
-                follow_redirects = True )
-            response.raise_for_status( )
+                robots_url, timeout = timeout, follow_redirects = True )
         except Exception as exc:
-            _scribe.debug( f"Failed to fetch robots.txt from {domain}: {exc}" )
-            result = _generics.Error( exc )
-        else:
-            robots_parser = _RobotFileParser( )
-            robots_parser.set_url( robots_url )
-            lines = response.text.splitlines( )
-            try: robots_parser.parse( lines )
-            except Exception as exc:
-                _scribe.debug(
-                    f"Failed to parse robots.txt from {domain}: {exc}" )
-                result = _generics.Error( exc )
-            else: result = _generics.Value( robots_parser )
-        ttl = robots_cache.determine_ttl( result )
-        await robots_cache.store( domain, result, ttl )
-        return result.extract( ) if result.is_value( ) else __.absent
+            return await _cache_robots_txt_error( domain, cache, exc )
+        match response.status_code:
+            case _HttpStatus.OK: lines = response.text.splitlines( )
+            case _HttpStatus.NOT_FOUND: lines = [ ]
+            case _:
+                try: response.raise_for_status( )
+                except Exception as exc:
+                    return await _cache_robots_txt_error( domain, cache, exc )
+        robots_parser = _RobotFileParser( )
+        robots_parser.set_url( robots_url )
+        try: robots_parser.parse( lines )
+        except Exception as exc:
+            return await _cache_robots_txt_error( domain, cache, exc )
+        result: RobotsResponse = _generics.Value( robots_parser )
+        return await _cache_robots_txt_result( domain, cache, result )
 
 
 async def _retrieve_url(

@@ -1531,7 +1531,7 @@ async def test_440_retrieve_robots_txt_success( robots_txt_samples ):
 
 @pytest.mark.asyncio
 async def test_441_retrieve_robots_txt_http_error( ):
-    ''' HTTP error during fetch returns absent. '''
+    ''' HTTP 404 for robots.txt returns empty parser allowing all access. '''
     robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
     def handler( request ):
         return _httpx.Response( 404 )
@@ -1540,7 +1540,8 @@ async def test_441_retrieve_robots_txt_http_error( ):
         return _httpx.AsyncClient( transport = mock_transport )
     result = await module._retrieve_robots_txt(
         'https://example.com', robots_cache, client_factory = client_factory )
-    assert __.is_absent( result )
+    assert not __.is_absent( result )
+    assert result.can_fetch( 'sphinxmcps/1.0', '/objects.inv' )
 
 
 @pytest.mark.asyncio
@@ -1654,17 +1655,17 @@ async def test_448_retrieve_robots_txt_ttl_determination( ):
     ''' TTL is calculated and applied correctly. '''
     robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
     def handler( request ):
-        return _httpx.Response( 404 )  # Error response
+        return _httpx.Response( 404 )  # Missing robots.txt (success case)
     mock_transport = _httpx.MockTransport( handler )
     def client_factory( ):
         return _httpx.AsyncClient( transport = mock_transport )
     await module._retrieve_robots_txt(
         'https://example.com', robots_cache, client_factory = client_factory )
-    # Check that error was cached with appropriate TTL
+    # Check that success was cached with appropriate TTL
     assert 'https://example.com' in robots_cache._cache
     entry = robots_cache._cache[ 'https://example.com' ]
-    assert entry.response.is_error( )
-    assert entry.ttl == robots_cache._configuration.error_ttl
+    assert entry.response.is_value( )
+    assert entry.ttl == robots_cache._configuration.robots_ttl
 
 
 @pytest.mark.asyncio
