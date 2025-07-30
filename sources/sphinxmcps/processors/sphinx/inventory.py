@@ -42,7 +42,6 @@ def collect_matching_objects(
     priority = criteria.get( 'priority' )
     term_matcher = criteria[ 'term_matcher' ]
     fuzzy_scores = criteria.get( 'fuzzy_scores' )
-    
     objects: __.cabc.MutableMapping[
         str, list[ __.cabc.Mapping[ str, __.typx.Any ] ]
     ] = __.collections.defaultdict(
@@ -95,8 +94,6 @@ def extract_inventory( base_url: _Url ) -> _sphobjinv.Inventory:
         raise __.InventoryInvalidity( url_s, cause = exc ) from exc
 
 
-
-
 def filter_exact_and_regex_matching( # noqa: PLR0913
     inventory: _sphobjinv.Inventory,
     domain: __.Absential[ str ],
@@ -116,60 +113,7 @@ def filter_exact_and_regex_matching( # noqa: PLR0913
     return collect_matching_objects( inventory, criteria )
 
 
-
-
-def filter_inventory_basic(
-    inventory: _sphobjinv.Inventory,
-    domain: __.Absential[ str ] = __.absent,
-    role: __.Absential[ str ] = __.absent,
-    priority: __.Absential[ str ] = __.absent,
-) -> tuple[ dict[ str, __.typx.Any ], int ]:
-    ''' Filters inventory objects by domain, role, priority only. '''
-    return filter_exact_and_regex_matching(
-        inventory, domain, role, priority, '', __.MatchMode.Exact )
-
-
-def filter_inventory( # noqa: PLR0913
-    inventory: _sphobjinv.Inventory,
-    domain: __.Absential[ str ] = __.absent,
-    role: __.Absential[ str ] = __.absent,
-    term: __.Absential[ str ] = __.absent,
-    priority: __.Absential[ str ] = __.absent,
-    match_mode: __.MatchMode = __.MatchMode.Exact,
-    fuzzy_threshold: int = 50,
-) -> tuple[ dict[ str, __.typx.Any ], int ]:
-    ''' Filters inventory objects by domain, role, term, match mode. 
-        
-        NOTE: Fuzzy matching is now handled by centralized search engine.
-        This function only supports exact and regex matching for backward
-        compatibility.
-    '''
-    term_ = '' if __.is_absent( term ) else term
-    return filter_exact_and_regex_matching(
-        inventory, domain, role, priority, term_, match_mode )
-
-
-def format_inventory_object(
-    objct: __.typx.Any,
-    fuzzy_score: int | None = None,
-) -> __.cabc.Mapping[ str, __.typx.Any ]:
-    ''' Formats an inventory object for output. '''
-    result = {
-        'name': objct.name,
-        'domain': objct.domain,
-        'role': objct.role,
-        'priority': objct.priority,
-        'uri': objct.uri,
-        'dispname': (
-            objct.dispname if objct.dispname != '-' else objct.name
-        ),
-    }
-    if fuzzy_score is not None:
-        result[ 'fuzzy_score' ] = fuzzy_score
-    return result
-
-
-async def extract_filtered_inventory(
+async def filter_inventory(
     source: str, /, *,
     filters: __.cabc.Mapping[ str, __.typx.Any ],
     details: __.InventoryQueryDetails = (
@@ -190,3 +134,34 @@ async def extract_filtered_inventory(
         obj[ '_inventory_project' ] = inventory.project
         obj[ '_inventory_version' ] = inventory.version
     return all_objects
+
+
+def filter_inventory_basic(
+    inventory: _sphobjinv.Inventory,
+    domain: __.Absential[ str ] = __.absent,
+    role: __.Absential[ str ] = __.absent,
+    priority: __.Absential[ str ] = __.absent,
+) -> tuple[ dict[ str, __.typx.Any ], int ]:
+    ''' Filters inventory objects by domain, role, priority only. '''
+    return filter_exact_and_regex_matching(
+        inventory, domain, role, priority, '', __.MatchMode.Exact )
+
+
+def format_inventory_object(
+    objct: __.typx.Any,
+    fuzzy_score: int | None = None,
+) -> __.cabc.Mapping[ str, __.typx.Any ]:
+    ''' Formats an inventory object for output. '''
+    result = {
+        'name': objct.name,
+        'domain': objct.domain,
+        'role': objct.role,
+        'priority': objct.priority,
+        'uri': objct.uri,
+        'dispname': (
+            objct.dispname if objct.dispname != '-' else objct.name
+        ),
+    }
+    if fuzzy_score is not None:
+        result[ 'fuzzy_score' ] = fuzzy_score
+    return result

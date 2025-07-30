@@ -118,8 +118,9 @@ class Detection( __.immut.DataclassProtocol ):
         raise NotImplementedError
 
     @__.abc.abstractmethod
-    async def extract_documentation_for_objects(
-        self, source: str,
+    async def extract_contents(
+        self,
+        source: str,
         objects: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ], /, *,
         include_snippets: bool = True,
     ) -> list[ dict[ str, __.typx.Any ] ]:
@@ -127,7 +128,7 @@ class Detection( __.immut.DataclassProtocol ):
         raise NotImplementedError
 
     @__.abc.abstractmethod
-    async def extract_filtered_inventory(
+    async def filter_inventory(
         self, source: str, /, *,
         filters: __.cabc.Mapping[ str, __.typx.Any ],
         details: 'InventoryQueryDetails' = (

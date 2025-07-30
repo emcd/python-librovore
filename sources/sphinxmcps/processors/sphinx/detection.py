@@ -24,6 +24,8 @@
 from urllib.parse import ParseResult as _Url
 
 from . import __
+from . import extraction as _extraction
+from . import inventory as _inventory
 from . import urls as _urls
 
 
@@ -51,29 +53,27 @@ class SphinxDetection( __.Detection ):
         detection = await processor.detect( source )
         return __.typx.cast( __.typx.Self, detection )
 
-    async def extract_documentation_for_objects(
+    async def extract_contents(
         self, source: str,
         objects: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ], /, *,
         include_snippets: bool = True,
     ) -> list[ dict[ str, __.typx.Any ] ]:
         ''' Extracts documentation content for specified objects. '''
-        from . import extraction as _extraction
         theme = self.theme if self.theme is not None else __.absent
-        return await _extraction.extract_documentation_for_objects(
-            source, objects, 
+        return await _extraction.extract_contents(
+            source, objects,
             theme = theme,
             include_snippets = include_snippets
         )
-    
-    async def extract_filtered_inventory(
+
+    async def filter_inventory(
         self, source: str, /, *,
         filters: __.cabc.Mapping[ str, __.typx.Any ],
         details: __.InventoryQueryDetails = (
             __.InventoryQueryDetails.Documentation ),
     ) -> list[ dict[ str, __.typx.Any ] ]:
         ''' Extracts and filters inventory objects from source. '''
-        from . import inventory as _inventory
-        return await _inventory.extract_filtered_inventory(
+        return await _inventory.filter_inventory(
             source, filters = filters, details = details )
 
 
@@ -100,16 +100,16 @@ async def detect_theme( source: _Url ) -> dict[ str, __.typx.Any ]:
     else:
         html_content_lower = html_content.lower( )
         # Check for theme-specific CSS files and identifiers
-        if ( 'furo' in html_content_lower 
+        if ( 'furo' in html_content_lower
              or 'css/furo.css' in html_content_lower ):
             theme_metadata[ 'theme' ] = 'furo'
-        elif ( 'sphinx_rtd_theme' in html_content_lower 
+        elif ( 'sphinx_rtd_theme' in html_content_lower
                or 'css/theme.css' in html_content_lower ):
             theme_metadata[ 'theme' ] = 'sphinx_rtd_theme'
-        elif ( 'alabaster' in html_content_lower 
+        elif ( 'alabaster' in html_content_lower
                or 'css/alabaster.css' in html_content_lower ):
             theme_metadata[ 'theme' ] = 'alabaster'
-        elif ( 'pydoctheme.css' in html_content_lower 
+        elif ( 'pydoctheme.css' in html_content_lower
                or 'classic.css' in html_content_lower ):
             theme_metadata[ 'theme' ] = 'pydoctheme'  # Python docs theme
         elif 'flask.css' in html_content_lower:

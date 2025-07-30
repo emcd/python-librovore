@@ -27,6 +27,27 @@ from . import __
 from . import urls as _urls
 
 
+async def extract_contents(
+    source: str,
+    objects: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ], /, *,
+    theme: __.Absential[ str ] = __.absent,
+    include_snippets: bool = True,
+) -> list[ dict[ str, __.typx.Any ] ]:
+    ''' Extracts documentation content for specified objects. '''
+    base_url = _urls.normalize_base_url( source )
+    if not objects: return [ ]
+    tasks = [
+        _extract_object_documentation(
+            base_url, dict( obj ), include_snippets, theme )
+        for obj in objects ]
+    candidate_results = await __.asyncf.gather_async(
+        *tasks, return_exceptions = True )
+    results: list[ dict[ str, __.typx.Any ] ] = [
+        dict( result.value ) for result in candidate_results
+        if __.generics.is_value( result ) and result.value is not None ]
+    return results
+
+
 def parse_documentation_html(
     content: str, element_id: str, *, theme: __.Absential[ str ] = __.absent
 ) -> __.cabc.Mapping[ str, str ]:
@@ -57,8 +78,6 @@ def parse_documentation_html(
     }
 
 
-
-
 def _extract_dt_content( element: __.typx.Any ) -> tuple[ str, str ]:
     ''' Extracts signature and description from dt/dd elements. '''
     signature = element.get_text( strip = True )
@@ -70,6 +89,50 @@ def _extract_dt_content( element: __.typx.Any ) -> tuple[ str, str ]:
         description = description_element.get_text( strip = True )
     else: description = ''
     return signature, description
+
+
+async def _extract_object_documentation(
+    base_url: __.typx.Any,
+    obj: dict[ str, __.typx.Any ],
+    include_snippets: bool,
+    theme: __.Absential[ str ] = __.absent
+) -> dict[ str, __.typx.Any ] | None:
+    ''' Extracts documentation for a single object. '''
+    from . import conversion as _conversion
+    doc_url = _urls.derive_documentation_url(
+        base_url, obj[ 'uri' ], obj[ 'name' ] )
+    try: html_content = await __.retrieve_url_as_text( doc_url )
+    except Exception as exc:
+        __.acquire_scribe( __name__ ).debug(
+            "Failed to retrieve %s: %s", doc_url, exc )
+        return None
+    anchor = doc_url.fragment or str( obj[ 'name' ] )
+    try:
+        parsed_content = parse_documentation_html(
+            html_content, anchor, theme = theme )
+    except Exception: return None
+    if 'error' in parsed_content: return None
+    description = _conversion.html_to_markdown(
+        parsed_content[ 'description' ] )
+    snippet_max_length = 200
+    if include_snippets:
+        content_snippet = (
+            description[ : snippet_max_length ] + '...'
+            if len( description ) > snippet_max_length
+            else description )
+    else: content_snippet = ''
+    return {
+        'object_name': obj[ 'name' ],
+        'object_type': obj[ 'role' ],
+        'domain': obj[ 'domain' ],
+        'priority': obj[ 'priority' ],
+        'url': doc_url.geturl( ),
+        'signature': parsed_content[ 'signature' ],
+        'description': description,
+        'content_snippet': content_snippet,
+        'relevance_score': 1.0,
+        'match_reasons': [ 'direct extraction' ],
+    }
 
 
 def _extract_section_content(
@@ -130,68 +193,3 @@ def _find_main_content_container(
     for container in containers:
         if container: return container
     return __.absent
-
-
-async def extract_documentation_for_objects(
-    source: str, 
-    objects: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ], /, *,
-    theme: __.Absential[ str ] = __.absent,
-    include_snippets: bool = True,
-) -> list[ dict[ str, __.typx.Any ] ]:
-    ''' Extracts documentation content for specified objects. '''
-    base_url = _urls.normalize_base_url( source )
-    if not objects: return [ ]
-    tasks = [
-        _extract_object_documentation(
-            base_url, dict( obj ), include_snippets, theme )
-        for obj in objects ]
-    candidate_results = await __.asyncf.gather_async(
-        *tasks, return_exceptions = True )
-    results: list[ dict[ str, __.typx.Any ] ] = [
-        dict( result.value ) for result in candidate_results
-        if __.generics.is_value( result ) and result.value is not None ]
-    return results
-
-
-async def _extract_object_documentation(
-    base_url: __.typx.Any, 
-    obj: dict[ str, __.typx.Any ],
-    include_snippets: bool,
-    theme: __.Absential[ str ] = __.absent
-) -> dict[ str, __.typx.Any ] | None:
-    ''' Extracts documentation for a single object. '''
-    from . import conversion as _conversion
-    doc_url = _urls.derive_documentation_url(
-        base_url, obj[ 'uri' ], obj[ 'name' ] )
-    try: html_content = await __.retrieve_url_as_text( doc_url )
-    except Exception as exc:
-        __.acquire_scribe( __name__ ).debug( 
-            "Failed to retrieve %s: %s", doc_url, exc )
-        return None
-    anchor = doc_url.fragment or str( obj[ 'name' ] )
-    try:
-        parsed_content = parse_documentation_html(
-            html_content, anchor, theme = theme )
-    except Exception: return None
-    if 'error' in parsed_content: return None
-    description = _conversion.html_to_markdown(
-        parsed_content[ 'description' ] )
-    snippet_max_length = 200
-    if include_snippets:
-        content_snippet = (
-            description[ : snippet_max_length ] + '...'
-            if len( description ) > snippet_max_length
-            else description )
-    else: content_snippet = ''
-    return {
-        'object_name': obj[ 'name' ],
-        'object_type': obj[ 'role' ],
-        'domain': obj[ 'domain' ],
-        'priority': obj[ 'priority' ],
-        'url': doc_url.geturl( ),
-        'signature': parsed_content[ 'signature' ],
-        'description': description,
-        'content_snippet': content_snippet,
-        'relevance_score': 1.0,
-        'match_reasons': [ 'direct extraction' ],
-    }

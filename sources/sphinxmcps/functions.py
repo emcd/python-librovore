@@ -81,7 +81,7 @@ async def query_content(  # noqa: PLR0913
     __.ddoc.Fname( 'content query return' ) ]:
     ''' Searches documentation content with relevance ranking. '''
     detection = await _get_detection( source, processor_name )
-    filtered_objects = await detection.extract_filtered_inventory(
+    filtered_objects = await detection.filter_inventory(
         source, filters = filters,
         details = _interfaces.InventoryQueryDetails.Name )
     search_results = _search.filter_by_name(
@@ -103,7 +103,7 @@ async def query_content(  # noqa: PLR0913
             },
             'documents': [ ],
         }
-    raw_results = await detection.extract_documentation_for_objects(
+    raw_results = await detection.extract_contents(
         source, candidate_objects, include_snippets = include_snippets )
     sorted_results = sorted(
         raw_results,
@@ -156,7 +156,7 @@ async def query_inventory(  # noqa: PLR0913
         plus requested detail flags (signatures, summaries, documentation).
     '''
     detection = await _get_detection( source, processor_name )
-    filtered_objects = await detection.extract_filtered_inventory(
+    filtered_objects = await detection.filter_inventory(
         source, filters = filters, details = details )
     search_results = _search.filter_by_name(
         filtered_objects, query,
