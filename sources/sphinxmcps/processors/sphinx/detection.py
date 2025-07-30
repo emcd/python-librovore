@@ -74,12 +74,29 @@ async def detect_theme( source: _Url ) -> dict[ str, __.typx.Any ]:
     except __.DocumentationInaccessibility: pass
     else:
         html_content_lower = html_content.lower( )
-        if 'furo' in html_content_lower:
+        # Check for theme-specific CSS files and identifiers
+        if ( 'furo' in html_content_lower 
+             or 'css/furo.css' in html_content_lower ):
             theme_metadata[ 'theme' ] = 'furo'
-        elif 'alabaster' in html_content_lower:
-            theme_metadata[ 'theme' ] = 'alabaster'
-        elif 'sphinx_rtd_theme' in html_content_lower:
+        elif ( 'sphinx_rtd_theme' in html_content_lower 
+               or 'css/theme.css' in html_content_lower ):
             theme_metadata[ 'theme' ] = 'sphinx_rtd_theme'
+        elif ( 'alabaster' in html_content_lower 
+               or 'css/alabaster.css' in html_content_lower ):
+            theme_metadata[ 'theme' ] = 'alabaster'
+        elif ( 'pydoctheme.css' in html_content_lower 
+               or 'classic.css' in html_content_lower ):
+            theme_metadata[ 'theme' ] = 'pydoctheme'  # Python docs theme
+        elif 'flask.css' in html_content_lower:
+            theme_metadata[ 'theme' ] = 'flask'  # Flask docs theme
+        elif 'css/nature.css' in html_content_lower:
+            theme_metadata[ 'theme' ] = 'nature'
+        elif 'css/default.css' in html_content_lower:
+            theme_metadata[ 'theme' ] = 'classic'
+        elif 'sphinx_book_theme' in html_content_lower:
+            theme_metadata[ 'theme' ] = 'sphinx_book_theme'
+        elif 'pydata_sphinx_theme' in html_content_lower:
+            theme_metadata[ 'theme' ] = 'pydata_sphinx_theme'
         # If no theme detected, don't set theme key (returns None)
     return theme_metadata
 

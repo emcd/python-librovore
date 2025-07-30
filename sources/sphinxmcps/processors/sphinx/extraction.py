@@ -66,39 +66,76 @@ def extract_content_snippet(
     return content_snippet
 
 
+def _detect_theme_from_html( html_content: str ) -> str | None:
+    ''' Detects theme from HTML content using CSS file patterns. '''
+    html_lower = html_content.lower( )
+    theme_patterns = {
+        'furo': [ 'furo', 'css/furo.css' ],
+        'sphinx_rtd_theme': [ 'sphinx_rtd_theme', 'css/theme.css' ],
+        'alabaster': [ 'alabaster', 'css/alabaster.css' ],
+        'pydoctheme': [ 'pydoctheme.css', 'classic.css' ],
+        'flask': [ 'flask.css' ],
+        'nature': [ 'css/nature.css' ],
+    }
+    for theme_name, patterns in theme_patterns.items( ):
+        if any( pattern in html_lower for pattern in patterns ):
+            return theme_name
+    return None
+
+
+def _extract_dt_content( object_element: __.typx.Any ) -> tuple[ str, str ]:
+    ''' Extracts signature and description from dt/dd elements. '''
+    signature = object_element.get_text( strip = True )
+    description_element = object_element.find_next_sibling( 'dd' )
+    if description_element:
+        for header_link in description_element.find_all(
+            'a', class_ = 'headerlink'
+        ): header_link.decompose( )
+        description = description_element.get_text( strip = True )
+    else: description = ''
+    return signature, description
+
+
+def _extract_section_content(
+    object_element: __.typx.Any
+) -> tuple[ str, str ]:
+    ''' Extracts signature and description from section elements. '''
+    header = object_element.find( [ 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' ] )
+    signature = header.get_text( strip = True ) if header else ''
+    description_element = object_element.find( 'p' )
+    if description_element:
+        description = description_element.get_text( strip = True )
+    else: description = ''
+    return signature, description
+
+
 def parse_documentation_html(
-    html_content: str, element_id: str
+    html_content: str, element_id: str, *, theme: str | None = None
 ) -> __.cabc.Mapping[ str, str ]:
     ''' Parses HTML content to extract documentation sections. '''
     try: soup = _BeautifulSoup( html_content, 'lxml' )
     except Exception as exc:
         raise __.DocumentationParseFailure(
             element_id, exc ) from exc
-    main_content = _find_main_content_container( soup )
+    # Auto-detect theme if not provided
+    if theme is None:
+        theme = _detect_theme_from_html( html_content )
+    main_content = _find_main_content_container( soup, theme )
     if not main_content:
         raise __.DocumentationContentAbsence( element_id )
     object_element = main_content.find( id = element_id )
     if not object_element:
         return { 'error': f"Object '{element_id}' not found in page" }
+    
+    # Extract content based on element type
     if object_element.name == 'dt':
-        signature = object_element.get_text( strip = True )
-        description_element = object_element.find_next_sibling( 'dd' )
-        if description_element:
-            for header_link in description_element.find_all(
-                'a', class_ = 'headerlink'
-            ): header_link.decompose( )
-            description = description_element.get_text( strip = True )
-        else: description = ''
+        signature, description = _extract_dt_content( object_element )
     elif object_element.name == 'section':
-        header = object_element.find( [ 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' ] )
-        signature = header.get_text( strip = True ) if header else ''
-        description_element = object_element.find( 'p' )
-        if description_element:
-            description = description_element.get_text( strip = True )
-        else: description = ''
+        signature, description = _extract_section_content( object_element )
     else:
         signature = object_element.get_text( strip = True )
         description = ''
+    
     return {
         'signature': signature,
         'description': description,
@@ -106,18 +143,51 @@ def parse_documentation_html(
     }
 
 
-def _find_main_content_container( soup: __.typx.Any ) -> __.typx.Any | None:
-    ''' Finds the main content container using multiple strategies. '''
-    containers = [
-        soup.find( 'article', { 'role': 'main' } ),  # Furo theme
-        soup.find( 'div', { 'id': 'furo-main-content' } ),  # Furo variant
-        soup.find( 'div', { 'class': 'body' } ),  # Basic theme
-        soup.find( 'div', { 'class': 'content' } ),  # Nature theme
-        soup.find( 'div', { 'class': 'main' } ),  # Generic main
-        soup.find( 'main' ),  # HTML5 main element
-        soup.find( 'div', { 'role': 'main' } ),  # Role-based
-        soup.body,  # Fallback to body if nothing else works
-    ]
+def _find_main_content_container( 
+    soup: __.typx.Any, theme: str | None = None
+) -> __.typx.Any | None:
+    ''' Finds the main content container using theme-specific strategies. '''
+    # Theme-specific strategies first
+    if theme == 'furo':
+        containers = [
+            soup.find( 'article', { 'role': 'main' } ),
+            soup.find( 'div', { 'id': 'furo-main-content' } ),
+        ]
+    elif theme == 'sphinx_rtd_theme':
+        containers = [
+            soup.find( 'div', { 'class': 'document' } ),
+            soup.find( 'div', { 'class': 'body' } ),
+            soup.find( 'div', { 'role': 'main' } ),
+        ]
+    elif theme == 'pydoctheme':  # Python docs
+        containers = [
+            soup.find( 'div', { 'class': 'body' } ),
+            soup.find( 'div', { 'class': 'content' } ),
+            soup.body,  # Python docs often use body directly
+        ]
+    elif theme == 'flask':  # Flask docs
+        containers = [
+            soup.find( 'div', { 'class': 'body' } ),
+            soup.find( 'div', { 'class': 'content' } ),
+            soup.body,
+        ]
+    elif theme == 'alabaster':
+        containers = [
+            soup.find( 'div', { 'class': 'body' } ),
+            soup.find( 'div', { 'class': 'content' } ),
+        ]
+    else:  # Generic fallback for unknown themes
+        containers = [
+            soup.find( 'article', { 'role': 'main' } ),  # Furo theme
+            soup.find( 'div', { 'class': 'body' } ),  # Basic theme
+            soup.find( 'div', { 'class': 'content' } ),  # Nature theme
+            soup.find( 'div', { 'class': 'main' } ),  # Generic main
+            soup.find( 'main' ),  # HTML5 main element
+            soup.find( 'div', { 'role': 'main' } ),  # Role-based
+            soup.body,  # Fallback to body if nothing else works
+        ]
+    
+    # Return the first container that exists
     for container in containers:
         if container: return container
     return None
