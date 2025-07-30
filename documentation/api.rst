@@ -31,6 +31,48 @@ Package ``sphinxmcps``
 .. automodule:: sphinxmcps
 
 
+Module ``sphinxmcps.interfaces``
+-------------------------------------------------------------------------------
+
+.. automodule:: sphinxmcps.interfaces
+
+
+Module ``sphinxmcps.cacheproxy``
+-------------------------------------------------------------------------------
+
+.. automodule:: sphinxmcps.cacheproxy
+
+
+Module ``sphinxmcps.detection``
+-------------------------------------------------------------------------------
+
+.. automodule:: sphinxmcps.detection
+
+
+Module ``sphinxmcps.functions``
+-------------------------------------------------------------------------------
+
+.. automodule:: sphinxmcps.functions
+
+
+Module ``sphinxmcps.search``
+-------------------------------------------------------------------------------
+
+.. automodule:: sphinxmcps.search
+
+
+Module ``sphinxmcps.cli``
+-------------------------------------------------------------------------------
+
+.. automodule:: sphinxmcps.cli
+
+
+Module ``sphinxmcps.server``
+-------------------------------------------------------------------------------
+
+.. automodule:: sphinxmcps.server
+
+
 Module ``sphinxmcps.exceptions``
 -------------------------------------------------------------------------------
 

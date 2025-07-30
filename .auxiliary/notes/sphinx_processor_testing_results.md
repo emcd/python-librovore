@@ -44,44 +44,47 @@ Tested our Sphinx MCP processor against various documentation sites to evaluate 
 
 ## Key UX Issues Identified 🔧
 
-### 1. **Documentation Formatting Problems**
+### 1. **Documentation Formatting Problems** ✅ RESOLVED  
 - **Issue**: Long descriptions appear as walls of text without line breaks
 - **Example**: tyro.cli documentation is one giant paragraph
-- **Fix Needed**: Better HTML-to-Markdown conversion with proper paragraph breaks
+- **Status**: Fixed HTML-to-Markdown conversion - now properly creates paragraph breaks between block elements
+- **Details**: Improved algorithm processes block elements (p, div, section, etc.) to add paragraph separators and fixed whitespace cleaning regex that was removing newlines
 
 ### 2. **Domain Information Missing**
 - **Issue**: Most sites show all objects in empty domain ("")
 - **Impact**: Cannot filter by domain (py, std, etc.) as expected
 - **Cause**: Many Sphinx sites don't properly categorize objects by domain
 
-### 3. **Fuzzy Score Noise**
+### 3. **Fuzzy Score Noise** ✅ RESOLVED
 - **Issue**: Results show `"fuzzy_score": 60` which confuses users
-- **Fix Needed**: Hide internal scoring from user-facing output
+- **Status**: Fixed during search architecture refactoring - fuzzy_score no longer appears in user output
 
 ### 4. **Error Handling**
 - **Issue**: Generic "Error executing tool explore" messages
 - **Need**: More specific error messages for debugging
 
-### 5. **Performance on Large Sites**
+### 5. **Performance on Large Sites** ✅ MOSTLY RESOLVED
 - **Issue**: Timeouts on sites with many objects (Requests: 221 objects)
-- **Need**: Better timeout handling and progress indicators
+- **Status**: Significantly improved during search optimization work - large inventories now handle well
 
 ## Recommendations 📋
 
 ### High Priority
-1. **Improve HTML-to-Markdown conversion** - Add proper paragraph spacing
-2. **Hide internal scoring fields** from user output
+1. ~~**Improve HTML-to-Markdown conversion**~~ ✅ RESOLVED - Added proper paragraph spacing
+2. ~~**Hide internal scoring fields** from user output~~ ✅ RESOLVED
 3. **Better error messages** with specific failure reasons
-4. **Timeout handling** for large sites
+4. **Content extraction issues** - Investigate why query-content returns empty results for some sites
 
 ### Medium Priority  
 1. **Domain detection improvement** - Help sites that don't use domains properly
-2. **Performance optimization** for large inventories
+2. ~~**Performance optimization** for large inventories~~ ✅ MOSTLY RESOLVED
 3. **Content snippet extraction** improvement
 
 ### Low Priority
 1. **Add progress indicators** for long operations
 2. **Caching layer** for repeated queries to same sites
+3. ~~**Timeout handling** for large sites~~ ✅ MOSTLY RESOLVED
+4. **HTML-to-Markdown algorithm optimization** - Consider single-pass tag iteration instead of multiple passes, reduce regex usage
 
 ## Overall Assessment ⭐
 
