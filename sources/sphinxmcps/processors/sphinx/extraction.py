@@ -258,22 +258,26 @@ def _extract_signature_with_strategy(
     ''' Extracts signature using DSL strategy. '''
     source_type = __.typx.cast( str, strategy[ 'signature_source' ] )
     match source_type:
-        case 'self': return element.get_text( strip = True )
+        case 'self': return _clean_extracted_text( element.get_text( ) )
         case 'parent_text':
             return (
-                element.parent.get_text( strip = True )
+                _clean_extracted_text( element.parent.get_text( ) )
                 if element.parent else '' )
         case 'parent_header':
             if element.parent:
                 header = element.parent.find(
                     [ 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' ] )
-                return header.get_text( strip = True ) if header else ''
+                return (
+                    _clean_extracted_text( header.get_text( ) )
+                    if header else '' )
             return ''
         case 'first_header':
             header = element.find(
                 [ 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' ] )
-            return header.get_text( strip = True ) if header else ''
-        case _: return element.get_text( strip = True )
+            return (
+                _clean_extracted_text( header.get_text( ) )
+                if header else '' )
+        case _: return _clean_extracted_text( element.get_text( ) )
 
 
 def _find_main_content_container(
@@ -323,14 +327,24 @@ def _find_main_content_container(
     return __.absent
 
 
+def _clean_extracted_text( text: str ) -> str:
+    ''' Cleans extracted text while preserving internal spacing. '''
+    # Remove leading/trailing whitespace but preserve internal spaces
+    text = text.strip( )
+    # Normalize multiple spaces to single spaces
+    text = __.re.sub( r' +', ' ', text )
+    # Remove excessive newlines but preserve paragraph breaks
+    return __.re.sub( r'\n\s*\n', '\n\n', text )
+
+
 def _generic_extraction( element: __.typx.Any ) -> tuple[ str, str ]:
     ''' Generic fallback extraction for unknown element types. '''
-    signature = element.get_text( strip = True )
+    signature = _clean_extracted_text( element.get_text( ) )
     description = ''
     if element.parent:
         next_p = element.parent.find( 'p' )
         if next_p:
-            description = next_p.get_text( strip = True )
+            description = _clean_extracted_text( next_p.get_text( ) )
     return signature, description
 
 
@@ -357,14 +371,16 @@ def _get_description_by_source_type(
 def _get_first_paragraph_text( element: __.typx.Any ) -> str:
     ''' Gets text from first paragraph within element. '''
     paragraph = element.find( 'p' )
-    return paragraph.get_text( strip = True ) if paragraph else ''
+    return _clean_extracted_text( paragraph.get_text( ) ) if paragraph else ''
 
 
 def _get_parent_content_text( element: __.typx.Any, element_type: str ) -> str:
     ''' Gets text from content element within parent. '''
     if element.parent:
         content_elem = element.parent.find( element_type )
-        return content_elem.get_text( strip = True ) if content_elem else ''
+        return (
+            _clean_extracted_text( content_elem.get_text( ) )
+            if content_elem else '' )
     return ''
 
 
@@ -372,7 +388,9 @@ def _get_parent_element_text( element: __.typx.Any, element_type: str ) -> str:
     ''' Gets text from element within parent. '''
     if element.parent:
         next_elem = element.parent.find( element_type )
-        return next_elem.get_text( strip = True ) if next_elem else ''
+        return (
+            _clean_extracted_text( next_elem.get_text( ) )
+            if next_elem else '' )
     return ''
 
 
@@ -380,11 +398,11 @@ def _get_parent_sibling_text( element: __.typx.Any, element_type: str ) -> str:
     ''' Gets text from parent's next sibling element. '''
     if element.parent:
         sibling = element.parent.find_next_sibling( element_type )
-        return sibling.get_text( strip = True ) if sibling else ''
+        return _clean_extracted_text( sibling.get_text( ) ) if sibling else ''
     return ''
 
 
 def _get_sibling_text( element: __.typx.Any, element_type: str ) -> str:
     ''' Gets text from next sibling element. '''
     sibling = element.find_next_sibling( element_type )
-    return sibling.get_text( strip = True ) if sibling else ''
+    return _clean_extracted_text( sibling.get_text( ) ) if sibling else ''

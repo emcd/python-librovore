@@ -47,8 +47,8 @@ def _convert_element_to_markdown(
     ''' Converts HTML element to markdown using single-pass traversal. '''
     if hasattr( element, 'name' ) and element.name:
         return _convert_tag_to_markdown( element, context )
-    # Text node
-    return str( element ).strip( )
+    # Text node - preserve spacing as-is
+    return str( element )
 
 
 def _convert_tag_to_markdown(  # noqa: PLR0911
@@ -68,6 +68,9 @@ def _convert_tag_to_markdown(  # noqa: PLR0911
             return '*{}*'.format( children )
         case 'a':
             return _convert_link( element, context )
+        case 'span':
+            # Inline span - just return the content, spacing handled by parent
+            return _convert_children( element, context )
         case 'p' | 'div' | 'section' | 'article' | 'li' | 'dt' | 'dd':
             children = _convert_children( element, context )
             return '{}\n\n'.format( children ) if children.strip( ) else ''
@@ -89,7 +92,7 @@ def _convert_children(
     result_parts: list[ str ] = [ ]
     for child in element.children:
         converted = _convert_element_to_markdown( child, context )
-        if converted: result_parts.append( converted )
+        result_parts.append( converted )  # Preserve spacing
     return ''.join( result_parts )
 
 
