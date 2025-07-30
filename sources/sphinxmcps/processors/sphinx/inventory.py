@@ -171,13 +171,11 @@ def format_inventory_object(
 
 async def extract_filtered_inventory(
     source: str, /, *,
-    filters: __.typx.Optional[ __.cabc.Mapping[ str, __.typx.Any ] ] = None,
+    filters: __.cabc.Mapping[ str, __.typx.Any ],
     details: __.InventoryQueryDetails = (
         __.InventoryQueryDetails.Documentation ),
 ) -> list[ dict[ str, __.typx.Any ] ]:
     ''' Extracts and filters inventory objects from documentation source. '''
-    if filters is None:
-        filters = __.immut.Dictionary( )
     domain = filters.get( 'domain', '' ) or __.absent
     role = filters.get( 'role', '' ) or __.absent
     priority = filters.get( 'priority', '' ) or __.absent

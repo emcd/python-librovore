@@ -129,8 +129,7 @@ class Detection( __.immut.DataclassProtocol ):
     @__.abc.abstractmethod
     async def extract_filtered_inventory(
         self, source: str, /, *,
-        filters: __.typx.Optional[
-            __.cabc.Mapping[ str, __.typx.Any ] ] = None,
+        filters: __.cabc.Mapping[ str, __.typx.Any ],
         details: 'InventoryQueryDetails' = (
             InventoryQueryDetails.Documentation ),
     ) -> list[ dict[ str, __.typx.Any ] ]:

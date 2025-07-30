@@ -67,8 +67,7 @@ class SphinxDetection( __.Detection ):
     
     async def extract_filtered_inventory(
         self, source: str, /, *,
-        filters: __.typx.Optional[
-            __.cabc.Mapping[ str, __.typx.Any ] ] = None,
+        filters: __.cabc.Mapping[ str, __.typx.Any ],
         details: __.InventoryQueryDetails = (
             __.InventoryQueryDetails.Documentation ),
     ) -> list[ dict[ str, __.typx.Any ] ]:
