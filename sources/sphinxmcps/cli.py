@@ -55,10 +55,6 @@ SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
     str,
     __.tyro.conf.arg( help = __.access_doctab( 'source argument' ) ),
 ]
-TermFilter: __.typx.TypeAlias = __.typx.Annotated[
-    __.typx.Optional[ str ],
-    __.tyro.conf.arg( help = __.access_doctab( 'term filter argument' ) ),
-]
 TransportArgument: __.typx.TypeAlias = __.typx.Annotated[
     __.typx.Optional[ str ],
     __.tyro.conf.arg( help = __.access_doctab( 'transport argument' ) ),
@@ -183,7 +179,7 @@ class SummarizeInventoryCommand(
     ''' Provides human-readable summary of inventory. '''
 
     source: SourceArgument
-    term: TermFilter = None
+    query: QueryArgument = ''
     filters: __.typx.Annotated[
         dict[ str, __.typx.Any ],
         __.tyro.conf.arg( prefix_name = False ),
@@ -199,7 +195,7 @@ class SummarizeInventoryCommand(
     ) -> None:
         stream = await display.provide_stream( )
         result = await _functions.summarize_inventory(
-            self.source, self.term or '',
+            self.source, self.query or '',
             search_behaviors = self.search_behaviors,
             filters = self.filters,
             group_by = self.group_by )

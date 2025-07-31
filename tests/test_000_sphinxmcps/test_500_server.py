@@ -63,7 +63,7 @@ async def test_120_summarize_inventory_wrapper_with_regex( ):
     filters = module.FiltersMutable( )
     result = await module.summarize_inventory(
         source = test_inventory_path,
-        term = 'test.*pattern',
+        query = 'test.*pattern',
         search_behaviors = search_behaviors,
         filters = filters )
     assert isinstance( result, str )

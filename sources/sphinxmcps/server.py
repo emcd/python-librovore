@@ -59,8 +59,6 @@ ResultsMax: __.typx.TypeAlias = __.typx.Annotated[
     int, _Field( description = __.access_doctab( 'results max argument' ) ) ]
 SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
     str, _Field( description = __.access_doctab( 'source argument' ) ) ]
-TermFilter: __.typx.TypeAlias = __.typx.Annotated[
-    str, _Field( description = __.access_doctab( 'term filter argument' ) ) ]
 
 
 _filters_default = FiltersMutable( )
@@ -169,7 +167,7 @@ async def summarize_inventory(
         _Field( description = "Processor-specific filters." ),
     ] = _filters_default,
     group_by: GroupByArgument = None,
-    term: TermFilter = '',
+    query: Query = '',
 ) -> str:
     ''' Provides summary of inventory. '''
     immutable_search_behaviors = (
@@ -177,7 +175,7 @@ async def summarize_inventory(
     immutable_filters = _to_immutable_filters( filters )
     try:
         return await _functions.summarize_inventory(
-            source, term,
+            source, query,
             search_behaviors = immutable_search_behaviors,
             filters = immutable_filters,
             group_by = group_by )
