@@ -443,4 +443,4 @@ async def test_700_explore_with_object_not_found( ):
     assert 'documents' in result
     # When no objects are found, documents should be empty
     assert len( result[ 'documents' ] ) == 0
-    assert result[ 'search_metadata' ][ 'object_count' ] == 0
+    assert result[ 'search_metadata' ][ 'objects_count' ] == 0

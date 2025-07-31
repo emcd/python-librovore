@@ -97,8 +97,8 @@ async def query_content(  # noqa: PLR0913
             'source': source,
             'query': query,
             'search_metadata': {
-                'result_count': 0,
-                'max_results': results_max,
+                'results_count': 0,
+                'results_max': results_max,
                 'filters': filter_metadata,
             },
             'documents': [ ],
@@ -113,8 +113,8 @@ async def query_content(  # noqa: PLR0913
     filter_metadata: dict[ str, __.typx.Any ] = { }
     _populate_filter_metadata( filter_metadata, search_behaviors, filters )
     search_metadata: dict[ str, __.typx.Any ] = {
-        'result_count': len( limited_results ),
-        'max_results': results_max,
+        'results_count': len( limited_results ),
+        'results_max': results_max,
         'filters': filter_metadata,
     }
     documents = [
@@ -176,9 +176,9 @@ async def query_inventory(  # noqa: PLR0913
     filter_metadata: dict[ str, __.typx.Any ] = { }
     _populate_filter_metadata( filter_metadata, search_behaviors, filters )
     search_metadata: dict[ str, __.typx.Any ] = {
-        'object_count': len( selected_objects ),
+        'objects_count': len( selected_objects ),
         'results_max': results_max,
-        'total_matches': len( filtered_objects ),
+        'matches_total': len( filtered_objects ),
         'filters': filter_metadata,
     }
     return {
@@ -191,7 +191,7 @@ async def query_inventory(  # noqa: PLR0913
         'query': query,
         'documents': documents,
         'search_metadata': search_metadata,
-        'object_count': len( selected_objects ),
+        'objects_count': len( selected_objects ),
         'source': source,
     }
 
@@ -219,8 +219,8 @@ async def summarize_inventory(  # noqa: PLR0913
     inventory_data: dict[ str, __.typx.Any ] = {
         'project': inventory_result[ 'project' ],
         'version': inventory_result[ 'version' ],
-        'object_count':
-            inventory_result[ 'search_metadata' ][ 'total_matches' ],
+        'objects_count':
+            inventory_result[ 'search_metadata' ][ 'matches_total' ],
         'objects': objects_data,
         'filters': inventory_result[ 'search_metadata' ][ 'filters' ],
     }
@@ -264,9 +264,9 @@ def _construct_explore_result_structure(  # noqa: PLR0913
     filter_metadata: dict[ str, __.typx.Any ] = { }
     _populate_filter_metadata( filter_metadata, search_behaviors, filters )
     search_metadata: dict[ str, __.typx.Any ] = {
-        'object_count': len( selected_objects ),
+        'objects_count': len( selected_objects ),
         'results_max': results_max,
-        'total_matches': inventory_data[ 'object_count' ],
+        'matches_total': inventory_data[ 'objects_count' ],
         'filters': filter_metadata,
     }
     result: dict[ str, __.typx.Any ] = {
@@ -291,8 +291,8 @@ def _construct_query_result_structure(  # noqa: PLR0913
     filter_metadata: dict[ str, __.typx.Any ] = { }
     _populate_filter_metadata( filter_metadata, search_behaviors, filters )
     search_metadata: dict[ str, __.typx.Any ] = {
-        'result_count': len( raw_results ),
-        'max_results': results_max,
+        'results_count': len( raw_results ),
+        'results_max': results_max,
         'filters': filter_metadata,
     }
     documents: list[ dict[ str, __.typx.Any ] ] = [ ]
@@ -371,7 +371,7 @@ def _format_inventory_summary(
     summary_lines: list[ str ] = [
         f"Project: {inventory_data[ 'project' ]}",
         f"Version: {inventory_data[ 'version' ]}",
-        f"Objects: {inventory_data[ 'object_count' ]}",
+        f"Objects: {inventory_data[ 'objects_count' ]}",
     ]
     if 'filters' in inventory_data:
         filters = inventory_data[ 'filters' ]
