@@ -91,15 +91,12 @@ async def query_content(  # noqa: PLR0913
     candidate_objects = [
         result.object for result in search_results[ : results_max * 3 ] ]
     if not candidate_objects:
-        filter_metadata: dict[ str, __.typx.Any ] = { }
-        _populate_filter_metadata( filter_metadata, search_behaviors, filters )
         return {
             'source': source,
             'query': query,
             'search_metadata': {
                 'results_count': 0,
                 'results_max': results_max,
-                'filters': filter_metadata,
             },
             'documents': [ ],
         }
@@ -110,12 +107,9 @@ async def query_content(  # noqa: PLR0913
         key = lambda x: x.get( 'relevance_score', 0.0 ),
         reverse = True )
     limited_results = list( sorted_results[ : results_max ] )
-    filter_metadata: dict[ str, __.typx.Any ] = { }
-    _populate_filter_metadata( filter_metadata, search_behaviors, filters )
     search_metadata: dict[ str, __.typx.Any ] = {
         'results_count': len( limited_results ),
         'results_max': results_max,
-        'filters': filter_metadata,
     }
     documents = [
         {
@@ -173,13 +167,10 @@ async def query_inventory(  # noqa: PLR0913
             'dispname': obj[ 'dispname' ],
         }
         for obj in selected_objects ]
-    filter_metadata: dict[ str, __.typx.Any ] = { }
-    _populate_filter_metadata( filter_metadata, search_behaviors, filters )
     search_metadata: dict[ str, __.typx.Any ] = {
         'objects_count': len( selected_objects ),
         'results_max': results_max,
         'matches_total': len( filtered_objects ),
-        'filters': filter_metadata,
     }
     return {
         'project': (
@@ -222,7 +213,6 @@ async def summarize_inventory(  # noqa: PLR0913
         'objects_count':
             inventory_result[ 'search_metadata' ][ 'matches_total' ],
         'objects': objects_data,
-        'filters': inventory_result[ 'search_metadata' ][ 'filters' ],
     }
     return _format_inventory_summary( inventory_data )
 
@@ -261,13 +251,10 @@ def _construct_explore_result_structure(  # noqa: PLR0913
     filters: __.cabc.Mapping[ str, __.typx.Any ],
 ) -> dict[ str, __.typx.Any ]:
     ''' Builds the base result structure with metadata. '''
-    filter_metadata: dict[ str, __.typx.Any ] = { }
-    _populate_filter_metadata( filter_metadata, search_behaviors, filters )
     search_metadata: dict[ str, __.typx.Any ] = {
         'objects_count': len( selected_objects ),
         'results_max': results_max,
         'matches_total': inventory_data[ 'objects_count' ],
-        'filters': filter_metadata,
     }
     result: dict[ str, __.typx.Any ] = {
         'project': inventory_data[ 'project' ],
@@ -288,12 +275,9 @@ def _construct_query_result_structure(  # noqa: PLR0913
     filters: __.cabc.Mapping[ str, __.typx.Any ],
 ) -> dict[ str, __.typx.Any ]:
     ''' Builds query result structure in explore format. '''
-    filter_metadata: dict[ str, __.typx.Any ] = { }
-    _populate_filter_metadata( filter_metadata, search_behaviors, filters )
     search_metadata: dict[ str, __.typx.Any ] = {
         'results_count': len( raw_results ),
         'results_max': results_max,
-        'filters': filter_metadata,
     }
     documents: list[ dict[ str, __.typx.Any ] ] = [ ]
     for raw_result in raw_results:
@@ -373,13 +357,6 @@ def _format_inventory_summary(
         f"Version: {inventory_data[ 'version' ]}",
         f"Objects: {inventory_data[ 'objects_count' ]}",
     ]
-    if 'filters' in inventory_data:
-        filters = inventory_data[ 'filters' ]
-        filter_strings: list[ str ] = [ ]
-        for key, value in filters.items( ):
-            filter_strings.append( f"{key}={value}" )
-        if filter_strings:
-            summary_lines.append( f"Filters: {', '.join( filter_strings )}" )
     if inventory_data[ 'objects' ]:
         if isinstance( inventory_data[ 'objects' ], dict ):
             summary_lines.append( "\nBreakdown by groups:" )
@@ -454,18 +431,6 @@ def _group_documents_by_field(
         groups[ group_value ].append( inventory_obj )
     return groups
 
-
-def _populate_filter_metadata(
-    metadata: dict[ str, __.typx.Any ],
-    search_behaviors: _interfaces.SearchBehaviors,
-    filters: __.cabc.Mapping[ str, __.typx.Any ]
-) -> None:
-    ''' Populates filter metadata dictionary with non-empty filters. '''
-    metadata.update( {
-        key: value for key, value in filters.items( ) if value } )
-    metadata[ 'match_mode' ] = search_behaviors.match_mode.value
-    if search_behaviors.match_mode == _interfaces.MatchMode.Fuzzy:
-        metadata[ 'fuzzy_threshold' ] = search_behaviors.fuzzy_threshold
 
 
 def _select_top_objects(

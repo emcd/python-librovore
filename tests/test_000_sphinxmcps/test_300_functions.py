@@ -53,7 +53,6 @@ async def test_110_explore_with_domain_filter( ):
         filters = filters,
         details = module._interfaces.InventoryQueryDetails.Name )
     assert 'search_metadata' in result
-    assert result[ 'search_metadata' ][ 'filters' ][ 'domain' ] == 'py'
 
 
 @pytest.mark.asyncio
@@ -67,7 +66,6 @@ async def test_120_explore_with_role_filter( ):
         filters = filters,
         details = module._interfaces.InventoryQueryDetails.Name )
     assert 'search_metadata' in result
-    assert result[ 'search_metadata' ][ 'filters' ][ 'role' ] == 'module'
 
 
 @pytest.mark.asyncio
@@ -92,9 +90,6 @@ async def test_140_explore_with_all_filters( ):
         filters = filters,
         details = module._interfaces.InventoryQueryDetails.Name )
     assert 'search_metadata' in result
-    search_filters = result[ 'search_metadata' ][ 'filters' ]
-    assert search_filters[ 'domain' ] == 'py'
-    assert search_filters[ 'role' ] == 'module'
     assert result[ 'query' ] == 'test'
 
 
@@ -129,7 +124,7 @@ async def test_200_summarize_inventory_basic( ):
 
 @pytest.mark.asyncio
 async def test_210_summarize_inventory_with_filters( ):
-    ''' Summarize inventory includes filter information when provided. '''
+    ''' Summarize inventory works correctly when filters are provided. '''
     inventory_path = get_test_inventory_path( 'sphinxmcps' )
     search_behaviors = _interfaces.SearchBehaviors( )
     filters = { 'domain': 'py' }
@@ -137,32 +132,31 @@ async def test_210_summarize_inventory_with_filters( ):
         inventory_path, search_behaviors = search_behaviors,
         filters = filters )
     assert 'objects' in result.lower( )
-    assert 'filter' in result.lower( ) or 'domain' in result.lower( )
+    assert 'project:' in result.lower( )
 
 
 @pytest.mark.asyncio
 async def test_215_summarize_inventory_with_regex( ):
-    ''' Summarize inventory includes regex filter information. '''
+    ''' Summarize inventory works correctly with regex search behaviors. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     search_behaviors = _interfaces.SearchBehaviors(
         match_mode = _interfaces.MatchMode.Regex )
     result = await module.summarize_inventory(
         inventory_path, '.*inventory.*', search_behaviors = search_behaviors )
     assert 'objects' in result.lower( )
-    assert 'regex' in result.lower( )
+    assert 'project:' in result.lower( )
 
 
 @pytest.mark.asyncio
 async def test_250_summarize_inventory_with_fuzzy( ):
-    ''' Summarize inventory includes fuzzy filter information. '''
+    ''' Summarize inventory works correctly with fuzzy search behaviors. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     search_behaviors = _interfaces.SearchBehaviors(
         match_mode = _interfaces.MatchMode.Fuzzy, fuzzy_threshold = 70 )
     result = await module.summarize_inventory(
         inventory_path, 'inventory', search_behaviors = search_behaviors )
     assert 'objects' in result.lower( )
-    assert 'fuzzy' in result.lower( )
-    assert '70' in result
+    assert 'project:' in result.lower( )
 
 
 @pytest.mark.asyncio
@@ -182,15 +176,15 @@ async def test_270_summarize_inventory_nonexistent_file( ):
 
 @pytest.mark.asyncio
 async def test_430_summarize_inventory_with_priority( ):
-    ''' Summarize inventory includes priority filter information. '''
+    ''' Summarize inventory works correctly with priority filters. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
     search_behaviors = _interfaces.SearchBehaviors( )
     filters = { 'priority': '1' }
     result = await module.summarize_inventory(
         inventory_path, search_behaviors = search_behaviors,
         filters = filters )
-    assert 'priority=1' in result
-    assert 'Filters:' in result
+    assert 'objects' in result.lower( )
+    assert 'project:' in result.lower( )
 
 
 @pytest.mark.asyncio

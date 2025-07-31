@@ -81,8 +81,8 @@ async def test_150_summarize_inventory_wrapper_with_priority( ):
         search_behaviors = search_behaviors,
         filters = filters )
     assert isinstance( result, str )
-    assert 'priority=0' in result
-    assert 'Filters:' in result
+    assert 'objects' in result.lower( )
+    assert 'project:' in result.lower( )
 
 
 @pytest.mark.asyncio
@@ -98,8 +98,6 @@ async def test_170_explore_wrapper( ):
     assert isinstance( result, dict )
     assert 'project' in result
     assert 'search_metadata' in result
-    assert result[ 'search_metadata' ][ 'filters' ][ 'domain' ] == 'py'
-    assert result[ 'search_metadata' ][ 'filters' ][ 'role' ] == 'function'
 
 
 @pytest.mark.asyncio
@@ -130,8 +128,6 @@ async def test_190_explore_wrapper_with_fuzzy( ):
         details = module._interfaces.InventoryQueryDetails.Name )
     assert isinstance( result, dict )
     assert 'search_metadata' in result
-    assert result[ 'search_metadata' ][ 'filters' ][ 'match_mode' ] == 'fuzzy'
-    assert result[ 'search_metadata' ][ 'filters' ][ 'fuzzy_threshold' ] == 60
     assert 'documents' in result
 
 
