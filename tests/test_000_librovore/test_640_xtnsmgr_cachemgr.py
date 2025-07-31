@@ -26,7 +26,7 @@ import datetime
 import json
 import tempfile
 
-import sphinxmcps.xtnsmgr.cachemgr as module
+import librovore.xtnsmgr.cachemgr as module
 from .fixtures import get_fake_extension_url
 
 

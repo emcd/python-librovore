@@ -47,7 +47,7 @@ def fake_fs_with_inventories( fs, cached_inventories ):
 @pytest_asyncio.fixture( scope = 'session', autouse = True )
 async def load_processors( ):
     ''' Auto-load builtin processors for tests. '''
-    import sphinxmcps.processors.sphinx as _sphinx_processor
+    import librovore.processors.sphinx as _sphinx_processor
     _sphinx_processor.register( { } )
 
 

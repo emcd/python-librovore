@@ -31,9 +31,9 @@ import httpx as _httpx
 import appcore.generics as _generics
 import pytest
 
-import sphinxmcps.cacheproxy as module
-from sphinxmcps import __
-from sphinxmcps import exceptions as _exceptions
+import librovore.cacheproxy as module
+from librovore import __
+from librovore import exceptions as _exceptions
 
 
 _URL_HTTP_TEST = Url(
@@ -1541,7 +1541,7 @@ async def test_441_retrieve_robots_txt_http_error( ):
     result = await module._retrieve_robots_txt(
         'https://example.com', robots_cache, client_factory = client_factory )
     assert not __.is_absent( result )
-    assert result.can_fetch( 'sphinxmcps/1.0', '/objects.inv' )
+    assert result.can_fetch( 'librovore/1.0', '/objects.inv' )
 
 
 @pytest.mark.asyncio

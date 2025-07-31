@@ -25,9 +25,9 @@ import pytest
 from unittest.mock import patch
 from dataclasses import dataclass
 
-import sphinxmcps.detection as module
-import sphinxmcps.interfaces as _interfaces
-from sphinxmcps import __
+import librovore.detection as module
+import librovore.interfaces as _interfaces
+from librovore import __
 
 
 @dataclass( frozen = True )

@@ -9,12 +9,12 @@ from PyInstaller.utils.hooks import copy_metadata
 datas = [ ]
 # Example: datas += copy_metadata( 'readchar', recursive=True )
 
-name = os.environ.get( '_PYI_EXECUTABLE_NAME', 'sphinx-mcp-server' )
+name = os.environ.get( '_PYI_EXECUTABLE_NAME', 'librovore' )
 block_cipher = None
 
 
 a = Analysis(
-    [ 'sources/sphinxmcps/__main__.py' ],
+    [ 'sources/librovore/__main__.py' ],
     pathex = [ ],
     binaries = [ ],
     datas = [

@@ -49,7 +49,7 @@ class CacheConfiguration( __.immut.DataclassObject ):
     success_ttl: float = 300.0  # 5 minutes
     robots_ttl: float = 3600.0  # 1 hour for robots.txt
     robots_request_timeout: float = 5.0  # 5 seconds for robots.txt
-    user_agent: str = 'sphinxmcps/1.0'
+    user_agent: str = 'librovore/1.0'
 
 
 class CacheEntry( __.immut.DataclassObject ):

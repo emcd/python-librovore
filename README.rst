@@ -17,32 +17,32 @@
    +--------------------------------------------------------------------------+
 
 *******************************************************************************
-                               sphinx-mcp-server                               
+                               librovore
 *******************************************************************************
 
-.. image:: https://img.shields.io/pypi/v/sphinx-mcp-server
+.. image:: https://img.shields.io/pypi/v/librovore
    :alt: Package Version
-   :target: https://pypi.org/project/sphinx-mcp-server/
+   :target: https://pypi.org/project/librovore/
 
-.. image:: https://img.shields.io/pypi/status/sphinx-mcp-server
+.. image:: https://img.shields.io/pypi/status/librovore
    :alt: PyPI - Status
-   :target: https://pypi.org/project/sphinx-mcp-server/
+   :target: https://pypi.org/project/librovore/
 
-.. image:: https://github.com/emcd/python-sphinx-mcp-server/actions/workflows/tester.yaml/badge.svg?branch=master&event=push
+.. image:: https://github.com/emcd/python-librovore/actions/workflows/tester.yaml/badge.svg?branch=master&event=push
    :alt: Tests Status
-   :target: https://github.com/emcd/python-sphinx-mcp-server/actions/workflows/tester.yaml
+   :target: https://github.com/emcd/python-librovore/actions/workflows/tester.yaml
 
-.. image:: https://emcd.github.io/python-sphinx-mcp-server/coverage.svg
+.. image:: https://emcd.github.io/python-librovore/coverage.svg
    :alt: Code Coverage Percentage
-   :target: https://github.com/emcd/python-sphinx-mcp-server/actions/workflows/tester.yaml
+   :target: https://github.com/emcd/python-librovore/actions/workflows/tester.yaml
 
-.. image:: https://img.shields.io/github/license/emcd/python-sphinx-mcp-server
+.. image:: https://img.shields.io/github/license/emcd/python-librovore
    :alt: Project License
-   :target: https://github.com/emcd/python-sphinx-mcp-server/blob/master/LICENSE.txt
+   :target: https://github.com/emcd/python-librovore/blob/master/LICENSE.txt
 
-.. image:: https://img.shields.io/pypi/pyversions/sphinx-mcp-server
+.. image:: https://img.shields.io/pypi/pyversions/librovore
    :alt: Python Versions
-   :target: https://pypi.org/project/sphinx-mcp-server/
+   :target: https://pypi.org/project/librovore/
 
 
 .. todo:: Provide project description and key features.
@@ -55,7 +55,7 @@ Method: Download Standalone Executable
 -------------------------------------------------------------------------------
 
 Download the latest standalone executable for your platform from `GitHub
-Releases <https://github.com/emcd/python-sphinx-mcp-server/releases>`_. These
+Releases <https://github.com/emcd/python-librovore/releases>`_. These
 executables have no dependencies and work out of the box.
 
 Method: Install Executable Script
@@ -66,20 +66,20 @@ Install via the `uv <https://github.com/astral-sh/uv/blob/main/README.md>`_
 
 ::
 
-    uv tool install sphinx-mcp-server
+    uv tool install librovore
 
 or, run directly with `uvx
 <https://github.com/astral-sh/uv/blob/main/README.md>`_:
 
 ::
 
-    uvx --from sphinx-mcp-server sphinxmcps
+    uvx librovore
 
 Or, install via `pipx <https://pipx.pypa.io/stable/installation/>`_:
 
 ::
 
-    pipx install sphinx-mcp-server
+    pipx install librovore
 
 Method: Install Python Package
 -------------------------------------------------------------------------------
@@ -89,13 +89,13 @@ command:
 
 ::
 
-    uv pip install sphinx-mcp-server
+    uv pip install librovore
 
 Or, install via ``pip``:
 
 ::
 
-    pip install sphinx-mcp-server
+    pip install librovore
 
 
 .. todo:: Provide usage examples and additional content.
@@ -110,20 +110,20 @@ conduct
 for the project.
 
 Please file bug reports and feature requests in the `issue tracker
-<https://github.com/emcd/python-sphinx-mcp-server/issues>`_ or submit `pull
-requests <https://github.com/emcd/python-sphinx-mcp-server/pulls>`_ to
+<https://github.com/emcd/python-librovore/issues>`_ or submit `pull
+requests <https://github.com/emcd/python-librovore/pulls>`_ to
 improve the source code or documentation.
 
 For development guidance and standards, please see the `development guide
-<https://emcd.github.io/python-sphinx-mcp-server/stable/sphinx-html/contribution.html#development>`_.
+<https://emcd.github.io/python-librovore/stable/sphinx-html/contribution.html#development>`_.
 
 
 `More Flair <https://www.imdb.com/title/tt0151804/characters/nm0431918>`_
 ===============================================================================
 
-.. image:: https://img.shields.io/github/last-commit/emcd/python-sphinx-mcp-server
+.. image:: https://img.shields.io/github/last-commit/emcd/python-librovore
    :alt: GitHub last commit
-   :target: https://github.com/emcd/python-sphinx-mcp-server
+   :target: https://github.com/emcd/python-librovore
 
 .. image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/copier-org/copier/master/img/badge/badge-grayscale-inverted-border-orange.json
    :alt: Copier
@@ -145,40 +145,40 @@ For development guidance and standards, please see the `development guide
    :alt: Ruff
    :target: https://github.com/astral-sh/ruff
 
-.. image:: https://img.shields.io/pypi/implementation/sphinx-mcp-server
+.. image:: https://img.shields.io/pypi/implementation/librovore
    :alt: PyPI - Implementation
-   :target: https://pypi.org/project/sphinx-mcp-server/
+   :target: https://pypi.org/project/librovore/
 
-.. image:: https://img.shields.io/pypi/wheel/sphinx-mcp-server
+.. image:: https://img.shields.io/pypi/wheel/librovore
    :alt: PyPI - Wheel
-   :target: https://pypi.org/project/sphinx-mcp-server/
+   :target: https://pypi.org/project/librovore/
 
 
 Other Projects by This Author 🌟
 ===============================================================================
 
 
-* `python-absence <https://github.com/emcd/python-absence>`_ (`absence <https://pypi.org/project/absence/>`_ on PyPI) 
+* `python-absence <https://github.com/emcd/python-absence>`_ (`absence <https://pypi.org/project/absence/>`_ on PyPI)
 
   🕳️ A Python library package which provides a **sentinel for absent values** - a falsey, immutable singleton that represents the absence of a value in contexts where ``None`` or ``False`` may be valid values.
-* `python-accretive <https://github.com/emcd/python-accretive>`_ (`accretive <https://pypi.org/project/accretive/>`_ on PyPI) 
+* `python-accretive <https://github.com/emcd/python-accretive>`_ (`accretive <https://pypi.org/project/accretive/>`_ on PyPI)
 
   🌌 A Python library package which provides **accretive data structures** - collections which can grow but never shrink.
-* `python-classcore <https://github.com/emcd/python-classcore>`_ (`classcore <https://pypi.org/project/classcore/>`_ on PyPI) 
+* `python-classcore <https://github.com/emcd/python-classcore>`_ (`classcore <https://pypi.org/project/classcore/>`_ on PyPI)
 
   🏭 A Python library package which provides **foundational class factories and decorators** for providing classes with attributes immutability and concealment and other custom behaviors.
-* `python-dynadoc <https://github.com/emcd/python-dynadoc>`_ (`dynadoc <https://pypi.org/project/dynadoc/>`_ on PyPI) 
+* `python-dynadoc <https://github.com/emcd/python-dynadoc>`_ (`dynadoc <https://pypi.org/project/dynadoc/>`_ on PyPI)
 
   📝 A Python library package which bridges the gap between **rich annotations** and **automatic documentation generation** with configurable renderers and support for reusable fragments.
-* `python-falsifier <https://github.com/emcd/python-falsifier>`_ (`falsifier <https://pypi.org/project/falsifier/>`_ on PyPI) 
+* `python-falsifier <https://github.com/emcd/python-falsifier>`_ (`falsifier <https://pypi.org/project/falsifier/>`_ on PyPI)
 
   🎭 A very simple Python library package which provides a **base class for falsey objects** - objects that evaluate to ``False`` in boolean contexts.
-* `python-frigid <https://github.com/emcd/python-frigid>`_ (`frigid <https://pypi.org/project/frigid/>`_ on PyPI) 
+* `python-frigid <https://github.com/emcd/python-frigid>`_ (`frigid <https://pypi.org/project/frigid/>`_ on PyPI)
 
   🔒 A Python library package which provides **immutable data structures** - collections which cannot be modified after creation.
-* `python-icecream-truck <https://github.com/emcd/python-icecream-truck>`_ (`icecream-truck <https://pypi.org/project/icecream-truck/>`_ on PyPI) 
+* `python-icecream-truck <https://github.com/emcd/python-icecream-truck>`_ (`icecream-truck <https://pypi.org/project/icecream-truck/>`_ on PyPI)
 
   🍦 **Flavorful Debugging** - A Python library which enhances the powerful and well-known ``icecream`` package with flavored traces, configuration hierarchies, customized outputs, ready-made recipes, and more.
-* `python-mimeogram <https://github.com/emcd/python-mimeogram>`_ (`mimeogram <https://pypi.org/project/mimeogram/>`_ on PyPI) 
+* `python-mimeogram <https://github.com/emcd/python-mimeogram>`_ (`mimeogram <https://pypi.org/project/mimeogram/>`_ on PyPI)
 
   📨 A command-line tool for **exchanging collections of files with Large Language Models** - bundle multiple files into a single clipboard-ready document while preserving directory structure and metadata... good for code reviews, project sharing, and LLM interactions.

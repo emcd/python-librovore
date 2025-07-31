@@ -24,8 +24,8 @@
 import pytest
 from unittest.mock import Mock
 
-import sphinxmcps.xtnsmgr.configuration as module
-import sphinxmcps.exceptions as _exceptions
+import librovore.xtnsmgr.configuration as module
+import librovore.exceptions as _exceptions
 
 
 def test_000_validate_extension_valid_intrinsic( ):

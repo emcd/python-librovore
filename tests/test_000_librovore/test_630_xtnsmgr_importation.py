@@ -26,7 +26,7 @@ from pathlib import Path
 import sys
 import tempfile
 
-import sphinxmcps.xtnsmgr.importation as module
+import librovore.xtnsmgr.importation as module
 
 
 def test_000_new_paths_are_added_to_sys_path( ):

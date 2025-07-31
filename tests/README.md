@@ -9,14 +9,14 @@ This test suite follows the project standard numbering conventions:
 - `test_010_internals.py` - Internal utilities and common imports (renamed from test_010_base.py)
 - `test_100_exceptions.py` - Exception hierarchy and error handling (layer 0)
 - `test_200_detection.py` - Detection system and processor selection (layer 1)
-- `test_210_functions.py` - Core business logic functions (layer 1)  
+- `test_210_functions.py` - Core business logic functions (layer 1)
 - `test_300_cli.py` - Command-line interface (layer 2)
 - `test_400_server.py` - MCP server functionality (layer 3)
 - `test_500_integration.py` - Cross-module integration tests
 
 ### Extension Manager Subpackage Tests (600s)
 - `test_610_xtnsmgr_configuration.py` - Configuration validation and extraction
-- `test_620_xtnsmgr_importation.py` - Package importing and .pth file processing  
+- `test_620_xtnsmgr_importation.py` - Package importing and .pth file processing
 - `test_630_xtnsmgr_installation.py` - Package installation via uv
 - `test_640_xtnsmgr_cachemgr.py` - Cache management and coordination
 - `test_650_xtnsmgr_processors.py` - Processor extraction and registration
@@ -26,7 +26,7 @@ This test suite follows the project standard numbering conventions:
 
 ### Function Numbering within Modules
 - `000-099`: Foundational functionality
-- `100-199`: Primary feature blocks  
+- `100-199`: Primary feature blocks
 - `200-299`: Secondary feature blocks
 - `300-399`: Tertiary feature blocks
 - `400-499`: Extended feature blocks (e.g., robots.txt compliance in cacheproxy)
@@ -35,11 +35,11 @@ This test suite follows the project standard numbering conventions:
 #### Special: Detection Module Function Organization
 `test_200_detection.py` uses specialized numbering:
 - `100-199`: DetectionsCacheEntry tests
-- `200-299`: DetectionsCache tests  
+- `200-299`: DetectionsCache tests
 - `300-399`: determine_processor_optimal tests
 - `700-799`: Sphinx processor integration tests (future)
 
-#### Special: Cacheproxy Module Function Organization  
+#### Special: Cacheproxy Module Function Organization
 `test_110_cacheproxy.py` uses feature-based numbering:
 - `100-199`: ContentCache class tests
 - `200-299`: ProbeCache class tests
@@ -99,7 +99,7 @@ hatch --env develop run testers
 hatch --env develop run linters
 
 # Run specific test modules
-hatch --env develop run pytest tests/test_000_sphinxmcps/test_100_exceptions.py
+hatch --env develop run pytest tests/test_000_librovore/test_100_exceptions.py
 
 # Run slow tests (subprocess-based CLI and server tests)
 hatch --env develop run pytest -m "slow"
@@ -108,9 +108,9 @@ hatch --env develop run pytest -m "slow"
 hatch --env develop run pytest -m ""
 
 # Run tests by numbering ranges
-hatch --env develop run pytest tests/test_000_sphinxmcps/test_0*.py  # Infrastructure
-hatch --env develop run pytest tests/test_000_sphinxmcps/test_[1-4]*.py  # API layers
-hatch --env develop run pytest tests/test_000_sphinxmcps/test_5*.py  # Integration
+hatch --env develop run pytest tests/test_000_librovore/test_0*.py  # Infrastructure
+hatch --env develop run pytest tests/test_000_librovore/test_[1-4]*.py  # API layers
+hatch --env develop run pytest tests/test_000_librovore/test_5*.py  # Integration
 
 # Generate coverage reports
 hatch --env develop run coverage report --show-missing

@@ -69,7 +69,7 @@
 # @pytest.mark.asyncio
 # async def test_170_mcp_explore_tool( ):
 #     ''' MCP explore tool processes inventory files and docs. '''
-#     inventory_path = get_test_inventory_path( 'sphinxmcps' )
+#     inventory_path = get_test_inventory_path( 'librovore' )
 #     async with (
 #         mcp_test_server( ) as port,
 #         MCPTestClient( port ) as client
@@ -113,7 +113,7 @@
 # @pytest.mark.asyncio
 # async def test_200_mcp_summarize_inventory_tool( ):
 #     ''' MCP summarize_inventory tool provides human-readable summary. '''
-#     inventory_path = get_test_inventory_path( 'sphinxmcps' )
+#     inventory_path = get_test_inventory_path( 'librovore' )
 #     async with (
 #         mcp_test_server( ) as port,
 #         MCPTestClient( port ) as client
@@ -199,7 +199,7 @@
 #         response = await client.initialize( )
 #         assert response[ 'jsonrpc' ] == '2.0'
 #         assert 'result' in response
-#         inventory_path = get_test_inventory_path( 'sphinxmcps' )
+#         inventory_path = get_test_inventory_path( 'librovore' )
 #         response = await client.call_tool(
 #             'summarize_inventory', { 'source': inventory_path } )
 #         assert response[ 'jsonrpc' ] == '2.0'
@@ -217,7 +217,7 @@
 #         MCPTestClient( process ) as client
 #     ):
 #         await client.initialize( )
-#         inventory_path = get_test_inventory_path( 'sphinxmcps' )
+#         inventory_path = get_test_inventory_path( 'librovore' )
 #         response1 = await client.call_tool(
 #             'summarize_inventory', { 'source': inventory_path } )
 #         assert response1[ 'jsonrpc' ] == '2.0'
@@ -244,7 +244,7 @@
 #         MCPTestClient( port ) as client
 #     ):
 #         await client.initialize( )
-#         inventory_path = get_test_inventory_path( 'sphinxmcps' )
+#         inventory_path = get_test_inventory_path( 'librovore' )
 #         response = await client.call_tool(
 #             'summarize_inventory', { 'source': inventory_path } )
 #         assert (

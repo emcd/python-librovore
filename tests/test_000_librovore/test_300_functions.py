@@ -24,9 +24,9 @@
 import pytest
 from pathlib import Path
 
-import sphinxmcps.functions as module
-import sphinxmcps.exceptions as _exceptions
-import sphinxmcps.interfaces as _interfaces
+import librovore.functions as module
+import librovore.exceptions as _exceptions
+import librovore.interfaces as _interfaces
 
 from .fixtures import get_test_inventory_path
 
@@ -34,9 +34,9 @@ from .fixtures import get_test_inventory_path
 @pytest.mark.asyncio
 async def test_100_explore_local_file( ):
     ''' Query inventory function processes local inventory files. '''
-    inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    inventory_path = get_test_inventory_path( 'librovore' )
     result = await module.query_inventory(
-        inventory_path, "", 
+        inventory_path, "",
         details = module._interfaces.InventoryQueryDetails.Name )
     assert 'project' in result
     assert 'documents' in result
@@ -45,7 +45,7 @@ async def test_100_explore_local_file( ):
 @pytest.mark.asyncio
 async def test_110_explore_with_domain_filter( ):
     ''' Explore function applies domain filtering correctly. '''
-    inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    inventory_path = get_test_inventory_path( 'librovore' )
     search_behaviors = _interfaces.SearchBehaviors( )
     filters = { 'domain': 'py' }
     result = await module.query_inventory(
@@ -58,7 +58,7 @@ async def test_110_explore_with_domain_filter( ):
 @pytest.mark.asyncio
 async def test_120_explore_with_role_filter( ):
     ''' Explore function applies role filtering correctly. '''
-    inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    inventory_path = get_test_inventory_path( 'librovore' )
     search_behaviors = _interfaces.SearchBehaviors( )
     filters = { 'role': 'module' }
     result = await module.query_inventory(
@@ -71,9 +71,9 @@ async def test_120_explore_with_role_filter( ):
 @pytest.mark.asyncio
 async def test_130_explore_with_search_query( ):
     ''' Explore function applies search filtering correctly. '''
-    inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    inventory_path = get_test_inventory_path( 'librovore' )
     result = await module.query_inventory(
-        inventory_path, "test", 
+        inventory_path, "test",
         details = module._interfaces.InventoryQueryDetails.Name )
     assert 'search_metadata' in result
     assert result[ 'query' ] == 'test'
@@ -82,11 +82,11 @@ async def test_130_explore_with_search_query( ):
 @pytest.mark.asyncio
 async def test_140_explore_with_all_filters( ):
     ''' Explore function applies multiple filters correctly. '''
-    inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    inventory_path = get_test_inventory_path( 'librovore' )
     search_behaviors = _interfaces.SearchBehaviors( )
     filters = { 'domain': 'py', 'role': 'module' }
     result = await module.query_inventory(
-        inventory_path, "test", search_behaviors = search_behaviors, 
+        inventory_path, "test", search_behaviors = search_behaviors,
         filters = filters,
         details = module._interfaces.InventoryQueryDetails.Name )
     assert 'search_metadata' in result
@@ -98,17 +98,17 @@ async def test_150_explore_nonexistent_file( ):
     ''' Explore function raises appropriate exception for missing files. '''
     with pytest.raises( _exceptions.ProcessorInavailability ):
         await module.query_inventory(
-            "/nonexistent/path.inv", "", 
+            "/nonexistent/path.inv", "",
             details = module._interfaces.InventoryQueryDetails.Name )
 
 
 @pytest.mark.asyncio
 async def test_160_explore_auto_append_objects_inv( ):
     ''' Explore function auto-appends objects.inv to URLs/paths. '''
-    real_inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    real_inventory_path = get_test_inventory_path( 'librovore' )
     inventory_dir = str( Path( real_inventory_path ).parent )
     result = await module.query_inventory(
-        inventory_dir, "", 
+        inventory_dir, "",
         details = module._interfaces.InventoryQueryDetails.Name )
     assert 'project' in result
     assert 'documents' in result
@@ -117,7 +117,7 @@ async def test_160_explore_auto_append_objects_inv( ):
 @pytest.mark.asyncio
 async def test_200_summarize_inventory_basic( ):
     ''' Summarize inventory provides human-readable summary. '''
-    inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    inventory_path = get_test_inventory_path( 'librovore' )
     result = await module.summarize_inventory( inventory_path )
     assert 'objects' in result.lower( )
 
@@ -125,7 +125,7 @@ async def test_200_summarize_inventory_basic( ):
 @pytest.mark.asyncio
 async def test_210_summarize_inventory_with_filters( ):
     ''' Summarize inventory works correctly when filters are provided. '''
-    inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    inventory_path = get_test_inventory_path( 'librovore' )
     search_behaviors = _interfaces.SearchBehaviors( )
     filters = { 'domain': 'py' }
     result = await module.summarize_inventory(
@@ -254,7 +254,7 @@ async def test_530_query_documentation_with_priority_filter( ):
 async def test_540_query_documentation_with_exact_match( ):
     ''' Query documentation uses exact matching when specified. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    search_behaviors = _interfaces.SearchBehaviors( 
+    search_behaviors = _interfaces.SearchBehaviors(
         match_mode = _interfaces.MatchMode.Exact )
     filters = { }
     result = await module.query_content(
@@ -270,7 +270,7 @@ async def test_540_query_documentation_with_exact_match( ):
 async def test_550_query_documentation_with_regex_match( ):
     ''' Query documentation uses regex matching when specified. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    search_behaviors = _interfaces.SearchBehaviors( 
+    search_behaviors = _interfaces.SearchBehaviors(
         match_mode = _interfaces.MatchMode.Regex )
     filters = { }
     result = await module.query_content(
@@ -286,7 +286,7 @@ async def test_550_query_documentation_with_regex_match( ):
 async def test_560_query_documentation_with_fuzzy_match( ):
     ''' Query documentation uses fuzzy matching when specified. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    search_behaviors = _interfaces.SearchBehaviors( 
+    search_behaviors = _interfaces.SearchBehaviors(
         match_mode = _interfaces.MatchMode.Fuzzy, fuzzy_threshold = 60 )
     filters = { }
     result = await module.query_content(
@@ -352,9 +352,9 @@ async def test_600_query_documentation_relevance_ranking( ):
 async def test_610_query_documentation_combined_filters( ):
     ''' Query documentation applies multiple filters correctly. '''
     inventory_path = get_test_inventory_path( 'sphobjinv' )
-    search_behaviors = _interfaces.SearchBehaviors( 
+    search_behaviors = _interfaces.SearchBehaviors(
         match_mode = _interfaces.MatchMode.Fuzzy, fuzzy_threshold = 70 )
-    filters = { 
+    filters = {
         'domain': 'py', 'role': 'function', 'priority': '1' }
     result = await module.query_content(
         inventory_path, 'inventory', search_behaviors = search_behaviors,

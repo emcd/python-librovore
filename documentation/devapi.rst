@@ -25,19 +25,19 @@ Internal Development Interface
 *******************************************************************************
 
 
-Package ``sphinxmcps.__``
+Package ``librovore.__``
 ===============================================================================
 
-.. automodule:: sphinxmcps.__
+.. automodule:: librovore.__
 
 
-Module ``sphinxmcps.__.imports``
+Module ``librovore.__.imports``
 -------------------------------------------------------------------------------
 
-.. automodule:: sphinxmcps.__.imports
+.. automodule:: librovore.__.imports
 
 
-Module ``sphinxmcps.__.nomina``
+Module ``librovore.__.nomina``
 -------------------------------------------------------------------------------
 
-.. automodule:: sphinxmcps.__.nomina
+.. automodule:: librovore.__.nomina

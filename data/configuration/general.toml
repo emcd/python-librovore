@@ -15,7 +15,7 @@ enabled = true
 # Example: OpenAPI/Swagger documentation processor
 # [[extensions]]
 # name = "openapi"
-# package = "sphinxmcps-openapi>=1.0"  # PEP 440 version specification
+# package = "librovore-openapi>=1.0"  # PEP 440 version specification
 # enabled = true
 # [extensions.arguments]
 # timeout = 60
@@ -25,7 +25,7 @@ enabled = true
 # Example: GitHub-hosted custom processor
 # [[extensions]]
 # name = "custom"
-# package = "git+https://github.com/user/sphinxmcps-plugin.git@main"  # PEP 508 URL
+# package = "git+https://github.com/user/librovore-plugin.git@main"  # PEP 508 URL
 # enabled = false
 # [extensions.arguments]
 # custom-argument = "value"
@@ -42,7 +42,7 @@ enabled = true
 # Example: PyPI package with specific version constraints
 # [[extensions]]
 # name = "mkdocs"
-# package = "sphinxmcps-mkdocs~=2.1"  # Compatible release
+# package = "librovore-mkdocs~=2.1"  # Compatible release
 # enabled = false
 # [extensions.arguments]
 # theme = "material"

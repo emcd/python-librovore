@@ -18,23 +18,14 @@
 #============================================================================#
 
 
-''' Extension package installation tests. '''
+''' Sphinx processor implementation tests using dependency injection. '''
 
 
-
-import sphinxmcps.xtnsmgr.installation as module
-
-from .fixtures import get_fake_extension_url
+import librovore.processors.sphinx.urls as module
 
 
-
-def test_100_module_imports_correctly( ):
-    ''' Installation module imports without errors. '''
-    assert hasattr( module, 'install_package' )
-
-
-def test_110_fake_extension_url_format( ):
-    ''' Fake extension URL has correct file:// format. '''
-    fake_url = get_fake_extension_url( )
-    assert fake_url.startswith( 'file://' )
-    assert 'fake-extension' in fake_url
+def test_100__normalize_base_url_basic_path( ):
+    ''' Base URL normalization works correctly for file paths. '''
+    test_path = '/home/user/test.inv'
+    result = module.normalize_base_url( test_path )
+    assert result.geturl( ) == 'file:///home/user'

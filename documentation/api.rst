@@ -25,55 +25,55 @@ API
 *******************************************************************************
 
 
-Package ``sphinxmcps``
+Package ``librovore``
 ===============================================================================
 
-.. automodule:: sphinxmcps
+.. automodule:: librovore
 
 
-Module ``sphinxmcps.interfaces``
+Module ``librovore.interfaces``
 -------------------------------------------------------------------------------
 
-.. automodule:: sphinxmcps.interfaces
+.. automodule:: librovore.interfaces
 
 
-Module ``sphinxmcps.cacheproxy``
+Module ``librovore.cacheproxy``
 -------------------------------------------------------------------------------
 
-.. automodule:: sphinxmcps.cacheproxy
+.. automodule:: librovore.cacheproxy
 
 
-Module ``sphinxmcps.detection``
+Module ``librovore.detection``
 -------------------------------------------------------------------------------
 
-.. automodule:: sphinxmcps.detection
+.. automodule:: librovore.detection
 
 
-Module ``sphinxmcps.functions``
+Module ``librovore.functions``
 -------------------------------------------------------------------------------
 
-.. automodule:: sphinxmcps.functions
+.. automodule:: librovore.functions
 
 
-Module ``sphinxmcps.search``
+Module ``librovore.search``
 -------------------------------------------------------------------------------
 
-.. automodule:: sphinxmcps.search
+.. automodule:: librovore.search
 
 
-Module ``sphinxmcps.cli``
+Module ``librovore.cli``
 -------------------------------------------------------------------------------
 
-.. automodule:: sphinxmcps.cli
+.. automodule:: librovore.cli
 
 
-Module ``sphinxmcps.server``
+Module ``librovore.server``
 -------------------------------------------------------------------------------
 
-.. automodule:: sphinxmcps.server
+.. automodule:: librovore.server
 
 
-Module ``sphinxmcps.exceptions``
+Module ``librovore.exceptions``
 -------------------------------------------------------------------------------
 
-.. automodule:: sphinxmcps.exceptions
+.. automodule:: librovore.exceptions

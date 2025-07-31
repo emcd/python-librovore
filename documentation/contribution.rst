@@ -34,11 +34,11 @@ Ways to Contribute
 ===============================================================================
 
 * File bug reports and feature requests in the `issue tracker
-  <https://github.com/emcd/python-sphinx-mcp-server/issues>`_. (Please try
+  <https://github.com/emcd/python-librovore/issues>`_. (Please try
   to avoid duplicate issues.)
 
 * Fork the repository and submit `pull requests
-  <https://github.com/emcd/python-sphinx-mcp-server/pulls>`_ to improve the
+  <https://github.com/emcd/python-librovore/pulls>`_ to improve the
   source code or documentation. Pull requests should follow the development
   guidance and standards below.
 

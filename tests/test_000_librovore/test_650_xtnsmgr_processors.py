@@ -23,7 +23,7 @@
 
 import pytest
 
-import sphinxmcps.xtnsmgr.processors as module
+import librovore.xtnsmgr.processors as module
 
 from .fixtures import get_fake_extension_url, get_broken_extension_url
 

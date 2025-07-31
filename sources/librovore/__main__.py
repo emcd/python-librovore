@@ -22,7 +22,7 @@
 
 
 # Note: Use absolute import for PyInstaller happiness.
-from sphinxmcps.cli import execute
+from librovore.cli import execute
 
 
 if '__main__' == __name__: execute( )

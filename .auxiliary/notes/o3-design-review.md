@@ -14,7 +14,7 @@ A **Model Context Protocol (MCP) server** that lets clients (LLMs, tools, humans
 ### High‑level architecture
 
 ```
-sphinxmcps/
+librovore/
 ├─ __/                         # Common imports, logging, CLI display, doctext
 ├─ exceptions.py               # Domain exception types
 ├─ interfaces.py               # Public Processor / Detection interfaces + Filters

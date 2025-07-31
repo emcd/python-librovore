@@ -3,9 +3,9 @@ _commit: v1.33
 _src_path: gh:emcd/python-project-common
 author_email: emcd@users.noreply.github.com
 author_name: Eric McDonald
-description: Model Context Protocol (MCP) server for Sphinx documentation.
+description: 🐲📚 Librovore - The all-consuming documentation devourer that speaks MCP.
 development_status: 4 - Beta
-distribution_name: sphinx-mcp-server
+distribution_name: librovore
 enable_cli: true
 enable_executables: true
 enable_property_tests: false
@@ -15,8 +15,8 @@ gh_owner: emcd
 include_data_resources: true
 inject_exceptions: true
 inject_foundations: true
-package_name: sphinxmcps
-project_name: python-sphinx-mcp-server
+package_name: librovore
+project_name: python-librovore
 pypy_versions:
 - '3.10'
 python_version_min: '3.10'

@@ -35,7 +35,7 @@
         "--",
         "hatch",
         "run",
-        "sphinxmcps",
+        "librovore",
         "--logfile",
         ".auxiliary/inscriptions/server.txt",
         "serve"

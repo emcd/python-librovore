@@ -25,7 +25,7 @@ import pytest
 from unittest.mock import Mock, AsyncMock
 from io import StringIO
 
-import sphinxmcps.cli as module
+import librovore.cli as module
 
 # from .fixtures import run_cli_command, get_test_inventory_path
 from .fixtures import get_test_inventory_path
@@ -51,7 +51,7 @@ async def test_030_summarize_inventory_command_unit( ):
     ''' SummarizeInventoryCommand processes arguments correctly. '''
     display = MockConsoleDisplay( )
     auxdata = create_test_auxdata( )
-    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    test_inventory_path = get_test_inventory_path( 'librovore' )
     search_behaviors = module._interfaces.SearchBehaviors( )
     filters = { 'domain': 'py' }
     cmd = module.SummarizeInventoryCommand(
@@ -69,7 +69,7 @@ async def test_040_summarize_inventory_command_no_filters( ):
     ''' SummarizeInventoryCommand works without filters. '''
     display = MockConsoleDisplay( )
     auxdata = create_test_auxdata( )
-    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    test_inventory_path = get_test_inventory_path( 'librovore' )
     cmd = module.SummarizeInventoryCommand( source = test_inventory_path )
     await cmd( auxdata, display )
     output = display.stream.getvalue( )
@@ -81,7 +81,7 @@ async def test_060_use_command_summarize_delegation( ):
     ''' UseCommand delegates to SummarizeInventoryCommand correctly. '''
     display = MockConsoleDisplay( )
     auxdata = create_test_auxdata( )
-    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    test_inventory_path = get_test_inventory_path( 'librovore' )
     search_behaviors = module._interfaces.SearchBehaviors( )
     filters = { 'domain': 'py' }
     summarize_cmd = module.SummarizeInventoryCommand(
@@ -148,7 +148,7 @@ def test_100_cli_prepare_invocation_args_no_logfile( ):
 # @pytest.mark.asyncio
 # async def test_500_cli_explore_local_file( ):
 #     ''' CLI explore processes local files. '''
-#     inventory_path = get_test_inventory_path( 'sphinxmcps' )
+#     inventory_path = get_test_inventory_path( 'librovore' )
 #     result = await run_cli_command( [
 #         'use', 'query-inventory', '--source', inventory_path,
 #         '--query', 'test', '--details', 'Name' ] )
@@ -161,7 +161,7 @@ def test_100_cli_prepare_invocation_args_no_logfile( ):
 # @pytest.mark.asyncio
 # async def test_600_cli_summarize_inventory_local_file( ):
 #     ''' CLI summarize-inventory processes local files. '''
-#     inventory_path = get_test_inventory_path( 'sphinxmcps' )
+#     inventory_path = get_test_inventory_path( 'librovore' )
 #     result = await run_cli_command( [
 #         'use', 'summarize-inventory', '--source', inventory_path
 #     ] )
@@ -220,7 +220,7 @@ def test_100_cli_prepare_invocation_args_no_logfile( ):
 #     ''' CLI main command shows help information. '''
 #     result = await run_cli_command( [ '--help' ] )
 #     assert result.returncode == 0
-#     assert 'sphinxmcps' in result.stdout.lower( )
+#     assert 'librovore' in result.stdout.lower( )
 #     assert 'command' in result.stdout.lower( )
 
 

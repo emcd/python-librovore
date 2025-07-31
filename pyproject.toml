@@ -8,7 +8,7 @@ requires = [
 build-backend = 'hatchling.build'
 
 [project]
-name = 'sphinx-mcp-server'
+name = 'librovore'
 description = 'Model Context Protocol (MCP) server for Sphinx documentation.'
 dynamic = [ 'version' ]
 license = 'Apache-2.0'
@@ -54,13 +54,13 @@ keywords = [ 'mcp', 'model context protocol', 'sphinx', 'search', 'documentation
 name = 'Eric McDonald'
 email = 'emcd@users.noreply.github.com'
 [project.scripts]
-sphinxmcps = 'sphinxmcps:main'
+librovore = 'librovore:main'
 [project.urls]
-'Homepage' = 'https://github.com/emcd/python-sphinx-mcp-server'
-'Documentation' = 'https://emcd.github.io/python-sphinx-mcp-server'
-'Download' = 'https://pypi.org/project/sphinx-mcp-server/#files'
-'Source Code' = 'https://github.com/emcd/python-sphinx-mcp-server'
-'Issue Tracker' = 'https://github.com/emcd/python-sphinx-mcp-server/issues'
+'Homepage' = 'https://github.com/emcd/python-librovore'
+'Documentation' = 'https://emcd.github.io/python-librovore'
+'Download' = 'https://pypi.org/project/librovore/#files'
+'Source Code' = 'https://github.com/emcd/python-librovore'
+'Issue Tracker' = 'https://github.com/emcd/python-librovore/issues'
 
 [tool.SELF]
 year-of-origin = 2025
@@ -68,10 +68,10 @@ year-of-origin = 2025
 # https://coverage.readthedocs.io/en/latest/config.html
 [tool.coverage.paths]
 gha-runners = [
-  '/home/runner/work/python-sphinx-mcp-server/python-sphinx-mcp-server/',
-  '/Users/runner/work/python-sphinx-mcp-server/python-sphinx-mcp-server/',
-  'C:\a\python-sphinx-mcp-server\python-sphinx-mcp-server\',
-  'D:\a\python-sphinx-mcp-server\python-sphinx-mcp-server\',
+  '/home/runner/work/python-librovore/python-librovore/',
+  '/Users/runner/work/python-librovore/python-librovore/',
+  'C:\a\python-librovore\python-librovore\',
+  'D:\a\python-librovore\python-librovore\',
 ]
 [tool.coverage.run]
 branch = true
@@ -89,7 +89,7 @@ output = '.auxiliary/artifacts/coverage-pytest/coverage.xml'
 directory = '.auxiliary/artifacts/hatch-build'
 [tool.hatch.build.targets.sdist]
 only-include = [
-  'sources/sphinxmcps',
+  'sources/librovore',
   # --- BEGIN: Injected by Copier ---
   'data',
   # --- END: Injected by Copier ---
@@ -97,16 +97,16 @@ only-include = [
 strict-naming = false
 [tool.hatch.build.targets.wheel]
 only-include = [
-  'sources/sphinxmcps',
+  'sources/librovore',
   # --- BEGIN: Injected by Copier ---
   'data',
   # --- END: Injected by Copier ---
 ]
 strict-naming = false
 [tool.hatch.build.targets.wheel.sources]
-'sources/sphinxmcps' = 'sphinxmcps'
+'sources/librovore' = 'librovore'
 # --- BEGIN: Injected by Copier ---
-'data' = 'sphinxmcps/data'
+'data' = 'librovore/data'
 # --- END: Injected by Copier ---
 [tool.hatch.envs.default]
 python = '3.10'
@@ -209,7 +209,7 @@ python = [
     'pypy3.10',
 ]
 [tool.hatch.version]
-path = 'sources/sphinxmcps/__init__.py'
+path = 'sources/librovore/__init__.py'
 
 # https://mypy.readthedocs.io/en/stable/config_file.html
 [tool.mypy]
@@ -251,7 +251,7 @@ reportUnusedExpression = true
 reportUnusedImport = false            # Covered by other linters.
 reportUnusedVariable = false          # Covered by other linters.
 #strict = [ 'sources' ]
-stubPath = 'sources/sphinxmcps/_typedecls'
+stubPath = 'sources/librovore/_typedecls'
 
 [tool.pytest.ini_options]
 # Note: Cannot run doctests from Pytest, because Pytest tries to update '_'
@@ -337,7 +337,7 @@ max-statements = 30
 [tool.towncrier]
 directory = '.auxiliary/data/towncrier'
 filename = 'documentation/changelog.rst'
-package = 'sphinxmcps'
+package = 'librovore'
 package_dir = 'sources'
 [[tool.towncrier.type]]
 # features and other improvements

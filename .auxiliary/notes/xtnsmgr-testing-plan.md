@@ -12,7 +12,7 @@ tests/fixtures/fake-extension/
 ├── pyproject.toml              # Minimal package metadata
 ├── fake_extension/
 │   ├── __init__.py
-│   ├── processor.py            # Main processor implementation  
+│   ├── processor.py            # Main processor implementation
 │   └── data.pth               # Test .pth file processing
 └── README.md                  # Package documentation
 ```
@@ -34,7 +34,7 @@ tests/fixtures/fake-extension/
 
 ### Test File Structure
 ```
-tests/test_000_sphinxmcps/
+tests/test_000_librovore/
 ├── test_610_configuration.py   # Extension config validation
 ├── test_620_installation.py    # Package installation testing
 ├── test_630_importation.py     # Import path and .pth processing
@@ -242,7 +242,7 @@ def test_cache_expiration(mock_datetime):
   - Created `tests/fixtures/fake-extension/` with working package structure
   - Created `tests/fixtures/broken-extension/` for error testing
 - ✓ Set up test directories and isolation utilities
-  - Added `tests/test_000_sphinxmcps/test_utils.py` with helper functions
+  - Added `tests/test_000_librovore/test_utils.py` with helper functions
   - Added numbered test files: `test_610_configuration.py`, `test_620_installation.py`
 - ✓ Implement basic test utilities and mock frameworks
   - Added URL helpers for fake packages

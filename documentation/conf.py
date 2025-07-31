@@ -26,14 +26,14 @@ def _import_version( ):
     from sys import path
     project_location = Path( __file__ ).parent.parent
     path.insert( 0, str( project_location / 'sources' ) )
-    module = import_module( 'sphinxmcps' )
+    module = import_module( 'librovore' )
     return module.__version__
 
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'python-sphinx-mcp-server'
+project = 'python-librovore'
 author = 'Eric McDonald'
 copyright = ( # noqa: A001
     _calculate_copyright_notice( ) )
@@ -86,14 +86,14 @@ nitpick_ignore = [
 
 linkcheck_ignore = [
     # Circular dependency between building HTML and publishing it.
-    r'https://emcd\.github\.io/python-sphinx-mcp-server/.*',
+    r'https://emcd\.github\.io/python-librovore/.*',
     # Stack Overflow rate limits too aggressively, which breaks matrix builds.
     r'https://stackoverflow\.com/help/.*',
     # Repository does not exist during initial development.
-    r'https://github\.com/emcd/python-sphinx-mcp-server',
-    r'https://github\.com/emcd/python-sphinx-mcp-server/.*',
+    r'https://github\.com/emcd/python-librovore',
+    r'https://github\.com/emcd/python-librovore/.*',
     # Package does not exist during initial development.
-    r'https://pypi.org/project/sphinxmcps/',
+    r'https://pypi.org/project/librovore/',
     # Github aggressively rate-limits access to certain blobs.
     r'https://github\.com/.*/.*/blob/.*',
 ]

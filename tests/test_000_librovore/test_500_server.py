@@ -24,8 +24,8 @@
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 
-import sphinxmcps.server as module
-import sphinxmcps.interfaces as _interfaces
+import librovore.server as module
+import librovore.interfaces as _interfaces
 
 from .fixtures import get_test_inventory_path
 
@@ -33,7 +33,7 @@ from .fixtures import get_test_inventory_path
 @pytest.mark.asyncio
 async def test_100_summarize_inventory_wrapper( ):
     ''' Server summarize_inventory delegates to functions correctly. '''
-    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    test_inventory_path = get_test_inventory_path( 'librovore' )
     search_behaviors = module._interfaces.SearchBehaviors( )
     filters = module.FiltersMutable( { 'domain': 'py' } )
     result = await module.summarize_inventory(
@@ -48,7 +48,7 @@ async def test_100_summarize_inventory_wrapper( ):
 @pytest.mark.asyncio
 async def test_110_summarize_inventory_wrapper_no_filters( ):
     ''' Server summarize_inventory works without filters. '''
-    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    test_inventory_path = get_test_inventory_path( 'librovore' )
     result = await module.summarize_inventory( source = test_inventory_path )
     assert isinstance( result, str )
     assert 'Project:' in result
@@ -57,7 +57,7 @@ async def test_110_summarize_inventory_wrapper_no_filters( ):
 @pytest.mark.asyncio
 async def test_120_summarize_inventory_wrapper_with_regex( ):
     ''' Server summarize_inventory handles match_mode parameter correctly. '''
-    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    test_inventory_path = get_test_inventory_path( 'librovore' )
     search_behaviors = module.SearchBehaviorsMutable(
         match_mode = _interfaces.MatchMode.Regex )
     filters = module.FiltersMutable( )
@@ -88,7 +88,7 @@ async def test_150_summarize_inventory_wrapper_with_priority( ):
 @pytest.mark.asyncio
 async def test_170_explore_wrapper( ):
     ''' Server explore delegates to functions correctly. '''
-    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    test_inventory_path = get_test_inventory_path( 'librovore' )
     search_behaviors = module._interfaces.SearchBehaviors( )
     filters = module.FiltersMutable( { 'domain': 'py', 'role': 'function' } )
     result = await module.query_inventory(
@@ -103,9 +103,9 @@ async def test_170_explore_wrapper( ):
 @pytest.mark.asyncio
 async def test_180_explore_wrapper_no_filters( ):
     ''' Server explore works without filters. '''
-    test_inventory_path = get_test_inventory_path( 'sphinxmcps' )
+    test_inventory_path = get_test_inventory_path( 'librovore' )
     result = await module.query_inventory(
-        source = test_inventory_path, query = 'test', 
+        source = test_inventory_path, query = 'test',
         details = module._interfaces.InventoryQueryDetails.Name )
     assert isinstance( result, dict )
     assert 'project' in result

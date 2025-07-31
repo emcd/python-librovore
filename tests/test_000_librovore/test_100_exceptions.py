@@ -23,7 +23,7 @@
 
 
 # from . import PACKAGE_NAME, cache_import_module
-import sphinxmcps.exceptions as module
+import librovore.exceptions as module
 
 
 def test_000_exception_hierarchy_inheritance( ):

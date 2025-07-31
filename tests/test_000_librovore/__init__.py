@@ -29,7 +29,7 @@ import types
 from pathlib import Path
 
 
-PACKAGE_NAME = 'sphinxmcps'
+PACKAGE_NAME = 'librovore'
 PACKAGES_NAMES = ( PACKAGE_NAME, )
 
 

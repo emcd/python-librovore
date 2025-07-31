@@ -106,7 +106,7 @@ class MCPTestClient:
 async def mcp_test_server( ):
     ''' Context manager for MCP server with dependency injection. '''
     process = await asyncio.create_subprocess_exec(
-        sys.executable, '-m', 'sphinxmcps', 'serve',
+        sys.executable, '-m', 'librovore', 'serve',
         stdin = asyncio.subprocess.PIPE,
         stdout = asyncio.subprocess.PIPE,
         stderr = asyncio.subprocess.PIPE,
@@ -157,7 +157,7 @@ async def cleanup_server_process( process ):
             pass  # Ignore expected pipe cleanup errors
 
 
-def get_test_inventory_path( site_name: str = 'sphinxmcps' ) -> str:
+def get_test_inventory_path( site_name: str = 'librovore' ) -> str:
     ''' Gets path to test inventory file. '''
     test_dir = Path( __file__ ).parent.parent
     inventory_path = (
@@ -180,7 +180,7 @@ class MockCompletedProcess:
 async def run_cli_command( args: list[ str ] ):
     ''' Runs CLI command and return result using dependency injection. '''
     process = await asyncio.create_subprocess_exec(
-        sys.executable, '-m', 'sphinxmcps', *args,
+        sys.executable, '-m', 'librovore', *args,
         stdout = asyncio.subprocess.PIPE,
         stderr = asyncio.subprocess.PIPE )
     stdout, stderr = await process.communicate( )

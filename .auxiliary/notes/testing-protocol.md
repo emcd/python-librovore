@@ -15,13 +15,13 @@ Configure `.auxiliary/configuration/mcp-servers.json`:
 ```json
 {
   "mcpServers": {
-    "sphinx": {
+    "librovore": {
       "command": "reloaderoo",
       "args": [
         "--",
         "hatch",
         "run",
-        "sphinxmcps",
+        "librovore",
         "--logfile",
         ".auxiliary/inscriptions/server.txt",
         "serve"
@@ -34,7 +34,7 @@ Configure `.auxiliary/configuration/mcp-servers.json`:
 ### Hot-Reload Workflow
 
 1. **Start Claude Code** with the reloaderoo configuration
-2. **Make code changes** to the server implementation  
+2. **Make code changes** to the server implementation
 3. **Use the `restart_server` tool** to reload changes:
    - "Please restart the server to pick up my code changes"
    - Claude Code will call the `restart_server` tool automatically
@@ -43,7 +43,7 @@ Configure `.auxiliary/configuration/mcp-servers.json`:
 ### Key Advantages
 
 - ✅ **Session continuity preserved** - No broken MCP protocol handshakes
-- ✅ **Manual control** - Restart exactly when needed, not on every file change  
+- ✅ **Manual control** - Restart exactly when needed, not on every file change
 - ✅ **Transparent proxying** - No complex TCP bridging or external tools
 - ✅ **Immediate testing** - Tools work immediately after restart
 - ✅ **Simple architecture** - No custom subprocess management
@@ -58,11 +58,11 @@ tail -f .auxiliary/inscriptions/server.txt
 
 Typical log entries show:
 ```text
-sphinxmcps.server: Initializing FastMCP server
-sphinxmcps.server: Registering extract_inventory tool
-sphinxmcps.server: Registering summarize_inventory tool
+librovore.server: Initializing FastMCP server
+librovore.server: Registering extract_inventory tool
+librovore.server: Registering summarize_inventory tool
 mcp.server.lowlevel.server: Processing request of type CallToolRequest
-sphinxmcps.server: extract_inventory called: source=..., domain=..., role=..., term=...
+librovore.server: extract_inventory called: source=..., domain=..., role=..., term=...
 ```
 
 ## Testing Guidelines
@@ -100,7 +100,7 @@ The `regex=true` parameter enables powerful pattern-based filtering:
 
 ### Basic Patterns
 - **Contains**: `term=".*inventory.*", regex=true` - Objects containing "inventory"
-- **Prefix**: `term="^extract", regex=true` - Objects starting with "extract"  
+- **Prefix**: `term="^extract", regex=true` - Objects starting with "extract"
 - **Suffix**: `term=".*_file$", regex=true` - Objects ending with "_file"
 
 ### Advanced Patterns
@@ -136,10 +136,10 @@ For standalone testing without Claude Code, the server can be run directly:
 
 ```bash
 # Standard stdio mode
-hatch run sphinxmcps serve
+hatch run librovore serve
 
-# SSE mode on custom port  
-hatch run sphinxmcps serve --transport sse --port 8000
+# SSE mode on custom port
+hatch run librovore serve --transport sse --port 8000
 ```
 
 However, the reloaderoo + Claude Code approach is preferred for development iteration.
