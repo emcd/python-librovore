@@ -68,47 +68,12 @@ sources/librovore/
 ```
 
 ### Implementation Pattern
-```python
-# structures/mkdocs/detection.py
-class MkDocsDetection(__.Detection):
-    def __init__(self, processor, confidence, source, **kwargs):
-        super().__init__(processor=processor, confidence=confidence)
-        self.source = source
-        # Inventory processor attached to detection (where the work happens)
-        self.inventory_processor = SphinxInventoryProcessor()
-        # Structure-specific attributes
-        self.has_mkdocs_search = kwargs.get('has_mkdocs_search', False)
-        self.mkdocs_theme = kwargs.get('mkdocs_theme')
-    
-    async def filter_inventory(self, source, *, filters, details):
-        # Delegate to inventory processor
-        return await self.inventory_processor.filter_inventory(
-            source, filters=filters, details=details)
-    
-    async def extract_contents(self, source, objects, *, include_snippets):
-        # Use MkDocs structure knowledge + inventory data
-        return await self._extract_mkdocs_content(
-            source, objects, include_snippets=include_snippets)
 
-# structures/mkdocs/main.py  
-class MkDocsProcessor(__.Processor):
-    name: str = 'mkdocs'
-    
-    async def detect(self, source: str) -> MkDocsDetection:
-        # Detection logic - processor only does detection
-        has_inventory = await self._check_inventory(source)
-        has_mkdocs = await self._check_mkdocs_features(source)
-        
-        if has_inventory and has_mkdocs:
-            return MkDocsDetection(
-                processor=self, 
-                confidence=0.9,
-                source=source,
-                has_mkdocs_search=True,
-                mkdocs_theme=detected_theme
-            )
-        # ... more detection logic
-```
+**Key Architectural Decisions**:
+- **MkDocsDetection**: Composes inventory processor with MkDocs-specific structure knowledge
+- **MkDocsProcessor**: Focuses solely on detection logic, returns MkDocsDetection instances
+- **Inventory delegation**: Detection objects delegate inventory operations to shared inventory processors
+- **Structure integration**: Detection objects combine inventory data with MkDocs-specific content extraction
 
 ## Benefits of This Architecture
 
@@ -228,22 +193,14 @@ structures/              # RENAMED from processors/
 ## Technical Considerations
 
 ### Detection Priority Logic
-```python
-async def determine_optimal_processor(source):
-    # Priority: Most specific features -> General
-    processors_to_try = [
-        ('mkdocs', MkDocsProcessor),      # MkDocs features + inventory
-        ('sphinx', SphinxProcessor),      # Sphinx features + inventory  
-        # Future: ('content', ContentProcessor),   # Content-only fallback
-    ]
-    
-    for name, processor_class in processors_to_try:
-        detection = await processor_class().detect(source) 
-        if detection.confidence >= 0.7:
-            return detection
-    
-    return None  # No suitable processor found
-```
+
+**Priority Strategy**: Most specific features to general capabilities
+1. **MkDocs Processor**: Detects MkDocs features + inventory combination
+2. **Sphinx Processor**: Detects Sphinx features + inventory  
+3. **Future**: Content-only fallback processors for sites without structured inventories
+
+**Confidence Thresholds**: Processors with confidence ≥ 0.7 are considered viable
+**Fallback Behavior**: If no processor meets confidence threshold, return no detection
 
 ### Backward Compatibility
 - Existing Sphinx processor functionality preserved during refactoring
