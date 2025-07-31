@@ -67,6 +67,7 @@ _search_behaviors_default = SearchBehaviorsMutable( )
 _scribe = __.acquire_scribe( __name__ )
 
 
+@__.ddoc.exclude
 async def detect(
     source: SourceArgument,
     processor_name: __.typx.Annotated[
@@ -86,6 +87,7 @@ async def detect(
         return _exception_to_error_response( exc )
 
 
+@__.ddoc.exclude
 async def query_inventory(  # noqa: PLR0913
     source: SourceArgument,
     query: Query,
@@ -123,6 +125,7 @@ async def query_inventory(  # noqa: PLR0913
         return _exception_to_error_response( exc )
 
 
+@__.ddoc.exclude
 async def query_content(  # noqa: PLR0913
     source: SourceArgument,
     query: Query,
@@ -156,6 +159,7 @@ async def query_content(  # noqa: PLR0913
         return _exception_to_error_response( exc )
 
 
+@__.ddoc.exclude
 async def summarize_inventory(
     source: SourceArgument,
     search_behaviors: __.typx.Annotated[
@@ -187,6 +191,7 @@ async def summarize_inventory(
             f"{error_response['suggestion']}" )
 
 
+@__.ddoc.exclude
 async def survey_processors(
     name: __.typx.Annotated[
         __.typx.Optional[ str ],
