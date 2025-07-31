@@ -74,6 +74,19 @@ class ProcessorCapabilities( __.immut.DataclassObject ):
     notes: __.typx.Optional[ str ] = None
 
 
+class InventoryProcessor( __.immut.DataclassProtocol ):
+    ''' Abstract base class for inventory data format processors. '''
+
+    @__.abc.abstractmethod
+    async def filter_inventory(
+        self, source: str, /, *,
+        filters: __.cabc.Mapping[ str, __.typx.Any ],
+        details: 'InventoryQueryDetails' = InventoryQueryDetails.Documentation,
+    ) -> list[ dict[ str, __.typx.Any ] ]:
+        ''' Extracts and filters inventory objects from source. '''
+        raise NotImplementedError
+
+
 class Processor( __.immut.DataclassProtocol ):
     ''' Abstract base class for documentation source detectors. '''
 

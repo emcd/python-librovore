@@ -18,7 +18,7 @@
 #============================================================================#
 
 
-''' Internals for intrinsic structure processors. '''
+''' Internals for intrinsic inventory processors. '''
 
 # ruff: noqa: F403
 

@@ -18,9 +18,9 @@
 #============================================================================#
 
 
-''' Internals for intrinsic structure processors. '''
+''' Inventory processors for different documentation data formats. '''
 
-# ruff: noqa: F403
 
-from ..__ import *
-from ..xtnsapi import *
+from .sphinx import (
+    SphinxInventoryProcessor,
+)
