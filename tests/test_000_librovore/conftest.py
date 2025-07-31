@@ -48,7 +48,9 @@ def fake_fs_with_inventories( fs, cached_inventories ):
 async def load_processors( ):
     ''' Auto-load builtin processors for tests. '''
     import librovore.structures.sphinx as _sphinx_processor
+    import librovore.structures.mkdocs as _mkdocs_processor
     _sphinx_processor.register( { } )
+    _mkdocs_processor.register( { } )
 
 
 def pytest_sessionfinish( session, exitstatus ):

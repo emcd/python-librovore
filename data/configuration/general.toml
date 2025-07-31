@@ -1,5 +1,5 @@
-# Sphinx MCP Server Configuration
-# This file defines the configuration for the Sphinx MCP Server,
+# Librovore Configuration
+# This file defines the configuration for the Librovore documentation processor,
 # including plugin/extension settings and their parameters.
 
 # Built-in Extensions
@@ -7,6 +7,10 @@
 
 [[extensions]]
 name = "sphinx"
+enabled = true
+
+[[extensions]]
+name = "mkdocs"
 enabled = true
 
 # External Extension Examples

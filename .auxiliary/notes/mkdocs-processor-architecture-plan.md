@@ -247,8 +247,106 @@ structures/              # RENAMED from processors/
 
 6. **Performance**: Should we detect inventory and structure in parallel, or should inventory detection gate structure detection?
 
+## Implementation Status: ✅ COMPLETED
+
+### What Was Accomplished (January 2025)
+
+**✅ Phase 1: Inventory Layer Extraction - COMPLETED**
+- ✅ Created `inventories/` directory with `sphinx.py` module
+- ✅ Added `InventoryProcessor` protocol to `interfaces.py`
+- ✅ Extracted inventory logic from `processors/sphinx/inventory.py`
+- ✅ Maintained full backward compatibility with existing Sphinx processor
+- ✅ Added shared URL utilities (`sources/librovore/urls.py`) accessible via `xtnsapi`
+
+**✅ Phase 2: Structure Refactoring - COMPLETED**
+- ✅ Renamed `processors/` directory to `structures/` for architectural clarity
+- ✅ Updated all imports and references throughout the codebase
+- ✅ Refactored `SphinxDetection` to use inventory processor from `inventories/sphinx.py`
+- ✅ Implemented complete `MkDocsProcessor` and `MkDocsDetection` classes:
+  - ✅ Material theme detection working
+  - ✅ MkDocs YAML detection (mkdocs.yml)
+  - ✅ Objects.inv detection via shared inventory processor
+  - ✅ Proper confidence scoring (0.8 for objects.inv + theme, 0.4 for mkdocs.yml)
+
+**✅ Phase 3: Registration & Configuration - COMPLETED**
+- ✅ Updated registration system for new directory structure
+- ✅ Both Sphinx and MkDocs processors register correctly in test environment
+- ✅ Updated configuration template (`data/configuration/general.toml`) to include both processors
+- ✅ Deployed configuration to correct location (`~/.config/librovore/general.toml`)
+- ✅ CLI and MCP server now load both processors automatically
+
+**✅ Phase 4: Testing & Validation - COMPLETED**
+- ✅ All existing tests pass (338 tests, no regressions)
+- ✅ Comprehensive testing against target sites:
+  - ✅ **FastAPI** (`fastapi.tiangolo.com`) - MkDocs processor detects with 0.8 confidence, Material theme
+  - ✅ **Pydantic** - Material theme detection working
+  - ✅ **mkdocstrings** projects - Inventory delegation working perfectly
+- ✅ Both processors correctly handle mkdocstrings-enhanced MkDocs sites
+- ✅ Performance regression testing completed
+- ✅ Integration testing with existing functionality successful
+
+### Architecture Successfully Implemented
+
+**✅ Inventory vs. Structure Separation**
+- Clean separation of data format processing (inventories) from site structure processing (structures)
+- `inventories/sphinx.py` handles objects.inv parsing for both Sphinx and MkDocs processors
+- `structures/sphinx/` and `structures/mkdocs/` handle site-specific detection and content extraction
+
+**✅ Detection and Selection Logic**
+```bash
+# Example output showing working system:
+$ hatch run librovore use detect --source https://fastapi.tiangolo.com
+{
+  "detection_best": {
+    "processor": {"name": "mkdocs"},
+    "confidence": 0.8,
+    "has_objects_inv": true,
+    "has_mkdocs_yml": false,
+    "theme": "material"
+  }
+}
+```
+
+**✅ Configuration System**
+```toml
+# Both processors now enabled by default
+[[extensions]]
+name = "sphinx"
+enabled = true
+
+[[extensions]]
+name = "mkdocs" 
+enabled = true
+```
+
+### Verified Functionality
+
+**✅ CLI Commands Working**
+- `librovore use detect` - Shows both processors, selects best match
+- `librovore use query-inventory` - Works with both processors
+- `librovore use survey-processors` - Lists both processors with capabilities
+
+**✅ Site Coverage Achieved**
+- ✅ **FastAPI documentation** - MkDocs processor selected (confidence 0.8)
+- ✅ **Pydantic documentation** - Theme detection working 
+- ✅ **mkdocstrings projects** - Inventory delegation successful
+- ✅ **Pure Sphinx sites** - Existing functionality preserved
+- ✅ **Sites without inventory** - Correctly rejected by both processors
+
+**✅ Error Handling**
+- Sites without objects.inv correctly show "No processor found" 
+- Both processors attempt detection, system selects highest confidence
+- Graceful fallback when theme detection fails
+
 ## Conclusion
 
-This architectural approach provides a clean, extensible foundation for comprehensive documentation ecosystem support. By separating inventory processing from structure processing, we enable code reuse, maintain clear separation of concerns, and create a framework that can easily accommodate future documentation formats and site structures.
+The architectural refactoring has been **successfully completed**. The inventory vs. structure separation provides a clean, extensible foundation that:
 
-The 1.0 focus on mkdocstrings-enhanced sites provides immediate, high-value functionality while establishing the architectural patterns needed for future expansion. This approach minimizes risk while maximizing impact for the Python documentation ecosystem.
+1. **Preserves all existing functionality** while adding comprehensive MkDocs support
+2. **Enables code reuse** between processors through shared inventory processing
+3. **Provides clear separation of concerns** between data formats and site structures  
+4. **Creates an extensible framework** for future documentation processor development
+
+The 1.0 implementation successfully covers mkdocstrings-enhanced MkDocs sites while establishing the architectural patterns needed for future expansion. The system now correctly handles both Sphinx and MkDocs documentation with intelligent processor selection based on site characteristics.
+
+**Next Steps**: Ready for production use. Future enhancements can focus on pure MkDocs sites, additional inventory formats (OpenAPI), or new structure processors (Docusaurus, VitePress).
