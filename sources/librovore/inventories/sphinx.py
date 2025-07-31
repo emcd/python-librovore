@@ -21,7 +21,6 @@
 ''' Sphinx inventory processor for objects.inv format. '''
 
 
-import urllib.parse as _urlparse
 from urllib.parse import ParseResult as _Url
 
 import sphobjinv as _sphobjinv
@@ -33,26 +32,6 @@ def derive_inventory_url( base_url: _Url ) -> _Url:
     ''' Derives objects.inv URL from base URL ParseResult. '''
     new_path = f"{base_url.path}/objects.inv"
     return base_url._replace( path = new_path )
-
-
-def normalize_base_url( source: str ) -> _Url:
-    ''' Extracts clean base documentation URL from any source. '''
-    try: url = _urlparse.urlparse( source )
-    except Exception as exc:
-        raise __.InventoryUrlInvalidity( source ) from exc
-    match url.scheme:
-        case '':
-            path = __.Path( source )
-            if path.is_file( ) or ( not path.exists( ) and path.suffix ):
-                path = path.parent
-            url = _urlparse.urlparse( path.resolve( ).as_uri( ) )
-        case 'http' | 'https' | 'file': pass
-        case _:
-            raise __.InventoryUrlNoSupport(
-                url, component = 'scheme', value = url.scheme )
-    # Remove trailing slash for consistency
-    path = url.path.rstrip( '/' ) if url.path != '/' else ''
-    return url._replace( path = path )
 
 
 def extract_inventory( base_url: _Url ) -> _sphobjinv.Inventory:
@@ -84,7 +63,7 @@ async def filter_inventory(
     domain = filters.get( 'domain', '' ) or __.absent
     role = filters.get( 'role', '' ) or __.absent
     priority = filters.get( 'priority', '' ) or __.absent
-    base_url = normalize_base_url( source )
+    base_url = __.normalize_base_url( source )
     inventory = extract_inventory( base_url )
     all_objects: list[ dict[ str, __.typx.Any ] ] = [ ]
     for objct in inventory.objects:

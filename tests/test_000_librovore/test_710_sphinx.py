@@ -21,7 +21,7 @@
 ''' Sphinx processor implementation tests using dependency injection. '''
 
 
-import librovore.processors.sphinx.urls as module
+import librovore.structures.sphinx.urls as module
 
 
 def test_100__normalize_base_url_basic_path( ):

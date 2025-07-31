@@ -18,25 +18,31 @@
 #============================================================================#
 
 
-''' Interface for extension development. '''
+''' Common URL manipulation and normalization utilities. '''
 
-# ruff: noqa: F401,F403,F405
 
+import urllib.parse as _urlparse
+from urllib.parse import ParseResult as _Url
 
 from . import __
-
-from .cacheproxy import probe_url, retrieve_url, retrieve_url_as_text
-from .exceptions import *
-from .interfaces import *
-from .urls import *
+from . import exceptions as _exceptions
 
 
-ProcessorsRegistry: __.typx.TypeAlias = (
-    __.accret.ValidatorDictionary[ str, Processor ] )
-
-
-def _validator( name: str, value: Processor ) -> bool:
-    return isinstance( value, Processor )
-
-
-processors: ProcessorsRegistry = __.accret.ValidatorDictionary( _validator )
+def normalize_base_url( source: str ) -> _Url:
+    ''' Extracts clean base documentation URL from any source. '''
+    try: url = _urlparse.urlparse( source )
+    except Exception as exc:
+        raise _exceptions.InventoryUrlInvalidity( source ) from exc
+    match url.scheme:
+        case '':
+            path = __.Path( source )
+            if path.is_file( ) or ( not path.exists( ) and path.suffix ):
+                path = path.parent
+            url = _urlparse.urlparse( path.resolve( ).as_uri( ) )
+        case 'http' | 'https' | 'file': pass
+        case _:
+            raise _exceptions.InventoryUrlNoSupport(
+                url, component = 'scheme', value = url.scheme )
+    # Remove trailing slash for consistency
+    path = url.path.rstrip( '/' ) if url.path != '/' else ''
+    return url._replace( path = path )

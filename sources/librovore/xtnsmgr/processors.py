@@ -74,7 +74,7 @@ def _register_extension(
     name = extension[ 'name' ]
     arguments = _configuration.extract_extension_arguments( extension )
     if 'package' not in extension:
-        module_name = f"{__.package_name}.processors.{name}"
+        module_name = f"{__.package_name}.structures.{name}"
     else: module_name = name
     try: module = _importation.import_processor_module( module_name )
     except ( ImportError, ModuleNotFoundError ) as exc:

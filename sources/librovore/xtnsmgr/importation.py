@@ -83,7 +83,7 @@ def import_processor_module( module_name: str ) -> __.types.ModuleType:
     ''' Import a processor module by name.
 
         Uses standard Python import machinery. For builtin processors,
-        pass f"{__.package_name}.processors.{name}". For external processors,
+        pass f"{__.package_name}.structures.{name}". For external processors,
         pass the module name directly.
     '''
     try:
