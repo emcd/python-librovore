@@ -1,26 +1,5 @@
 # Future Development Ideas - Documentation MCP Server
 
-## Project Rebranding
-
-### Proposed Name Change: `librovore`
-**Current limitation**: `sphinx-mcp-server` name no longer fits the expanded vision with plugin/extension architecture supporting multiple documentation systems.
-
-**Proposed name**: `librovore` (from Latin *librovorus* - "book devourer")
-- **Perfect metaphor**: Captures how LLMs "devour" and process documentation
-- **Morphologically correct**: Follows Latin o-stem pattern (library, librovore)
-- **Memorable**: Evocative and immediately suggests the purpose
-- **Available**: Not taken on PyPI (as of 2025-01-19)
-- **Future-proof**: Not tied to any specific documentation tool
-
-**Alternative considered**: `librocule` (little book), but `librovore` better captures the active processing nature.
-
-### Migration Strategy
-- Package rename: `sphinx-mcp-server` → `librovore`
-- GitHub repository rename
-- Update all documentation and branding
-- PyPI package transfer/deprecation notice
-- Maintain backward compatibility during transition period
-
 ## Builtin Processors Development Strategy
 
 ### Release Strategy: Graduated Rollout

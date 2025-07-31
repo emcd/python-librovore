@@ -48,22 +48,22 @@ documentation formats.
 - [x] Ensure all manual renames are complete first
 
 **Execution:**
-- [ ] Run `copier update --answers-file .auxiliary/configuration/copier-answers.yaml`
-- [ ] Resolve any merge conflicts (especially in `pyproject.toml`)
-- [ ] Review generated GitHub Actions workflows
+- [x] Run `copier update --answers-file .auxiliary/configuration/copier-answers.yaml`
+- [x] Resolve any merge conflicts (especially in `pyproject.toml`)
+- [x] Review generated GitHub Actions workflows
 
 ### Phase 4: Repository Operations
 
 **Upstream Repository:**
-- [ ] Rename Git repository (currently in Dropbox)
-- [ ] Update `origin` remote to point at renamed repository
-- [ ] Rename local directory where clone lives
+- [x] Rename Git repository (currently in Dropbox)
+- [x] Update `origin` remote to point at renamed repository
+- [x] Rename local directory where clone lives
 
 ### Phase 5: Cache Invalidation & Environment Cleanup
 
 **Clean Slate:**
-- [ ] Clear `.auxiliary/caches/` directory
-- [ ] Clear pytest caches
+- [x] Clear `.auxiliary/caches/` directory
+- [x] Clear pytest caches
 - [x] Run `hatch env prune` to clean environments
 - [x] Reinstall in development mode
 
@@ -73,8 +73,8 @@ documentation formats.
 - [x] Run full test suite (`hatch --env develop run testers`)
 - [x] Run linters (`hatch --env develop run linters`)
 - [x] Test CLI functionality with new command name
-- [ ] Test MCP server functionality
-- [ ] Verify documentation generation
+- [x] Test MCP server functionality
+- [x] Verify documentation generation
 
 ## Key Insights
 
@@ -91,12 +91,11 @@ documentation formats.
 
 ## Success Criteria
 
-- [ ] All tests pass with new package name
-- [ ] CLI command `librovore` works correctly
-- [ ] MCP server registers and functions properly
-- [ ] No lingering references to `sphinxmcps` in codebase
-- [ ] Documentation builds without errors
-- [ ] Ready for MkDocs processor development
+- [x] All tests pass with new package name
+- [x] CLI command `librovore` works correctly
+- [x] MCP server registers and functions properly
+- [x] No lingering references to `sphinxmcps` in codebase
+- [x] Documentation builds without errors
 
 ---
 

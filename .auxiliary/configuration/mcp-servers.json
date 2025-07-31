@@ -29,7 +29,7 @@
         "mcp-text-editor"
       ]
     },
-    "sphinx": {
+    "librovore": {
       "command": "reloaderoo",
       "args": [
         "--",
