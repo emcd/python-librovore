@@ -22,6 +22,7 @@
 
 
 from . import __
+from . import exceptions as _exceptions
 from . import functions as _functions
 from . import interfaces as _interfaces
 from . import server as _server
@@ -92,7 +93,8 @@ class DetectCommand(
             print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
             _scribe.error( "detect failed: %s", exc )
-            raise
+            print( _format_cli_exception( exc ), file = stream )
+            raise SystemExit( 1 ) from None
 
 
 class QueryInventoryCommand(
@@ -135,7 +137,8 @@ class QueryInventoryCommand(
             print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
             _scribe.error( "query-inventory failed: %s", exc )
-            raise
+            print( _format_cli_exception( exc ), file = stream )
+            raise SystemExit( 1 ) from None
 
 
 class QueryContentCommand(
@@ -170,7 +173,8 @@ class QueryContentCommand(
             print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
             _scribe.error( "query-content failed: %s", exc )
-            raise
+            print( _format_cli_exception( exc ), file = stream )
+            raise SystemExit( 1 ) from None
 
 
 class SummarizeInventoryCommand(
@@ -223,7 +227,8 @@ class SurveyProcessorsCommand(
             print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
             _scribe.error( "survey-processors failed: %s", exc )
-            raise
+            print( _format_cli_exception( exc ), file = stream )
+            raise SystemExit( 1 ) from None
 
 
 class UseCommand(
@@ -340,6 +345,37 @@ def execute( ) -> None:
         except BaseException as exc:
             __.report_exceptions( exc, _scribe )
             raise SystemExit( 1 ) from None
+
+
+def _format_cli_exception( exc: Exception ) -> str:  # noqa: PLR0911
+    ''' Formats exceptions for user-friendly CLI output. '''
+    match exc:
+        case _exceptions.ProcessorInavailability( ):
+            return (
+                f"❌ No processor found to handle source: {exc.source}\n"
+                f"💡 Verify this is a Sphinx documentation site" )
+        case _exceptions.InventoryInaccessibility( ):
+            return (
+                f"❌ Cannot access documentation inventory: {exc.source}\n"
+                f"💡 Check URL accessibility and network connection" )
+        case _exceptions.DocumentationContentAbsence( ):
+            return (
+                f"❌ Documentation structure not recognized: {exc.url}\n"
+                f"💡 This may be an unsupported Sphinx theme" )
+        case _exceptions.DocumentationObjectAbsence( ):
+            return (
+                f"❌ Object '{exc.object_id}' not found in page: {exc.url}\n"
+                f"💡 Verify the object name and try a broader search" )
+        case _exceptions.InventoryInvalidity( ):
+            return (
+                f"❌ Invalid documentation inventory: {exc.source}\n"
+                f"💡 The documentation site may be corrupted" )
+        case _exceptions.DocumentationInaccessibility( ):
+            return (
+                f"❌ Documentation inaccessible: {exc.url}\n"
+                f"💡 Check URL accessibility and network connection" )
+        case _:
+            return f"❌ Unexpected error: {exc}"
 
 
 async def _prepare(

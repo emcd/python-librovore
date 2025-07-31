@@ -138,7 +138,8 @@ async def extract_contents(
 
 
 def parse_documentation_html(
-    content: str, element_id: str, *, theme: __.Absential[ str ] = __.absent
+    content: str, element_id: str, url: str, *,
+    theme: __.Absential[ str ] = __.absent
 ) -> __.cabc.Mapping[ str, str ]:
     ''' Parses HTML content to extract documentation sections. '''
     try: soup = _BeautifulSoup( content, 'lxml' )
@@ -152,7 +153,7 @@ def parse_documentation_html(
         raise __.DocumentationContentAbsence( element_id )
     element = container.find( id = element_id )
     if not element:
-        return { 'error': f"Object '{element_id}' not found in page" }
+        raise __.DocumentationObjectAbsence( element_id, url )
     signature, description = _extract_content_with_dsl(
         element, element_id, theme )
     return {
@@ -225,9 +226,8 @@ async def _extract_object_documentation(
     anchor = doc_url.fragment or str( obj[ 'name' ] )
     try:
         parsed_content = parse_documentation_html(
-            html_content, anchor, theme = theme )
+            html_content, anchor, str( doc_url ), theme = theme )
     except Exception: return None
-    if 'error' in parsed_content: return None
     description = _conversion.html_to_markdown(
         parsed_content[ 'description' ] )
     snippet_max_length = 200

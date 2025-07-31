@@ -27,6 +27,7 @@ from mcp.server.fastmcp import FastMCP as _FastMCP
 from pydantic import Field as _Field
 
 from . import __
+from . import exceptions as _exceptions
 from . import functions as _functions
 from . import interfaces as _interfaces
 
@@ -79,8 +80,12 @@ async def detect(
     _scribe.debug( "Starting detection for source: %s", source )
     processor_name_arg = (
         processor_name if processor_name is not None else __.absent )
-    return await _functions.detect(
-        source, processor_name = processor_name_arg )
+    try:
+        return await _functions.detect(
+            source, processor_name = processor_name_arg )
+    except Exception as exc:
+        _scribe.error( "Error in detect: %s", exc )
+        return _exception_to_error_response( exc )
 
 
 async def query_inventory(  # noqa: PLR0913
@@ -105,10 +110,10 @@ async def query_inventory(  # noqa: PLR0913
         "query_inventory called: source=%s, query=%s, "
         "search_behaviors=%s, filters=%s, results_max=%s, details=%s",
         source, query, search_behaviors, filters, results_max, details )
+    immutable_search_behaviors = (
+        _to_immutable_search_behaviors( search_behaviors ) )
+    immutable_filters = _to_immutable_filters( filters )
     try:
-        immutable_search_behaviors = _to_immutable_search_behaviors(
-            search_behaviors )
-        immutable_filters = _to_immutable_filters( filters )
         return await _functions.query_inventory(
             source, query,
             search_behaviors = immutable_search_behaviors,
@@ -116,9 +121,8 @@ async def query_inventory(  # noqa: PLR0913
             results_max = results_max,
             details = details )
     except Exception as exc:
-        # TODO: No log-and-raise pattern.
         _scribe.error( "Error in query_inventory: %s", exc )
-        raise
+        return _exception_to_error_response( exc )
 
 
 async def query_content(  # noqa: PLR0913
@@ -140,14 +144,18 @@ async def query_content(  # noqa: PLR0913
         "query_content called: source=%s, query=%s, "
         "search_behaviors=%s, filters=%s",
         source, query, search_behaviors, filters )
-    immutable_search_behaviors = _to_immutable_search_behaviors(
-        search_behaviors )
+    immutable_search_behaviors = (
+        _to_immutable_search_behaviors( search_behaviors ) )
     immutable_filters = _to_immutable_filters( filters )
-    return await _functions.query_content(
-        source, query,
-        search_behaviors = immutable_search_behaviors,
-        filters = immutable_filters,
-        results_max = results_max, include_snippets = include_snippets )
+    try:
+        return await _functions.query_content(
+            source, query,
+            search_behaviors = immutable_search_behaviors,
+            filters = immutable_filters,
+            results_max = results_max, include_snippets = include_snippets )
+    except Exception as exc:
+        _scribe.error( "Error in query_content: %s", exc )
+        return _exception_to_error_response( exc )
 
 
 async def summarize_inventory(
@@ -163,20 +171,22 @@ async def summarize_inventory(
     group_by: GroupByArgument = None,
     term: TermFilter = '',
 ) -> str:
-    ''' Provides human-readable summary of inventory. '''
+    ''' Provides summary of inventory. '''
+    immutable_search_behaviors = (
+        _to_immutable_search_behaviors( search_behaviors ) )
+    immutable_filters = _to_immutable_filters( filters )
     try:
-        immutable_search_behaviors = _to_immutable_search_behaviors(
-            search_behaviors )
-        immutable_filters = _to_immutable_filters( filters )
         return await _functions.summarize_inventory(
             source, term,
             search_behaviors = immutable_search_behaviors,
             filters = immutable_filters,
             group_by = group_by )
     except Exception as exc:
-        # TODO: No log-and-raise pattern.
         _scribe.error( "Error in summarize_inventory: %s", exc )
-        raise
+        error_response = _exception_to_error_response( exc )
+        return (
+            f"Error: {error_response['message']} - "
+            f"{error_response['suggestion']}" )
 
 
 async def survey_processors(
@@ -187,7 +197,10 @@ async def survey_processors(
 ) -> dict[ str, __.typx.Any ]:
     ''' Lists all processors or specific processor capabilities. '''
     _scribe.debug( "Surveying processors: %s", name or "all" )
-    return await _functions.survey_processors( name )
+    try: return await _functions.survey_processors( name )
+    except Exception as exc:
+        _scribe.error( "Error in survey_processors: %s", exc )
+        return _exception_to_error_response( exc )
 
 
 async def serve(
@@ -209,6 +222,64 @@ async def serve(
         case 'sse': await mcp.run_sse_async( mount_path = None )
         case 'stdio': await mcp.run_stdio_async( )
         case _: raise ValueError
+
+
+def _exception_to_error_response( exc: Exception ) -> dict[ str, str ]:  # noqa: PLR0911
+    ''' Maps exceptions to structured error responses for MCP tools. '''
+    match exc:
+        case _exceptions.ProcessorInavailability( ):
+            return {
+                'error_type': 'ProcessorInavailability',
+                'message':
+                    'No processor found to handle this documentation source',
+                'details': f"Source: {exc.source}",
+                'suggestion': 'Verify the URL is a Sphinx documentation site'
+            }
+        case _exceptions.InventoryInaccessibility( ):
+            cause = exc.__cause__ or 'Unknown'
+            return {
+                'error_type': 'InventoryInaccessibility',
+                'message': 'Cannot access documentation inventory',
+                'details': f"Source: {exc.source}, Cause: {cause}",
+                'suggestion': 'Check URL accessibility and network connection'
+            }
+        case _exceptions.DocumentationContentAbsence( ):
+            return {
+                'error_type': 'DocumentationContentAbsence',
+                'message': 'Documentation page structure not recognized',
+                'details': f"URL: {exc.url}",
+                'suggestion': 'This may be an unsupported Sphinx theme'
+            }
+        case _exceptions.DocumentationObjectAbsence( ):
+            return {
+                'error_type': 'ObjectNotFoundError',
+                'message': 'Requested object not found in documentation page',
+                'details': f"Object: {exc.object_id}, URL: {exc.url}",
+                'suggestion': 'Verify the object name and try a broader search'
+            }
+        case _exceptions.InventoryInvalidity( ):
+            cause = exc.__cause__ or 'Unknown'
+            return {
+                'error_type': 'InventoryInvalidity',
+                'message': 'Documentation inventory has invalid format',
+                'details': f"Source: {exc.source}, Cause: {cause}",
+                'suggestion': 'The documentation site may be corrupted'
+            }
+        case _exceptions.DocumentationInaccessibility( ):
+            cause = exc.__cause__ or 'Unknown'
+            return {
+                'error_type': 'DocumentationInaccessibility',
+                'message': 'Documentation file or resource is inaccessible',
+                'details': f"URL: {exc.url}, Cause: {cause}",
+                'suggestion': 'Check URL accessibility and network connection'
+            }
+        case _:
+            return {
+                'error_type': 'UnknownError',
+                'message': 'An unexpected error occurred',
+                'details': f"Exception: {type( exc ).__name__}: {exc}",
+                'suggestion': 'Please report this issue if it persists'
+            }
 
 
 def _to_immutable_filters(

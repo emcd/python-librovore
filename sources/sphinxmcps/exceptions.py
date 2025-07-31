@@ -63,6 +63,18 @@ class DocumentationInaccessibility( Omnierror, RuntimeError ):
         super( ).__init__( message )
 
 
+class DocumentationObjectAbsence( Omnierror, ValueError ):
+    ''' Requested object not found in documentation page. '''
+
+    def __init__( self, object_id: str, url: str ):
+        message = (
+            f"Object '{object_id}' not found in documentation page "
+            f"at '{url}'" )
+        self.object_id = object_id
+        self.url = url
+        super( ).__init__( message )
+
+
 class DocumentationParseFailure( Omnierror, ValueError ):
     ''' Documentation HTML parsing failed or content malformed. '''
 

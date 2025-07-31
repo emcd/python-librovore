@@ -163,11 +163,18 @@ sphinxmcps/
    * `.pth` lines beginning with `import` are executed.
    * *Impact*: This mirrors Python's own `.pth` behavior, but increases **supply‑chain risk** for untrusted extension packages.
 
-7. **Result typing ergonomics** *(HIGH PRIORITY)*
+7. ✅ ~~**Result typing ergonomics**~~ **RESOLVED**
 
-   * Some functions return dicts that may contain an `'error'` string; others raise typed exceptions.
-   * *Impact*: Mixed error patterns complicate downstream handling.
-   * **Note**: This is the primary remaining issue from testing - users get generic "Error executing tool explore" messages instead of meaningful, actionable error descriptions.
+   * ~~Some functions return dicts that may contain an `'error'` string; others raise typed exceptions.~~
+   * ~~*Impact*: Mixed error patterns complicate downstream handling.~~
+   * ~~**Note**: This is the primary remaining issue from testing - users get generic "Error executing tool explore" messages instead of meaningful, actionable error descriptions.~~
+   * **Status**: **FULLY IMPLEMENTED** structured error handling system:
+     - Fixed inconsistent error patterns (no more `{'error': '...'}` returns)
+     - All exceptions now follow consistent exception-based model
+     - MCP server tools return structured error responses with error_type, message, details, and actionable suggestions
+     - CLI shows user-friendly error messages with emojis and suggestions
+     - Comprehensive error coverage for all major exception types
+     - Both LLMs and CLI users get meaningful, actionable error information
 
 8. **Relevance and snippet scoring**
 
@@ -232,11 +239,11 @@ sphinxmcps/
    * ⏳ Add a light **BM25** or TF‑IDF on paragraph chunks (kept in memory per page) if performance allows. *(enhancement)*
    * **Status**: Current ranking system works well for tested use cases.
 
-8. **Consistent error model** *(HIGH PRIORITY)*
+8. ✅ ~~**Consistent error model**~~ **RESOLVED**
 
-   * Prefer **exceptions** for exceptional flows; keep result payloads free of `'error'` fields.
-   * Map exceptions at the server boundary to structured MCP error responses.
-   * **Status**: This is the primary remaining high-priority issue - users need meaningful error messages.
+   * ✅ ~~Prefer **exceptions** for exceptional flows; keep result payloads free of `'error'` fields.~~
+   * ✅ ~~Map exceptions at the server boundary to structured MCP error responses.~~
+   * **Status**: **FULLY IMPLEMENTED** - complete structured error handling system with meaningful, actionable error messages for both MCP server and CLI interfaces.
 
 9. **Configuration clarity**
 
