@@ -25,7 +25,7 @@ import pytest
 
 import sphinxmcps.xtnsmgr.processors as module
 
-from .test_utils import get_fake_extension_url, get_broken_extension_url
+from .fixtures import get_fake_extension_url, get_broken_extension_url
 
 
 def test_000_module_imports_correctly( ):

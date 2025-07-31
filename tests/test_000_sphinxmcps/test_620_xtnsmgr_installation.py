@@ -24,7 +24,7 @@
 
 import sphinxmcps.xtnsmgr.installation as module
 
-from .test_utils import get_fake_extension_url
+from .fixtures import get_fake_extension_url
 
 
 

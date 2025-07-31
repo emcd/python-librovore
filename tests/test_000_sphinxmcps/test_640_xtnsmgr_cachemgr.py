@@ -27,7 +27,7 @@ import json
 import tempfile
 
 import sphinxmcps.xtnsmgr.cachemgr as module
-from .test_utils import get_fake_extension_url
+from .fixtures import get_fake_extension_url
 
 
 def test_000_cache_info_creates_with_required_fields( ):
