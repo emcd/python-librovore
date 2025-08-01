@@ -22,25 +22,24 @@
 
 
 from . import __
+from . import exceptions as _exceptions
 from . import interfaces as _interfaces
 from . import xtnsapi as _xtnsapi
 
 
-StructureStructureDetectionsByProcessor: __.typx.TypeAlias = (
-    __.cabc.Mapping[ str, _interfaces.StructureDetection ] )
-InventoryStructureDetectionsByProcessor: __.typx.TypeAlias = (
-    __.cabc.Mapping[ str, _interfaces.InventoryDetection ] )
+DetectionsByProcessor: __.typx.TypeAlias = (
+    __.cabc.Mapping[ str, _interfaces.BaseDetection ] )
 
 
 class DetectionsCacheEntry( __.immut.DataclassObject ):
     ''' Cache entry for source detection results. '''
 
-    detections: __.cabc.Mapping[ str, _interfaces.StructureDetection ]
+    detections: __.cabc.Mapping[ str, _interfaces.BaseDetection ]
     timestamp: float
     ttl: int
 
     @property
-    def best_detection( self ) -> __.Absential[ _interfaces.Detection ]:
+    def best_detection( self ) -> __.Absential[ _interfaces.BaseDetection ]:
         ''' Returns the detection with highest confidence. '''
         if not self.detections: return __.absent
         best_result = max(
@@ -63,7 +62,7 @@ class DetectionsCache( __.immut.DataclassObject ):
 
     def access_entry(
         self, source: str
-    ) -> __.Absential[ StructureStructureDetectionsByProcessor ]:
+    ) -> __.Absential[ DetectionsByProcessor ]:
         ''' Returns all detections for source, if unexpired. '''
         if source not in self._entries: return __.absent
         cache_entry = self._entries[ source ]
@@ -75,7 +74,7 @@ class DetectionsCache( __.immut.DataclassObject ):
 
     def access_best_detection(
         self, source: str
-    ) -> __.Absential[ _interfaces.Detection ]:
+    ) -> __.Absential[ _interfaces.BaseDetection ]:
         ''' Returns the best detection for source, if unexpired. '''
         if source not in self._entries: return __.absent
         cache_entry = self._entries[ source ]
@@ -86,8 +85,7 @@ class DetectionsCache( __.immut.DataclassObject ):
         return cache_entry.best_detection
 
     def add_entry(
-        self, source: str, 
-        detections: __.cabc.Mapping[ str, _interfaces.StructureDetection ]
+        self, source: str, detections: DetectionsByProcessor
     ) -> __.typx.Self:
         ''' Adds or updates cache entry with fresh results. '''
         self._entries[ source ] = DetectionsCacheEntry(
@@ -104,69 +102,31 @@ class DetectionsCache( __.immut.DataclassObject ):
 
     def remove_entry(
         self, source: str
-    ) -> __.Absential[ StructureStructureDetectionsByProcessor ]:
+    ) -> __.Absential[ DetectionsByProcessor ]:
         ''' Removes specific source from cache, if present. '''
         entry = self._entries.pop( source, None )
         if entry: return entry.detections
         return __.absent
 
 
-_detections_cache = DetectionsCache( )
-
-
-async def detect_inventory(
-    source: str, /, *,
-    processor_name: __.Absential[ str ] = __.absent
-) -> _interfaces.InventoryDetection:
-    ''' Detects and returns best inventory processor for source. '''
-    if not __.is_absent( processor_name ):
-        if processor_name in _xtnsapi.inventory_processors:
-            processor = _xtnsapi.inventory_processors[ processor_name ]
-            return await processor.detect( source )
-        raise __.ProcessorInavailability( processor_name )
-    # Auto-detect best inventory processor  
-    for processor in _xtnsapi.inventory_processors.values( ):
-        try:
-            detection = await processor.detect( source )
-            if detection.confidence > 0.0:
-                return detection
-        except Exception:
-            continue
-    raise __.ProcessorInavailability( source )
-
-
-async def detect_structure(
-    source: str, /, *,
-    processor_name: __.Absential[ str ] = __.absent  
-) -> _interfaces.StructureDetection:
-    ''' Detects and returns best structure processor for source. '''
-    if not __.is_absent( processor_name ):
-        if processor_name in _xtnsapi.structure_processors:
-            processor = _xtnsapi.structure_processors[ processor_name ]
-            return await processor.detect( source )
-        raise __.ProcessorInavailability( processor_name )
-    # Auto-detect best structure processor
-    best_detection = None
-    best_confidence = 0.0
-    for processor in _xtnsapi.structure_processors.values( ):
-        try:
-            detection = await processor.detect( source )
-            if detection.confidence > best_confidence:
-                best_confidence = detection.confidence
-                best_detection = detection
-        except Exception:
-            continue
-    if best_detection is None:
-        raise __.ProcessorInavailability( source )
-    return best_detection
+# Separate caches for each processor type
+_inventory_detections_cache = DetectionsCache( )
+_structure_detections_cache = DetectionsCache( )
 
 
 async def access_detections(
     source: str, /, *,
-    cache: DetectionsCache = _detections_cache,
-    processors: _xtnsapi.ProcessorsRegistry = _xtnsapi.processors,
-) -> tuple[ StructureDetectionsByProcessor, __.Absential[ _interfaces.Detection ] ]:
+    genus: _interfaces.ProcessorGenera,
+) -> tuple[ DetectionsByProcessor, __.Absential[ _interfaces.BaseDetection ] ]:
     ''' Gets cached detections, triggering fresh detection if needed. '''
+    # Select cache and processors based on genus
+    if genus == _interfaces.ProcessorGenera.Inventory:
+        cache = _inventory_detections_cache
+        processors = _xtnsapi.inventory_processors
+    else:  # ProcessorGenera.Structure
+        cache = _structure_detections_cache
+        processors = _xtnsapi.structure_processors
+    
     detections = cache.access_entry( source )
     if __.is_absent( detections ):
         await _execute_processors_and_cache( source, cache, processors )
@@ -174,16 +134,17 @@ async def access_detections(
         # After fresh execution, detections should never be absent
         if __.is_absent( detections ):
             # Fallback: create empty detections mapping
-            detections = __.immut.Dictionary[ str, _interfaces.Detection ]( )
+            detections = __.immut.Dictionary[
+                str, _interfaces.BaseDetection ]( )
     best_detection = cache.access_best_detection( source )
     return detections, best_detection
 
 
 async def determine_processor_optimal(
     source: str, /, *,
-    cache: DetectionsCache = _detections_cache,
-    processors: _xtnsapi.ProcessorsRegistry = _xtnsapi.processors,
-) -> __.Absential[ _interfaces.Detection ]:
+    cache: DetectionsCache,
+    processors: __.cabc.Mapping[ str, _interfaces.Processor ],
+) -> __.Absential[ _interfaces.BaseDetection ]:
     ''' Determines which processor can best handle the source. '''
     detection = cache.access_best_detection( source )
     if not __.is_absent( detection ): return detection
@@ -192,11 +153,51 @@ async def determine_processor_optimal(
     return _select_processor_optimal( detections, processors )
 
 
+async def detect_inventory(
+    source: str, /, *,
+    processor_name: __.Absential[ str ] = __.absent,
+) -> _interfaces.InventoryDetection:
+    ''' Detects inventory processors for source through cache system. '''
+    processors = _xtnsapi.inventory_processors
+    if not __.is_absent( processor_name ):
+        if processor_name not in processors:
+            raise _exceptions.ProcessorInavailability( processor_name )
+        processor = processors[ processor_name ]
+        detection = await processor.detect( source )
+        return __.typx.cast( _interfaces.InventoryDetection, detection )
+    # Use inventory-specific cache and processors
+    detection = await determine_processor_optimal(
+        source, cache = _inventory_detections_cache, processors = processors )
+    if __.is_absent( detection ):
+        raise _exceptions.ProcessorInavailability( 'inventory' )
+    return __.typx.cast( _interfaces.InventoryDetection, detection )
+
+
+async def detect_structure(
+    source: str, /, *,
+    processor_name: __.Absential[ str ] = __.absent,
+) -> _interfaces.StructureDetection:
+    ''' Detects structure processors for source through cache system. '''
+    processors = _xtnsapi.structure_processors
+    if not __.is_absent( processor_name ):
+        if processor_name not in processors:
+            raise _exceptions.ProcessorInavailability( processor_name )
+        processor = processors[ processor_name ]
+        detection = await processor.detect( source )
+        return __.typx.cast( _interfaces.StructureDetection, detection )
+    # Use structure-specific cache and processors
+    detection = await determine_processor_optimal(
+        source, cache = _structure_detections_cache, processors = processors )
+    if __.is_absent( detection ):
+        raise _exceptions.ProcessorInavailability( 'structure' )
+    return __.typx.cast( _interfaces.StructureDetection, detection )
+
+
 async def _execute_processors(
-    source: str, processors: _xtnsapi.ProcessorsRegistry
-) -> dict[ str, _interfaces.Detection ]:
+    source: str, processors: __.cabc.Mapping[ str, _interfaces.Processor ]
+) -> dict[ str, _interfaces.BaseDetection ]:
     ''' Runs all processors on the source. '''
-    results: dict[ str, _interfaces.Detection ] = { }
+    results: dict[ str, _interfaces.BaseDetection ] = { }
     # TODO: Parallel async fanout.
     for processor in processors.values( ):
         try: detection = await processor.detect( source )
@@ -210,7 +211,7 @@ async def _execute_processors(
 async def _execute_processors_and_cache(
     source: str,
     cache: DetectionsCache,
-    processors: _xtnsapi.ProcessorsRegistry,
+    processors: __.cabc.Mapping[ str, _interfaces.Processor ],
 ) -> None:
     ''' Executes all processors and caches results. '''
     detections = await _execute_processors( source, processors )
@@ -218,8 +219,9 @@ async def _execute_processors_and_cache(
 
 
 def _select_processor_optimal(
-    detections: StructureDetectionsByProcessor, processors: _xtnsapi.ProcessorsRegistry
-) -> __.Absential[ _interfaces.Detection ]:
+    detections: DetectionsByProcessor,
+    processors: __.cabc.Mapping[ str, _interfaces.Processor ]
+) -> __.Absential[ _interfaces.BaseDetection ]:
     ''' Selects best processor based on confidence and registration order. '''
     if not detections: return __.absent
     detections_ = [
@@ -227,7 +229,7 @@ def _select_processor_optimal(
         if result.confidence > 0.0 ]
     if not detections_: return __.absent
     processor_names = list( processors.keys( ) )
-    def sort_key( result: _interfaces.Detection ) -> tuple[ float, int ]:
+    def sort_key( result: _interfaces.BaseDetection ) -> tuple[ float, int ]:
         confidence = result.confidence
         processor_name = result.processor.name
         registration_order = processor_names.index( processor_name )

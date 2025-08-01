@@ -120,8 +120,12 @@ def reload_processor_module(
 
 
 def list_registered_processors( ) -> tuple[ str, ... ]:
-    ''' List all currently registered processor names from the registry. '''
-    return tuple( __.processors.keys( ) )
+    ''' List all currently registered processor names from both registries. '''
+    all_processors: dict[ str, __.Processor ] = {
+        **__.inventory_processors,
+        **__.structure_processors
+    }
+    return tuple( all_processors.keys( ) )
 
 
 def get_module_info( module_name: str ) -> dict[ str, __.typx.Any ]:

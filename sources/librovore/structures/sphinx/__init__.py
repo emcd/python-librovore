@@ -30,4 +30,4 @@ from . import __
 def register( arguments: __.cabc.Mapping[ str, __.typx.Any ] ) -> None:
     ''' Registers configured Sphinx processor instance. '''
     processor = SphinxProcessor( )
-    __.processors[ processor.name ] = processor
+    __.structure_processors[ processor.name ] = processor

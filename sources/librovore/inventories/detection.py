@@ -18,14 +18,33 @@
 #============================================================================#
 
 
-''' MkDocs documentation structure processor. '''
+''' Inventory detection implementations. '''
 
 
 from . import __
-from .main import MkDocsProcessor
 
 
-def register( arguments: __.cabc.Mapping[ str, __.typx.Any ] ) -> None:
-    ''' Registers MkDocs processor with extensions manager. '''
-    processor = MkDocsProcessor( **arguments )
-    __.structure_processors[ processor.name ] = processor
+class SphinxInventoryDetection( __.InventoryDetection ):
+    ''' Detection result for Sphinx inventory sources. '''
+
+    @classmethod
+    async def from_source(
+        selfclass, processor: __.Processor, source: str
+    ) -> __.typx.Self:
+        ''' Constructs Sphinx inventory detection from source. '''
+        # This is not used in current implementation
+        return selfclass( processor = processor, confidence = 0.0 )
+
+    async def filter_inventory(
+        self, source: str, /, *,
+        filters: __.cabc.Mapping[ str, __.typx.Any ],
+        details: __.InventoryQueryDetails = (
+            __.InventoryQueryDetails.Documentation ),
+    ) -> list[ dict[ str, __.typx.Any ] ]:
+        ''' Filters inventory objects from Sphinx source. '''
+        # Delegate to the processor's filter_inventory method
+        from . import sphinx as _sphinx
+        processor = __.typx.cast(
+            _sphinx.SphinxInventoryProcessor, self.processor )
+        return await processor.filter_inventory(
+            source, filters = filters, details = details )

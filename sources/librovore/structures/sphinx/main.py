@@ -67,7 +67,7 @@ class SphinxProcessor( __.Processor ):
             notes = 'Works with Sphinx-generated documentation sites',
         )
 
-    async def detect( self, source: str ) -> __.Detection:
+    async def detect( self, source: str ) -> __.StructureDetection:
         ''' Detects if can process documentation from source. '''
         try: base_url = _urls.normalize_base_url( source )
         except Exception:

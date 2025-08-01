@@ -49,3 +49,4 @@ inventory_processors: InventoryProcessorsRegistry = (
     __.accret.ValidatorDictionary( _inventory_validator ) )
 structure_processors: StructureProcessorsRegistry = (
     __.accret.ValidatorDictionary( _structure_validator ) )
+

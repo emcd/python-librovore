@@ -106,6 +106,8 @@ def format_inventory_object(
 class SphinxInventoryProcessor( __.InventoryProcessor ):
     ''' Processes Sphinx inventory files (objects.inv format). '''
 
+    name: str = 'sphinx'
+
     @property
     def capabilities( self ) -> __.ProcessorCapabilities:
         ''' Returns Sphinx inventory processor capabilities. '''
@@ -133,6 +135,27 @@ class SphinxInventoryProcessor( __.InventoryProcessor ):
             response_time_typical = 'fast',
             notes = 'Processes Sphinx inventory files (objects.inv format)'
         )
+
+    async def detect( self, source: str ) -> __.InventoryDetection:
+        ''' Detects if source has a Sphinx inventory file. '''
+        try:
+            # Try to derive inventory URL and check if it exists
+            base_url = __.normalize_base_url( source )
+            inventory_url = derive_inventory_url( base_url )
+            # For now, basic confidence based on URL structure
+            confidence = 0.9 if 'objects.inv' in str( inventory_url ) else 0.1
+            # TODO: Actually probe the URL to check if inventory exists
+            from . import detection as _detection
+            return _detection.SphinxInventoryDetection(
+                processor = self,
+                confidence = confidence
+            )
+        except Exception:
+            from . import detection as _detection
+            return _detection.SphinxInventoryDetection(
+                processor = self,
+                confidence = 0.0
+            )
 
     async def filter_inventory(
         self, source: str, /, *,

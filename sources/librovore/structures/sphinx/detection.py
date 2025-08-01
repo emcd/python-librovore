@@ -31,7 +31,7 @@ from . import urls as _urls
 _scribe = __.acquire_scribe( __name__ )
 
 
-class SphinxDetection( __.Detection ):
+class SphinxDetection( __.StructureDetection ):
     ''' Detection result for Sphinx documentation sources. '''
 
     source: str

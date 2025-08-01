@@ -39,31 +39,50 @@ _search_behaviors_default = _interfaces.SearchBehaviors( )
 _filters_default = __.immut.Dictionary[ str, __.typx.Any ]( )
 
 
-async def detect(
+async def detect_inventory(
     source: SourceArgument,
     processor_name: __.Absential[ str ] = __.absent,
 ) -> dict[ str, __.typx.Any ]:
-    ''' Detects which processor(s) can handle a documentation source. '''
+    ''' Detects which inventory processor(s) can handle a source. '''
     start_time = __.time.perf_counter( )
-    detections, detection_optimal = (
-        await _detection.access_detections( source ) )
+    try:
+        detection = await _detection.detect_inventory(
+            source, processor_name = processor_name )
+        detections_list = [ detection ]
+        detection_best = detection
+    except _exceptions.ProcessorInavailability:
+        detections_list = [ ]
+        detection_best = None
     end_time = __.time.perf_counter( )
     detection_time_ms = int( ( end_time - start_time ) * 1000 )
-    if not __.is_absent( processor_name ):
-        if processor_name in detections:
-            detections_list = [ detections[ processor_name ] ]
-        else: detections_list = [ ]
-    elif not __.is_absent( detection_optimal ):
-        detections_list = [ detection_optimal ]
-    else:
-        # Return all detections if no optimal detection found
-        detections_list = list( detections.values( ) )
     response = _interfaces.DetectionToolResponse(
         source = source,
         detections = detections_list,
-        detection_best = (
-            detection_optimal
-            if not __.is_absent( detection_optimal ) else None ),
+        detection_best = detection_best,
+        time_detection_ms = detection_time_ms )
+    return _serialize_dataclass( response )
+
+
+async def detect_structure(
+    source: SourceArgument,
+    processor_name: __.Absential[ str ] = __.absent,
+) -> dict[ str, __.typx.Any ]:
+    ''' Detects which structure processor(s) can handle a source. '''
+    start_time = __.time.perf_counter( )
+    try:
+        detection = await _detection.detect_structure(
+            source, processor_name = processor_name )
+        detections_list = [ detection ]
+        detection_best = detection
+    except _exceptions.ProcessorInavailability:
+        detections_list = [ ]
+        detection_best = None
+    end_time = __.time.perf_counter( )
+    detection_time_ms = int( ( end_time - start_time ) * 1000 )
+    response = _interfaces.DetectionToolResponse(
+        source = source,
+        detections = detections_list,
+        detection_best = detection_best,
         time_detection_ms = detection_time_ms )
     return _serialize_dataclass( response )
 
@@ -225,11 +244,15 @@ async def survey_processors(
     name: __.typx.Optional[ str ] = None
 ) -> dict[ str, __.typx.Any ]:
     ''' Lists processor capabilities, optionally filtered to one processor. '''
-    if name is not None and name not in _xtnsapi.processors:
+    all_processors: dict[ str, _interfaces.Processor ] = {
+        **_xtnsapi.inventory_processors,
+        **_xtnsapi.structure_processors
+    }
+    if name is not None and name not in all_processors:
         raise _exceptions.ProcessorInavailability( name )
     processors_capabilities = {
         name_: _serialize_dataclass( processor.capabilities )
-        for name_, processor in _xtnsapi.processors.items( )
+        for name_, processor in all_processors.items( )
         if name is None or name_ == name }
     return { 'processors': processors_capabilities }
 
@@ -334,22 +357,43 @@ def _create_document_metadata(
     return document
 
 
-async def _get_detection(
+async def detect(
     source: SourceArgument,
-    processor_name: __.Absential[ str ] = __.absent
-) -> _interfaces.Detection:
-    ''' Gets detection object for given source and optional processor name. '''
-    if not __.is_absent( processor_name ):
-        # Get specific processor detection
-        detections, _ = await _detection.access_detections( source )
-        if processor_name in detections:
-            return detections[ processor_name ]
-        raise _exceptions.ProcessorInavailability( processor_name )
-    # Get best detection
-    detection = await _detection.determine_processor_optimal( source )
-    if __.is_absent( detection ):
-        raise _exceptions.ProcessorInavailability( source )
-    return detection
+    processor_name: __.Absential[ str ] = __.absent,
+) -> dict[ str, __.typx.Any ]:
+    ''' Detects which processor(s) can handle a source (both types). '''
+    start_time = __.time.perf_counter( )
+    detections_list: list[ _interfaces.BaseDetection ] = [ ]
+    detection_best = None
+    best_confidence = 0.0
+    # Try inventory detection
+    try:
+        inventory_detection = await _detection.detect_inventory(
+            source, processor_name = processor_name )
+        detections_list.append( inventory_detection )
+        if inventory_detection.confidence > best_confidence:
+            best_confidence = inventory_detection.confidence
+            detection_best = inventory_detection
+    except _exceptions.ProcessorInavailability:
+        pass
+    # Try structure detection  
+    try:
+        structure_detection = await _detection.detect_structure(
+            source, processor_name = processor_name )
+        detections_list.append( structure_detection )
+        if structure_detection.confidence > best_confidence:
+            best_confidence = structure_detection.confidence
+            detection_best = structure_detection
+    except _exceptions.ProcessorInavailability:
+        pass
+    end_time = __.time.perf_counter( )
+    detection_time_ms = int( ( end_time - start_time ) * 1000 )
+    response = _interfaces.DetectionToolResponse(
+        source = source,
+        detections = detections_list,
+        detection_best = detection_best,
+        time_detection_ms = detection_time_ms )
+    return _serialize_dataclass( response )
 
 
 

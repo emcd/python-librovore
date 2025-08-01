@@ -29,7 +29,7 @@ from . import __
 _scribe = __.acquire_scribe( __name__ )
 
 
-class MkDocsDetection( __.Detection ):
+class MkDocsDetection( __.StructureDetection ):
     ''' Detection result for MkDocs documentation sources. '''
 
     source: str
