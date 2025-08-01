@@ -46,8 +46,8 @@ class SphinxDetection( __.Detection ):
         cls, processor: __.Processor, source: str
     ) -> __.typx.Self:
         ''' Constructs detection from source location. '''
-        from .main import SphinxProcessor as _SphinxProcessor
-        if not isinstance( processor, _SphinxProcessor ):
+        from .main import SphinxProcessor
+        if not isinstance( processor, SphinxProcessor ):
             raise __.ProcessorInvalidity(
                 "SphinxProcessor", type( processor ) )
         detection = await processor.detect( source )
@@ -91,10 +91,9 @@ async def check_searchindex( source: _Url ) -> bool:
 
 async def detect_theme( source: _Url ) -> dict[ str, __.typx.Any ]:
     ''' Detects Sphinx theme and other metadata. '''
-    from ...cacheproxy import retrieve_url_as_text as _retrieve_url_as_text
     theme_metadata: dict[ str, __.typx.Any ] = { }
     html_url = _urls.derive_html_url( source )
-    try: html_content = await _retrieve_url_as_text(
+    try: html_content = await __.retrieve_url_as_text(
         html_url, duration_max = 10.0 )
     except __.DocumentationInaccessibility: pass
     else:

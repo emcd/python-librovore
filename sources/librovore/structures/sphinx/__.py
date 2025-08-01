@@ -20,5 +20,7 @@
 
 ''' Sphinx subpackage import namespace. '''
 
+# ruff: noqa: F403
 
-from ..__ import * # noqa: F403
+
+from ..__ import *

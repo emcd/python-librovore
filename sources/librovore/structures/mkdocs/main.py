@@ -22,7 +22,7 @@
 
 
 from . import __
-from .detection import MkDocsDetection
+from . import detection as _detection
 
 
 class MkDocsProcessor( __.Processor ):
@@ -61,29 +61,23 @@ class MkDocsProcessor( __.Processor ):
                 'inventory' )
         )
 
-    async def detect( self, source: str ) -> MkDocsDetection:
+    async def detect( self, source: str ) -> _detection.MkDocsDetection:
         ''' Detects MkDocs documentation structure from source. '''
-        from .detection import (
-            check_objects_inv as _check_objects_inv,
-            check_mkdocs_yml as _check_mkdocs_yml,
-            detect_theme as _detect_theme,
-        )
         base_url = __.normalize_base_url( source )
         normalized_source = base_url.geturl( )
-        has_objects_inv = await _check_objects_inv( base_url )
-        has_mkdocs_yml = await _check_mkdocs_yml( base_url )
+        has_objects_inv = await _detection.check_objects_inv( base_url )
+        has_mkdocs_yml = await _detection.check_mkdocs_yml( base_url )
         confidence = 0.0
         if has_objects_inv: confidence += 0.8
         if has_mkdocs_yml: confidence += 0.4
         confidence = min( confidence, 1.0 )
-        theme_metadata = await _detect_theme( base_url )
+        theme_metadata = await _detection.detect_theme( base_url )
         theme = theme_metadata.get( 'theme' )
-        return MkDocsDetection(
+        return _detection.MkDocsDetection(
             processor = self,
             confidence = confidence,
             source = source,
             has_objects_inv = has_objects_inv,
             has_mkdocs_yml = has_mkdocs_yml,
             normalized_source = normalized_source,
-            theme = theme,
-        )
+            theme = theme )

@@ -21,8 +21,8 @@
 ''' Sphinx documentation source detector and processor. '''
 
 
-from .main import SphinxProcessor as SphinxProcessor
-from .detection import SphinxDetection as SphinxDetection
+from .main import SphinxProcessor
+from .detection import SphinxDetection
 
 from . import __
 

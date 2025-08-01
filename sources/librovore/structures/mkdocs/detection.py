@@ -85,7 +85,6 @@ async def check_mkdocs_yml( source: _Url ) -> bool:
 
 async def detect_theme( source: _Url ) -> dict[ str, __.typx.Any ]:
     ''' Detects MkDocs theme and other metadata. '''
-    from ...cacheproxy import retrieve_url_as_text as _retrieve_url_as_text
     theme_metadata: dict[ str, __.typx.Any ] = { }
     html_candidates = [
         source._replace( path = f"{source.path}/" ),
@@ -93,11 +92,11 @@ async def detect_theme( source: _Url ) -> dict[ str, __.typx.Any ]:
     ]
     html_content = None
     for html_url in html_candidates:
-        try: 
-            html_content = await _retrieve_url_as_text(
+        try:
+            html_content = await __.retrieve_url_as_text(
                 html_url, duration_max = 10.0 )
             break
-        except __.DocumentationInaccessibility: 
+        except __.DocumentationInaccessibility:
             continue
     if html_content:
         html_content_lower = html_content.lower( )
