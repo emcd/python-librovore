@@ -241,22 +241,42 @@ async def summarize_inventory(  # noqa: PLR0913
 
 
 async def survey_processors(
-    name: __.typx.Optional[ str ] = None
+    name: __.typx.Optional[ str ] = None,
+    genus: __.typx.Optional[ _interfaces.ProcessorGenera ] = None
 ) -> dict[ str, __.typx.Any ]:
-    ''' Lists processor capabilities, optionally filtered to one processor. '''
-    all_processors: dict[ str, _interfaces.Processor ] = {
-        **_xtnsapi.inventory_processors,
-        **_xtnsapi.structure_processors
-    }
-    if name is not None and name not in all_processors:
+    ''' Lists processor capabilities, optionally filtered by name or genus. '''
+    inventory_processors = dict( _xtnsapi.inventory_processors )
+    structure_processors = dict( _xtnsapi.structure_processors )
+    if genus == _interfaces.ProcessorGenera.Inventory:
+        processors_to_survey = inventory_processors
+    elif genus == _interfaces.ProcessorGenera.Structure:
+        processors_to_survey = structure_processors
+    else:
+        result = {
+            'inventory_processors': {
+                name_: _serialize_dataclass( processor.capabilities )
+                for name_, processor in inventory_processors.items()
+                if name is None or name_ == name
+            },
+            'structure_processors': {
+                name_: _serialize_dataclass( processor.capabilities )
+                for name_, processor in structure_processors.items()
+                if name is None or name_ == name
+            }
+        }
+        if name is not None:
+            all_processors: dict[str, _interfaces.Processor] = {
+                **inventory_processors, **structure_processors}
+            if name not in all_processors:
+                raise _exceptions.ProcessorInavailability( name )
+        return result
+    if name is not None and name not in processors_to_survey:
         raise _exceptions.ProcessorInavailability( name )
     processors_capabilities = {
         name_: _serialize_dataclass( processor.capabilities )
-        for name_, processor in all_processors.items( )
+        for name_, processor in processors_to_survey.items( )
         if name is None or name_ == name }
     return { 'processors': processors_capabilities }
-
-
 
 
 def _add_object_metadata_to_results(
@@ -376,7 +396,7 @@ async def detect(
             detection_best = inventory_detection
     except _exceptions.ProcessorInavailability:
         pass
-    # Try structure detection  
+    # Try structure detection
     try:
         structure_detection = await _detection.detect_structure(
             source, processor_name = processor_name )
@@ -394,8 +414,6 @@ async def detect(
         detection_best = detection_best,
         time_detection_ms = detection_time_ms )
     return _serialize_dataclass( response )
-
-
 
 
 def _format_inventory_summary(

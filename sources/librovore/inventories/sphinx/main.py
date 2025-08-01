@@ -26,6 +26,7 @@ from urllib.parse import ParseResult as _Url
 import sphobjinv as _sphobjinv
 
 from . import __
+from .. import detection as _detection
 
 
 def derive_inventory_url( base_url: _Url ) -> _Url:
@@ -145,13 +146,11 @@ class SphinxInventoryProcessor( __.InventoryProcessor ):
             # For now, basic confidence based on URL structure
             confidence = 0.9 if 'objects.inv' in str( inventory_url ) else 0.1
             # TODO: Actually probe the URL to check if inventory exists
-            from . import detection as _detection
             return _detection.SphinxInventoryDetection(
                 processor = self,
                 confidence = confidence
             )
         except Exception:
-            from . import detection as _detection
             return _detection.SphinxInventoryDetection(
                 processor = self,
                 confidence = 0.0

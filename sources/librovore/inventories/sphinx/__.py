@@ -18,33 +18,8 @@
 #============================================================================#
 
 
-''' Inventory detection implementations. '''
+''' Internal imports rollup for Sphinx inventory processor. '''
 
+# ruff: noqa: F403
 
-from . import __
-
-
-class SphinxInventoryDetection( __.InventoryDetection ):
-    ''' Detection result for Sphinx inventory sources. '''
-
-    @classmethod
-    async def from_source(
-        selfclass, processor: __.Processor, source: str
-    ) -> __.typx.Self:
-        ''' Constructs Sphinx inventory detection from source. '''
-        # This is not used in current implementation
-        return selfclass( processor = processor, confidence = 0.0 )
-
-    async def filter_inventory(
-        self, source: str, /, *,
-        filters: __.cabc.Mapping[ str, __.typx.Any ],
-        details: __.InventoryQueryDetails = (
-            __.InventoryQueryDetails.Documentation ),
-    ) -> list[ dict[ str, __.typx.Any ] ]:
-        ''' Filters inventory objects from Sphinx source. '''
-        # Delegate to the processor's filter_inventory method
-        from .sphinx import SphinxInventoryProcessor
-        processor = __.typx.cast(
-            SphinxInventoryProcessor, self.processor )
-        return await processor.filter_inventory(
-            source, filters = filters, details = details )
+from ..__ import *

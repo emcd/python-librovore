@@ -21,15 +21,6 @@
 ''' Inventory processors for different documentation data formats. '''
 
 
-from . import __
 from .sphinx import (
     SphinxInventoryProcessor,
 )
-
-
-def register( 
-    arguments: __.cabc.Mapping[ str, __.typx.Any ] 
-) -> None:
-    ''' Registers Sphinx inventory processor. '''
-    processor = SphinxInventoryProcessor( )
-    __.inventory_processors[ 'sphinx' ] = processor
