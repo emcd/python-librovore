@@ -35,6 +35,13 @@ class FilterCapability( __.immut.DataclassObject ):
     required: bool = False
 
 
+class ProcessorGenera( __.enum.Enum ):
+    ''' Enumeration for processor types/genera. '''
+
+    Inventory = 'inventory'
+    Structure = 'structure'
+
+
 class InventoryQueryDetails( __.enum.IntFlag ):
     ''' Enumeration for inventory query detail levels. '''
 
@@ -99,13 +106,13 @@ class Processor( __.immut.DataclassProtocol ):
         raise NotImplementedError
 
     @__.abc.abstractmethod
-    async def detect( self, source: str ) -> 'Detection':
+    async def detect( self, source: str ) -> 'BaseDetection':
         ''' Detects if can process documentation from source. '''
         raise NotImplementedError
 
 
 
-class Detection( __.immut.DataclassProtocol ):
+class BaseDetection( __.immut.DataclassProtocol ):
     ''' Abstract base class for documentation detector selections. '''
 
     processor: Processor
@@ -130,15 +137,9 @@ class Detection( __.immut.DataclassProtocol ):
         ''' Constructs detection from source location. '''
         raise NotImplementedError
 
-    @__.abc.abstractmethod
-    async def extract_contents(
-        self,
-        source: str,
-        objects: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ], /, *,
-        include_snippets: bool = True,
-    ) -> list[ dict[ str, __.typx.Any ] ]:
-        ''' Extracts documentation content for specified objects. '''
-        raise NotImplementedError
+
+class InventoryDetection( BaseDetection ):
+    ''' Base class for inventory detection results. '''
 
     @__.abc.abstractmethod
     async def filter_inventory(
@@ -151,10 +152,26 @@ class Detection( __.immut.DataclassProtocol ):
         raise NotImplementedError
 
 
+class StructureDetection( BaseDetection ):
+    ''' Base class for structure detection results. '''
+
+    @__.abc.abstractmethod
+    async def extract_contents(
+        self,
+        source: str,
+        objects: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ], /, *,
+        include_snippets: bool = True,
+    ) -> list[ dict[ str, __.typx.Any ] ]:
+        ''' Extracts documentation content for specified objects. '''
+        raise NotImplementedError
+
+
+
+
 class DetectionToolResponse( __.immut.DataclassObject ):
     ''' Response from detect tool. '''
 
     source: str
-    detections: list[ Detection ]
-    detection_best: __.typx.Optional[ Detection ]
+    detections: list[ BaseDetection ]
+    detection_best: __.typx.Optional[ BaseDetection ]
     time_detection_ms: int

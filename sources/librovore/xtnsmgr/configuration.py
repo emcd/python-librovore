@@ -55,23 +55,48 @@ def validate_extension( config: ExtensionConfig ) -> None:
             name, "Field 'arguments' must be a dictionary" )
 
 
+def extract_inventory_extensions(
+    auxdata: __.Globals
+) -> tuple[ ExtensionConfig, ... ]:
+    ''' Loads and validates inventory extensions configuration. '''
+    return _extract_extension_type( auxdata, 'inventory-extensions' )
+
+
+def extract_structure_extensions(
+    auxdata: __.Globals
+) -> tuple[ ExtensionConfig, ... ]:
+    ''' Loads and validates structure extensions configuration. '''
+    return _extract_extension_type( auxdata, 'structure-extensions' )
+
+
 def extract_extensions(
     auxdata: __.Globals
 ) -> tuple[ ExtensionConfig, ... ]:
-    ''' Loads and validates extensions configuration. '''
+    ''' Loads and validates all extensions configuration (legacy). '''
+    inventory_extensions = extract_inventory_extensions( auxdata )
+    structure_extensions = extract_structure_extensions( auxdata )
+    legacy_extensions = _extract_extension_type( auxdata, 'extensions' )
+    return inventory_extensions + structure_extensions + legacy_extensions
+
+
+def _extract_extension_type(
+    auxdata: __.Globals,
+    extension_type: str
+) -> tuple[ ExtensionConfig, ... ]:
+    ''' Loads and validates extensions of specific type. '''
     configuration = auxdata.configuration
     if not configuration: return ( )
-    raw = configuration.get( 'extensions', [ ] )
+    raw = configuration.get( extension_type, [ ] )
     if not isinstance( raw, list ):
         raise __.ExtensionConfigurationInvalidity(
-            '<root>', "Configuration 'extensions' must be a list" )
+            '<root>', f"Configuration '{extension_type}' must be a list" )
     raw = __.typx.cast( list[ __.typx.Any ], raw )
-    extensions: __.cabc.Sequence[ ExtensionConfig ] = [ ]
+    extensions: list[ ExtensionConfig ] = [ ]
     for i, config in enumerate( raw ):
         if not isinstance( config, dict ):
             raise __.ExtensionConfigurationInvalidity(
-                f'<extension[{i}]>',
-                "Extension configuration must be a dictionary" )
+                f'<{extension_type}[{i}]>',
+                f"{extension_type.title()} configuration must be dict" )
         typed_config = __.typx.cast( ExtensionConfig, config )
         validate_extension( typed_config )
         extensions.append( typed_config )

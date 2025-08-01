@@ -26,14 +26,16 @@ from . import interfaces as _interfaces
 from . import xtnsapi as _xtnsapi
 
 
-DetectionsByProcessor: __.typx.TypeAlias = (
-    __.cabc.Mapping[ str, _interfaces.Detection ] )
+StructureStructureDetectionsByProcessor: __.typx.TypeAlias = (
+    __.cabc.Mapping[ str, _interfaces.StructureDetection ] )
+InventoryStructureDetectionsByProcessor: __.typx.TypeAlias = (
+    __.cabc.Mapping[ str, _interfaces.InventoryDetection ] )
 
 
 class DetectionsCacheEntry( __.immut.DataclassObject ):
     ''' Cache entry for source detection results. '''
 
-    detections: __.cabc.Mapping[ str, _interfaces.Detection ]
+    detections: __.cabc.Mapping[ str, _interfaces.StructureDetection ]
     timestamp: float
     ttl: int
 
@@ -61,7 +63,7 @@ class DetectionsCache( __.immut.DataclassObject ):
 
     def access_entry(
         self, source: str
-    ) -> __.Absential[ DetectionsByProcessor ]:
+    ) -> __.Absential[ StructureStructureDetectionsByProcessor ]:
         ''' Returns all detections for source, if unexpired. '''
         if source not in self._entries: return __.absent
         cache_entry = self._entries[ source ]
@@ -84,7 +86,8 @@ class DetectionsCache( __.immut.DataclassObject ):
         return cache_entry.best_detection
 
     def add_entry(
-        self, source: str, detections: DetectionsByProcessor
+        self, source: str, 
+        detections: __.cabc.Mapping[ str, _interfaces.StructureDetection ]
     ) -> __.typx.Self:
         ''' Adds or updates cache entry with fresh results. '''
         self._entries[ source ] = DetectionsCacheEntry(
@@ -101,7 +104,7 @@ class DetectionsCache( __.immut.DataclassObject ):
 
     def remove_entry(
         self, source: str
-    ) -> __.Absential[ DetectionsByProcessor ]:
+    ) -> __.Absential[ StructureStructureDetectionsByProcessor ]:
         ''' Removes specific source from cache, if present. '''
         entry = self._entries.pop( source, None )
         if entry: return entry.detections
@@ -111,11 +114,58 @@ class DetectionsCache( __.immut.DataclassObject ):
 _detections_cache = DetectionsCache( )
 
 
+async def detect_inventory(
+    source: str, /, *,
+    processor_name: __.Absential[ str ] = __.absent
+) -> _interfaces.InventoryDetection:
+    ''' Detects and returns best inventory processor for source. '''
+    if not __.is_absent( processor_name ):
+        if processor_name in _xtnsapi.inventory_processors:
+            processor = _xtnsapi.inventory_processors[ processor_name ]
+            return await processor.detect( source )
+        raise __.ProcessorInavailability( processor_name )
+    # Auto-detect best inventory processor  
+    for processor in _xtnsapi.inventory_processors.values( ):
+        try:
+            detection = await processor.detect( source )
+            if detection.confidence > 0.0:
+                return detection
+        except Exception:
+            continue
+    raise __.ProcessorInavailability( source )
+
+
+async def detect_structure(
+    source: str, /, *,
+    processor_name: __.Absential[ str ] = __.absent  
+) -> _interfaces.StructureDetection:
+    ''' Detects and returns best structure processor for source. '''
+    if not __.is_absent( processor_name ):
+        if processor_name in _xtnsapi.structure_processors:
+            processor = _xtnsapi.structure_processors[ processor_name ]
+            return await processor.detect( source )
+        raise __.ProcessorInavailability( processor_name )
+    # Auto-detect best structure processor
+    best_detection = None
+    best_confidence = 0.0
+    for processor in _xtnsapi.structure_processors.values( ):
+        try:
+            detection = await processor.detect( source )
+            if detection.confidence > best_confidence:
+                best_confidence = detection.confidence
+                best_detection = detection
+        except Exception:
+            continue
+    if best_detection is None:
+        raise __.ProcessorInavailability( source )
+    return best_detection
+
+
 async def access_detections(
     source: str, /, *,
     cache: DetectionsCache = _detections_cache,
     processors: _xtnsapi.ProcessorsRegistry = _xtnsapi.processors,
-) -> tuple[ DetectionsByProcessor, __.Absential[ _interfaces.Detection ] ]:
+) -> tuple[ StructureDetectionsByProcessor, __.Absential[ _interfaces.Detection ] ]:
     ''' Gets cached detections, triggering fresh detection if needed. '''
     detections = cache.access_entry( source )
     if __.is_absent( detections ):
@@ -168,7 +218,7 @@ async def _execute_processors_and_cache(
 
 
 def _select_processor_optimal(
-    detections: DetectionsByProcessor, processors: _xtnsapi.ProcessorsRegistry
+    detections: StructureDetectionsByProcessor, processors: _xtnsapi.ProcessorsRegistry
 ) -> __.Absential[ _interfaces.Detection ]:
     ''' Selects best processor based on confidence and registration order. '''
     if not detections: return __.absent

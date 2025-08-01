@@ -2,53 +2,60 @@
 # This file defines the configuration for the Librovore documentation processor,
 # including plugin/extension settings and their parameters.
 
-# Built-in Extensions
-# These extensions are included with the server and do not require external packages.
+# Built-in Inventory Extensions
+# These extensions process documentation inventories and do not require external packages.
 
-[[extensions]]
+[[inventory-extensions]]
 name = "sphinx"
 enabled = true
 
-[[extensions]]
+# Built-in Structure Extensions  
+# These extensions process documentation structures and do not require external packages.
+
+[[structure-extensions]]
+name = "sphinx"
+enabled = true
+
+[[structure-extensions]]
 name = "mkdocs"
 enabled = true
 
 # External Extension Examples
 # Uncomment and modify these examples to add external documentation processors.
 
-# Example: OpenAPI/Swagger documentation processor
-# [[extensions]]
+# Example: OpenAPI inventory processor
+# [[inventory-extensions]]
 # name = "openapi"
 # package = "librovore-openapi>=1.0"  # PEP 440 version specification
 # enabled = true
-# [extensions.arguments]
+# [inventory-extensions.arguments]
 # timeout = 60
 # validate-schemas = true
 # version = "3.0"
 
-# Example: GitHub-hosted custom processor
-# [[extensions]]
+# Example: GitHub-hosted custom structure processor
+# [[structure-extensions]]
 # name = "custom"
 # package = "git+https://github.com/user/librovore-plugin.git@main"  # PEP 508 URL
 # enabled = false
-# [extensions.arguments]
+# [structure-extensions.arguments]
 # custom-argument = "value"
 # debug = false
 
-# Example: Local development processor
-# [[extensions]]
-# name = "local_dev"
+# Example: Local development structure processor
+# [[structure-extensions]]
+# name = "local_dev"  
 # package = "file:///path/to/local/plugin"  # Local file system
 # enabled = false
-# [extensions.arguments]
+# [structure-extensions.arguments]
 # develop = true
 
 # Example: PyPI package with specific version constraints
-# [[extensions]]
+# [[structure-extensions]]
 # name = "mkdocs"
 # package = "librovore-mkdocs~=2.1"  # Compatible release
 # enabled = false
-# [extensions.arguments]
+# [structure-extensions.arguments]
 # theme = "material"
 # strict = true
 

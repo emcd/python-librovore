@@ -5,7 +5,8 @@ Implement separate registries for inventory and structure processors to improve 
 
 ## Architecture Goals
 - **Clean Separation**: Inventory vs structure concerns completely separated
-- **Flexible Delegation**: Structure processors can use any available inventory processor via registry lookup
+- **Dual Detection Systems**: Separate detection for inventory files vs structure files
+- **Function Dispatch**: Functions module routes queries to appropriate processor type
 - **Configuration Clarity**: Extension types explicit in configuration files
 - **No Cross-Imports**: Each processor type stays in its domain
 - **Registry-Based DI**: Replace direct imports with dependency injection
@@ -15,6 +16,14 @@ Implement separate registries for inventory and structure processors to improve 
 - Single extension configuration conflates inventory and structure types
 - Cross-module detection imports like `from ..sphinx.urls import derive_inventory_url`
 - Tight coupling between structure and inventory detection logic
+- Inventory concerns (`check_objects_inv`, `extract_inventory`) mixed into structure processors
+- Structure processors defining inventory capabilities instead of inventory processors
+- Single detection system conflates inventory detection (objects.inv) with structure detection (searchindex.js)
+- Functions module bypasses detection system with helper functions instead of proper dispatch
+- Legacy `processors` registry still exists alongside dual registries
+- Backward compatibility aliases that should be removed
+- Need separate `detect_inventory` and `detect_structure` functions
+- Detection module needs updating for dual processor registries
 
 ## Implementation Phases
 
@@ -39,17 +48,19 @@ Implement separate registries for inventory and structure processors to improve 
 - Use extension type from configuration to determine routing
 - Update registration error handling for dual registries
 
-### Phase 3: Decouple Detection Systems
+### Phase 3: Implement Dual Detection Systems
 **Status**: Pending
 **Files**:
-- `sources/librovore/structures/mkdocs/detection.py:75`
-- `sources/librovore/structures/sphinx/inventory.py:34`
+- `sources/librovore/inventories/sphinx.py` (inventory detection)
+- `sources/librovore/structures/sphinx/detection.py` (structure detection)
+- `sources/librovore/structures/mkdocs/detection.py` (structure detection)
 
 **Tasks**:
-- Remove `from ..sphinx.urls import derive_inventory_url` cross-imports
-- Move inventory detection logic to inventory processors
-- Structure detections become pure structural analysis
-- Eliminate detection spaghetti between modules
+- Create separate inventory detection system (objects.inv, etc.)
+- Create separate structure detection system (searchindex.js, themes, etc.)
+- Move `check_objects_inv` from structure to inventory processors
+- Move `extract_inventory` from structure to inventory processors
+- Structure detections become pure structural analysis (themes, navigation, content)
 
 ### Phase 4: Registry-Based Dependency Injection
 **Status**: Pending
@@ -61,14 +72,36 @@ Implement separate registries for inventory and structure processors to improve 
 - Structure processors delegate inventory operations via registry
 - Update error handling for missing inventory processors
 
-### Phase 5: Update Capabilities & Validation
+### Phase 5: Function Dispatch System
+**Status**: Pending
+**Files**: 
+- `sources/librovore/functions.py`
+
+**Tasks**:
+- Update `query_inventory` to use inventory processor detection and registry
+- Update `query_content` to use structure processor detection and registry
+- Ensure proper routing based on query type
+- Remove mixed detection logic from functions module
+
+### Phase 6: Clean Architecture Implementation
 **Status**: Pending
 
 **Tasks**:
-- Update MkDocs filter capabilities to reflect actual vs delegated functionality
-- Validate all processors register and lookup correctly
-- Ensure extension loading works with both processor types
-- Test registry-based delegation
+- Add `ProcessorGenera` enum with `Inventory` and `Structure` variants
+- Remove legacy `processors` registry and backward compatibility aliases
+- Create separate `detect_inventory` and `detect_structure` functions
+- Update detection module for dual processor registries instead of bypassing it
+- Remove helper functions from functions module (`_get_inventory_processor`, `_get_structure_processor`)
+- Proper dispatch through detection system rather than direct registry access
+
+### Phase 7: Final Validation
+**Status**: Pending
+
+**Tasks**:
+- Validate all processors register and lookup correctly through detection system
+- Test dual detection and registry systems
+- Ensure no legacy registry dependencies remain
+- Verify proper separation of inventory vs structure concerns
 
 ## Key Design Decisions
 
@@ -88,11 +121,30 @@ enabled = true
 For release 1.0: MkDocs uses Sphinx inventory processor via registry lookup
 Post-1.0: Consider native MkDocs inventory processor if needed
 
-### Detection Decoupling
-Move inventory detection concerns to inventory processors:
-- Structure processors: analyze document structure only
-- Inventory processors: handle inventory detection and extraction
-- Registry: provides loose coupling between the two
+### Detection Separation Strategy
+Separate detection systems for different concerns:
+
+**Inventory Detection** (handled by inventory processors):
+- `objects.inv` files (Sphinx inventory)
+- API documentation indices
+- Symbol/reference databases
+- Cross-reference systems
+
+**Structure Detection** (handled by structure processors):
+- `searchindex.js` files (Sphinx search)
+- `mkdocs.yml` configuration files
+- Theme detection and metadata
+- Navigation structure
+- Content organization and hierarchy
+
+**Function Dispatch** (via proper detection system):
+- `query_inventory()` → calls `detect_inventory()` → routes to inventory processors
+- `query_content()` → calls `detect_structure()` → routes to structure processors
+
+**ProcessorGenera Enum**:
+- `ProcessorGenera.Inventory` - for inventory processor operations
+- `ProcessorGenera.Structure` - for structure processor operations
+- Replaces string literals and improves type safety
 
 ## Benefits
 1. **Modularity**: Each processor type has single responsibility

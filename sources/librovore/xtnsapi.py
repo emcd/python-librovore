@@ -35,7 +35,6 @@ InventoryProcessorsRegistry: __.typx.TypeAlias = (
     __.accret.ValidatorDictionary[ str, InventoryProcessor ] )
 StructureProcessorsRegistry: __.typx.TypeAlias = (
     __.accret.ValidatorDictionary[ str, Processor ] )
-ProcessorsRegistry: __.typx.TypeAlias = StructureProcessorsRegistry
 
 
 def _inventory_validator( name: str, value: InventoryProcessor ) -> bool:
@@ -50,4 +49,3 @@ inventory_processors: InventoryProcessorsRegistry = (
     __.accret.ValidatorDictionary( _inventory_validator ) )
 structure_processors: StructureProcessorsRegistry = (
     __.accret.ValidatorDictionary( _structure_validator ) )
-processors: ProcessorsRegistry = structure_processors

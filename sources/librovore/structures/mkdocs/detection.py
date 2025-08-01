@@ -24,7 +24,6 @@
 from urllib.parse import ParseResult as _Url
 
 from . import __
-from ...inventories import sphinx as _sphinx_inventory
 
 
 _scribe = __.acquire_scribe( __name__ )
@@ -34,7 +33,6 @@ class MkDocsDetection( __.Detection ):
     ''' Detection result for MkDocs documentation sources. '''
 
     source: str
-    has_objects_inv: bool = False
     has_mkdocs_yml: bool = False
     normalized_source: str = ''
     theme: __.typx.Optional[ str ] = None
@@ -59,22 +57,8 @@ class MkDocsDetection( __.Detection ):
         # TODO: Implement MkDocs-specific content extraction
         return [ ]
 
-    async def filter_inventory(
-        self, source: str, /, *,
-        filters: __.cabc.Mapping[ str, __.typx.Any ],
-        details: __.InventoryQueryDetails = (
-            __.InventoryQueryDetails.Documentation ),
-    ) -> list[ dict[ str, __.typx.Any ] ]:
-        ''' Extracts and filters inventory objects from source. '''
-        return await _sphinx_inventory.filter_inventory(
-            source, filters = filters, details = details )
 
 
-async def check_objects_inv( source: _Url ) -> bool:
-    ''' Checks if objects.inv exists at the source. '''
-    from ..sphinx.urls import derive_inventory_url as _derive_inventory_url
-    inventory_url = _derive_inventory_url( source )
-    return await __.probe_url( inventory_url )
 
 
 async def check_mkdocs_yml( source: _Url ) -> bool:

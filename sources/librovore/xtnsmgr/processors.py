@@ -30,17 +30,33 @@ from . import importation as _importation
 _scribe = __.acquire_scribe( __name__ )
 
 
+def _raise_registration_error( name: str ) -> None:
+    ''' Raises registration error for missing function. '''
+    raise __.ExtensionConfigurationInvalidity(
+        name, "No registration function found" )
+
+
 async def register_processors( auxdata: __.Globals ):
-    ''' Registers processors based on configuration. '''
-    try: extensions = _configuration.extract_extensions( auxdata )
+    ''' Registers inventory and structure processors from configuration. '''
+    await _register_processor_type(
+        auxdata, 'inventory', _configuration.extract_inventory_extensions )
+    await _register_processor_type(
+        auxdata, 'structure', _configuration.extract_structure_extensions )
+
+
+async def _register_processor_type(
+    auxdata: __.Globals,
+    processor_type: str,
+    extract_func: __.cabc.Callable[ [ __.Globals ], __.typx.Any ]
+) -> None:
+    ''' Registers processors of specific type based on configuration. '''
+    try: extensions = extract_func( auxdata )
     except ( KeyError, ValueError, TypeError ) as exc:
-        _scribe.error( f"Configuration loading failed: {exc}." )
-        _scribe.warning( "No processors loaded due to configuration errors." )
+        _scribe.error( f"{processor_type.title()} configuration loading "
+                      f"failed: {exc}." )
         return
     active_extensions = _configuration.select_active_extensions( extensions )
-    if not active_extensions:
-        _scribe.warning( "No enabled extensions found in configuration." )
-        return
+    if not active_extensions: return
     intrinsic_extensions = (
         _configuration.select_intrinsic_extensions( active_extensions ) )
     external_extensions = tuple(
@@ -48,10 +64,10 @@ async def register_processors( auxdata: __.Globals ):
         if ext.get( 'package' ) and ext not in intrinsic_extensions )
     await _ensure_external_packages( external_extensions )
     if not intrinsic_extensions and not external_extensions:
-        _scribe.warning( "No processors could be loaded." )
+        _scribe.warning( f"No {processor_type} processors could be loaded." )
         return
     for extension in active_extensions:
-        _register_extension( extension )
+        _register_extension( extension, processor_type )
 
 
 async def _ensure_external_packages(
@@ -69,19 +85,34 @@ async def _ensure_external_packages(
 
 def _register_extension(
     extension: _configuration.ExtensionConfig,
+    processor_type: str
 ) -> None:
-    ''' Registers extension from configuration. '''
+    ''' Registers extension from configuration to appropriate registry. '''
     name = extension[ 'name' ]
     arguments = _configuration.extract_extension_arguments( extension )
     if 'package' not in extension:
-        module_name = f"{__.package_name}.structures.{name}"
+        if processor_type == 'inventory':
+            module_name = f"{__.package_name}.inventories.{name}"
+        else:
+            module_name = f"{__.package_name}.structures.{name}"
     else: module_name = name
     try: module = _importation.import_processor_module( module_name )
     except ( ImportError, ModuleNotFoundError ) as exc:
-        _scribe.error( f"Failed to import processor {name}: {exc}" )
+        _scribe.error( f"Failed to import {processor_type} processor "
+                      f"{name}: {exc}" )
         return
-    try: module.register( arguments )
+    register_func_name = (
+        f'register_{name}_inventory' if processor_type == 'inventory'
+        else 'register' )
+    try:
+        if hasattr( module, register_func_name ):
+            getattr( module, register_func_name )( arguments )
+        elif hasattr( module, 'register' ):
+            module.register( arguments )
+        else:
+            _raise_registration_error( name )
     except Exception as exc:
-        _scribe.error( f"Failed to register processor {name}: {exc}" )
+        _scribe.error( f"Failed to register {processor_type} processor "
+                      f"{name}: {exc}" )
         return
-    _scribe.info( f"Registered extension: {name}." )
+    _scribe.info( f"Registered {processor_type} extension: {name}." )

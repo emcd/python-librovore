@@ -26,7 +26,6 @@ from urllib.parse import ParseResult as _Url
 from . import __
 from . import extraction as _extraction
 from . import urls as _urls
-from ...inventories import sphinx as _sphinx_inventory
 
 
 _scribe = __.acquire_scribe( __name__ )
@@ -73,7 +72,10 @@ class SphinxDetection( __.Detection ):
             __.InventoryQueryDetails.Documentation ),
     ) -> list[ dict[ str, __.typx.Any ] ]:
         ''' Extracts and filters inventory objects from source. '''
-        return await _sphinx_inventory.filter_inventory(
+        if 'sphinx' not in __.inventory_processors:
+            return [ ]
+        inventory_processor = __.inventory_processors[ 'sphinx' ]
+        return await inventory_processor.filter_inventory(
             source, filters = filters, details = details )
 
 

@@ -53,6 +53,15 @@ def extract_inventory( base_url: _Url ) -> _sphobjinv.Inventory:
         raise __.InventoryInvalidity( url_s, cause = exc ) from exc
 
 
+async def check_objects_inv( base_url: __.typx.Any ) -> bool:
+    ''' Checks if objects.inv exists at the source for inventory detection. '''
+    try:
+        inventory_url = derive_inventory_url( base_url )
+        return await __.probe_url( inventory_url )
+    except Exception:
+        return False
+
+
 async def filter_inventory(
     source: str, /, *,
     filters: __.cabc.Mapping[ str, __.typx.Any ],
@@ -96,6 +105,34 @@ def format_inventory_object(
 
 class SphinxInventoryProcessor( __.InventoryProcessor ):
     ''' Processes Sphinx inventory files (objects.inv format). '''
+
+    @property
+    def capabilities( self ) -> __.ProcessorCapabilities:
+        ''' Returns Sphinx inventory processor capabilities. '''
+        return __.ProcessorCapabilities(
+            processor_name = 'sphinx',
+            version = '1.0.0',
+            supported_filters = [
+                __.FilterCapability(
+                    name = 'domain',
+                    description = 'Filter by object domain (e.g., py, js)',
+                    type = 'string'
+                ),
+                __.FilterCapability(
+                    name = 'role',
+                    description = 'Filter by object role (e.g., class, func)',
+                    type = 'string'
+                ),
+                __.FilterCapability(
+                    name = 'priority',
+                    description = 'Filter by object priority',
+                    type = 'string'
+                ),
+            ],
+            results_limit_max = 10000,
+            response_time_typical = 'fast',
+            notes = 'Processes Sphinx inventory files (objects.inv format)'
+        )
 
     async def filter_inventory(
         self, source: str, /, *,
