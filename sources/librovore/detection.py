@@ -116,17 +116,10 @@ _structure_detections_cache = DetectionsCache( )
 
 async def access_detections(
     source: str, /, *,
-    genus: _interfaces.ProcessorGenera,
+    cache: DetectionsCache,
+    processors: __.cabc.Mapping[ str, _interfaces.Processor ],
 ) -> tuple[ DetectionsByProcessor, __.Absential[ _interfaces.BaseDetection ] ]:
     ''' Gets cached detections, triggering fresh detection if needed. '''
-    # Select cache and processors based on genus
-    if genus == _interfaces.ProcessorGenera.Inventory:
-        cache = _inventory_detections_cache
-        processors = _xtnsapi.inventory_processors
-    else:  # ProcessorGenera.Structure
-        cache = _structure_detections_cache
-        processors = _xtnsapi.structure_processors
-    
     detections = cache.access_entry( source )
     if __.is_absent( detections ):
         await _execute_processors_and_cache( source, cache, processors )

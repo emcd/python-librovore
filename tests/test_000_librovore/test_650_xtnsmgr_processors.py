@@ -65,7 +65,7 @@ def test_300_register_extension_handles_missing_name( ):
     
     # Should raise KeyError for missing required 'name' field
     with pytest.raises( KeyError ):
-        module._register_extension( { } )
+        module._register_extension( { }, 'inventory' )
 
 
 def test_310_register_extension_handles_valid_config( ):
@@ -78,7 +78,7 @@ def test_310_register_extension_handles_valid_config( ):
     }
     # This should attempt to import the processor but fail gracefully
     # The function should return without raising for missing modules
-    module._register_extension( valid_config )
+    module._register_extension( valid_config, 'inventory' )
 
 
 def test_320_register_extension_handles_external_config( ):
@@ -91,7 +91,7 @@ def test_320_register_extension_handles_external_config( ):
         'arguments': { }
     }
     # Should attempt to import external module but handle gracefully
-    module._register_extension( external_config )
+    module._register_extension( external_config, 'structure' )
 
 
 @pytest.mark.asyncio

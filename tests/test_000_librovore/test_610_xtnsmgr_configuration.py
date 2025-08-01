@@ -217,7 +217,7 @@ def test_240_extract_extensions_non_dict_extension( ):
     }
     with pytest.raises(
         _exceptions.ExtensionConfigurationInvalidity,
-        match = "must be a dictionary"
+        match = "must be dict"
     ): module.extract_extensions( mock_globals )
 
 

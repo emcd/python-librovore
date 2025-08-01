@@ -96,7 +96,7 @@ async def test_140_explore_with_all_filters( ):
 @pytest.mark.asyncio
 async def test_150_explore_nonexistent_file( ):
     ''' Explore function raises appropriate exception for missing files. '''
-    with pytest.raises( _exceptions.ProcessorInavailability ):
+    with pytest.raises( _exceptions.InventoryInaccessibility ):
         await module.query_inventory(
             "/nonexistent/path.inv", "",
             details = module._interfaces.InventoryQueryDetails.Name )
@@ -170,7 +170,7 @@ async def test_260_match_mode_enum_values( ):
 @pytest.mark.asyncio
 async def test_270_summarize_inventory_nonexistent_file( ):
     ''' Summarize inventory raises appropriate exception for missing files. '''
-    with pytest.raises( _exceptions.ProcessorInavailability ):
+    with pytest.raises( _exceptions.InventoryInaccessibility ):
         await module.summarize_inventory( "/nonexistent/path.inv" )
 
 
@@ -390,7 +390,7 @@ async def test_630_query_documentation_no_matches( ):
 @pytest.mark.asyncio
 async def test_640_query_documentation_nonexistent_file( ):
     ''' Query documentation handles nonexistent files gracefully. '''
-    with pytest.raises( _exceptions.ProcessorInavailability ):
+    with pytest.raises( _exceptions.InventoryInaccessibility ):
         await module.query_content(
             '/nonexistent/path.inv', 'inventory' )
 

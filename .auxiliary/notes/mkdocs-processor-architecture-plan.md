@@ -350,3 +350,14 @@ The architectural refactoring has been **successfully completed**. The inventory
 The 1.0 implementation successfully covers mkdocstrings-enhanced MkDocs sites while establishing the architectural patterns needed for future expansion. The system now correctly handles both Sphinx and MkDocs documentation with intelligent processor selection based on site characteristics.
 
 **Next Steps**: Ready for production use. Future enhancements can focus on pure MkDocs sites, additional inventory formats (OpenAPI), or new structure processors (Docusaurus, VitePress).
+
+## Connection to Dual Registry Architecture
+
+This MkDocs processor implementation was **enabled by the dual registry architecture** documented in `dual-registry-implementation-plan.md`. The architectural separation of inventory processors from structure processors allows:
+
+- **Inventory reuse**: Both Sphinx and MkDocs processors share the same `SphinxInventoryProcessor` for objects.inv files
+- **Clean separation**: MkDocs structure detection (themes, YAML config) is independent from inventory processing
+- **Extensibility**: New inventory formats (OpenAPI) can be added without affecting structure processors
+- **Type safety**: ProcessorGenera enum ensures proper routing to inventory vs structure registries
+
+The dual registry system provides the foundation that makes this clean architectural separation possible.

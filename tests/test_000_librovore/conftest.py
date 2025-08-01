@@ -49,8 +49,10 @@ async def load_processors( ):
     ''' Auto-load builtin processors for tests. '''
     import librovore.structures.sphinx as _sphinx_processor
     import librovore.structures.mkdocs as _mkdocs_processor
+    import librovore.inventories as _inventories
     _sphinx_processor.register( { } )
     _mkdocs_processor.register( { } )
+    _inventories.register_sphinx_inventory( { } )
 
 
 def pytest_sessionfinish( session, exitstatus ):
