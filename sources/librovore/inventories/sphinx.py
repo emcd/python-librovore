@@ -94,7 +94,7 @@ def format_inventory_object(
     }
 
 
-class SphinxInventoryProcessor( __.immut.DataclassObject ):
+class SphinxInventoryProcessor( __.InventoryProcessor ):
     ''' Processes Sphinx inventory files (objects.inv format). '''
 
     async def filter_inventory(

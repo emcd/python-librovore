@@ -68,26 +68,16 @@ class MkDocsProcessor( __.Processor ):
             check_mkdocs_yml as _check_mkdocs_yml,
             detect_theme as _detect_theme,
         )
-        
         base_url = __.normalize_base_url( source )
         normalized_source = base_url.geturl( )
-        
-        # Check for MkDocs indicators
         has_objects_inv = await _check_objects_inv( base_url )
         has_mkdocs_yml = await _check_mkdocs_yml( base_url )
-        
-        # Calculate confidence: prioritize objects.inv since that's what we use
         confidence = 0.0
         if has_objects_inv: confidence += 0.8
         if has_mkdocs_yml: confidence += 0.4
-        
-        # Cap confidence at 1.0
         confidence = min( confidence, 1.0 )
-        
-        # Get theme metadata
         theme_metadata = await _detect_theme( base_url )
         theme = theme_metadata.get( 'theme' )
-        
         return MkDocsDetection(
             processor = self,
             confidence = confidence,

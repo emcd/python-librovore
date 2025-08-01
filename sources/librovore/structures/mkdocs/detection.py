@@ -44,8 +44,6 @@ class MkDocsDetection( __.Detection ):
         cls, processor: __.Processor, source: str
     ) -> __.typx.Self:
         ''' Constructs detection from source location. '''
-        # Note: This method is used by the protocol but actual construction
-        # happens in the processor's detect method to avoid circular imports
         if processor.name != 'mkdocs':
             raise __.ProcessorInvalidity(
                 "MkDocsProcessor", type( processor ) )
@@ -58,9 +56,8 @@ class MkDocsDetection( __.Detection ):
         include_snippets: bool = True,
     ) -> list[ dict[ str, __.typx.Any ] ]:
         ''' Extracts documentation content for specified objects. '''
-        # For v1.0, delegate to Sphinx inventory extraction since
-        # mkdocstrings generates Sphinx inventories
-        return [ ]  # TODO: Implement MkDocs-specific content extraction
+        # TODO: Implement MkDocs-specific content extraction
+        return [ ]
 
     async def filter_inventory(
         self, source: str, /, *,
@@ -90,13 +87,10 @@ async def detect_theme( source: _Url ) -> dict[ str, __.typx.Any ]:
     ''' Detects MkDocs theme and other metadata. '''
     from ...cacheproxy import retrieve_url_as_text as _retrieve_url_as_text
     theme_metadata: dict[ str, __.typx.Any ] = { }
-    
-    # Try multiple common HTML file locations
     html_candidates = [
-        source._replace( path = f"{source.path}/" ),  # Base URL (redirects)
+        source._replace( path = f"{source.path}/" ),
         source._replace( path = f"{source.path}/index.html" ),
     ]
-    
     html_content = None
     for html_url in html_candidates:
         try: 
@@ -105,14 +99,11 @@ async def detect_theme( source: _Url ) -> dict[ str, __.typx.Any ]:
             break
         except __.DocumentationInaccessibility: 
             continue
-    
     if html_content:
         html_content_lower = html_content.lower( )
-        # Check for Material for MkDocs theme
         if ( 'material' in html_content_lower
              or 'mkdocs-material' in html_content_lower ):
             theme_metadata[ 'theme' ] = 'material'
         elif 'readthedocs' in html_content_lower:
             theme_metadata[ 'theme' ] = 'readthedocs'
-        # If no theme detected, don't set theme key (returns None)
     return theme_metadata

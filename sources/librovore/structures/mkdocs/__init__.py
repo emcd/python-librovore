@@ -25,9 +25,6 @@ from . import __
 from .main import MkDocsProcessor
 
 
-__all__ = ( 'MkDocsProcessor', )
-
-
 def register( arguments: __.cabc.Mapping[ str, __.typx.Any ] ) -> None:
     ''' Registers MkDocs processor with extensions manager. '''
     processor = MkDocsProcessor( **arguments )
