@@ -27,7 +27,7 @@ from .sphinx import (
 )
 
 
-def register_sphinx_inventory( 
+def register( 
     arguments: __.cabc.Mapping[ str, __.typx.Any ] 
 ) -> None:
     ''' Registers Sphinx inventory processor. '''

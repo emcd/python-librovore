@@ -52,7 +52,7 @@ async def load_processors( ):
     import librovore.inventories as _inventories
     _sphinx_processor.register( { } )
     _mkdocs_processor.register( { } )
-    _inventories.register_sphinx_inventory( { } )
+    _inventories.register( { } )
 
 
 def pytest_sessionfinish( session, exitstatus ):

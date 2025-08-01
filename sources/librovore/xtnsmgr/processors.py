@@ -101,13 +101,8 @@ def _register_extension(
         _scribe.error( f"Failed to import {processor_type} processor "
                       f"{name}: {exc}" )
         return
-    register_func_name = (
-        f'register_{name}_inventory' if processor_type == 'inventory'
-        else 'register' )
     try:
-        if hasattr( module, register_func_name ):
-            getattr( module, register_func_name )( arguments )
-        elif hasattr( module, 'register' ):
+        if hasattr( module, 'register' ):
             module.register( arguments )
         else:
             _raise_registration_error( name )
