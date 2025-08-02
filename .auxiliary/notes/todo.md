@@ -1,4 +1,17 @@
-# Release 1.0 TODO - Sphinx MCP Server
+# Release 1.0 TODO - Librovore Documentation MCP Server
+
+## Alpha Release Preparation (High Priority)
+
+### ✅ Recently Completed
+- [x] **MkDocs processor**: Complete implementation with HTML-to-Markdown conversion
+- [x] **Language-aware code blocks**: Enhanced code block handling with language detection
+- [x] **Theme-specific extraction**: Material for MkDocs and ReadTheDocs support
+
+### 🚀 Alpha Release Priorities
+- [ ] **UX testing**: Comprehensive testing across documentation ecosystems
+- [ ] **README update**: Complete documentation overhaul for alpha users
+- [ ] **Real-world validation**: Test with diverse MkDocs and Sphinx sites
+- [ ] **Error handling review**: Ensure graceful degradation in edge cases
 
 ## Code Quality & Maintenance (Medium Priority)
 
@@ -6,12 +19,6 @@
 - [x] **Reduce test overlap**: Target specific uncovered lines instead of comprehensive functionality tests
 - [ ] **Mock heavy operations**: Replace inventory parsing with mocks for unit tests
 - [ ] **Focus on hard gaps**: Mock HTTP/network failures for error path testing
-
-## API Stability (High Priority)
-
-### 🚀 Current Agenda (Post-Consolidation)
-- [ ] **MkDocs processor**: Implement second processor for MkDocs-generated sites
-- [ ] **Real-world testing**: Try Sphinx processor on various sites for additional UX improvements
 
 ### 📖 Documentation
 - [ ] **API documentation**: Complete documentation for all public interfaces

@@ -1,8 +1,30 @@
-# Tested Sphinx Documentation Sites
+# Tested Documentation Sites
 
-Reference list of sites tested with the Sphinx MCP processor for future validation.
+Reference list of sites tested with both Sphinx and MkDocs processors for future validation.
 
 ## ✅ Successfully Tested Sites
+
+### MkDocs Sites (with mkdocstrings)
+
+### **FastAPI** - https://fastapi.tiangolo.com/
+- **Theme**: Material for MkDocs
+- **Inventory**: 1349 objects via mkdocstrings
+- **Test Query**: `APIRouter` → Clean signatures and descriptions
+- **HTML-to-Markdown**: Excellent conversion quality
+
+### **Pydantic** - https://docs.pydantic.dev/latest/
+- **Theme**: Material for MkDocs  
+- **Inventory**: 1066 objects via mkdocstrings
+- **Test Query**: `BaseModel` → Proper content extraction
+- **HTML-to-Markdown**: High-quality markdown output
+
+### **mkdocstrings** - https://mkdocstrings.github.io/
+- **Theme**: Material for MkDocs
+- **Inventory**: 539 objects (self-documenting)
+- **Test Query**: `AutoDocProcessor` → Meta-documentation extraction
+- **HTML-to-Markdown**: Clean conversion of technical content
+
+### Sphinx Sites
 
 ### **pytest** - https://docs.pytest.org/en/latest/
 - **Theme**: Furo
@@ -30,20 +52,10 @@ Reference list of sites tested with the Sphinx MCP processor for future validati
 
 ## ❌ Sites That Correctly Failed Detection
 
-**Tested Sites:**
-- ✅ **Pydantic** (`docs.pydantic.dev/latest/`) - Has objects.inv, works with
-  current Sphinx processor
-- ✅ **FastAPI** (`fastapi.tiangolo.com/`) - Has objects.inv, works with
-  current Sphinx processor
-- ✅ **mkdocstrings** (`mkdocstrings.github.io/`) - Has objects.inv, reference
-  implementation
-- ❌ **HTTPX** (`python-httpx.org/`) - Pure MkDocs, no inventory (future scope)
-
-### **httpx** - https://www.python-httpx.org/
-- Uses MkDocs (correctly rejected)
-
-### **Pydantic** - https://docs.pydantic.dev/
-- Uses MkDocs (correctly rejected)
+### **HTTPX** - https://www.python-httpx.org/
+- **Status**: Pure MkDocs without mkdocstrings - no inventory available
+- **Reason**: Correctly rejected (no objects.inv file)
+- **Future**: Could support with pure content parsing (no API objects)
 
 ## ⚠️ Sites with Historical Issues (Now Resolved)
 
@@ -53,8 +65,21 @@ Reference list of sites tested with the Sphinx MCP processor for future validati
 
 ## Testing Notes
 
+### Sphinx Processor
 - All major themes (Furo, pydoctheme, ReadTheDocs, custom) work correctly
 - DSL-driven content extraction handles theme variations automatically
 - Single-pass HTML-to-Markdown conversion provides clean output
 - Proper spacing preservation in text extraction
+
+### MkDocs Processor  
+- Material for MkDocs theme fully supported
+- mkdocstrings integration provides rich API documentation
+- Enhanced HTML-to-Markdown with language-aware code blocks
+- Admonition processing converts to clean text format
+- Navigation cleanup removes Material theme UI elements
+
+### General
 - robots.txt 404 handling works correctly for GitHub Pages sites
+- Dual processor architecture automatically selects appropriate handler
+- Consistent markdown output across both documentation systems
+- Language detection in code blocks ready for future Pygments integration

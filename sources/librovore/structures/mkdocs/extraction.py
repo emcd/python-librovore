@@ -206,10 +206,8 @@ def _cleanup_content(
 
 def _convert_to_markdown( html_content: str ) -> str:
     ''' Converts HTML content to markdown format. '''
-    # TODO: Implement HTML to markdown conversion
-    # For now, strip HTML tags and return cleaned text
-    soup = _BeautifulSoup( html_content, 'lxml' )
-    return _clean_extracted_text( soup.get_text( ) )
+    from . import conversion as _conversion
+    return _conversion.html_to_markdown( html_content )
 
 
 def _derive_documentation_url(
