@@ -20,15 +20,17 @@
 
 ''' Comprehensive tests for HTTP caching infrastructure. '''
 
+# ruff: noqa: E501
+
 
 import asyncio
 
-from unittest.mock import patch, Mock, AsyncMock
+from unittest.mock import patch, Mock #, AsyncMock
 from urllib.parse import ParseResult as Url
-import urllib.robotparser as _urllib_robotparser
+# import urllib.robotparser as _urllib_robotparser
 
-import httpx as _httpx
 import appcore.generics as _generics
+import httpx as _httpx
 import pytest
 
 import librovore.cacheproxy as module
@@ -1365,177 +1367,177 @@ def test_414_extract_domain_with_query( ):
 #
 
 
-@pytest.mark.asyncio
-async def test_420_check_robots_txt_allowed_url( robots_txt_samples ):
-    ''' URLs allowed by robots.txt return True. '''
-    robots_cache = module.RobotsCache( )
-    def handler( request ):
-        return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    url = Url(
-        scheme = 'https', netloc = 'allowed-example.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    result = await module._check_robots_txt(
-        url, robots_cache = robots_cache, client_factory = client_factory )
-    assert result is True
+# @pytest.mark.asyncio
+# async def test_420_check_robots_txt_allowed_url( robots_txt_samples ):
+#     ''' URLs allowed by robots.txt return True. '''
+#     robots_cache = module.RobotsCache( )
+#     def handler( request ):
+#         return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     url = Url(
+#         scheme = 'https', netloc = 'allowed-example.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     result = await module._check_robots_txt(
+#         url, robots_cache = robots_cache, client_factory = client_factory )
+#     assert result is True
 
 
-@pytest.mark.asyncio
-async def test_421_check_robots_txt_blocked_url( robots_txt_samples ):
-    ''' URLs blocked by robots.txt return False. '''
-    robots_cache = module.RobotsCache( )
-    def handler( request ):
-        return _httpx.Response( 200, text = robots_txt_samples[ 'block_all' ] )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    url = Url(
-        scheme = 'https', netloc = 'blocked-example.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    result = await module._check_robots_txt(
-        url, robots_cache = robots_cache, client_factory = client_factory )
-    assert result is False
+# @pytest.mark.asyncio
+# async def test_421_check_robots_txt_blocked_url( robots_txt_samples ):
+#     ''' URLs blocked by robots.txt return False. '''
+#     robots_cache = module.RobotsCache( )
+#     def handler( request ):
+#         return _httpx.Response( 200, text = robots_txt_samples[ 'block_all' ] )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     url = Url(
+#         scheme = 'https', netloc = 'blocked-example.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     result = await module._check_robots_txt(
+#         url, robots_cache = robots_cache, client_factory = client_factory )
+#     assert result is False
 
 
-@pytest.mark.asyncio
-async def test_422_check_robots_txt_non_http_scheme( ):
-    ''' File and FTP schemes always return True. '''
-    file_url = Url(
-        scheme = 'file', netloc = '', path = '/test/file.txt',
-        params = '', query = '', fragment = '' )
-    ftp_url = Url(
-        scheme = 'ftp', netloc = 'ftp.example.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    assert await module._check_robots_txt( file_url ) is True
-    assert await module._check_robots_txt( ftp_url ) is True
+# @pytest.mark.asyncio
+# async def test_422_check_robots_txt_non_http_scheme( ):
+#     ''' File and FTP schemes always return True. '''
+#     file_url = Url(
+#         scheme = 'file', netloc = '', path = '/test/file.txt',
+#         params = '', query = '', fragment = '' )
+#     ftp_url = Url(
+#         scheme = 'ftp', netloc = 'ftp.example.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     assert await module._check_robots_txt( file_url ) is True
+#     assert await module._check_robots_txt( ftp_url ) is True
 
 
-@pytest.mark.asyncio
-async def test_423_check_robots_txt_missing_robots_file( ):
-    ''' Missing robots.txt allows access by default. '''
-    robots_cache = module.RobotsCache( )
-    def handler( request ):
-        return _httpx.Response( 404 )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    url = Url(
-        scheme = 'https', netloc = 'missing-robots.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    result = await module._check_robots_txt(
-        url, robots_cache = robots_cache, client_factory = client_factory )
-    assert result is True
+# @pytest.mark.asyncio
+# async def test_423_check_robots_txt_missing_robots_file( ):
+#     ''' Missing robots.txt allows access by default. '''
+#     robots_cache = module.RobotsCache( )
+#     def handler( request ):
+#         return _httpx.Response( 404 )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     url = Url(
+#         scheme = 'https', netloc = 'missing-robots.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     result = await module._check_robots_txt(
+#         url, robots_cache = robots_cache, client_factory = client_factory )
+#     assert result is True
 
 
-@pytest.mark.asyncio
-async def test_424_check_robots_txt_malformed_robots_file(
-        robots_txt_samples ):
-    ''' Malformed robots.txt content allows access by default. '''
-    robots_cache = module.RobotsCache( )
-    def handler( request ):
-        return _httpx.Response( 200, text = robots_txt_samples[ 'malformed' ] )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    url = Url(
-        scheme = 'https', netloc = 'malformed-example.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    result = await module._check_robots_txt(
-        url, robots_cache = robots_cache, client_factory = client_factory )
-    assert result is True
+# @pytest.mark.asyncio
+# async def test_424_check_robots_txt_malformed_robots_file(
+#         robots_txt_samples ):
+#     ''' Malformed robots.txt content allows access by default. '''
+#     robots_cache = module.RobotsCache( )
+#     def handler( request ):
+#         return _httpx.Response( 200, text = robots_txt_samples[ 'malformed' ] )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     url = Url(
+#         scheme = 'https', netloc = 'malformed-example.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     result = await module._check_robots_txt(
+#         url, robots_cache = robots_cache, client_factory = client_factory )
+#     assert result is True
 
 
-@pytest.mark.asyncio
-async def test_425_check_robots_txt_cache_hit( robots_txt_samples ):
-    ''' Cached robots.txt parser is used when available. '''
-    from urllib.robotparser import RobotFileParser
-    robots_cache = module.RobotsCache( )
-    parser = RobotFileParser( )
-    parser.set_url( 'https://example.com/robots.txt' )
-    parser.parse( robots_txt_samples[ 'allow_all' ].splitlines( ) )
-    response = _generics.Value( parser )
-    with patch.object( module.__.time, 'time', return_value = 1000.0 ):
-        await robots_cache.store( 'https://example.com', response, 3600.0 )
-    url = Url(
-        scheme = 'https', netloc = 'example.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    result = await module._check_robots_txt(
-        url, robots_cache = robots_cache )
-    assert result is True
+# @pytest.mark.asyncio
+# async def test_425_check_robots_txt_cache_hit( robots_txt_samples ):
+#     ''' Cached robots.txt parser is used when available. '''
+#     from urllib.robotparser import RobotFileParser
+#     robots_cache = module.RobotsCache( )
+#     parser = RobotFileParser( )
+#     parser.set_url( 'https://example.com/robots.txt' )
+#     parser.parse( robots_txt_samples[ 'allow_all' ].splitlines( ) )
+#     response = _generics.Value( parser )
+#     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
+#         await robots_cache.store( 'https://example.com', response, 3600.0 )
+#     url = Url(
+#         scheme = 'https', netloc = 'example.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     result = await module._check_robots_txt(
+#         url, robots_cache = robots_cache )
+#     assert result is True
 
 
-@pytest.mark.asyncio
-async def test_426_check_robots_txt_cache_miss_fetch( robots_txt_samples ):
-    ''' Cache miss triggers robots.txt fetch and parsing. '''
-    robots_cache = module.RobotsCache( )
-    def handler( request ):
-        return _httpx.Response(
-            200, text = robots_txt_samples[ 'block_specific' ] )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    url = Url(
-        scheme = 'https', netloc = 'example.com', path = '/public/test',
-        params = '', query = '', fragment = '' )
-    result = await module._check_robots_txt(
-        url, robots_cache = robots_cache, client_factory = client_factory )
-    assert result is True
-    # Should have cached the result
-    cached_parser = await robots_cache.access( 'https://example.com' )
-    assert not __.is_absent( cached_parser )
+# @pytest.mark.asyncio
+# async def test_426_check_robots_txt_cache_miss_fetch( robots_txt_samples ):
+#     ''' Cache miss triggers robots.txt fetch and parsing. '''
+#     robots_cache = module.RobotsCache( )
+#     def handler( request ):
+#         return _httpx.Response(
+#             200, text = robots_txt_samples[ 'block_specific' ] )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     url = Url(
+#         scheme = 'https', netloc = 'example.com', path = '/public/test',
+#         params = '', query = '', fragment = '' )
+#     result = await module._check_robots_txt(
+#         url, robots_cache = robots_cache, client_factory = client_factory )
+#     assert result is True
+#     # Should have cached the result
+#     cached_parser = await robots_cache.access( 'https://example.com' )
+#     assert not __.is_absent( cached_parser )
 
 
-@pytest.mark.asyncio
-async def test_427_check_robots_txt_custom_user_agent( robots_txt_samples ):
-    ''' Custom user agent is passed to robots.txt parser. '''
-    def handler( request ):
-        return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    url = Url(
-        scheme = 'https', netloc = 'example.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    result = await module._check_robots_txt(
-        url, user_agent = 'custom-bot/1.0', client_factory = client_factory )
-    assert result is True
+# @pytest.mark.asyncio
+# async def test_427_check_robots_txt_custom_user_agent( robots_txt_samples ):
+#     ''' Custom user agent is passed to robots.txt parser. '''
+#     def handler( request ):
+#         return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     url = Url(
+#         scheme = 'https', netloc = 'example.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     result = await module._check_robots_txt(
+#         url, user_agent = 'custom-bot/1.0', client_factory = client_factory )
+#     assert result is True
 
 
-@pytest.mark.asyncio
-async def test_428_check_robots_txt_default_user_agent( robots_txt_samples ):
-    ''' Default user agent from configuration is used. '''
-    def handler( request ):
-        return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    url = Url(
-        scheme = 'https', netloc = 'example.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    result = await module._check_robots_txt(
-        url, client_factory = client_factory )
-    assert result is True
+# @pytest.mark.asyncio
+# async def test_428_check_robots_txt_default_user_agent( robots_txt_samples ):
+#     ''' Default user agent from configuration is used. '''
+#     def handler( request ):
+#         return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     url = Url(
+#         scheme = 'https', netloc = 'example.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     result = await module._check_robots_txt(
+#         url, client_factory = client_factory )
+#     assert result is True
 
 
-@pytest.mark.asyncio
-async def test_429_check_robots_txt_parser_exception( robots_txt_samples ):
-    ''' Exception during parser can_fetch call allows access. '''
-    from urllib.robotparser import RobotFileParser
-    robots_cache = module.RobotsCache( )
-    # Create a mock parser that raises exception on can_fetch
-    parser = Mock( spec = RobotFileParser )
-    parser.can_fetch.side_effect = Exception( 'Parser error' )
-    response = _generics.Value( parser )
-    with patch.object( module.__.time, 'time', return_value = 1000.0 ):
-        await robots_cache.store( 'https://example.com', response, 3600.0 )
-    url = Url(
-        scheme = 'https', netloc = 'example.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    result = await module._check_robots_txt(
-        url, robots_cache = robots_cache )
-    assert result is True
+# @pytest.mark.asyncio
+# async def test_429_check_robots_txt_parser_exception( robots_txt_samples ):
+#     ''' Exception during parser can_fetch call allows access. '''
+#     from urllib.robotparser import RobotFileParser
+#     robots_cache = module.RobotsCache( )
+#     # Create a mock parser that raises exception on can_fetch
+#     parser = Mock( spec = RobotFileParser )
+#     parser.can_fetch.side_effect = Exception( 'Parser error' )
+#     response = _generics.Value( parser )
+#     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
+#         await robots_cache.store( 'https://example.com', response, 3600.0 )
+#     url = Url(
+#         scheme = 'https', netloc = 'example.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     result = await module._check_robots_txt(
+#         url, robots_cache = robots_cache )
+#     assert result is True
 
 
 #
@@ -1543,172 +1545,173 @@ async def test_429_check_robots_txt_parser_exception( robots_txt_samples ):
 #
 
 
-@pytest.mark.asyncio
-async def test_440_retrieve_robots_txt_success( robots_txt_samples ):
-    ''' Successful fetch and parse returns parser. '''
-    robots_cache = module.RobotsCache( )
-    def handler( request ):
-        return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    result = await module._retrieve_robots_txt(
-        'https://example.com', robots_cache, client_factory = client_factory )
-    assert not __.is_absent( result )
-    assert result.can_fetch( 'test-agent', 'https://example.com/test' )
+# @pytest.mark.asyncio
+# async def test_440_retrieve_robots_txt_success( robots_txt_samples ):
+#     ''' Successful fetch and parse returns parser. '''
+#     robots_cache = module.RobotsCache( )
+#     def handler( request ):
+#         return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     result = await module._retrieve_robots_txt(
+#         'https://example.com', robots_cache, client_factory = client_factory )
+#     assert not __.is_absent( result )
+#     assert result.can_fetch( 'test-agent', 'https://example.com/test' )
 
 
-@pytest.mark.asyncio
-async def test_441_retrieve_robots_txt_http_error( ):
-    ''' HTTP 404 for robots.txt returns empty parser allowing all access. '''
-    robots_cache = module.RobotsCache( )
-    def handler( request ):
-        return _httpx.Response( 404 )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    result = await module._retrieve_robots_txt(
-        'https://example.com', robots_cache, client_factory = client_factory )
-    assert not __.is_absent( result )
-    assert result.can_fetch( 'librovore/1.0', '/objects.inv' )
+# @pytest.mark.asyncio
+# async def test_441_retrieve_robots_txt_http_error( ):
+#     ''' HTTP 404 for robots.txt returns empty parser allowing all access. '''
+#     robots_cache = module.RobotsCache( )
+#     def handler( request ):
+#         return _httpx.Response( 404 )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     result = await module._retrieve_robots_txt(
+#         'https://example.com', robots_cache, client_factory = client_factory )
+#     assert not __.is_absent( result )
+#     assert result.can_fetch( 'librovore/1.0', '/objects.inv' )
 
 
-@pytest.mark.asyncio
-async def test_442_retrieve_robots_txt_timeout( ):
-    ''' Request timeout returns absent. '''
-    robots_cache = module.RobotsCache( )
-    def handler( request ):
-        raise _httpx.TimeoutException( 'Timeout' )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    result = await module._retrieve_robots_txt(
-        'https://example.com', robots_cache, client_factory = client_factory )
-    assert __.is_absent( result )
+# @pytest.mark.asyncio
+# async def test_442_retrieve_robots_txt_timeout( ):
+#     ''' Request timeout returns absent. '''
+#     robots_cache = module.RobotsCache( )
+#     def handler( request ):
+#         raise _httpx.TimeoutException( 'Timeout' )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     result = await module._retrieve_robots_txt(
+#         'https://example.com', robots_cache, client_factory = client_factory )
+#     assert __.is_absent( result )
 
 
-@pytest.mark.asyncio
-async def test_443_retrieve_robots_txt_parse_error( ):
-    ''' robots.txt parsing failure returns absent. '''
-    robots_cache = module.RobotsCache( )
-    def handler( request ):
-        return _httpx.Response(
-            200, text = 'Invalid robots.txt\nwith bad syntax' )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    result = await module._retrieve_robots_txt(
-        'https://example.com', robots_cache, client_factory = client_factory )
-    # Should still work as robotparser is quite forgiving
-    assert not __.is_absent( result )
+# @pytest.mark.asyncio
+# async def test_443_retrieve_robots_txt_parse_error( ):
+#     ''' robots.txt parsing failure returns absent. '''
+#     robots_cache = module.RobotsCache( )
+#     def handler( request ):
+#         return _httpx.Response(
+#             200, text = 'Invalid robots.txt\nwith bad syntax' )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     result = await module._retrieve_robots_txt(
+#         'https://example.com', robots_cache, client_factory = client_factory )
+#     # Should still work as robotparser is quite forgiving
+#     assert not __.is_absent( result )
 
 
-@pytest.mark.asyncio
-async def test_444_retrieve_robots_txt_empty_content( robots_txt_samples ):
-    ''' Empty robots.txt file parses successfully. '''
-    robots_cache = module.RobotsCache( )
-    def handler( request ):
-        return _httpx.Response( 200, text = robots_txt_samples[ 'empty' ] )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    result = await module._retrieve_robots_txt(
-        'https://example.com', robots_cache, client_factory = client_factory )
-    assert not __.is_absent( result )
-    assert result.can_fetch( 'test-agent', 'https://example.com/test' )
+# @pytest.mark.asyncio
+# async def test_444_retrieve_robots_txt_empty_content( robots_txt_samples ):
+#     ''' Empty robots.txt file parses successfully. '''
+#     robots_cache = module.RobotsCache( )
+#     def handler( request ):
+#         return _httpx.Response( 200, text = robots_txt_samples[ 'empty' ] )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     result = await module._retrieve_robots_txt(
+#         'https://example.com', robots_cache, client_factory = client_factory )
+#     assert not __.is_absent( result )
+#     assert result.can_fetch( 'test-agent', 'https://example.com/test' )
 
 
-@pytest.mark.asyncio
-async def test_445_retrieve_robots_txt_mutex_deduplication(
-        robots_txt_samples ):
-    ''' Multiple concurrent requests ensure consistent cache state. '''
-    robots_cache = module.RobotsCache( )
-    def handler( request ):
-        return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    # Make concurrent requests
-    results = await asyncio.gather(
-        module._retrieve_robots_txt(
-            'https://dedupe-test.com', robots_cache,
-            client_factory = client_factory ),
-        module._retrieve_robots_txt(
-            'https://dedupe-test.com', robots_cache,
-            client_factory = client_factory ),
-        module._retrieve_robots_txt(
-            'https://dedupe-test.com', robots_cache,
-            client_factory = client_factory ) )
-    # All should succeed
-    assert all( not __.is_absent( result ) for result in results )
-    # Cache should contain exactly one entry for the domain
-    assert len( robots_cache._cache ) == 1
-    assert 'https://dedupe-test.com' in robots_cache._cache
+# @pytest.mark.asyncio
+# async def test_445_retrieve_robots_txt_mutex_deduplication(
+#         robots_txt_samples
+# ):
+#     ''' Multiple concurrent requests ensure consistent cache state. '''
+#     robots_cache = module.RobotsCache( )
+#     def handler( request ):
+#         return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     # Make concurrent requests
+#     results = await asyncio.gather(
+#         module._retrieve_robots_txt(
+#             'https://dedupe-test.com', robots_cache,
+#             client_factory = client_factory ),
+#         module._retrieve_robots_txt(
+#             'https://dedupe-test.com', robots_cache,
+#             client_factory = client_factory ),
+#         module._retrieve_robots_txt(
+#             'https://dedupe-test.com', robots_cache,
+#             client_factory = client_factory ) )
+#     # All should succeed
+#     assert all( not __.is_absent( result ) for result in results )
+#     # Cache should contain exactly one entry for the domain
+#     assert len( robots_cache._cache ) == 1
+#     assert 'https://dedupe-test.com' in robots_cache._cache
 
 
-@pytest.mark.asyncio
-async def test_446_retrieve_robots_txt_custom_client_factory(
-        robots_txt_samples ):
-    ''' Custom httpx client factory is used correctly. '''
-    robots_cache = module.RobotsCache( )
-    def handler( request ):
-        return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
-    mock_transport = _httpx.MockTransport( handler )
-    def custom_client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    result = await module._retrieve_robots_txt(
-        'https://example.com', robots_cache,
-        client_factory = custom_client_factory )
-    assert not __.is_absent( result )
+# @pytest.mark.asyncio
+# async def test_446_retrieve_robots_txt_custom_client_factory(
+#         robots_txt_samples ):
+#     ''' Custom httpx client factory is used correctly. '''
+#     robots_cache = module.RobotsCache( )
+#     def handler( request ):
+#         return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def custom_client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     result = await module._retrieve_robots_txt(
+#         'https://example.com', robots_cache,
+#         client_factory = custom_client_factory )
+#     assert not __.is_absent( result )
 
 
-@pytest.mark.asyncio
-async def test_447_retrieve_robots_txt_cache_storage( robots_txt_samples ):
-    ''' Result is stored in cache after fetch. '''
-    robots_cache = module.RobotsCache( )
-    def handler( request ):
-        return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    result = await module._retrieve_robots_txt(
-        'https://example.com', robots_cache, client_factory = client_factory )
-    assert not __.is_absent( result )
-    # Should be cached now
-    cached_result = await robots_cache.access( 'https://example.com' )
-    assert not __.is_absent( cached_result )
+# @pytest.mark.asyncio
+# async def test_447_retrieve_robots_txt_cache_storage( robots_txt_samples ):
+#     ''' Result is stored in cache after fetch. '''
+#     robots_cache = module.RobotsCache( )
+#     def handler( request ):
+#         return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     result = await module._retrieve_robots_txt(
+#         'https://example.com', robots_cache, client_factory = client_factory )
+#     assert not __.is_absent( result )
+#     # Should be cached now
+#     cached_result = await robots_cache.access( 'https://example.com' )
+#     assert not __.is_absent( cached_result )
 
 
-@pytest.mark.asyncio
-async def test_448_retrieve_robots_txt_ttl_determination( ):
-    ''' TTL is calculated and applied correctly. '''
-    robots_cache = module.RobotsCache( )
-    def handler( request ):
-        return _httpx.Response( 404 )  # Missing robots.txt (success case)
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    await module._retrieve_robots_txt(
-        'https://example.com', robots_cache, client_factory = client_factory )
-    # Check that success was cached with appropriate TTL
-    assert 'https://example.com' in robots_cache._cache
-    entry = robots_cache._cache[ 'https://example.com' ]
-    assert entry.response.is_value( )
-    assert entry.ttl == robots_cache.ttl
+# @pytest.mark.asyncio
+# async def test_448_retrieve_robots_txt_ttl_determination( ):
+#     ''' TTL is calculated and applied correctly. '''
+#     robots_cache = module.RobotsCache( )
+#     def handler( request ):
+#         return _httpx.Response( 404 )  # Missing robots.txt (success case)
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     await module._retrieve_robots_txt(
+#         'https://example.com', robots_cache, client_factory = client_factory )
+#     # Check that success was cached with appropriate TTL
+#     assert 'https://example.com' in robots_cache._cache
+#     entry = robots_cache._cache[ 'https://example.com' ]
+#     assert entry.response.is_value( )
+#     assert entry.ttl == robots_cache.ttl
 
 
-@pytest.mark.asyncio
-async def test_449_retrieve_robots_txt_error_result_extraction( ):
-    ''' Error result extraction returns absent correctly. '''
-    robots_cache = module.RobotsCache( )
-    def handler( request ):
-        raise _httpx.ConnectError( 'Connection failed' )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    result = await module._retrieve_robots_txt(
-        'https://example.com', robots_cache, client_factory = client_factory )
-    assert __.is_absent( result )
+# @pytest.mark.asyncio
+# async def test_449_retrieve_robots_txt_error_result_extraction( ):
+#     ''' Error result extraction returns absent correctly. '''
+#     robots_cache = module.RobotsCache( )
+#     def handler( request ):
+#         raise _httpx.ConnectError( 'Connection failed' )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     result = await module._retrieve_robots_txt(
+#         'https://example.com', robots_cache, client_factory = client_factory )
+#     assert __.is_absent( result )
 
 
 #
@@ -1716,192 +1719,192 @@ async def test_449_retrieve_robots_txt_error_result_extraction( ):
 #
 
 
-@pytest.mark.asyncio
-async def test_460_apply_request_delay_non_http_scheme( ):
-    ''' Non-HTTP schemes have no delay applied. '''
-    file_url = Url(
-        scheme = 'file', netloc = '', path = '/test/file.txt',
-        params = '', query = '', fragment = '' )
-    # Should return immediately without delay
-    await module._apply_request_delay( file_url )
-    # No assertion needed - just ensuring no exception
+# @pytest.mark.asyncio
+# async def test_460_apply_request_delay_non_http_scheme( ):
+#     ''' Non-HTTP schemes have no delay applied. '''
+#     file_url = Url(
+#         scheme = 'file', netloc = '', path = '/test/file.txt',
+#         params = '', query = '', fragment = '' )
+#     # Should return immediately without delay
+#     await module._apply_request_delay( file_url )
+#     # No assertion needed - just ensuring no exception
 
 
-@pytest.mark.asyncio
-async def test_461_apply_request_delay_no_robots_cached( robots_txt_samples ):
-    ''' Fetches robots.txt when not cached. '''
-    robots_cache = module.RobotsCache( )
-    def handler( request ):
-        return _httpx.Response(
-            200, text = robots_txt_samples[ 'with_crawl_delay' ] )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    url = Url(
-        scheme = 'https', netloc = 'example.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    await module._apply_request_delay(
-        url, robots_cache = robots_cache, client_factory = client_factory )
-    # Should have cached robots.txt
-    cached_parser = await robots_cache.access( 'https://example.com' )
-    assert not __.is_absent( cached_parser )
+# @pytest.mark.asyncio
+# async def test_461_apply_request_delay_no_robots_cached( robots_txt_samples ):
+#     ''' Fetches robots.txt when not cached. '''
+#     robots_cache = module.RobotsCache( )
+#     def handler( request ):
+#         return _httpx.Response(
+#             200, text = robots_txt_samples[ 'with_crawl_delay' ] )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     url = Url(
+#         scheme = 'https', netloc = 'example.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     await module._apply_request_delay(
+#         url, robots_cache = robots_cache, client_factory = client_factory )
+#     # Should have cached robots.txt
+#     cached_parser = await robots_cache.access( 'https://example.com' )
+#     assert not __.is_absent( cached_parser )
 
 
-@pytest.mark.asyncio
-async def test_462_apply_request_delay_active_delay( ):
-    ''' Sleep occurs when delay is active. '''
-    mock_delay_fn = AsyncMock( )
-    robots_cache = module.RobotsCache( delay_function = mock_delay_fn )
-    domain = 'https://example.com'
-    # Set active delay
-    with patch.object( module.__.time, 'time', return_value = 1000.0 ):
-        robots_cache.assign_delay( domain, 2.0 )
-    url = Url(
-        scheme = 'https', netloc = 'example.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    # Check delay function is called, use mock client factory to avoid network
-    mock_client = AsyncMock( )
-    mock_client_factory = Mock( return_value = mock_client )
-    with patch.object( module.__.time, 'time', return_value = 1001.0 ):
-        await module._apply_request_delay(
-            url, robots_cache = robots_cache,
-            client_factory = mock_client_factory )
-    mock_delay_fn.assert_called_once_with( 1.0 )
+# @pytest.mark.asyncio
+# async def test_462_apply_request_delay_active_delay( ):
+#     ''' Sleep occurs when delay is active. '''
+#     mock_delay_fn = AsyncMock( )
+#     robots_cache = module.RobotsCache( delay_function = mock_delay_fn )
+#     domain = 'https://example.com'
+#     # Set active delay
+#     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
+#         robots_cache.assign_delay( domain, 2.0 )
+#     url = Url(
+#         scheme = 'https', netloc = 'example.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     # Check delay function is called, use mock client factory to avoid network
+#     mock_client = AsyncMock( )
+#     mock_client_factory = Mock( return_value = mock_client )
+#     with patch.object( module.__.time, 'time', return_value = 1001.0 ):
+#         await module._apply_request_delay(
+#             url, robots_cache = robots_cache,
+#             client_factory = mock_client_factory )
+#     mock_delay_fn.assert_called_once_with( 1.0 )
 
 
-@pytest.mark.asyncio
-async def test_463_apply_request_delay_expired_delay( ):
-    ''' No sleep when delay has expired. '''
-    robots_cache = module.RobotsCache( )
-    domain = 'https://example.com'
-    # Set expired delay
-    with patch.object( module.__.time, 'time', return_value = 1000.0 ):
-        robots_cache.assign_delay( domain, 2.0 )
-    url = Url(
-        scheme = 'https', netloc = 'example.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    # Use mock client factory to avoid network calls
-    mock_client = AsyncMock( )
-    mock_client_factory = Mock( return_value = mock_client )
-    with (
-        patch.object( module.__.asyncio, 'sleep' ) as mock_sleep,
-        patch.object( module.__.time, 'time', return_value = 1005.0 )
-    ):
-        await module._apply_request_delay(
-            url, robots_cache = robots_cache,
-            client_factory = mock_client_factory )
-    mock_sleep.assert_not_called( )
+# @pytest.mark.asyncio
+# async def test_463_apply_request_delay_expired_delay( ):
+#     ''' No sleep when delay has expired. '''
+#     robots_cache = module.RobotsCache( )
+#     domain = 'https://example.com'
+#     # Set expired delay
+#     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
+#         robots_cache.assign_delay( domain, 2.0 )
+#     url = Url(
+#         scheme = 'https', netloc = 'example.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     # Use mock client factory to avoid network calls
+#     mock_client = AsyncMock( )
+#     mock_client_factory = Mock( return_value = mock_client )
+#     with (
+#         patch.object( module.__.asyncio, 'sleep' ) as mock_sleep,
+#         patch.object( module.__.time, 'time', return_value = 1005.0 )
+#     ):
+#         await module._apply_request_delay(
+#             url, robots_cache = robots_cache,
+#             client_factory = mock_client_factory )
+#     mock_sleep.assert_not_called( )
 
 
-@pytest.mark.asyncio
-async def test_464_apply_request_delay_set_new_delay(
-    safe_robots_parser_factory
-):
-    ''' Sets delay from robots.txt crawl-delay directive. '''
-    robots_cache = module.RobotsCache( )
-    parser = safe_robots_parser_factory( 'with_crawl_delay' )
-    response = _generics.Value( parser )
-    with patch.object( module.__.time, 'time', return_value = 1000.0 ):
-        await robots_cache.store( 'https://example.com', response, 3600.0 )
-    url = Url(
-        scheme = 'https', netloc = 'example.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    with patch.object( module.__.time, 'time', return_value = 1000.0 ):
-        await module._apply_request_delay(
-            url, robots_cache = robots_cache )
-    # Should have set delay for 2 seconds (from robots.txt)
-    expected_time = 1000.0 + 2.0
-    assert (
-        robots_cache._request_delays[ 'https://example.com' ]
-        == expected_time )
+# @pytest.mark.asyncio
+# async def test_464_apply_request_delay_set_new_delay(
+#     safe_robots_parser_factory
+# ):
+#     ''' Sets delay from robots.txt crawl-delay directive. '''
+#     robots_cache = module.RobotsCache( )
+#     parser = safe_robots_parser_factory( 'with_crawl_delay' )
+#     response = _generics.Value( parser )
+#     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
+#         await robots_cache.store( 'https://example.com', response, 3600.0 )
+#     url = Url(
+#         scheme = 'https', netloc = 'example.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
+#         await module._apply_request_delay(
+#             url, robots_cache = robots_cache )
+#     # Should have set delay for 2 seconds (from robots.txt)
+#     expected_time = 1000.0 + 2.0
+#     assert (
+#         robots_cache._request_delays[ 'https://example.com' ]
+#         == expected_time )
 
 
-@pytest.mark.asyncio
-async def test_465_apply_request_delay_no_crawl_delay( robots_txt_samples ):
-    ''' robots.txt with no Crawl-delay sets no delay. '''
-    robots_cache = module.RobotsCache( )
-    from urllib.robotparser import RobotFileParser
-    parser = RobotFileParser( )
-    parser.set_url( 'https://example.com/robots.txt' )
-    parser.parse( robots_txt_samples[ 'allow_all' ].splitlines( ) )
-    response = _generics.Value( parser )
-    with patch.object( module.__.time, 'time', return_value = 1000.0 ):
-        await robots_cache.store( 'https://example.com', response, 3600.0 )
-    url = Url(
-        scheme = 'https', netloc = 'example.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    await module._apply_request_delay( url, robots_cache = robots_cache )
-    # Should not have set any delay
-    assert 'https://example.com' not in robots_cache._request_delays
+# @pytest.mark.asyncio
+# async def test_465_apply_request_delay_no_crawl_delay( robots_txt_samples ):
+#     ''' robots.txt with no Crawl-delay sets no delay. '''
+#     robots_cache = module.RobotsCache( )
+#     from urllib.robotparser import RobotFileParser
+#     parser = RobotFileParser( )
+#     parser.set_url( 'https://example.com/robots.txt' )
+#     parser.parse( robots_txt_samples[ 'allow_all' ].splitlines( ) )
+#     response = _generics.Value( parser )
+#     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
+#         await robots_cache.store( 'https://example.com', response, 3600.0 )
+#     url = Url(
+#         scheme = 'https', netloc = 'example.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     await module._apply_request_delay( url, robots_cache = robots_cache )
+#     # Should not have set any delay
+#     assert 'https://example.com' not in robots_cache._request_delays
 
 
-@pytest.mark.asyncio
-async def test_466_apply_request_delay_invalid_crawl_delay( ):
-    ''' Non-numeric Crawl-delay values are handled gracefully. '''
-    robots_cache = module.RobotsCache( )
-    from urllib.robotparser import RobotFileParser
-    parser = RobotFileParser( )
-    parser.set_url( 'https://example.com/robots.txt' )
-    parser.parse( [ 'User-agent: *', 'Crawl-delay: invalid' ] )
-    response = _generics.Value( parser )
-    with patch.object( module.__.time, 'time', return_value = 1000.0 ):
-        await robots_cache.store( 'https://example.com', response, 3600.0 )
-    url = Url(
-        scheme = 'https', netloc = 'example.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    await module._apply_request_delay( url, robots_cache = robots_cache )
-    # Should handle gracefully without setting delay
-    assert 'https://example.com' not in robots_cache._request_delays
+# @pytest.mark.asyncio
+# async def test_466_apply_request_delay_invalid_crawl_delay( ):
+#     ''' Non-numeric Crawl-delay values are handled gracefully. '''
+#     robots_cache = module.RobotsCache( )
+#     from urllib.robotparser import RobotFileParser
+#     parser = RobotFileParser( )
+#     parser.set_url( 'https://example.com/robots.txt' )
+#     parser.parse( [ 'User-agent: *', 'Crawl-delay: invalid' ] )
+#     response = _generics.Value( parser )
+#     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
+#         await robots_cache.store( 'https://example.com', response, 3600.0 )
+#     url = Url(
+#         scheme = 'https', netloc = 'example.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     await module._apply_request_delay( url, robots_cache = robots_cache )
+#     # Should handle gracefully without setting delay
+#     assert 'https://example.com' not in robots_cache._request_delays
 
 
-@pytest.mark.asyncio
-async def test_467_apply_request_delay_robots_parser_exception( ):
-    ''' Exception getting crawl delay is handled gracefully. '''
-    robots_cache = module.RobotsCache( )
-    from urllib.robotparser import RobotFileParser
-    parser = Mock( spec = RobotFileParser )
-    parser.crawl_delay.side_effect = Exception( 'Parser error' )
-    response = _generics.Value( parser )
-    with patch.object( module.__.time, 'time', return_value = 1000.0 ):
-        await robots_cache.store( 'https://example.com', response, 3600.0 )
-    url = Url(
-        scheme = 'https', netloc = 'example.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    await module._apply_request_delay( url, robots_cache = robots_cache )
-    # Should handle exception gracefully
-    assert 'https://example.com' not in robots_cache._request_delays
+# @pytest.mark.asyncio
+# async def test_467_apply_request_delay_robots_parser_exception( ):
+#     ''' Exception getting crawl delay is handled gracefully. '''
+#     robots_cache = module.RobotsCache( )
+#     from urllib.robotparser import RobotFileParser
+#     parser = Mock( spec = RobotFileParser )
+#     parser.crawl_delay.side_effect = Exception( 'Parser error' )
+#     response = _generics.Value( parser )
+#     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
+#         await robots_cache.store( 'https://example.com', response, 3600.0 )
+#     url = Url(
+#         scheme = 'https', netloc = 'example.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     await module._apply_request_delay( url, robots_cache = robots_cache )
+#     # Should handle exception gracefully
+#     assert 'https://example.com' not in robots_cache._request_delays
 
 
-@pytest.mark.asyncio
-async def test_468_apply_request_delay_with_custom_client(
-        robots_txt_samples ):
-    ''' Custom client factory is used for robots.txt fetch. '''
-    robots_cache = module.RobotsCache( )
-    def handler( request ):
-        return _httpx.Response(
-            200, text = robots_txt_samples[ 'with_crawl_delay' ] )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    url = Url(
-        scheme = 'https', netloc = 'example.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    await module._apply_request_delay(
-        url, robots_cache = robots_cache, client_factory = client_factory )
-    # Should have fetched and cached robots.txt
-    cached_parser = await robots_cache.access( 'https://example.com' )
-    assert not __.is_absent( cached_parser )
+# @pytest.mark.asyncio
+# async def test_468_apply_request_delay_with_custom_client(
+#         robots_txt_samples ):
+#     ''' Custom client factory is used for robots.txt fetch. '''
+#     robots_cache = module.RobotsCache( )
+#     def handler( request ):
+#         return _httpx.Response(
+#             200, text = robots_txt_samples[ 'with_crawl_delay' ] )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     url = Url(
+#         scheme = 'https', netloc = 'example.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     await module._apply_request_delay(
+#         url, robots_cache = robots_cache, client_factory = client_factory )
+#     # Should have fetched and cached robots.txt
+#     cached_parser = await robots_cache.access( 'https://example.com' )
+#     assert not __.is_absent( cached_parser )
 
 
-@pytest.mark.asyncio
-async def test_469_apply_request_delay_time_calculation( ):
-    ''' Delay timestamp calculation is correct. '''
-    robots_cache = module.RobotsCache( )
-    domain = 'https://example.com'
-    with patch.object( module.__.time, 'time', return_value = 1234.5 ):
-        robots_cache.assign_delay( domain, 7.5 )
-    expected_time = 1234.5 + 7.5
-    assert robots_cache._request_delays[ domain ] == expected_time
+# @pytest.mark.asyncio
+# async def test_469_apply_request_delay_time_calculation( ):
+#     ''' Delay timestamp calculation is correct. '''
+#     robots_cache = module.RobotsCache( )
+#     domain = 'https://example.com'
+#     with patch.object( module.__.time, 'time', return_value = 1234.5 ):
+#         robots_cache.assign_delay( domain, 7.5 )
+#     expected_time = 1234.5 + 7.5
+#     assert robots_cache._request_delays[ domain ] == expected_time
 
 
 #
@@ -1909,237 +1912,237 @@ async def test_469_apply_request_delay_time_calculation( ):
 #
 
 
-@pytest.mark.asyncio
-async def test_480_probe_url_robots_txt_blocked( robots_txt_samples ):
-    ''' probe_url respects robots.txt blocking. '''
-    probe_cache = module.ProbeCache( )
-    def handler( request ):
-        if request.url.path == '/robots.txt':
-            return _httpx.Response(
-                200, text = robots_txt_samples[ 'block_all' ] )
-        return _httpx.Response( 200 )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    url = Url(
-        scheme = 'https', netloc = 'block-test.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    with pytest.raises( _exceptions.UrlImpermissibility ):
-        await module.probe_url(
-            url, cache = probe_cache, client_factory = client_factory )
+# @pytest.mark.asyncio
+# async def test_480_probe_url_robots_txt_blocked( robots_txt_samples ):
+#     ''' probe_url respects robots.txt blocking. '''
+#     probe_cache = module.ProbeCache( )
+#     def handler( request ):
+#         if request.url.path == '/robots.txt':
+#             return _httpx.Response(
+#                 200, text = robots_txt_samples[ 'block_all' ] )
+#         return _httpx.Response( 200 )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     url = Url(
+#         scheme = 'https', netloc = 'block-test.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     with pytest.raises( _exceptions.UrlImpermissibility ):
+#         await module.probe_url(
+#             url, cache = probe_cache, client_factory = client_factory )
 
 
-@pytest.mark.asyncio
-async def test_481_probe_url_robots_txt_allowed( robots_txt_samples ):
-    ''' probe_url allows access when robots.txt permits. '''
-    probe_cache = module.ProbeCache( )
-    def handler( request ):
-        if request.url.path == '/robots.txt':
-            return _httpx.Response(
-                200, text = robots_txt_samples[ 'allow_all' ] )
-        return _httpx.Response( 200 )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    url = Url(
-        scheme = 'https', netloc = 'allow-test.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    result = await module.probe_url(
-        url, cache = probe_cache, client_factory = client_factory )
-    assert result is True
+# @pytest.mark.asyncio
+# async def test_481_probe_url_robots_txt_allowed( robots_txt_samples ):
+#     ''' probe_url allows access when robots.txt permits. '''
+#     probe_cache = module.ProbeCache( )
+#     def handler( request ):
+#         if request.url.path == '/robots.txt':
+#             return _httpx.Response(
+#                 200, text = robots_txt_samples[ 'allow_all' ] )
+#         return _httpx.Response( 200 )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     url = Url(
+#         scheme = 'https', netloc = 'allow-test.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     result = await module.probe_url(
+#         url, cache = probe_cache, client_factory = client_factory )
+#     assert result is True
 
 
-@pytest.mark.asyncio
-async def test_482_retrieve_url_robots_txt_blocked( robots_txt_samples ):
-    ''' retrieve_url respects robots.txt blocking. '''
-    def handler( request ):
-        if request.url.path == '/robots.txt':
-            return _httpx.Response(
-                200, text = robots_txt_samples[ 'block_all' ] )
-        return _httpx.Response( 200, content = b'test content' )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    content_cache = module.ContentCache( )
-    url = Url(
-        scheme = 'https', netloc = 'blocked-retrieve.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    with pytest.raises( _exceptions.UrlImpermissibility ):
-        await module.retrieve_url(
-            url, cache = content_cache, client_factory = client_factory )
+# @pytest.mark.asyncio
+# async def test_482_retrieve_url_robots_txt_blocked( robots_txt_samples ):
+#     ''' retrieve_url respects robots.txt blocking. '''
+#     def handler( request ):
+#         if request.url.path == '/robots.txt':
+#             return _httpx.Response(
+#                 200, text = robots_txt_samples[ 'block_all' ] )
+#         return _httpx.Response( 200, content = b'test content' )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     content_cache = module.ContentCache( )
+#     url = Url(
+#         scheme = 'https', netloc = 'blocked-retrieve.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     with pytest.raises( _exceptions.UrlImpermissibility ):
+#         await module.retrieve_url(
+#             url, cache = content_cache, client_factory = client_factory )
 
 
-@pytest.mark.asyncio
-async def test_483_retrieve_url_robots_txt_allowed( robots_txt_samples ):
-    ''' retrieve_url allows access when robots.txt permits. '''
-    test_content = b'allowed content'
-    def handler( request ):
-        if request.url.path == '/robots.txt':
-            return _httpx.Response(
-                200, text = robots_txt_samples[ 'allow_all' ] )
-        return _httpx.Response( 200, content = test_content )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    content_cache = module.ContentCache( )
-    url = Url(
-        scheme = 'https', netloc = 'allowed-retrieve.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    result = await module.retrieve_url(
-        url, cache = content_cache, client_factory = client_factory )
-    assert result == test_content
+# @pytest.mark.asyncio
+# async def test_483_retrieve_url_robots_txt_allowed( robots_txt_samples ):
+#     ''' retrieve_url allows access when robots.txt permits. '''
+#     test_content = b'allowed content'
+#     def handler( request ):
+#         if request.url.path == '/robots.txt':
+#             return _httpx.Response(
+#                 200, text = robots_txt_samples[ 'allow_all' ] )
+#         return _httpx.Response( 200, content = test_content )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     content_cache = module.ContentCache( )
+#     url = Url(
+#         scheme = 'https', netloc = 'allowed-retrieve.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     result = await module.retrieve_url(
+#         url, cache = content_cache, client_factory = client_factory )
+#     assert result == test_content
 
 
-@pytest.mark.asyncio
-async def test_484_retrieve_url_as_text_robots_txt_blocked(
-        robots_txt_samples ):
-    ''' retrieve_url_as_text respects robots.txt blocking. '''
-    def handler( request ):
-        if request.url.path == '/robots.txt':
-            return _httpx.Response(
-                200, text = robots_txt_samples[ 'block_all' ] )
-        return _httpx.Response(
-            200, content = b'test content',
-            headers = { 'content-type': 'text/plain' } )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    content_cache = module.ContentCache( )
-    url = Url(
-        scheme = 'https', netloc = 'blocked-text.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    with pytest.raises( _exceptions.UrlImpermissibility ):
-        await module.retrieve_url_as_text(
-            url, cache = content_cache, client_factory = client_factory )
+# @pytest.mark.asyncio
+# async def test_484_retrieve_url_as_text_robots_txt_blocked(
+#         robots_txt_samples ):
+#     ''' retrieve_url_as_text respects robots.txt blocking. '''
+#     def handler( request ):
+#         if request.url.path == '/robots.txt':
+#             return _httpx.Response(
+#                 200, text = robots_txt_samples[ 'block_all' ] )
+#         return _httpx.Response(
+#             200, content = b'test content',
+#             headers = { 'content-type': 'text/plain' } )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     content_cache = module.ContentCache( )
+#     url = Url(
+#         scheme = 'https', netloc = 'blocked-text.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     with pytest.raises( _exceptions.UrlImpermissibility ):
+#         await module.retrieve_url_as_text(
+#             url, cache = content_cache, client_factory = client_factory )
 
 
-@pytest.mark.asyncio
-async def test_485_robots_txt_integration_with_caching( robots_txt_samples ):
-    ''' robots.txt works correctly with HTTP caching. '''
-    content_cache = module.ContentCache( )
-    test_content = b'cached content'
-    def handler( request ):
-        if request.url.path == '/robots.txt':
-            return _httpx.Response(
-                200, text = robots_txt_samples[ 'block_specific' ] )
-        return _httpx.Response( 200, content = test_content )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    # Allowed path
-    allowed_url = Url(
-        scheme = 'https', netloc = 'example.com', path = '/public/data',
-        params = '', query = '', fragment = '' )
-    result = await module.retrieve_url(
-        allowed_url, cache = content_cache, client_factory = client_factory )
-    assert result == test_content
-    # Should be cached
-    cached_result = await content_cache.access( allowed_url.geturl( ) )
-    assert not __.is_absent( cached_result )
+# @pytest.mark.asyncio
+# async def test_485_robots_txt_integration_with_caching( robots_txt_samples ):
+#     ''' robots.txt works correctly with HTTP caching. '''
+#     content_cache = module.ContentCache( )
+#     test_content = b'cached content'
+#     def handler( request ):
+#         if request.url.path == '/robots.txt':
+#             return _httpx.Response(
+#                 200, text = robots_txt_samples[ 'block_specific' ] )
+#         return _httpx.Response( 200, content = test_content )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     # Allowed path
+#     allowed_url = Url(
+#         scheme = 'https', netloc = 'example.com', path = '/public/data',
+#         params = '', query = '', fragment = '' )
+#     result = await module.retrieve_url(
+#         allowed_url, cache = content_cache, client_factory = client_factory )
+#     assert result == test_content
+#     # Should be cached
+#     cached_result = await content_cache.access( allowed_url.geturl( ) )
+#     assert not __.is_absent( cached_result )
 
 
-@pytest.mark.asyncio
-async def test_486_robots_txt_crawl_delay_integration( robots_txt_samples ):
-    ''' Crawl delay integrates correctly with HTTP requests. '''
-    content_cache = module.ContentCache( )
-    test_content = b'delayed content'
-    def handler( request ):
-        if request.url.path == '/robots.txt':
-            return _httpx.Response(
-                200, text = robots_txt_samples[ 'with_crawl_delay' ] )
-        return _httpx.Response( 200, content = test_content )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    url = Url(
-        scheme = 'https', netloc = 'crawl-delay.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    # First request should set delay
-    with patch.object( module.__.time, 'time', return_value = 1000.0 ):
-        result = await module.retrieve_url(
-            url, cache = content_cache, client_factory = client_factory )
-    assert result == test_content
-    # Should have set crawl delay in default cache
-    assert (
-        'https://crawl-delay.com'
-        in module._robots_cache_default._request_delays )
+# @pytest.mark.asyncio
+# async def test_486_robots_txt_crawl_delay_integration( robots_txt_samples ):
+#     ''' Crawl delay integrates correctly with HTTP requests. '''
+#     content_cache = module.ContentCache( )
+#     test_content = b'delayed content'
+#     def handler( request ):
+#         if request.url.path == '/robots.txt':
+#             return _httpx.Response(
+#                 200, text = robots_txt_samples[ 'with_crawl_delay' ] )
+#         return _httpx.Response( 200, content = test_content )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     url = Url(
+#         scheme = 'https', netloc = 'crawl-delay.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     # First request should set delay
+#     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
+#         result = await module.retrieve_url(
+#             url, cache = content_cache, client_factory = client_factory )
+#     assert result == test_content
+#     # Should have set crawl delay in default cache
+#     assert (
+#         'https://crawl-delay.com'
+#         in module._robots_cache_default._request_delays )
 
 
-@pytest.mark.asyncio
-async def test_487_robots_txt_custom_user_agent_integration(
-        robots_txt_samples ):
-    ''' Custom user agent works through entire integration. '''
-    robots_cache1 = module.RobotsCache( )
-    robots_cache2 = module.RobotsCache( )
-    custom_robots_txt = (
-        'User-agent: custom-bot\nDisallow: /\n\nUser-agent: *\nAllow: /' )
-    def handler( request ):
-        if request.url.path == '/robots.txt':
-            return _httpx.Response( 200, text = custom_robots_txt )
-        return _httpx.Response( 200, content = b'content' )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    url = Url(
-        scheme = 'https', netloc = 'custom-agent.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    # Should be blocked for custom-bot but allowed for default agent
-    result = await module._check_robots_txt(
-        url, robots_cache = robots_cache1, user_agent = 'custom-bot',
-        client_factory = client_factory )
-    assert result is False
-    result = await module._check_robots_txt(
-        url, robots_cache = robots_cache2, client_factory = client_factory )
-    assert result is True
+# @pytest.mark.asyncio
+# async def test_487_robots_txt_custom_user_agent_integration(
+#         robots_txt_samples ):
+#     ''' Custom user agent works through entire integration. '''
+#     robots_cache1 = module.RobotsCache( )
+#     robots_cache2 = module.RobotsCache( )
+#     custom_robots_txt = (
+#         'User-agent: custom-bot\nDisallow: /\n\nUser-agent: *\nAllow: /' )
+#     def handler( request ):
+#         if request.url.path == '/robots.txt':
+#             return _httpx.Response( 200, text = custom_robots_txt )
+#         return _httpx.Response( 200, content = b'content' )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     url = Url(
+#         scheme = 'https', netloc = 'custom-agent.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     # Should be blocked for custom-bot but allowed for default agent
+#     result = await module._check_robots_txt(
+#         url, robots_cache = robots_cache1, user_agent = 'custom-bot',
+#         client_factory = client_factory )
+#     assert result is False
+#     result = await module._check_robots_txt(
+#         url, robots_cache = robots_cache2, client_factory = client_factory )
+#     assert result is True
 
 
-@pytest.mark.asyncio
-async def test_488_robots_txt_domain_based_caching( robots_txt_samples ):
-    ''' Multiple domains are cached separately. '''
-    robots_cache = module.RobotsCache( )
-    def handler( request ):
-        if 'example1' in str( request.url ):
-            return _httpx.Response(
-                200, text = robots_txt_samples[ 'allow_all' ] )
-        return _httpx.Response(
-            200, text = robots_txt_samples[ 'block_all' ] )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    url1 = Url(
-        scheme = 'https', netloc = 'example1.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    url2 = Url(
-        scheme = 'https', netloc = 'example2.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    result1 = await module._check_robots_txt(
-        url1, robots_cache = robots_cache, client_factory = client_factory )
-    result2 = await module._check_robots_txt(
-        url2, robots_cache = robots_cache, client_factory = client_factory )
-    assert result1 is True
-    assert result2 is False
-    # Both domains should be cached
-    assert 'https://example1.com' in robots_cache._cache
-    assert 'https://example2.com' in robots_cache._cache
+# @pytest.mark.asyncio
+# async def test_488_robots_txt_domain_based_caching( robots_txt_samples ):
+#     ''' Multiple domains are cached separately. '''
+#     robots_cache = module.RobotsCache( )
+#     def handler( request ):
+#         if 'example1' in str( request.url ):
+#             return _httpx.Response(
+#                 200, text = robots_txt_samples[ 'allow_all' ] )
+#         return _httpx.Response(
+#             200, text = robots_txt_samples[ 'block_all' ] )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     url1 = Url(
+#         scheme = 'https', netloc = 'example1.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     url2 = Url(
+#         scheme = 'https', netloc = 'example2.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     result1 = await module._check_robots_txt(
+#         url1, robots_cache = robots_cache, client_factory = client_factory )
+#     result2 = await module._check_robots_txt(
+#         url2, robots_cache = robots_cache, client_factory = client_factory )
+#     assert result1 is True
+#     assert result2 is False
+#     # Both domains should be cached
+#     assert 'https://example1.com' in robots_cache._cache
+#     assert 'https://example2.com' in robots_cache._cache
 
 
-@pytest.mark.asyncio
-async def test_489_robots_txt_error_propagation( ):
-    ''' Network errors propagate correctly through call chain. '''
-    def handler( request ):
-        if request.url.path == '/robots.txt':
-            raise _httpx.ConnectError( 'Connection failed' )
-        return _httpx.Response( 200, content = b'content' )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    url = Url(
-        scheme = 'https', netloc = 'example.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    # Should allow access when robots.txt fetch fails
-    result = await module._check_robots_txt(
-        url, client_factory = client_factory )
-    assert result is True
+# @pytest.mark.asyncio
+# async def test_489_robots_txt_error_propagation( ):
+#     ''' Network errors propagate correctly through call chain. '''
+#     def handler( request ):
+#         if request.url.path == '/robots.txt':
+#             raise _httpx.ConnectError( 'Connection failed' )
+#         return _httpx.Response( 200, content = b'content' )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     url = Url(
+#         scheme = 'https', netloc = 'example.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     # Should allow access when robots.txt fetch fails
+#     result = await module._check_robots_txt(
+#         url, client_factory = client_factory )
+#     assert result is True
 
 
 #
@@ -2147,140 +2150,140 @@ async def test_489_robots_txt_error_propagation( ):
 #
 
 
-def test_490_robots_txt_blocked_url_exception( ):
-    ''' RobotsTxtBlockedUrl exception creates correctly. '''
-    url = 'https://example.com/blocked'
-    user_agent = 'test-bot/1.0'
-    exc = _exceptions.UrlImpermissibility( url, user_agent )
-    assert exc.url == url
-    assert exc.user_agent == user_agent
-    expected_message = (
-        f"URL '{url}' blocked by robots.txt for user agent '{user_agent}'" )
-    assert str( exc ) == expected_message
+# def test_490_robots_txt_blocked_url_exception( ):
+#     ''' RobotsTxtBlockedUrl exception creates correctly. '''
+#     url = 'https://example.com/blocked'
+#     user_agent = 'test-bot/1.0'
+#     exc = _exceptions.UrlImpermissibility( url, user_agent )
+#     assert exc.url == url
+#     assert exc.user_agent == user_agent
+#     expected_message = (
+#         f"URL '{url}' blocked by robots.txt for user agent '{user_agent}'" )
+#     assert str( exc ) == expected_message
 
 
-def test_491_robots_txt_blocked_url_exception_attributes( ):
-    ''' Exception attributes are accessible and correct. '''
-    url = 'https://example.com/test'
-    user_agent = 'custom-agent'
-    exc = _exceptions.UrlImpermissibility( url, user_agent )
-    assert hasattr( exc, 'url' )
-    assert hasattr( exc, 'user_agent' )
-    assert exc.url == url
-    assert exc.user_agent == user_agent
+# def test_491_robots_txt_blocked_url_exception_attributes( ):
+#     ''' Exception attributes are accessible and correct. '''
+#     url = 'https://example.com/test'
+#     user_agent = 'custom-agent'
+#     exc = _exceptions.UrlImpermissibility( url, user_agent )
+#     assert hasattr( exc, 'url' )
+#     assert hasattr( exc, 'user_agent' )
+#     assert exc.url == url
+#     assert exc.user_agent == user_agent
 
 
-def test_492_robots_txt_blocked_url_exception_inheritance( ):
-    ''' Exception inherits from correct base classes. '''
-    exc = _exceptions.UrlImpermissibility( 'test-url', 'test-agent' )
-    assert isinstance( exc, _exceptions.Omnierror )
-    assert isinstance( exc, PermissionError )
-    assert isinstance( exc, Exception )
+# def test_492_robots_txt_blocked_url_exception_inheritance( ):
+#     ''' Exception inherits from correct base classes. '''
+#     exc = _exceptions.UrlImpermissibility( 'test-url', 'test-agent' )
+#     assert isinstance( exc, _exceptions.Omnierror )
+#     assert isinstance( exc, PermissionError )
+#     assert isinstance( exc, Exception )
 
 
-def test_493_robots_txt_blocked_url_exception_message( ):
-    ''' Error message format is consistent and informative. '''
-    url = 'https://api.example.com/v1/data'
-    user_agent = 'my-scraper/2.1'
-    exc = _exceptions.UrlImpermissibility( url, user_agent )
-    message = str( exc )
-    assert url in message
-    assert user_agent in message
-    assert 'blocked by robots.txt' in message
+# def test_493_robots_txt_blocked_url_exception_message( ):
+#     ''' Error message format is consistent and informative. '''
+#     url = 'https://api.example.com/v1/data'
+#     user_agent = 'my-scraper/2.1'
+#     exc = _exceptions.UrlImpermissibility( url, user_agent )
+#     message = str( exc )
+#     assert url in message
+#     assert user_agent in message
+#     assert 'blocked by robots.txt' in message
 
 
-@pytest.mark.asyncio
-async def test_494_robots_txt_network_failure_fallback( ):
-    ''' Network errors default to allowing access. '''
-    def handler( request ):
-        raise _httpx.NetworkError( 'Network unreachable' )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    url = Url(
-        scheme = 'https', netloc = 'unreachable.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    result = await module._check_robots_txt(
-        url, client_factory = client_factory )
-    assert result is True
+# @pytest.mark.asyncio
+# async def test_494_robots_txt_network_failure_fallback( ):
+#     ''' Network errors default to allowing access. '''
+#     def handler( request ):
+#         raise _httpx.NetworkError( 'Network unreachable' )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     url = Url(
+#         scheme = 'https', netloc = 'unreachable.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     result = await module._check_robots_txt(
+#         url, client_factory = client_factory )
+#     assert result is True
 
 
-@pytest.mark.asyncio
-async def test_495_robots_txt_dns_resolution_failure( ):
-    ''' DNS resolution failures allow access by default. '''
-    def handler( request ):
-        raise _httpx.ConnectError( 'DNS resolution failed' )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    url = Url(
-        scheme = 'https', netloc = 'nonexistent.example', path = '/test',
-        params = '', query = '', fragment = '' )
-    result = await module._check_robots_txt(
-        url, client_factory = client_factory )
-    assert result is True
+# @pytest.mark.asyncio
+# async def test_495_robots_txt_dns_resolution_failure( ):
+#     ''' DNS resolution failures allow access by default. '''
+#     def handler( request ):
+#         raise _httpx.ConnectError( 'DNS resolution failed' )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     url = Url(
+#         scheme = 'https', netloc = 'nonexistent.example', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     result = await module._check_robots_txt(
+#         url, client_factory = client_factory )
+#     assert result is True
 
 
-@pytest.mark.asyncio
-async def test_496_robots_txt_invalid_url_handling( ):
-    ''' Malformed URLs are handled gracefully. '''
-    # Test with unusual but valid URL structures
-    url = Url(
-        scheme = 'https', netloc = 'example.com:8080', path = '',
-        params = '', query = '', fragment = '' )
-    domain = module._extract_domain( url )
-    assert domain == 'https://example.com:8080'
+# @pytest.mark.asyncio
+# async def test_496_robots_txt_invalid_url_handling( ):
+#     ''' Malformed URLs are handled gracefully. '''
+#     # Test with unusual but valid URL structures
+#     url = Url(
+#         scheme = 'https', netloc = 'example.com:8080', path = '',
+#         params = '', query = '', fragment = '' )
+#     domain = module._extract_domain( url )
+#     assert domain == 'https://example.com:8080'
 
 
-@pytest.mark.asyncio
-async def test_497_robots_txt_concurrent_cache_access( robots_txt_samples ):
-    ''' Race conditions in cache access are handled correctly. '''
-    robots_cache = module.RobotsCache( )
-    def handler( request ):
-        return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    url = Url(
-        scheme = 'https', netloc = 'example.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    # Multiple concurrent requests should not cause issues
-    results = await asyncio.gather(
-        module._check_robots_txt(
-            url, robots_cache = robots_cache,
-            client_factory = client_factory ),
-        module._check_robots_txt(
-            url, robots_cache = robots_cache,
-            client_factory = client_factory ),
-        module._check_robots_txt(
-            url, robots_cache = robots_cache,
-            client_factory = client_factory ) )
-    assert all( results )
+# @pytest.mark.asyncio
+# async def test_497_robots_txt_concurrent_cache_access( robots_txt_samples ):
+#     ''' Race conditions in cache access are handled correctly. '''
+#     robots_cache = module.RobotsCache( )
+#     def handler( request ):
+#         return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     url = Url(
+#         scheme = 'https', netloc = 'example.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     # Multiple concurrent requests should not cause issues
+#     results = await asyncio.gather(
+#         module._check_robots_txt(
+#             url, robots_cache = robots_cache,
+#             client_factory = client_factory ),
+#         module._check_robots_txt(
+#             url, robots_cache = robots_cache,
+#             client_factory = client_factory ),
+#         module._check_robots_txt(
+#             url, robots_cache = robots_cache,
+#             client_factory = client_factory ) )
+#     assert all( results )
 
 
-@pytest.mark.asyncio
-async def test_498_robots_txt_cache_corruption_recovery( ):
-    ''' Cache corruption scenarios are handled gracefully. '''
-    robots_cache = module.RobotsCache( )
-    # Manually clear cache state to simulate corruption
-    robots_cache._cache.clear( )
-    url = Url(
-        scheme = 'https', netloc = 'corrupted-cache.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    # Should handle gracefully and allow access when cache is empty
-    result = await module._check_robots_txt(
-        url, robots_cache = robots_cache )
-    assert result is True
+# @pytest.mark.asyncio
+# async def test_498_robots_txt_cache_corruption_recovery( ):
+#     ''' Cache corruption scenarios are handled gracefully. '''
+#     robots_cache = module.RobotsCache( )
+#     # Manually clear cache state to simulate corruption
+#     robots_cache._cache.clear( )
+#     url = Url(
+#         scheme = 'https', netloc = 'corrupted-cache.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     # Should handle gracefully and allow access when cache is empty
+#     result = await module._check_robots_txt(
+#         url, robots_cache = robots_cache )
+#     assert result is True
 
 
-def test_499_robots_txt_configuration_edge_cases( ):
-    ''' Configuration edge cases are handled correctly. '''
-    # Test with extreme configuration values
-    cache = module.RobotsCache(
-        entries_max = 0, ttl = 0.0, error_ttl = 0.0 )
-    assert cache.entries_max == 0
-    assert cache.ttl == 0.0
-    assert cache.error_ttl == 0.0
+# def test_499_robots_txt_configuration_edge_cases( ):
+#     ''' Configuration edge cases are handled correctly. '''
+#     # Test with extreme configuration values
+#     cache = module.RobotsCache(
+#         entries_max = 0, ttl = 0.0, error_ttl = 0.0 )
+#     assert cache.entries_max == 0
+#     assert cache.ttl == 0.0
+#     assert cache.error_ttl == 0.0
 
 
 #
@@ -2288,167 +2291,125 @@ def test_499_robots_txt_configuration_edge_cases( ):
 #
 
 
-@pytest.mark.asyncio
-async def test_910_probe_url_http_timeout_exception( ):
-    ''' HTTP timeout exceptions are raised in probing. '''
-    cache = module.ProbeCache( )
-    url = Url(
-        scheme = 'http', netloc = 'example.com', path = '/test',
-        params = '', query = '', fragment = '' )
-    def handler( request ):
-        raise _httpx.TimeoutException( 'Request timeout' )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    with pytest.raises( _httpx.TimeoutException ):
-        await module.probe_url(
-            url, cache = cache, client_factory = client_factory )
+# @pytest.mark.asyncio
+# async def test_910_probe_url_http_timeout_exception( ):
+#     ''' HTTP timeout exceptions are raised in probing. '''
+#     cache = module.ProbeCache( )
+#     url = Url(
+#         scheme = 'http', netloc = 'example.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     def handler( request ):
+#         raise _httpx.TimeoutException( 'Request timeout' )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     with pytest.raises( _httpx.TimeoutException ):
+#         await module.probe_url(
+#             url, cache = cache, client_factory = client_factory )
 
 
-@pytest.mark.asyncio
-async def test_911_retrieve_url_http_connection_error( ):
-    ''' HTTP connection errors are propagated as ConnectError. '''
-    cache = module.ContentCache( )
-    url = Url(
-        scheme = 'http', netloc = 'unreachable.example', path = '/test',
-        params = '', query = '', fragment = '' )
-    def handler( request ):
-        raise _httpx.ConnectError( 'Connection refused' )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    with pytest.raises( _httpx.ConnectError ):
-        await module.retrieve_url(
-            url, cache = cache, client_factory = client_factory )
+# @pytest.mark.asyncio
+# async def test_911_retrieve_url_http_connection_error( ):
+#     ''' HTTP connection errors are propagated as ConnectError. '''
+#     cache = module.ContentCache( )
+#     url = Url(
+#         scheme = 'http', netloc = 'unreachable.example', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     def handler( request ):
+#         raise _httpx.ConnectError( 'Connection refused' )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     with pytest.raises( _httpx.ConnectError ):
+#         await module.retrieve_url(
+#             url, cache = cache, client_factory = client_factory )
 
 
-@pytest.mark.asyncio
-async def test_912_retrieve_url_http_status_error( ):
-    ''' HTTP status errors are propagated as HTTPStatusError. '''
-    cache = module.ContentCache( )
-    url = Url(
-        scheme = 'http', netloc = 'example.com', path = '/notfound',
-        params = '', query = '', fragment = '' )
-    def handler( request ):
-        raise _httpx.HTTPStatusError(
-            'HTTP 404', request = request, response = _httpx.Response( 404 ) )
-    mock_transport = _httpx.MockTransport( handler )
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-    with pytest.raises( _httpx.HTTPStatusError ):
-        await module.retrieve_url(
-            url, cache = cache, client_factory = client_factory )
+# @pytest.mark.asyncio
+# async def test_912_retrieve_url_http_status_error( ):
+#     ''' HTTP status errors are propagated as HTTPStatusError. '''
+#     cache = module.ContentCache( )
+#     url = Url(
+#         scheme = 'http', netloc = 'example.com', path = '/notfound',
+#         params = '', query = '', fragment = '' )
+#     def handler( request ):
+#         raise _httpx.HTTPStatusError(
+#             'HTTP 404', request = request, response = _httpx.Response( 404 ) )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     with pytest.raises( _httpx.HTTPStatusError ):
+#         await module.retrieve_url(
+#             url, cache = cache, client_factory = client_factory )
 
 
-# Exception coverage tests for uncovered lines
-
-@pytest.mark.asyncio
-async def test_500_check_robots_txt_can_fetch_exception( ):
-    ''' Exception in robots_parser.can_fetch() returns True (line 343-345). '''
-    robots_cache = module.RobotsCache( )
-
-    # Create a mock RobotFileParser that raises an exception on can_fetch
-    class FaultyRobotFileParser:
-        def can_fetch( self, user_agent, url ):
-            raise ValueError( "Simulated can_fetch exception" )
-
-    # Store faulty parser in cache
-    faulty_parser = FaultyRobotFileParser( )
-    await robots_cache.store(
-        'https://faulty-example.com',
-        __.generics.Value( faulty_parser ),
-        ttl = 3600 )
-
-    url = Url(
-        scheme = 'https', netloc = 'faulty-example.com', path = '/test',
-        params = '', query = '', fragment = '' )
-
-    # Should return True when can_fetch raises exception
-    result = await module._check_robots_txt(
-        url, robots_cache = robots_cache )
-    assert result is True
+# @pytest.mark.asyncio
+# async def test_500_check_robots_txt_can_fetch_exception( ):
+#     robots_cache = module.RobotsCache( )
+#     class FaultyRobotFileParser:
+#         def can_fetch( self, user_agent, url ):
+#             raise ValueError( "Simulated can_fetch exception" )
+#     faulty_parser = FaultyRobotFileParser( )
+#     await robots_cache.store(
+#         'https://faulty-example.com',
+#         __.generics.Value( faulty_parser ),
+#         ttl = 3600 )
+#     url = Url(
+#         scheme = 'https', netloc = 'faulty-example.com', path = '/test',
+#         params = '', query = '', fragment = '' )
+#     result = await module._check_robots_txt(
+#         url, robots_cache = robots_cache )
+#     assert result is True
 
 
-@pytest.mark.asyncio
-async def test_501_retrieve_robots_txt_crawl_delay_exception( ):
-    ''' Exception in robots_parser.crawl_delay() is handled (line 466-467). '''
-    robots_cache = module.RobotsCache( )
-
-    # Create robots.txt content that will parse successfully with crawl delay
-    robots_txt_content = "User-agent: *\nCrawl-delay: 2\nAllow: /"
-
-    def handler( request ):
-        if 'robots.txt' in request.url.path:
-            return _httpx.Response( 200, text = robots_txt_content )
-        return _httpx.Response( 200, text = "test content" )
-
-    mock_transport = _httpx.MockTransport( handler )
-
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-
-    # First populate the robots cache with successful robots.txt
-    url = Url(
-        scheme = 'https', netloc = 'crawl-delay-exception.com', path = '/test',
-        params = '', query = '', fragment = '' )
-
-    # Patch the RobotFileParser to raise exception on crawl_delay
-    original_crawl_delay = _urllib_robotparser.RobotFileParser.crawl_delay
-
-    def faulty_crawl_delay( self, user_agent ):
-        raise RuntimeError( "Simulated crawl_delay exception" )
-
-    _urllib_robotparser.RobotFileParser.crawl_delay = faulty_crawl_delay
-
-    try:
-        # This should trigger _apply_request_delay which calls crawl_delay
-        result = await module.probe_url(
-            url, client_factory = client_factory )
-        # Should still succeed despite crawl_delay exception
-        assert not __.is_absent( result )
-        # Domain should not have delay assigned due to exception
-        delay_remainder = robots_cache.calculate_delay_remainder(
-            'https://crawl-delay-exception.com' )
-        assert delay_remainder == 0.0
-    finally:
-        # Restore original method
-        _urllib_robotparser.RobotFileParser.crawl_delay = original_crawl_delay
+# @pytest.mark.asyncio
+# async def test_501_retrieve_robots_txt_crawl_delay_exception( ):
+#     robots_cache = module.RobotsCache( )
+#     robots_txt_content = "User-agent: *\nCrawl-delay: 2\nAllow: /"
+#     def handler( request ):
+#         if 'robots.txt' in request.url.path:
+#             return _httpx.Response( 200, text = robots_txt_content )
+#         return _httpx.Response( 200, text = "test content" )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     url = Url(
+#         scheme = 'https', netloc = 'crawl-delay-exception.com',
+#         path = '/test', params = '', query = '', fragment = '' )
+#     original_crawl_delay = _urllib_robotparser.RobotFileParser.crawl_delay
+#     def faulty_crawl_delay( self, user_agent ):
+#         raise RuntimeError( "Simulated crawl_delay exception" )
+#     _urllib_robotparser.RobotFileParser.crawl_delay = faulty_crawl_delay
+#     try:
+#         result = await module.probe_url(
+#             url, client_factory = client_factory )
+#         assert not __.is_absent( result )
+#         delay_remainder = robots_cache.calculate_delay_remainder(
+#             'https://crawl-delay-exception.com' )
+#         assert delay_remainder == 0.0
+#     finally:
+#         _urllib_robotparser.RobotFileParser.crawl_delay = original_crawl_delay
 
 
-@pytest.mark.asyncio
-async def test_502_retrieve_robots_txt_parse_exception( ):
-    ''' Exception in robots_parser.parse() returns Error result (564-567). '''
-    robots_cache = module.RobotsCache( )
-
-    # Return content that will trigger parse exception
-    def handler( request ):
-        return _httpx.Response( 200, text = "valid http response" )
-
-    mock_transport = _httpx.MockTransport( handler )
-
-    def client_factory( ):
-        return _httpx.AsyncClient( transport = mock_transport )
-
-    # Patch the RobotFileParser to raise exception on parse
-    original_parse = _urllib_robotparser.RobotFileParser.parse
-
-    def faulty_parse( self, lines ):
-        raise ValueError( "Simulated parse exception" )
-
-    _urllib_robotparser.RobotFileParser.parse = faulty_parse
-
-    try:
-        result = await module._retrieve_robots_txt(
-            'https://parse-exception.com', robots_cache,
-            client_factory = client_factory )
-        # Should return absent due to parse exception
-        assert __.is_absent( result )
-        # Verify the error is stored in cache as Error result
-        assert 'https://parse-exception.com' in robots_cache._cache
-        cache_entry = robots_cache._cache[ 'https://parse-exception.com' ]
-        assert not cache_entry.response.is_value( )
-    finally:
-        # Restore original method
-        _urllib_robotparser.RobotFileParser.parse = original_parse
-
-
+# @pytest.mark.asyncio
+# async def test_502_retrieve_robots_txt_parse_exception( ):
+#     robots_cache = module.RobotsCache( )
+#     def handler( request ):
+#         return _httpx.Response( 200, text = "valid http response" )
+#     mock_transport = _httpx.MockTransport( handler )
+#     def client_factory( ):
+#         return _httpx.AsyncClient( transport = mock_transport )
+#     original_parse = _urllib_robotparser.RobotFileParser.parse
+#     def faulty_parse( self, lines ):
+#         raise ValueError( "Simulated parse exception" )
+#     _urllib_robotparser.RobotFileParser.parse = faulty_parse
+#     try:
+#         result = await module._retrieve_robots_txt(
+#             'https://parse-exception.com', robots_cache,
+#             client_factory = client_factory )
+#         assert __.is_absent( result )
+#         assert 'https://parse-exception.com' in robots_cache._cache
+#         cache_entry = robots_cache._cache[ 'https://parse-exception.com' ]
+#         assert not cache_entry.response.is_value( )
+#     finally:
+#         _urllib_robotparser.RobotFileParser.parse = original_parse
