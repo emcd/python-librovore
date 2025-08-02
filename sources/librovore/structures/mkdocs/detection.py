@@ -24,6 +24,7 @@
 from urllib.parse import ParseResult as _Url
 
 from . import __
+from . import extraction as _extraction
 
 
 _scribe = __.acquire_scribe( __name__ )
@@ -54,8 +55,11 @@ class MkDocsDetection( __.StructureDetection ):
         include_snippets: bool = True,
     ) -> list[ dict[ str, __.typx.Any ] ]:
         ''' Extracts documentation content for specified objects. '''
-        # TODO: Implement MkDocs-specific content extraction
-        return [ ]
+        theme_value = self.theme if self.theme is not None else __.absent
+        return await _extraction.extract_contents(
+            source, objects,
+            theme = theme_value,
+            include_snippets = include_snippets )
 
 
 

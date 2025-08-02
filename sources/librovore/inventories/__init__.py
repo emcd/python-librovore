@@ -19,8 +19,3 @@
 
 
 ''' Inventory processors for different documentation data formats. '''
-
-
-from .sphinx import (
-    SphinxInventoryProcessor,
-)

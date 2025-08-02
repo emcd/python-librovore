@@ -19,6 +19,3 @@
 
 
 ''' Processors to detect and extract documentation. '''
-
-
-from . import sphinx
