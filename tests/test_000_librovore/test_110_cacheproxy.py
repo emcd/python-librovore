@@ -23,7 +23,7 @@
 
 import asyncio
 
-from unittest.mock import patch, Mock
+from unittest.mock import patch, Mock, AsyncMock
 from urllib.parse import ParseResult as Url
 import urllib.robotparser as _urllib_robotparser
 
@@ -63,21 +63,31 @@ _HEADERS_IMAGE_PNG = _httpx.Headers( { 'content-type': 'image/png' } )
 
 
 @pytest.fixture
-def default_config( ):
-    ''' Default cache configuration for tests. '''
-    return module.CacheConfiguration( )
+def test_delay_fn( ):
+    ''' No-op delay function for fast tests. '''
+    async def delay( seconds: float ) -> None:
+        pass  # No-op for fast tests
+    return delay
 
 
 @pytest.fixture
-def content_cache( default_config ):
-    ''' Content cache with default configuration. '''
-    return module.ContentCache( default_config )
+def content_cache( test_delay_fn ):
+    ''' Content cache with test configuration. '''
+    return module.ContentCache(
+        memory_max = 1024,
+        error_ttl = 30.0,
+        success_ttl = 300.0,
+        delay_function = test_delay_fn )
 
 
 @pytest.fixture
-def probe_cache( default_config ):
-    ''' Probe cache with default configuration. '''
-    return module.ProbeCache( default_config )
+def probe_cache( test_delay_fn ):
+    ''' Probe cache with test configuration. '''
+    return module.ProbeCache(
+        entries_max = 500,
+        error_ttl = 30.0,
+        success_ttl = 300.0,
+        delay_function = test_delay_fn )
 
 
 @pytest.fixture
@@ -97,33 +107,10 @@ def mock_client_factory( ):
 
 
 #
-# Series 000: Configuration and Entry Classes
+# Series 000: Entry Classes
 #
 
 
-def test_000_cache_configuration_defaults( ):
-    ''' Configuration uses expected default values. '''
-    config = module.CacheConfiguration( )
-    assert config.contents_memory_max == 32 * 1024 * 1024  # 32 MiB
-    assert config.probe_entries_max == 1000
-    assert config.error_ttl == 30.0
-    assert config.network_error_ttl == 10.0
-    assert config.success_ttl == 300.0
-
-
-def test_001_cache_configuration_custom_values( ):
-    ''' Configuration accepts custom values. '''
-    config = module.CacheConfiguration(
-        contents_memory_max = 64 * 1024 * 1024,
-        probe_entries_max = 2000,
-        error_ttl = 60.0,
-        network_error_ttl = 20.0,
-        success_ttl = 600.0 )
-    assert config.contents_memory_max == 64 * 1024 * 1024
-    assert config.probe_entries_max == 2000
-    assert config.error_ttl == 60.0
-    assert config.network_error_ttl == 20.0
-    assert config.success_ttl == 600.0
 
 
 @patch.object( module.__.time, 'time', return_value = 1000.0 )
@@ -287,11 +274,17 @@ def test_047_validate_textual_content_missing_header( ):
 #
 
 
-def test_100_content_cache_initialization( ):
-    ''' Content cache initializes with configuration. '''
-    config = module.CacheConfiguration( contents_memory_max = 1024 )
-    cache = module.ContentCache( config )
-    assert cache._configuration == config
+def test_100_content_cache_initialization( test_delay_fn ):
+    ''' Content cache initializes with constructor parameters. '''
+    cache = module.ContentCache(
+        memory_max = 1024,
+        error_ttl = 45.0,
+        success_ttl = 600.0,
+        delay_function = test_delay_fn )
+    assert cache.memory_max == 1024
+    assert cache.error_ttl == 45.0
+    assert cache.success_ttl == 600.0
+    assert cache.delay_function == test_delay_fn
     assert cache._memory_total == 0
     assert len( cache._cache ) == 0
     assert len( cache._recency ) == 0
@@ -338,19 +331,19 @@ async def test_112_content_cache_access_expired_returns_absent(
     assert url_key not in content_cache._cache
 
 
-def test_120_content_cache_determine_ttl_success( ):
+def test_120_content_cache_determine_ttl_success( test_delay_fn ):
     ''' Successful responses get appropriate TTL. '''
-    config = module.CacheConfiguration( success_ttl = 123.0 )
-    cache = module.ContentCache( config )
+    cache = module.ContentCache(
+        success_ttl = 123.0, delay_function = test_delay_fn )
     response = _generics.Value( b'content' )
     ttl = cache.determine_ttl( response )
     assert ttl == 123.0
 
 
-def test_121_content_cache_determine_ttl_error( ):
+def test_121_content_cache_determine_ttl_error( test_delay_fn ):
     ''' Error responses get appropriate TTL. '''
-    config = module.CacheConfiguration( error_ttl = 45.0 )
-    cache = module.ContentCache( config )
+    cache = module.ContentCache(
+        error_ttl = 45.0, delay_function = test_delay_fn )
     response = _generics.Error( Exception( 'test error' ) )
     ttl = cache.determine_ttl( response )
     assert ttl == 45.0
@@ -393,10 +386,10 @@ async def test_131_content_cache_store_replaces_existing( content_cache ):
 
 
 @pytest.mark.asyncio
-async def test_132_content_cache_eviction_by_memory( ):
+async def test_132_content_cache_eviction_by_memory( test_delay_fn ):
     ''' LRU entries are evicted when memory limit exceeded. '''
-    config = module.CacheConfiguration( contents_memory_max = 300 )
-    cache = module.ContentCache( config )
+    cache = module.ContentCache(
+        memory_max = 300, delay_function = test_delay_fn )
     # Store multiple entries that will exceed memory limit
     for i in range( 5 ):
         content = b'x' * 50  # 50 bytes each + 100 overhead = 150 each
@@ -414,10 +407,9 @@ async def test_132_content_cache_eviction_by_memory( ):
 
 
 @pytest.mark.asyncio
-async def test_133_content_cache_record_access_updates_lru( ):
+async def test_133_content_cache_record_access_updates_lru( test_delay_fn ):
     ''' Accessing entries moves URLs to end of recency queue. '''
-    config = module.CacheConfiguration( )
-    cache = module.ContentCache( config )
+    cache = module.ContentCache( delay_function = test_delay_fn )
     # Store multiple entries
     for i in range( 3 ):
         content = b'test'
@@ -442,11 +434,17 @@ async def test_133_content_cache_record_access_updates_lru( ):
 #
 
 
-def test_150_probe_cache_initialization( ):
-    ''' Probe cache initializes with configuration. '''
-    config = module.CacheConfiguration( probe_entries_max = 500 )
-    cache = module.ProbeCache( config )
-    assert cache._configuration == config
+def test_150_probe_cache_initialization( test_delay_fn ):
+    ''' Probe cache initializes with constructor parameters. '''
+    cache = module.ProbeCache(
+        entries_max = 500,
+        error_ttl = 45.0,
+        success_ttl = 600.0,
+        delay_function = test_delay_fn )
+    assert cache.entries_max == 500
+    assert cache.error_ttl == 45.0
+    assert cache.success_ttl == 600.0
+    assert cache.delay_function == test_delay_fn
     assert len( cache._cache ) == 0
     assert len( cache._recency ) == 0
 
@@ -484,29 +482,28 @@ async def test_162_probe_cache_access_expired_returns_absent( probe_cache ):
     assert url_key not in probe_cache._cache
 
 
-def test_170_probe_cache_determine_ttl_success( ):
+def test_170_probe_cache_determine_ttl_success( test_delay_fn ):
     ''' Successful probe responses get appropriate TTL. '''
-    config = module.CacheConfiguration( success_ttl = 456.0 )
-    cache = module.ProbeCache( config )
+    cache = module.ProbeCache(
+        success_ttl = 456.0, delay_function = test_delay_fn )
     response = _generics.Value( True )
     ttl = cache.determine_ttl( response )
     assert ttl == 456.0
 
 
-def test_171_probe_cache_determine_ttl_error( ):
+def test_171_probe_cache_determine_ttl_error( test_delay_fn ):
     ''' Error probe responses get appropriate TTL. '''
-    config = module.CacheConfiguration( error_ttl = 78.0 )
-    cache = module.ProbeCache( config )
+    cache = module.ProbeCache(
+        error_ttl = 78.0, delay_function = test_delay_fn )
     response = _generics.Error( Exception( 'test error' ) )
     ttl = cache.determine_ttl( response )
     assert ttl == 78.0
 
 
 @pytest.mark.asyncio
-async def test_172_probe_cache_store_updates_recency( ):
+async def test_172_probe_cache_store_updates_recency( test_delay_fn ):
     ''' Storing probe entries updates recency tracking correctly. '''
-    config = module.CacheConfiguration( )
-    cache = module.ProbeCache( config )
+    cache = module.ProbeCache( delay_function = test_delay_fn )
     response = _generics.Value( True )
 
     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
@@ -517,10 +514,10 @@ async def test_172_probe_cache_store_updates_recency( ):
 
 
 @pytest.mark.asyncio
-async def test_173_probe_cache_eviction_by_count( ):
+async def test_173_probe_cache_eviction_by_count( test_delay_fn ):
     ''' Oldest entries are evicted when count limit exceeded. '''
-    config = module.CacheConfiguration( probe_entries_max = 3 )
-    cache = module.ProbeCache( config )
+    cache = module.ProbeCache(
+        entries_max = 3, delay_function = test_delay_fn )
     # Store more entries than limit
     for i in range( 5 ):
         response = _generics.Value( i % 2 == 0 )  # Alternating True/False
@@ -537,10 +534,9 @@ async def test_173_probe_cache_eviction_by_count( ):
 
 
 @pytest.mark.asyncio
-async def test_174_probe_cache_record_access_updates_lru( ):
+async def test_174_probe_cache_record_access_updates_lru( test_delay_fn ):
     ''' Accessing probe entries moves URLs to end of recency queue. '''
-    config = module.CacheConfiguration( )
-    cache = module.ProbeCache( config )
+    cache = module.ProbeCache( delay_function = test_delay_fn )
     for i in range( 3 ):
         response = _generics.Value( True )
         url = f'http://example.com/test{i}'
@@ -630,31 +626,34 @@ async def test_212_probe_url_http_cache_miss_failure( probe_cache ):
 
 
 @pytest.mark.asyncio
-async def test_220_probe_url_dependency_injection_with_custom_cache( ):
+async def test_220_probe_url_dependency_injection_with_custom_cache(
+        test_delay_fn
+):
     ''' Injected cache dependencies are accepted and used for probing. '''
-    custom_config = module.CacheConfiguration( probe_entries_max = 5 )
-    custom_cache = module.ProbeCache( custom_config )
+    custom_cache = module.ProbeCache(
+        entries_max = 5, delay_function = test_delay_fn )
     url = Url(
         scheme = 'file', netloc = '', path = '/nonexistent',
         params = '', query = '', fragment = '' )
     result = await module.probe_url( url, cache = custom_cache )
     assert result is False
-    assert custom_cache._configuration.probe_entries_max == 5
+    assert custom_cache.entries_max == 5
 
 
 @pytest.mark.asyncio
-async def test_221_probe_url_cache_configuration_affects_behavior( ):
+async def test_221_probe_url_cache_configuration_affects_behavior(
+        test_delay_fn
+):
     ''' Custom cache configuration affects probing behavior. '''
-    restrictive_config = module.CacheConfiguration(
-        probe_entries_max = 2, success_ttl = 60.0 )
-    custom_cache = module.ProbeCache( restrictive_config )
+    custom_cache = module.ProbeCache(
+        entries_max = 2, success_ttl = 60.0, delay_function = test_delay_fn )
     url = Url(
         scheme = 'file', netloc = '', path = '/nonexistent',
         params = '', query = '', fragment = '' )
     result = await module.probe_url( url, cache = custom_cache )
     assert result is False
-    assert custom_cache._configuration.probe_entries_max == 2
-    assert custom_cache._configuration.success_ttl == 60.0
+    assert custom_cache.entries_max == 2
+    assert custom_cache.success_ttl == 60.0
 
 
 @pytest.mark.asyncio
@@ -671,8 +670,8 @@ async def test_222_probe_url_mutex_reuse_sequential_requests( ):
         return _httpx.AsyncClient( transport = mock_transport )
 
     # Use separate caches to avoid cache hits
-    cache1 = module.ProbeCache( module.CacheConfiguration( ) )
-    cache2 = module.ProbeCache( module.CacheConfiguration( ) )
+    cache1 = module.ProbeCache( )
+    cache2 = module.ProbeCache( )
 
     # First request creates mutex
     result1 = await module.probe_url(
@@ -745,7 +744,7 @@ async def test_310_retrieve_url_http_cache_hit_returns_cached( ):
 @pytest.mark.asyncio
 async def test_311_retrieve_url_http_cache_miss( ):
     ''' HTTP cache miss for retrieval executes GET and caches result. '''
-    cache = module.ContentCache( module.CacheConfiguration( ) )
+    cache = module.ContentCache( )
     test_content = b'HTTP response content for cache miss test'
     url = Url(
         scheme = 'http', netloc = 'cache-miss-test.example.com',
@@ -780,8 +779,7 @@ async def test_312_retrieve_url_file_permission_error_raises_exception( ):
 @pytest.mark.asyncio
 async def test_320_retrieve_url_dependency_injection_with_custom_cache( fs ):
     ''' Injected cache dependencies are accepted for retrieval. '''
-    custom_config = module.CacheConfiguration( contents_memory_max = 2048 )
-    custom_cache = module.ContentCache( custom_config )
+    custom_cache = module.ContentCache( memory_max = 2048 )
     test_content = b'custom cache test content'
     fs.create_file( '/test/custom.txt', contents = test_content )
     url = Url(
@@ -789,7 +787,7 @@ async def test_320_retrieve_url_dependency_injection_with_custom_cache( fs ):
         params = '', query = '', fragment = '' )
     result = await module.retrieve_url( url, cache = custom_cache )
     assert result == test_content
-    assert custom_cache._configuration.contents_memory_max == 2048
+    assert custom_cache.memory_max == 2048
 
 
 @pytest.mark.asyncio
@@ -807,8 +805,8 @@ async def test_321_retrieve_url_mutex_reuse_sequential_requests( ):
         return _httpx.AsyncClient( transport = mock_transport )
 
     # Use separate caches to avoid cache hits
-    cache1 = module.ContentCache( module.CacheConfiguration( ) )
-    cache2 = module.ContentCache( module.CacheConfiguration( ) )
+    cache1 = module.ContentCache( )
+    cache2 = module.ContentCache( )
 
     # First request creates mutex
     result1 = await module.retrieve_url(
@@ -912,7 +910,7 @@ async def test_364_retrieve_url_as_text_http_default_charset_fallback( ):
 @pytest.mark.asyncio
 async def test_365_retrieve_url_as_text_http_cache_miss( ):
     ''' HTTP cache miss for text retrieval executes GET and caches result. '''
-    cache = module.ContentCache( module.CacheConfiguration( ) )
+    cache = module.ContentCache( )
     test_content = 'HTTP text response'
     url = Url(
         scheme = 'http', netloc = 'example.com', path = '/text',
@@ -936,7 +934,7 @@ async def test_365_retrieve_url_as_text_http_cache_miss( ):
 @pytest.mark.asyncio
 async def test_366_retrieve_url_as_text_http_cache_miss_custom_charset( ):
     ''' HTTP cache miss for text with custom charset decodes correctly. '''
-    cache = module.ContentCache( module.CacheConfiguration( ) )
+    cache = module.ContentCache( )
     test_content = 'Custom charset content'
     url = Url(
         scheme = 'http', netloc = 'example.com', path = '/latin',
@@ -960,8 +958,7 @@ async def test_366_retrieve_url_as_text_http_cache_miss_custom_charset( ):
 @pytest.mark.asyncio
 async def test_370_retrieve_url_as_text_dependency_injection( fs ):
     ''' Injected cache dependencies are accepted for text retrieval. '''
-    custom_config = module.CacheConfiguration( contents_memory_max = 1024 )
-    custom_cache = module.ContentCache( custom_config )
+    custom_cache = module.ContentCache( memory_max = 1024 )
     test_content = 'Custom text content'
     fs.create_file( '/test/text.txt', contents = test_content )
     url = Url(
@@ -969,7 +966,7 @@ async def test_370_retrieve_url_as_text_dependency_injection( fs ):
         params = '', query = '', fragment = '' )
     result = await module.retrieve_url_as_text( url, cache = custom_cache )
     assert result == test_content
-    assert custom_cache._configuration.contents_memory_max == 1024
+    assert custom_cache.memory_max == 1024
 
 
 #
@@ -979,8 +976,7 @@ async def test_370_retrieve_url_as_text_dependency_injection( fs ):
 
 def test_800_content_cache_calculate_response_size_exception( ):
     ''' Exception responses use conservative size estimate. '''
-    config = module.CacheConfiguration( )
-    cache = module.ContentCache( config )
+    cache = module.ContentCache( )
     error_response = _generics.Error( ValueError( 'Test error' ) )
     size = cache._calculate_response_size( error_response )
     assert size == 100  # Conservative estimate for exceptions
@@ -988,8 +984,7 @@ def test_800_content_cache_calculate_response_size_exception( ):
 
 def test_801_content_cache_evict_empty_recency_queue( ):
     ''' Memory eviction handles empty recency queue gracefully. '''
-    config = module.CacheConfiguration( contents_memory_max = 1 )
-    cache = module.ContentCache( config )
+    cache = module.ContentCache( memory_max = 1 )
     # Force memory total above limit but with empty recency queue
     cache._memory_total = 1000
     cache._recency.clear( )
@@ -1000,8 +995,7 @@ def test_801_content_cache_evict_empty_recency_queue( ):
 
 def test_802_content_cache_remove_missing_entry( ):
     ''' Removing missing entry returns early without error. '''
-    config = module.CacheConfiguration( )
-    cache = module.ContentCache( config )
+    cache = module.ContentCache( )
     # Should not crash when removing non-existent entry
     cache._remove( 'http://nonexistent.com' )
     assert len( cache._cache ) == 0
@@ -1009,8 +1003,7 @@ def test_802_content_cache_remove_missing_entry( ):
 
 def test_803_probe_cache_evict_empty_recency_queue( ):
     ''' Count eviction handles empty recency queue gracefully. '''
-    config = module.CacheConfiguration( probe_entries_max = 0 )
-    cache = module.ProbeCache( config )
+    cache = module.ProbeCache( entries_max = 0 )
     # Force cache size above limit but with empty recency queue
     cache._cache[ 'url1' ] = Mock( )
     cache._recency.clear( )
@@ -1034,7 +1027,7 @@ def test_804_extract_charset_no_semicolon( ):
 @pytest.mark.asyncio
 async def test_900_probe_url_concurrent_requests_deduplication( ):
     ''' Concurrent probe requests for same URL are deduplicated. '''
-    cache = module.ProbeCache( module.CacheConfiguration( ) )
+    cache = module.ProbeCache( )
     url = Url(
         scheme = 'http', netloc = 'example.com', path = '/test',
         params = '', query = '', fragment = '' )
@@ -1061,7 +1054,7 @@ async def test_900_probe_url_concurrent_requests_deduplication( ):
 @pytest.mark.asyncio
 async def test_901_retrieve_url_concurrent_requests_deduplication( ):
     ''' Concurrent retrieve requests for same URL are deduplicated. '''
-    cache = module.ContentCache( module.CacheConfiguration( ) )
+    cache = module.ContentCache( )
     url = Url(
         scheme = 'http', netloc = 'example.com', path = '/test',
         params = '', query = '', fragment = '' )
@@ -1103,14 +1096,14 @@ async def test_902_request_mutex_cleanup_after_completion( ):
         return _httpx.AsyncClient( transport = mock_transport )
 
     # Test probe cache mutex cleanup
-    probe_cache = module.ProbeCache( module.CacheConfiguration( ) )
+    probe_cache = module.ProbeCache( )
     await module.probe_url(
         url, cache = probe_cache, client_factory = client_factory )
     # Mutex should be cleaned up after request completes
     assert url_key not in probe_cache._request_mutexes
 
     # Test content cache mutex cleanup
-    content_cache = module.ContentCache( module.CacheConfiguration( ) )
+    content_cache = module.ContentCache( )
     await module.retrieve_url(
         url, cache = content_cache, client_factory = client_factory )
     # Mutex should be cleaned up after request completes
@@ -1123,9 +1116,16 @@ async def test_902_request_mutex_cleanup_after_completion( ):
 
 
 @pytest.fixture
-def robots_cache( default_config ):
-    ''' Robots cache with default configuration. '''
-    return module.RobotsCache( default_config )
+def robots_cache( test_delay_fn ):
+    ''' Robots cache with test configuration. '''
+    return module.RobotsCache(
+        entries_max = 250,
+        ttl = 1800.0,
+        request_timeout = 2.5,
+        user_agent = 'test-agent',
+        error_ttl = 30.0,
+        success_ttl = 300.0,
+        delay_function = test_delay_fn )
 
 
 @pytest.fixture
@@ -1141,11 +1141,23 @@ def robots_txt_samples( ):
     return samples
 
 
-def test_400_robots_cache_initialization( ):
-    ''' RobotsCache initializes with configuration correctly. '''
-    config = module.CacheConfiguration( robots_entries_max = 100 )
-    cache = module.RobotsCache( config )
-    assert cache._configuration == config
+def test_400_robots_cache_initialization( test_delay_fn ):
+    ''' RobotsCache initializes with constructor parameters correctly. '''
+    cache = module.RobotsCache(
+        entries_max = 100,
+        ttl = 1800.0,
+        request_timeout = 5.0,
+        user_agent = 'test-bot/1.0',
+        error_ttl = 45.0,
+        success_ttl = 600.0,
+        delay_function = test_delay_fn )
+    assert cache.entries_max == 100
+    assert cache.ttl == 1800.0
+    assert cache.request_timeout == 5.0
+    assert cache.user_agent == 'test-bot/1.0'
+    assert cache.error_ttl == 45.0
+    assert cache.success_ttl == 600.0
+    assert cache.delay_function == test_delay_fn
     assert len( cache._cache ) == 0
     assert len( cache._recency ) == 0
     assert len( cache._request_delays ) == 0
@@ -1226,10 +1238,10 @@ def test_406_robots_cache_assign_delay( robots_cache ):
 
 
 @pytest.mark.asyncio
-async def test_407_robots_cache_eviction_by_count( ):
+async def test_407_robots_cache_eviction_by_count( test_delay_fn ):
     ''' LRU eviction works when cache exceeds max entries. '''
-    config = module.CacheConfiguration( robots_entries_max = 2 )
-    cache = module.RobotsCache( config )
+    cache = module.RobotsCache(
+        entries_max = 2, delay_function = test_delay_fn )
     from urllib.robotparser import RobotFileParser
     # Store 3 entries to trigger eviction
     for i in range( 3 ):
@@ -1252,16 +1264,15 @@ def test_408_robots_cache_determine_ttl_success_vs_error( robots_cache ):
     error_response = _generics.Error( Exception( 'Test error' ) )
     success_ttl = robots_cache.determine_ttl( success_response )
     error_ttl = robots_cache.determine_ttl( error_response )
-    assert success_ttl == robots_cache._configuration.robots_ttl
-    assert error_ttl == robots_cache._configuration.error_ttl
+    assert success_ttl == robots_cache.ttl
+    assert error_ttl == robots_cache.error_ttl
     assert success_ttl > error_ttl
 
 
 @pytest.mark.asyncio
 async def test_409_robots_cache_record_access_updates_lru( ):
     ''' Accessing entries moves domains to end of recency queue. '''
-    config = module.CacheConfiguration( )
-    cache = module.RobotsCache( config )
+    cache = module.RobotsCache( )
     from urllib.robotparser import RobotFileParser
     # Store multiple entries
     for i in range( 3 ):
@@ -1339,7 +1350,7 @@ def test_414_extract_domain_with_query( ):
 @pytest.mark.asyncio
 async def test_420_check_robots_txt_allowed_url( robots_txt_samples ):
     ''' URLs allowed by robots.txt return True. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     def handler( request ):
         return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
     mock_transport = _httpx.MockTransport( handler )
@@ -1356,7 +1367,7 @@ async def test_420_check_robots_txt_allowed_url( robots_txt_samples ):
 @pytest.mark.asyncio
 async def test_421_check_robots_txt_blocked_url( robots_txt_samples ):
     ''' URLs blocked by robots.txt return False. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     def handler( request ):
         return _httpx.Response( 200, text = robots_txt_samples[ 'block_all' ] )
     mock_transport = _httpx.MockTransport( handler )
@@ -1386,7 +1397,7 @@ async def test_422_check_robots_txt_non_http_scheme( ):
 @pytest.mark.asyncio
 async def test_423_check_robots_txt_missing_robots_file( ):
     ''' Missing robots.txt allows access by default. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     def handler( request ):
         return _httpx.Response( 404 )
     mock_transport = _httpx.MockTransport( handler )
@@ -1404,7 +1415,7 @@ async def test_423_check_robots_txt_missing_robots_file( ):
 async def test_424_check_robots_txt_malformed_robots_file(
         robots_txt_samples ):
     ''' Malformed robots.txt content allows access by default. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     def handler( request ):
         return _httpx.Response( 200, text = robots_txt_samples[ 'malformed' ] )
     mock_transport = _httpx.MockTransport( handler )
@@ -1422,7 +1433,7 @@ async def test_424_check_robots_txt_malformed_robots_file(
 async def test_425_check_robots_txt_cache_hit( robots_txt_samples ):
     ''' Cached robots.txt parser is used when available. '''
     from urllib.robotparser import RobotFileParser
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     parser = RobotFileParser( )
     parser.set_url( 'https://example.com/robots.txt' )
     parser.parse( robots_txt_samples[ 'allow_all' ].splitlines( ) )
@@ -1440,7 +1451,7 @@ async def test_425_check_robots_txt_cache_hit( robots_txt_samples ):
 @pytest.mark.asyncio
 async def test_426_check_robots_txt_cache_miss_fetch( robots_txt_samples ):
     ''' Cache miss triggers robots.txt fetch and parsing. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     def handler( request ):
         return _httpx.Response(
             200, text = robots_txt_samples[ 'block_specific' ] )
@@ -1494,7 +1505,7 @@ async def test_428_check_robots_txt_default_user_agent( robots_txt_samples ):
 async def test_429_check_robots_txt_parser_exception( robots_txt_samples ):
     ''' Exception during parser can_fetch call allows access. '''
     from urllib.robotparser import RobotFileParser
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     # Create a mock parser that raises exception on can_fetch
     parser = Mock( spec = RobotFileParser )
     parser.can_fetch.side_effect = Exception( 'Parser error' )
@@ -1517,7 +1528,7 @@ async def test_429_check_robots_txt_parser_exception( robots_txt_samples ):
 @pytest.mark.asyncio
 async def test_440_retrieve_robots_txt_success( robots_txt_samples ):
     ''' Successful fetch and parse returns parser. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     def handler( request ):
         return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
     mock_transport = _httpx.MockTransport( handler )
@@ -1532,7 +1543,7 @@ async def test_440_retrieve_robots_txt_success( robots_txt_samples ):
 @pytest.mark.asyncio
 async def test_441_retrieve_robots_txt_http_error( ):
     ''' HTTP 404 for robots.txt returns empty parser allowing all access. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     def handler( request ):
         return _httpx.Response( 404 )
     mock_transport = _httpx.MockTransport( handler )
@@ -1547,7 +1558,7 @@ async def test_441_retrieve_robots_txt_http_error( ):
 @pytest.mark.asyncio
 async def test_442_retrieve_robots_txt_timeout( ):
     ''' Request timeout returns absent. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     def handler( request ):
         raise _httpx.TimeoutException( 'Timeout' )
     mock_transport = _httpx.MockTransport( handler )
@@ -1561,7 +1572,7 @@ async def test_442_retrieve_robots_txt_timeout( ):
 @pytest.mark.asyncio
 async def test_443_retrieve_robots_txt_parse_error( ):
     ''' robots.txt parsing failure returns absent. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     def handler( request ):
         return _httpx.Response(
             200, text = 'Invalid robots.txt\nwith bad syntax' )
@@ -1577,7 +1588,7 @@ async def test_443_retrieve_robots_txt_parse_error( ):
 @pytest.mark.asyncio
 async def test_444_retrieve_robots_txt_empty_content( robots_txt_samples ):
     ''' Empty robots.txt file parses successfully. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     def handler( request ):
         return _httpx.Response( 200, text = robots_txt_samples[ 'empty' ] )
     mock_transport = _httpx.MockTransport( handler )
@@ -1593,7 +1604,7 @@ async def test_444_retrieve_robots_txt_empty_content( robots_txt_samples ):
 async def test_445_retrieve_robots_txt_mutex_deduplication(
         robots_txt_samples ):
     ''' Multiple concurrent requests ensure consistent cache state. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     def handler( request ):
         return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
     mock_transport = _httpx.MockTransport( handler )
@@ -1621,7 +1632,7 @@ async def test_445_retrieve_robots_txt_mutex_deduplication(
 async def test_446_retrieve_robots_txt_custom_client_factory(
         robots_txt_samples ):
     ''' Custom httpx client factory is used correctly. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     def handler( request ):
         return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
     mock_transport = _httpx.MockTransport( handler )
@@ -1636,7 +1647,7 @@ async def test_446_retrieve_robots_txt_custom_client_factory(
 @pytest.mark.asyncio
 async def test_447_retrieve_robots_txt_cache_storage( robots_txt_samples ):
     ''' Result is stored in cache after fetch. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     def handler( request ):
         return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
     mock_transport = _httpx.MockTransport( handler )
@@ -1653,7 +1664,7 @@ async def test_447_retrieve_robots_txt_cache_storage( robots_txt_samples ):
 @pytest.mark.asyncio
 async def test_448_retrieve_robots_txt_ttl_determination( ):
     ''' TTL is calculated and applied correctly. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     def handler( request ):
         return _httpx.Response( 404 )  # Missing robots.txt (success case)
     mock_transport = _httpx.MockTransport( handler )
@@ -1665,13 +1676,13 @@ async def test_448_retrieve_robots_txt_ttl_determination( ):
     assert 'https://example.com' in robots_cache._cache
     entry = robots_cache._cache[ 'https://example.com' ]
     assert entry.response.is_value( )
-    assert entry.ttl == robots_cache._configuration.robots_ttl
+    assert entry.ttl == robots_cache.ttl
 
 
 @pytest.mark.asyncio
 async def test_449_retrieve_robots_txt_error_result_extraction( ):
     ''' Error result extraction returns absent correctly. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     def handler( request ):
         raise _httpx.ConnectError( 'Connection failed' )
     mock_transport = _httpx.MockTransport( handler )
@@ -1701,7 +1712,7 @@ async def test_460_apply_request_delay_non_http_scheme( ):
 @pytest.mark.asyncio
 async def test_461_apply_request_delay_no_robots_cached( robots_txt_samples ):
     ''' Fetches robots.txt when not cached. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     def handler( request ):
         return _httpx.Response(
             200, text = robots_txt_samples[ 'with_crawl_delay' ] )
@@ -1721,7 +1732,8 @@ async def test_461_apply_request_delay_no_robots_cached( robots_txt_samples ):
 @pytest.mark.asyncio
 async def test_462_apply_request_delay_active_delay( ):
     ''' Sleep occurs when delay is active. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    mock_delay_fn = AsyncMock( )
+    robots_cache = module.RobotsCache( delay_function = mock_delay_fn )
     domain = 'https://example.com'
     # Set active delay
     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
@@ -1729,20 +1741,17 @@ async def test_462_apply_request_delay_active_delay( ):
     url = Url(
         scheme = 'https', netloc = 'example.com', path = '/test',
         params = '', query = '', fragment = '' )
-    # Mock sleep to verify it's called
-    with (
-        patch.object( module.__.asyncio, 'sleep' ) as mock_sleep,
-        patch.object( module.__.time, 'time', return_value = 1001.0 )
-    ):
+    # Check delay function is called
+    with patch.object( module.__.time, 'time', return_value = 1001.0 ):
         await module._apply_request_delay(
             url, robots_cache = robots_cache )
-    mock_sleep.assert_called_once_with( 1.0 )
+    mock_delay_fn.assert_called_once_with( 1.0 )
 
 
 @pytest.mark.asyncio
 async def test_463_apply_request_delay_expired_delay( ):
     ''' No sleep when delay has expired. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     domain = 'https://example.com'
     # Set expired delay
     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
@@ -1762,7 +1771,7 @@ async def test_463_apply_request_delay_expired_delay( ):
 @pytest.mark.asyncio
 async def test_464_apply_request_delay_set_new_delay( robots_txt_samples ):
     ''' Sets delay from robots.txt crawl-delay directive. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     from urllib.robotparser import RobotFileParser
     parser = RobotFileParser( )
     parser.set_url( 'https://example.com/robots.txt' )
@@ -1786,7 +1795,7 @@ async def test_464_apply_request_delay_set_new_delay( robots_txt_samples ):
 @pytest.mark.asyncio
 async def test_465_apply_request_delay_no_crawl_delay( robots_txt_samples ):
     ''' robots.txt with no Crawl-delay sets no delay. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     from urllib.robotparser import RobotFileParser
     parser = RobotFileParser( )
     parser.set_url( 'https://example.com/robots.txt' )
@@ -1805,7 +1814,7 @@ async def test_465_apply_request_delay_no_crawl_delay( robots_txt_samples ):
 @pytest.mark.asyncio
 async def test_466_apply_request_delay_invalid_crawl_delay( ):
     ''' Non-numeric Crawl-delay values are handled gracefully. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     from urllib.robotparser import RobotFileParser
     parser = RobotFileParser( )
     parser.set_url( 'https://example.com/robots.txt' )
@@ -1824,7 +1833,7 @@ async def test_466_apply_request_delay_invalid_crawl_delay( ):
 @pytest.mark.asyncio
 async def test_467_apply_request_delay_robots_parser_exception( ):
     ''' Exception getting crawl delay is handled gracefully. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     from urllib.robotparser import RobotFileParser
     parser = Mock( spec = RobotFileParser )
     parser.crawl_delay.side_effect = Exception( 'Parser error' )
@@ -1843,7 +1852,7 @@ async def test_467_apply_request_delay_robots_parser_exception( ):
 async def test_468_apply_request_delay_with_custom_client(
         robots_txt_samples ):
     ''' Custom client factory is used for robots.txt fetch. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     def handler( request ):
         return _httpx.Response(
             200, text = robots_txt_samples[ 'with_crawl_delay' ] )
@@ -1863,7 +1872,7 @@ async def test_468_apply_request_delay_with_custom_client(
 @pytest.mark.asyncio
 async def test_469_apply_request_delay_time_calculation( ):
     ''' Delay timestamp calculation is correct. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     domain = 'https://example.com'
     with patch.object( module.__.time, 'time', return_value = 1234.5 ):
         robots_cache.assign_delay( domain, 7.5 )
@@ -1879,7 +1888,7 @@ async def test_469_apply_request_delay_time_calculation( ):
 @pytest.mark.asyncio
 async def test_480_probe_url_robots_txt_blocked( robots_txt_samples ):
     ''' probe_url respects robots.txt blocking. '''
-    probe_cache = module.ProbeCache( module.CacheConfiguration( ) )
+    probe_cache = module.ProbeCache( )
     def handler( request ):
         if request.url.path == '/robots.txt':
             return _httpx.Response(
@@ -1899,7 +1908,7 @@ async def test_480_probe_url_robots_txt_blocked( robots_txt_samples ):
 @pytest.mark.asyncio
 async def test_481_probe_url_robots_txt_allowed( robots_txt_samples ):
     ''' probe_url allows access when robots.txt permits. '''
-    probe_cache = module.ProbeCache( module.CacheConfiguration( ) )
+    probe_cache = module.ProbeCache( )
     def handler( request ):
         if request.url.path == '/robots.txt':
             return _httpx.Response(
@@ -1927,7 +1936,7 @@ async def test_482_retrieve_url_robots_txt_blocked( robots_txt_samples ):
     mock_transport = _httpx.MockTransport( handler )
     def client_factory( ):
         return _httpx.AsyncClient( transport = mock_transport )
-    content_cache = module.ContentCache( module.CacheConfiguration( ) )
+    content_cache = module.ContentCache( )
     url = Url(
         scheme = 'https', netloc = 'blocked-retrieve.com', path = '/test',
         params = '', query = '', fragment = '' )
@@ -1948,7 +1957,7 @@ async def test_483_retrieve_url_robots_txt_allowed( robots_txt_samples ):
     mock_transport = _httpx.MockTransport( handler )
     def client_factory( ):
         return _httpx.AsyncClient( transport = mock_transport )
-    content_cache = module.ContentCache( module.CacheConfiguration( ) )
+    content_cache = module.ContentCache( )
     url = Url(
         scheme = 'https', netloc = 'allowed-retrieve.com', path = '/test',
         params = '', query = '', fragment = '' )
@@ -1971,7 +1980,7 @@ async def test_484_retrieve_url_as_text_robots_txt_blocked(
     mock_transport = _httpx.MockTransport( handler )
     def client_factory( ):
         return _httpx.AsyncClient( transport = mock_transport )
-    content_cache = module.ContentCache( module.CacheConfiguration( ) )
+    content_cache = module.ContentCache( )
     url = Url(
         scheme = 'https', netloc = 'blocked-text.com', path = '/test',
         params = '', query = '', fragment = '' )
@@ -1983,7 +1992,7 @@ async def test_484_retrieve_url_as_text_robots_txt_blocked(
 @pytest.mark.asyncio
 async def test_485_robots_txt_integration_with_caching( robots_txt_samples ):
     ''' robots.txt works correctly with HTTP caching. '''
-    content_cache = module.ContentCache( module.CacheConfiguration( ) )
+    content_cache = module.ContentCache( )
     test_content = b'cached content'
     def handler( request ):
         if request.url.path == '/robots.txt':
@@ -2008,7 +2017,7 @@ async def test_485_robots_txt_integration_with_caching( robots_txt_samples ):
 @pytest.mark.asyncio
 async def test_486_robots_txt_crawl_delay_integration( robots_txt_samples ):
     ''' Crawl delay integrates correctly with HTTP requests. '''
-    content_cache = module.ContentCache( module.CacheConfiguration( ) )
+    content_cache = module.ContentCache( )
     test_content = b'delayed content'
     def handler( request ):
         if request.url.path == '/robots.txt':
@@ -2036,8 +2045,8 @@ async def test_486_robots_txt_crawl_delay_integration( robots_txt_samples ):
 async def test_487_robots_txt_custom_user_agent_integration(
         robots_txt_samples ):
     ''' Custom user agent works through entire integration. '''
-    robots_cache1 = module.RobotsCache( module.CacheConfiguration( ) )
-    robots_cache2 = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache1 = module.RobotsCache( )
+    robots_cache2 = module.RobotsCache( )
     custom_robots_txt = (
         'User-agent: custom-bot\nDisallow: /\n\nUser-agent: *\nAllow: /' )
     def handler( request ):
@@ -2063,7 +2072,7 @@ async def test_487_robots_txt_custom_user_agent_integration(
 @pytest.mark.asyncio
 async def test_488_robots_txt_domain_based_caching( robots_txt_samples ):
     ''' Multiple domains are cached separately. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     def handler( request ):
         if 'example1' in str( request.url ):
             return _httpx.Response(
@@ -2202,7 +2211,7 @@ async def test_496_robots_txt_invalid_url_handling( ):
 @pytest.mark.asyncio
 async def test_497_robots_txt_concurrent_cache_access( robots_txt_samples ):
     ''' Race conditions in cache access are handled correctly. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     def handler( request ):
         return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
     mock_transport = _httpx.MockTransport( handler )
@@ -2228,7 +2237,7 @@ async def test_497_robots_txt_concurrent_cache_access( robots_txt_samples ):
 @pytest.mark.asyncio
 async def test_498_robots_txt_cache_corruption_recovery( ):
     ''' Cache corruption scenarios are handled gracefully. '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
     # Manually clear cache state to simulate corruption
     robots_cache._cache.clear( )
     url = Url(
@@ -2243,14 +2252,11 @@ async def test_498_robots_txt_cache_corruption_recovery( ):
 def test_499_robots_txt_configuration_edge_cases( ):
     ''' Configuration edge cases are handled correctly. '''
     # Test with extreme configuration values
-    config = module.CacheConfiguration(
-        robots_entries_max = 0,
-        robots_ttl = 0.0,
-        error_ttl = 0.0 )
-    cache = module.RobotsCache( config )
-    assert cache._configuration.robots_entries_max == 0
-    assert cache._configuration.robots_ttl == 0.0
-    assert cache._configuration.error_ttl == 0.0
+    cache = module.RobotsCache(
+        entries_max = 0, ttl = 0.0, error_ttl = 0.0 )
+    assert cache.entries_max == 0
+    assert cache.ttl == 0.0
+    assert cache.error_ttl == 0.0
 
 
 #
@@ -2261,7 +2267,7 @@ def test_499_robots_txt_configuration_edge_cases( ):
 @pytest.mark.asyncio
 async def test_910_probe_url_http_timeout_exception( ):
     ''' HTTP timeout exceptions are raised in probing. '''
-    cache = module.ProbeCache( module.CacheConfiguration( ) )
+    cache = module.ProbeCache( )
     url = Url(
         scheme = 'http', netloc = 'example.com', path = '/test',
         params = '', query = '', fragment = '' )
@@ -2278,7 +2284,7 @@ async def test_910_probe_url_http_timeout_exception( ):
 @pytest.mark.asyncio
 async def test_911_retrieve_url_http_connection_error( ):
     ''' HTTP connection errors are propagated as ConnectError. '''
-    cache = module.ContentCache( module.CacheConfiguration( ) )
+    cache = module.ContentCache( )
     url = Url(
         scheme = 'http', netloc = 'unreachable.example', path = '/test',
         params = '', query = '', fragment = '' )
@@ -2295,7 +2301,7 @@ async def test_911_retrieve_url_http_connection_error( ):
 @pytest.mark.asyncio
 async def test_912_retrieve_url_http_status_error( ):
     ''' HTTP status errors are propagated as HTTPStatusError. '''
-    cache = module.ContentCache( module.CacheConfiguration( ) )
+    cache = module.ContentCache( )
     url = Url(
         scheme = 'http', netloc = 'example.com', path = '/notfound',
         params = '', query = '', fragment = '' )
@@ -2315,7 +2321,7 @@ async def test_912_retrieve_url_http_status_error( ):
 @pytest.mark.asyncio
 async def test_500_check_robots_txt_can_fetch_exception( ):
     ''' Exception in robots_parser.can_fetch() returns True (line 343-345). '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
 
     # Create a mock RobotFileParser that raises an exception on can_fetch
     class FaultyRobotFileParser:
@@ -2342,7 +2348,7 @@ async def test_500_check_robots_txt_can_fetch_exception( ):
 @pytest.mark.asyncio
 async def test_501_retrieve_robots_txt_crawl_delay_exception( ):
     ''' Exception in robots_parser.crawl_delay() is handled (line 466-467). '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
 
     # Create robots.txt content that will parse successfully with crawl delay
     robots_txt_content = "User-agent: *\nCrawl-delay: 2\nAllow: /"
@@ -2388,7 +2394,7 @@ async def test_501_retrieve_robots_txt_crawl_delay_exception( ):
 @pytest.mark.asyncio
 async def test_502_retrieve_robots_txt_parse_exception( ):
     ''' Exception in robots_parser.parse() returns Error result (564-567). '''
-    robots_cache = module.RobotsCache( module.CacheConfiguration( ) )
+    robots_cache = module.RobotsCache( )
 
     # Return content that will trigger parse exception
     def handler( request ):

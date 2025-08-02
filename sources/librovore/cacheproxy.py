@@ -38,20 +38,6 @@ RobotsResponse: __.typx.TypeAlias = (
     _generics.Result[ _RobotFileParser, Exception ] )
 
 
-class CacheConfiguration( __.immut.DataclassObject ):
-    ''' Configuration for HTTP cache behavior. '''
-
-    contents_memory_max: int = 32 * 1024 * 1024  # 32 MiB for GET cache
-    probe_entries_max: int = 1000  # Entry limit for HEAD cache
-    robots_entries_max: int = 500  # Entry limit for robots.txt cache
-    error_ttl: float = 30.0     # 30 seconds
-    network_error_ttl: float = 10.0  # 10 seconds
-    success_ttl: float = 300.0  # 5 minutes
-    robots_ttl: float = 3600.0  # 1 hour for robots.txt
-    robots_request_timeout: float = 5.0  # 5 seconds for robots.txt
-    user_agent: str = 'librovore/1.0'
-
-
 class CacheEntry( __.immut.DataclassObject ):
     ''' Cache entry base. '''
 
@@ -90,10 +76,22 @@ class RobotsCacheEntry( CacheEntry ):
 
 
 class Cache( __.immut.Object ):
-    ''' Cache base. '''
+    ''' Cache base with shared configuration attributes. '''
 
-    def __init__( self, configuration: CacheConfiguration ) -> None:
-        self._configuration = configuration
+    error_ttl: float = 30.0
+    success_ttl: float = 300.0
+
+    def __init__(
+        self, *,
+        error_ttl: __.Absential[ float ] = __.absent,
+        success_ttl: __.Absential[ float ] = __.absent,
+        delay_function: __.cabc.Callable[
+            [ float ], __.cabc.Awaitable[ None ]
+        ] = __.asyncio.sleep
+    ) -> None:
+        if not __.is_absent( error_ttl ): self.error_ttl = error_ttl
+        if not __.is_absent( success_ttl ): self.success_ttl = success_ttl
+        self.delay_function = delay_function
         self._request_mutexes: dict[ str, __.asyncio.Lock ] = { }
 
     @__.ctxl.asynccontextmanager
@@ -110,8 +108,15 @@ class Cache( __.immut.Object ):
 class ContentCache( Cache, instances_mutables = ( '_memory_total', ) ):
     ''' Cache manager for URL content (GET requests) with memory tracking. '''
 
-    def __init__( self, configuration: CacheConfiguration ) -> None:
-        super( ).__init__( configuration )
+    memory_max: int = 32 * 1024 * 1024
+
+    def __init__(
+        self, *,
+        memory_max: __.Absential[ int ] = __.absent,
+        **base_kwargs: __.typx.Any
+    ) -> None:
+        super( ).__init__( **base_kwargs )
+        if not __.is_absent( memory_max ): self.memory_max = memory_max
         self._cache: dict[ str, ContentCacheEntry ] = { }
         self._memory_total = 0
         self._recency: __.collections.deque[ str ] = __.collections.deque( )
@@ -131,9 +136,9 @@ class ContentCache( Cache, instances_mutables = ( '_memory_total', ) ):
     def determine_ttl( self, response: ContentResponse ) -> float:
         ''' Determines appropriate TTL based on response type. '''
         if response.is_value( ):
-            return self._configuration.success_ttl
+            return self.success_ttl
         # TODO: Inspect exception type for more granular TTL
-        return self._configuration.error_ttl
+        return self.error_ttl
 
     async def store(
         self, url: str, response: ContentResponse,
@@ -164,7 +169,7 @@ class ContentCache( Cache, instances_mutables = ( '_memory_total', ) ):
     def _evict_by_memory( self ) -> None:
         ''' Evicts LRU entries until memory usage is under limit. '''
         while (
-            self._memory_total > self._configuration.contents_memory_max
+            self._memory_total > self.memory_max
             and self._recency
         ):
             lru_url = self._recency.popleft( )
@@ -191,8 +196,15 @@ class ContentCache( Cache, instances_mutables = ( '_memory_total', ) ):
 class ProbeCache( Cache ):
     ''' Cache manager for URL probe results (HEAD requests). '''
 
-    def __init__( self, configuration: CacheConfiguration ) -> None:
-        super( ).__init__( configuration )
+    entries_max: int = 1000
+
+    def __init__(
+        self, *,
+        entries_max: __.Absential[ int ] = __.absent,
+        **base_kwargs: __.typx.Any
+    ) -> None:
+        super( ).__init__( **base_kwargs )
+        if not __.is_absent( entries_max ): self.entries_max = entries_max
         self._cache: dict[ str, ProbeCacheEntry ] = { }
         self._recency: __.collections.deque[ str ] = __.collections.deque( )
 
@@ -209,9 +221,9 @@ class ProbeCache( Cache ):
     def determine_ttl( self, response: ProbeResponse ) -> float:
         ''' Determines appropriate TTL based on response type. '''
         if response.is_value( ):
-            return self._configuration.success_ttl
+            return self.success_ttl
         # TODO: Inspect exception type for more granular TTL
-        return self._configuration.error_ttl
+        return self.error_ttl
 
     async def store(
         self, url: str, response: ProbeResponse, ttl: float
@@ -228,7 +240,7 @@ class ProbeCache( Cache ):
     def _evict_by_count( self ) -> None:
         ''' Evicts oldest entries when cache exceeds max size. '''
         while (
-            len( self._cache ) > self._configuration.probe_entries_max
+            len( self._cache ) > self.entries_max
             and self._recency
         ):
             lru_url = self._recency.popleft( )
@@ -251,8 +263,25 @@ class ProbeCache( Cache ):
 class RobotsCache( Cache, instances_mutables = ( '_request_delays', ) ):
     ''' Cache manager for robots.txt files with crawl delay tracking. '''
 
-    def __init__( self, configuration: CacheConfiguration ) -> None:
-        super( ).__init__( configuration )
+    entries_max: int = 500
+    ttl: float = 3600.0
+    request_timeout: float = 5.0
+    user_agent: str = 'librovore/1.0'
+
+    def __init__(
+        self, *,
+        entries_max: __.Absential[ int ] = __.absent,
+        ttl: __.Absential[ float ] = __.absent,
+        request_timeout: __.Absential[ float ] = __.absent,
+        user_agent: __.Absential[ str ] = __.absent,
+        **base_kwargs: __.typx.Any
+    ) -> None:
+        super( ).__init__( **base_kwargs )
+        if not __.is_absent( entries_max ): self.entries_max = entries_max
+        if not __.is_absent( ttl ): self.ttl = ttl
+        if not __.is_absent( request_timeout ):
+            self.request_timeout = request_timeout
+        if not __.is_absent( user_agent ): self.user_agent = user_agent
         self._cache: dict[ str, RobotsCacheEntry ] = { }
         self._recency: __.collections.deque[ str ] = __.collections.deque( )
         self._request_delays: dict[ str, float ] = { }
@@ -280,8 +309,8 @@ class RobotsCache( Cache, instances_mutables = ( '_request_delays', ) ):
 
     def determine_ttl( self, response: RobotsResponse ) -> float:
         ''' Determines appropriate TTL based on response type. '''
-        if response.is_value( ): return self._configuration.robots_ttl
-        return self._configuration.error_ttl
+        if response.is_value( ): return self.ttl
+        return self.error_ttl
 
     async def store(
         self, domain: str, response: RobotsResponse, ttl: float
@@ -296,7 +325,7 @@ class RobotsCache( Cache, instances_mutables = ( '_request_delays', ) ):
     def _evict_by_count( self ) -> None:
         ''' Evicts oldest entries when cache exceeds max size. '''
         while (
-            len( self._cache ) > self._configuration.robots_entries_max
+            len( self._cache ) > self.entries_max
             and self._recency
         ):
             lru_domain = self._recency.popleft( )
@@ -316,18 +345,17 @@ class RobotsCache( Cache, instances_mutables = ( '_request_delays', ) ):
             self._recency.remove( domain )
 
 
-_configuration_default = CacheConfiguration( )
 _http_success_threshold = 400
-_content_cache_default = ContentCache( _configuration_default )
-_probe_cache_default = ProbeCache( _configuration_default )
-_robots_cache_default = RobotsCache( _configuration_default )
+_content_cache_default = ContentCache( )
+_probe_cache_default = ProbeCache( )
+_robots_cache_default = RobotsCache( )
 _scribe = __.acquire_scribe( __name__ )
 
 
 async def _check_robots_txt(
     url: _Url, *,
     robots_cache: RobotsCache = _robots_cache_default,
-    user_agent: str = _configuration_default.user_agent,
+    user_agent: str = _robots_cache_default.user_agent,
     client_factory: __.cabc.Callable[ [ ], _httpx.AsyncClient ] = (
         _httpx.AsyncClient )
 ) -> bool:
@@ -453,7 +481,7 @@ async def _apply_request_delay(
     domain = _extract_domain( url )
     delay_remaining = robots_cache.calculate_delay_remainder( domain )
     if delay_remaining > 0:
-        await __.asyncio.sleep( delay_remaining )
+        await robots_cache.delay_function( delay_remaining )
     robots_parser = await robots_cache.access( domain )
     if __.is_absent( robots_parser ):
         # Fetch robots.txt if not cached yet
@@ -461,8 +489,7 @@ async def _apply_request_delay(
             domain, robots_cache, client_factory = client_factory )
     if not __.is_absent( robots_parser ):
         try:
-            delay = robots_parser.crawl_delay(
-                _configuration_default.user_agent )
+            delay = robots_parser.crawl_delay( robots_cache.user_agent )
         except Exception as exc:
             _scribe.debug( f"Failed to get crawl delay for {domain}: {exc}" )
         else:
@@ -495,7 +522,7 @@ def _extract_charset_from_headers(
         _, _, params = content_type.partition( ';' )
         if 'charset=' in params:
             charset = params.split( 'charset=' )[ -1 ].strip( )
-            return charset.strip( '"\'' )
+            return charset.strip( '"\\\'\"' )
     return default
 
 
@@ -539,7 +566,7 @@ async def _probe_url(
     if not await _check_robots_txt( url, client_factory = client_factory ):
         _scribe.debug( f"URL blocked by robots.txt: {url_s}" )
         return _generics.Error( _exceptions.UrlImpermissibility(
-            url_s, _configuration_default.user_agent ) )
+            url_s, _robots_cache_default.user_agent ) )
     await _apply_request_delay( url, client_factory = client_factory )
     async with (
         cache.acquire_mutex_for( url_s ), client_factory( ) as client
@@ -565,8 +592,7 @@ async def _retrieve_robots_txt(
     async with (
         cache.acquire_mutex_for( domain ), client_factory( ) as client
     ):
-        # TODO: Propagate actual configuration.
-        timeout = _configuration_default.robots_request_timeout
+        timeout = cache.request_timeout
         try:
             response = await client.get(
                 robots_url, timeout = timeout, follow_redirects = True )
@@ -598,7 +624,7 @@ async def _retrieve_url(
     if not await _check_robots_txt( url, client_factory = client_factory ):
         return (
             _generics.Error( _exceptions.UrlImpermissibility(
-                url_s, _configuration_default.user_agent ) ),
+                url_s, _robots_cache_default.user_agent ) ),
             _httpx.Headers( ) )
     await _apply_request_delay( url, client_factory = client_factory )
     async with (
