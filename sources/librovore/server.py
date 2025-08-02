@@ -70,6 +70,10 @@ _scribe = __.acquire_scribe( __name__ )
 @__.ddoc.exclude
 async def detect(
     source: SourceArgument,
+    genus: __.typx.Annotated[
+        _interfaces.ProcessorGenera,
+        _Field( description = "Processor genus (inventory or structure)" ),
+    ],
     processor_name: __.typx.Annotated[
         __.typx.Optional[ str ],
         _Field( description = "Optional processor name to filter results" ),
@@ -81,7 +85,7 @@ async def detect(
         processor_name if processor_name is not None else __.absent )
     try:
         return await _functions.detect(
-            source, processor_name = processor_name_arg )
+            source, genus, processor_name = processor_name_arg )
     except Exception as exc:
         _scribe.error( "Error in detect: %s", exc )
         return _exception_to_error_response( exc )
@@ -193,14 +197,18 @@ async def summarize_inventory(
 
 @__.ddoc.exclude
 async def survey_processors(
+    genus: __.typx.Annotated[
+        _interfaces.ProcessorGenera,
+        _Field( description = "Processor genus (inventory or structure)" ),
+    ],
     name: __.typx.Annotated[
         __.typx.Optional[ str ],
         _Field( description = "Optional processor name to filter results." )
     ] = None,
 ) -> dict[ str, __.typx.Any ]:
-    ''' Lists all processors or specific processor capabilities. '''
-    _scribe.debug( "Surveying processors: %s", name or "all" )
-    try: return await _functions.survey_processors( name )
+    ''' Lists processors of specified genus, optionally filtered by name. '''
+    _scribe.debug( "Surveying %s processors: %s", genus.value, name or "all" )
+    try: return await _functions.survey_processors( genus, name )
     except Exception as exc:
         _scribe.error( "Error in survey_processors: %s", exc )
         return _exception_to_error_response( exc )

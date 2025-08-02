@@ -100,7 +100,7 @@ def test_100_cache_entry_best_detection_empty_returns_absent( ):
     ''' Cache entry with no detections returns absent. '''
     entry = module.DetectionsCacheEntry(
         detections = { }, timestamp = 1000.0, ttl = 3600 )
-    result = entry.best_detection
+    result = entry.detection_optimal
     assert __.is_absent( result )
 
 
@@ -112,7 +112,7 @@ def test_110_cache_entry_best_detection_zero_confidence_returns_absent(
         detections = mock_detections[ 'single_zero' ],
         timestamp = 1000.0,
         ttl = 3600 )
-    result = entry.best_detection
+    result = entry.detection_optimal
     assert __.is_absent( result )
 
 
@@ -124,7 +124,7 @@ def test_120_cache_entry_best_detection_highest_confidence_wins(
         detections = mock_detections[ 'multiple_valid' ],
         timestamp = 1000.0,
         ttl = 3600 )
-    result = entry.best_detection
+    result = entry.detection_optimal
     assert not __.is_absent( result )
     assert result.confidence == 0.7
     assert result.processor.name == 'processor_b'
@@ -138,7 +138,7 @@ def test_130_cache_entry_best_detection_tied_confidence_deterministic(
         detections = mock_detections[ 'tied_confidence' ],
         timestamp = 1000.0,
         ttl = 3600 )
-    result = entry.best_detection
+    result = entry.detection_optimal
     assert not __.is_absent( result )
     assert result.confidence == 0.8
 
@@ -149,7 +149,7 @@ def test_140_cache_entry_is_expired_fresh_entry_returns_false( ):
         detections = { },
         timestamp = 1000.0,
         ttl = 3600 )
-    result = entry.is_expired( 1500.0 )  # 500 seconds later, well within TTL
+    result = entry.invalid( 1500.0 )  # 500 seconds later, well within TTL
     assert result is False
 
 
@@ -159,7 +159,7 @@ def test_150_cache_entry_is_expired_expired_entry_returns_true( ):
         detections = { },
         timestamp = 1000.0,
         ttl = 3600 )
-    result = entry.is_expired( 5000.0 )  # 4000 seconds later, beyond TTL
+    result = entry.invalid( 5000.0 )  # 4000 seconds later, beyond TTL
     assert result is True
 
 
@@ -170,10 +170,10 @@ def test_160_cache_entry_is_expired_boundary_condition( ):
         timestamp = 1000.0,
         ttl = 3600 )
     # Exactly at expiration boundary - not expired yet (uses > not >=)
-    result_exact = entry.is_expired( 4600.0 )  # 1000 + 3600
+    result_exact = entry.invalid( 4600.0 )  # 1000 + 3600
     assert result_exact is False
     # Just after expiration boundary
-    result_after = entry.is_expired( 4600.1 )
+    result_after = entry.invalid( 4600.1 )
     assert result_after is True
 
 
@@ -185,7 +185,7 @@ def test_160_cache_entry_is_expired_boundary_condition( ):
 def test_200_cache_access_entry_missing_returns_absent( ):
     ''' Cache access for missing source returns absent. '''
     cache = module.DetectionsCache( )
-    result = cache.access_entry( 'nonexistent_source' )
+    result = cache.access_detections( 'nonexistent_source' )
     assert __.is_absent( result )
 
 
@@ -196,7 +196,7 @@ def test_210_cache_access_entry_fresh_returns_detections( mock_detections ):
     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
         cache.add_entry( 'test_source', detections )
     with patch.object( module.__.time, 'time', return_value = 1500.0 ):
-        result = cache.access_entry( 'test_source' )
+        result = cache.access_detections( 'test_source' )
     assert not __.is_absent( result )
     assert result == detections
 
@@ -210,7 +210,7 @@ def test_220_cache_access_entry_expired_cleans_and_returns_absent(
     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
         cache.add_entry( 'test_source', detections )
     with patch.object( module.__.time, 'time', return_value = 5000.0 ):
-        result = cache.access_entry( 'test_source' )
+        result = cache.access_detections( 'test_source' )
     assert __.is_absent( result )
     assert 'test_source' not in cache._entries
 
@@ -222,7 +222,7 @@ def test_230_cache_access_best_detection_delegates_to_entry( mock_detections ):
     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
         cache.add_entry( 'test_source', detections )
     with patch.object( module.__.time, 'time', return_value = 1500.0 ):
-        result = cache.access_best_detection( 'test_source' )
+        result = cache.access_detection_optimal( 'test_source' )
     assert not __.is_absent( result )
     assert result.confidence == 0.7  # Highest from multiple_valid
     assert result.processor.name == 'processor_b'
@@ -295,11 +295,11 @@ def test_290_cache_integration_add_access_expire_cycle( mock_detections ):
         cache.add_entry( 'test_source', detections )
     # Access while fresh
     with patch.object( module.__.time, 'time', return_value = 1900.0 ):
-        result_fresh = cache.access_best_detection( 'test_source' )
+        result_fresh = cache.access_detection_optimal( 'test_source' )
         assert not __.is_absent( result_fresh )
     # Access after expiration
     with patch.object( module.__.time, 'time', return_value = 3000.0 ):
-        result_expired = cache.access_best_detection( 'test_source' )
+        result_expired = cache.access_detection_optimal( 'test_source' )
         assert __.is_absent( result_expired )
         assert 'test_source' not in cache._entries
 
@@ -320,7 +320,7 @@ async def test_300_determine_processor_cache_hit_returns_cached(
     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
         cache.add_entry( 'test_source', detections )
     with patch.object( module.__.time, 'time', return_value = 1500.0 ):
-        result = await module.determine_processor_optimal(
+        result = await module.determine_detection_optimal_ll(
             'test_source',
             cache = cache,
             processors = { }  # Empty registry to ensure cache hit
@@ -341,7 +341,7 @@ async def test_310_determine_processor_cache_miss_executes_processors(
         mock_registry[ 'processor_b' ], 0.8 )
     mock_registry[ 'processor_c' ].detect_result = MockDetection(
         mock_registry[ 'processor_c' ], 0.5 )
-    result = await module.determine_processor_optimal(
+    result = await module.determine_detection_optimal_ll(
         'test_source', cache = cache, processors = mock_registry )
     assert not __.is_absent( result )
     assert result.confidence == 0.8
@@ -352,7 +352,7 @@ async def test_310_determine_processor_cache_miss_executes_processors(
 async def test_320_determine_processor_empty_registry_returns_absent( ):
     ''' Determine processor with empty registry returns absent. '''
     cache = module.DetectionsCache( ttl = 3600 )
-    result = await module.determine_processor_optimal(
+    result = await module.determine_detection_optimal_ll(
         'test_source', cache = cache, processors = { } )
     assert __.is_absent( result )
 
@@ -365,7 +365,7 @@ async def test_330_determine_processor_zero_confidence_returns_absent(
     cache = module.DetectionsCache( ttl = 3600 )
     for processor in mock_registry.values( ):
         processor.detect_result = MockDetection( processor, 0.0 )
-    result = await module.determine_processor_optimal(
+    result = await module.determine_detection_optimal_ll(
         'test_source', cache = cache, processors = mock_registry )
     assert __.is_absent( result )
 
@@ -382,7 +382,7 @@ async def test_340_determine_processor_highest_confidence_wins(
         mock_registry[ 'processor_b' ], 0.9 )
     mock_registry[ 'processor_c' ].detect_result = MockDetection(
         mock_registry[ 'processor_c' ], 0.6 )
-    result = await module.determine_processor_optimal(
+    result = await module.determine_detection_optimal_ll(
         'test_source', cache = cache, processors = mock_registry )
     assert not __.is_absent( result )
     assert result.confidence == 0.9
@@ -402,7 +402,7 @@ async def test_350_determine_processor_confidence_tie_registration_order(
         mock_registry[ 'processor_b' ], 0.8 )
     mock_registry[ 'processor_c' ].detect_result = MockDetection(
         mock_registry[ 'processor_c' ], 0.3 )
-    result = await module.determine_processor_optimal(
+    result = await module.determine_detection_optimal_ll(
         'test_source', cache = cache, processors = mock_registry )
     assert not __.is_absent( result )
     assert result.confidence == 0.8
@@ -424,7 +424,7 @@ async def test_360_determine_processor_stores_results_in_cache(
     mock_registry[ 'processor_c' ].detect_exception = (
         RuntimeError( 'Disabled' ) )
     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
-        await module.determine_processor_optimal(
+        await module.determine_detection_optimal_ll(
             'test_source', cache = cache, processors = mock_registry )
     assert 'test_source' in cache._entries
     cached_entry = cache._entries[ 'test_source' ]
@@ -440,7 +440,7 @@ async def test_370_determine_processor_dependency_injection( mock_registry ):
     mock_registry[ 'processor_a' ].detect_result = MockDetection(
         mock_registry[ 'processor_a' ], 0.6 )
     custom_processors = { 'processor_a': mock_registry[ 'processor_a' ] }
-    result = await module.determine_processor_optimal(
+    result = await module.determine_detection_optimal_ll(
         'test_source', cache = custom_cache, processors = custom_processors )
     assert not __.is_absent( result )
     assert result.confidence == 0.6
@@ -461,7 +461,7 @@ async def test_380_determine_processor_handles_processor_exceptions(
         mock_registry[ 'processor_b' ], 0.7 )
     mock_registry[ 'processor_c' ].detect_exception = (
         RuntimeError( 'Processor C failed') )
-    result = await module.determine_processor_optimal(
+    result = await module.determine_detection_optimal_ll(
         'test_source', cache = cache, processors = mock_registry )
     assert not __.is_absent( result )
     assert result.confidence == 0.7

@@ -39,50 +39,23 @@ _search_behaviors_default = _interfaces.SearchBehaviors( )
 _filters_default = __.immut.Dictionary[ str, __.typx.Any ]( )
 
 
-async def detect_inventory(
+async def detect(
     source: SourceArgument,
+    genus: _interfaces.ProcessorGenera,
     processor_name: __.Absential[ str ] = __.absent,
 ) -> dict[ str, __.typx.Any ]:
-    ''' Detects which inventory processor(s) can handle a source. '''
+    ''' Detects relevant processors of particular genus for location. '''
     start_time = __.time.perf_counter( )
-    try:
-        detection = await _detection.detect_inventory(
-            source, processor_name = processor_name )
-        detections_list = [ detection ]
-        detection_best = detection
-    except _exceptions.ProcessorInavailability:
-        detections_list = [ ]
-        detection_best = None
+    detections, detection_optimal = (
+        await _detection.access_detections(
+            source, genus = genus ) )
     end_time = __.time.perf_counter( )
     detection_time_ms = int( ( end_time - start_time ) * 1000 )
-    response = _interfaces.DetectionToolResponse(
+    response = _interfaces.DetectionsForLocation(
         source = source,
-        detections = detections_list,
-        detection_best = detection_best,
-        time_detection_ms = detection_time_ms )
-    return _serialize_dataclass( response )
-
-
-async def detect_structure(
-    source: SourceArgument,
-    processor_name: __.Absential[ str ] = __.absent,
-) -> dict[ str, __.typx.Any ]:
-    ''' Detects which structure processor(s) can handle a source. '''
-    start_time = __.time.perf_counter( )
-    try:
-        detection = await _detection.detect_structure(
-            source, processor_name = processor_name )
-        detections_list = [ detection ]
-        detection_best = detection
-    except _exceptions.ProcessorInavailability:
-        detections_list = [ ]
-        detection_best = None
-    end_time = __.time.perf_counter( )
-    detection_time_ms = int( ( end_time - start_time ) * 1000 )
-    response = _interfaces.DetectionToolResponse(
-        source = source,
-        detections = detections_list,
-        detection_best = detection_best,
+        detections = detections,
+        detection_optimal = (
+            None if __.is_absent( detection_optimal ) else detection_optimal ),
         time_detection_ms = detection_time_ms )
     return _serialize_dataclass( response )
 
@@ -99,18 +72,17 @@ async def query_content(  # noqa: PLR0913
     dict[ str, __.typx.Any ],
     __.ddoc.Fname( 'content query return' ) ]:
     ''' Searches documentation content with relevance ranking. '''
-    inventory_detection = await _detection.detect_inventory(
+    idetection = await _detection.detect_inventory(
         source, processor_name = processor_name )
-    filtered_objects = await inventory_detection.filter_inventory(
+    objects = await idetection.filter_inventory(
         source, filters = filters,
         details = _interfaces.InventoryQueryDetails.Name )
-    search_results = _search.filter_by_name(
-        filtered_objects, query,
+    results = _search.filter_by_name(
+        objects, query,
         match_mode = search_behaviors.match_mode,
         fuzzy_threshold = search_behaviors.fuzzy_threshold )
-    candidate_objects = [
-        result.object for result in search_results[ : results_max * 3 ] ]
-    if not candidate_objects:
+    candidates = [ result.object for result in results[ : results_max * 3 ] ]
+    if not candidates:
         return {
             'source': source,
             'query': query,
@@ -120,17 +92,17 @@ async def query_content(  # noqa: PLR0913
             },
             'documents': [ ],
         }
-    structure_detection = await _detection.detect_structure(
+    sdetection = await _detection.detect_structure(
         source, processor_name = processor_name )
-    raw_results = await structure_detection.extract_contents(
-        source, candidate_objects, include_snippets = include_snippets )
-    sorted_results = sorted(
-        raw_results,
+    contents = await sdetection.extract_contents(
+        source, candidates, include_snippets = include_snippets )
+    contents_by_relevance = sorted(
+        contents,
         key = lambda x: x.get( 'relevance_score', 0.0 ),
         reverse = True )
-    limited_results = list( sorted_results[ : results_max ] )
+    contents_ = list( contents_by_relevance[ : results_max ] )
     search_metadata: dict[ str, __.typx.Any ] = {
-        'results_count': len( limited_results ),
+        'results_count': len( contents_ ),
         'results_max': results_max,
     }
     documents = [
@@ -146,7 +118,7 @@ async def query_content(  # noqa: PLR0913
             'relevance_score': result[ 'relevance_score' ],
             'match_reasons': result[ 'match_reasons' ]
         }
-        for result in limited_results ]
+        for result in contents_ ]
     return {
         'source': source,
         'query': query,
@@ -171,16 +143,15 @@ async def query_inventory(  # noqa: PLR0913
         Returns configurable detail levels. Always includes object names
         plus requested detail flags (signatures, summaries, documentation).
     '''
-    inventory_detection = await _detection.detect_inventory(
+    detection = await _detection.detect_inventory(
         source, processor_name = processor_name )
-    filtered_objects = await inventory_detection.filter_inventory(
+    objects = await detection.filter_inventory(
         source, filters = filters, details = details )
-    search_results = _search.filter_by_name(
-        filtered_objects, query,
+    results = _search.filter_by_name(
+        objects, query,
         match_mode = search_behaviors.match_mode,
         fuzzy_threshold = search_behaviors.fuzzy_threshold )
-    selected_objects = [
-        result.object for result in search_results[ : results_max ] ]
+    selections = [ result.object for result in results[ : results_max ] ]
     documents = [
         {
             'name': obj[ 'name' ],
@@ -189,23 +160,23 @@ async def query_inventory(  # noqa: PLR0913
             'uri': obj[ 'uri' ],
             'dispname': obj[ 'dispname' ],
         }
-        for obj in selected_objects ]
+        for obj in selections ]
     search_metadata: dict[ str, __.typx.Any ] = {
-        'objects_count': len( selected_objects ),
+        'objects_count': len( selections ),
         'results_max': results_max,
-        'matches_total': len( filtered_objects ),
+        'matches_total': len( objects ),
     }
     return {
         'project': (
-            filtered_objects[ 0 ].get( '_inventory_project', 'Unknown' )
-            if filtered_objects else 'Unknown' ),
+            objects[ 0 ].get( '_inventory_project', 'Unknown' )
+            if objects else 'Unknown' ),
         'version': (
-            filtered_objects[ 0 ].get( '_inventory_version', 'Unknown' )
-            if filtered_objects else 'Unknown' ),
+            objects[ 0 ].get( '_inventory_version', 'Unknown' )
+            if objects else 'Unknown' ),
         'query': query,
         'documents': documents,
         'search_metadata': search_metadata,
-        'objects_count': len( selected_objects ),
+        'objects_count': len( selections ),
         'source': source,
     }
 
@@ -241,40 +212,20 @@ async def summarize_inventory(  # noqa: PLR0913
 
 
 async def survey_processors(
+    genus: _interfaces.ProcessorGenera,
     name: __.typx.Optional[ str ] = None,
-    genus: __.typx.Optional[ _interfaces.ProcessorGenera ] = None
 ) -> dict[ str, __.typx.Any ]:
-    ''' Lists processor capabilities, optionally filtered by name or genus. '''
-    inventory_processors = dict( _xtnsapi.inventory_processors )
-    structure_processors = dict( _xtnsapi.structure_processors )
-    if genus == _interfaces.ProcessorGenera.Inventory:
-        processors_to_survey = inventory_processors
-    elif genus == _interfaces.ProcessorGenera.Structure:
-        processors_to_survey = structure_processors
-    else:
-        result = {
-            'inventory_processors': {
-                name_: _serialize_dataclass( processor.capabilities )
-                for name_, processor in inventory_processors.items()
-                if name is None or name_ == name
-            },
-            'structure_processors': {
-                name_: _serialize_dataclass( processor.capabilities )
-                for name_, processor in structure_processors.items()
-                if name is None or name_ == name
-            }
-        }
-        if name is not None:
-            all_processors: dict[str, _interfaces.Processor] = {
-                **inventory_processors, **structure_processors}
-            if name not in all_processors:
-                raise _exceptions.ProcessorInavailability( name )
-        return result
-    if name is not None and name not in processors_to_survey:
+    ''' Lists processor capabilities for specified genus, filtered by name. '''
+    match genus:
+        case _interfaces.ProcessorGenera.Inventory:
+            processors = dict( _xtnsapi.inventory_processors )
+        case _interfaces.ProcessorGenera.Structure:
+            processors = dict( _xtnsapi.structure_processors )
+    if name is not None and name not in processors:
         raise _exceptions.ProcessorInavailability( name )
     processors_capabilities = {
         name_: _serialize_dataclass( processor.capabilities )
-        for name_, processor in processors_to_survey.items( )
+        for name_, processor in processors.items( )
         if name is None or name_ == name }
     return { 'processors': processors_capabilities }
 
@@ -375,45 +326,6 @@ def _create_document_metadata(
     if 'fuzzy_score' in obj:
         document[ 'fuzzy_score' ] = obj[ 'fuzzy_score' ]
     return document
-
-
-async def detect(
-    source: SourceArgument,
-    processor_name: __.Absential[ str ] = __.absent,
-) -> dict[ str, __.typx.Any ]:
-    ''' Detects which processor(s) can handle a source (both types). '''
-    start_time = __.time.perf_counter( )
-    detections_list: list[ _interfaces.BaseDetection ] = [ ]
-    detection_best = None
-    best_confidence = 0.0
-    # Try inventory detection
-    try:
-        inventory_detection = await _detection.detect_inventory(
-            source, processor_name = processor_name )
-        detections_list.append( inventory_detection )
-        if inventory_detection.confidence > best_confidence:
-            best_confidence = inventory_detection.confidence
-            detection_best = inventory_detection
-    except _exceptions.ProcessorInavailability:
-        pass
-    # Try structure detection
-    try:
-        structure_detection = await _detection.detect_structure(
-            source, processor_name = processor_name )
-        detections_list.append( structure_detection )
-        if structure_detection.confidence > best_confidence:
-            best_confidence = structure_detection.confidence
-            detection_best = structure_detection
-    except _exceptions.ProcessorInavailability:
-        pass
-    end_time = __.time.perf_counter( )
-    detection_time_ms = int( ( end_time - start_time ) * 1000 )
-    response = _interfaces.DetectionToolResponse(
-        source = source,
-        detections = detections_list,
-        detection_best = detection_best,
-        time_detection_ms = detection_time_ms )
-    return _serialize_dataclass( response )
 
 
 def _format_inventory_summary(

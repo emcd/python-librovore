@@ -68,9 +68,13 @@ _filters_default = __.immut.Dictionary[ str, __.typx.Any ]( )
 class DetectCommand(
     __.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
-    ''' Detect which processor(s) can handle a documentation source. '''
+    ''' Detect which processors can handle a documentation source. '''
 
     source: SourceArgument
+    genus: __.typx.Annotated[
+        _interfaces.ProcessorGenera,
+        __.tyro.conf.arg( help = "Processor genus (inventory or structure)." ),
+    ]
     processor_name: __.typx.Annotated[
         __.typx.Optional[ str ],
         __.tyro.conf.arg( help = "Specific processor to use." ),
@@ -85,7 +89,7 @@ class DetectCommand(
                 self.processor_name if self.processor_name is not None
                 else __.absent )
             result = await _functions.detect(
-                self.source, processor_name = processor_name )
+                self.source, self.genus, processor_name = processor_name )
             print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
             _scribe.error( "detect failed: %s", exc )
@@ -205,8 +209,12 @@ class SummarizeInventoryCommand(
 class SurveyProcessorsCommand(
     __.CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
-    ''' List all available processors and their capabilities. '''
+    ''' List processors for specified genus and their capabilities. '''
 
+    genus: __.typx.Annotated[
+        _interfaces.ProcessorGenera,
+        __.tyro.conf.arg( help = "Processor genus (inventory or structure)." ),
+    ]
     name: __.typx.Annotated[
         __.typx.Optional[ str ],
         __.tyro.conf.arg( help = "Name of processor to describe" ),
@@ -216,7 +224,7 @@ class SurveyProcessorsCommand(
         self, auxdata: __.Globals, display: __.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
-        nomargs: __.NominativeArguments = { }
+        nomargs: __.NominativeArguments = { 'genus': self.genus }
         if self.name is not None: nomargs[ 'name' ] = self.name
         try:
             result = await _functions.survey_processors( **nomargs )

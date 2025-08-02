@@ -93,7 +93,7 @@ class Processor( __.immut.DataclassProtocol ):
         raise NotImplementedError
 
     @__.abc.abstractmethod
-    async def detect( self, source: str ) -> 'BaseDetection':
+    async def detect( self, source: str ) -> 'Detection':
         ''' Detects if can process documentation from source. '''
         raise NotImplementedError
 
@@ -111,8 +111,7 @@ class InventoryProcessor( Processor ):
         raise NotImplementedError
 
 
-
-class BaseDetection( __.immut.DataclassProtocol ):
+class Detection( __.immut.DataclassProtocol ):
     ''' Abstract base class for documentation detector selections. '''
 
     processor: Processor
@@ -138,7 +137,7 @@ class BaseDetection( __.immut.DataclassProtocol ):
         raise NotImplementedError
 
 
-class InventoryDetection( BaseDetection ):
+class InventoryDetection( Detection ):
     ''' Base class for inventory detection results. '''
 
     @__.abc.abstractmethod
@@ -152,7 +151,7 @@ class InventoryDetection( BaseDetection ):
         raise NotImplementedError
 
 
-class StructureDetection( BaseDetection ):
+class StructureDetection( Detection ):
     ''' Base class for structure detection results. '''
 
     @__.abc.abstractmethod
@@ -166,12 +165,13 @@ class StructureDetection( BaseDetection ):
         raise NotImplementedError
 
 
+DetectionsByProcessor: __.typx.TypeAlias = __.cabc.Mapping[ str, Detection ]
 
 
-class DetectionToolResponse( __.immut.DataclassObject ):
-    ''' Response from detect tool. '''
+class DetectionsForLocation( __.immut.DataclassObject ):
+    ''' Detections for location. '''
 
     source: str
-    detections: __.cabc.Sequence[ BaseDetection ]
-    detection_best: __.typx.Optional[ BaseDetection ]
+    detections: DetectionsByProcessor
+    detection_optimal: __.typx.Optional[ Detection ]
     time_detection_ms: int

@@ -191,6 +191,15 @@ class InventoryUrlNoSupport( Omnierror, NotImplementedError ):
         super( ).__init__( message )
 
 
+class ProcessorGenusInvalidity( Omnierror, ValueError ):
+    ''' Invalid processor genus provided. '''
+
+    def __init__( self, genus: __.typx.Any ):
+        message = f"Invalid ProcessorGenera: {genus}"
+        self.genus = genus
+        super( ).__init__( message )
+
+
 class ProcessorInavailability( Omnierror, RuntimeError ):
     ''' No processor found to handle source. '''
 
@@ -204,7 +213,7 @@ class ProcessorInvalidity( Omnierror, TypeError ):
     ''' Processor has wrong type. '''
 
     def __init__( self, expected: str, actual: type ):
-        message = f"Expected {expected}, got {actual}"
+        message = f"Expected {expected}, got {actual}."
         self.expected_type = expected
         self.actual_type = actual
         super( ).__init__( message )
