@@ -106,6 +106,23 @@ def mock_client_factory( ):
     return _factory
 
 
+@pytest.fixture
+def safe_robots_parser_factory( robots_txt_samples ):
+    ''' Factory for creating safe RobotFileParser instances. '''
+    def _create_parser(
+        sample_name = 'basic_allow_all',
+        url = 'https://example.com/robots.txt'
+    ):
+        from urllib.robotparser import RobotFileParser
+        parser = RobotFileParser( )
+        parser.set_url( url )
+        sample_content = robots_txt_samples.get(
+            sample_name, 'User-agent: *\nAllow: /' )
+        parser.parse( sample_content.splitlines( ) )
+        return parser
+    return _create_parser
+
+
 #
 # Series 000: Entry Classes
 #
@@ -1171,26 +1188,27 @@ async def test_401_robots_cache_access_missing_returns_absent( robots_cache ):
 
 
 @pytest.mark.asyncio
-async def test_402_robots_cache_access_fresh_returns_parser( robots_cache ):
+async def test_402_robots_cache_access_fresh_returns_parser(
+    robots_cache, safe_robots_parser_factory
+):
     ''' Fresh entries return robots parser from cache access. '''
-    from urllib.robotparser import RobotFileParser
-    parser = RobotFileParser( )
-    parser.set_url( 'https://example.com/robots.txt' )
-    parser.parse( [ 'User-agent: *', 'Allow: /' ] )
+    parser = safe_robots_parser_factory( )
     response = _generics.Value( parser )
     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
         await robots_cache.store( 'https://example.com', response, 3600.0 )
     with patch.object( module.__.time, 'time', return_value = 1100.0 ):
         result = await robots_cache.access( 'https://example.com' )
     assert not __.is_absent( result )
+    from urllib.robotparser import RobotFileParser
     assert isinstance( result, RobotFileParser )
 
 
 @pytest.mark.asyncio
-async def test_403_robots_cache_access_expired_returns_absent( robots_cache ):
+async def test_403_robots_cache_access_expired_returns_absent(
+    robots_cache, safe_robots_parser_factory
+):
     ''' Expired entries return absent and are removed from cache. '''
-    from urllib.robotparser import RobotFileParser
-    parser = RobotFileParser( )
+    parser = safe_robots_parser_factory( )
     response = _generics.Value( parser )
     domain = 'https://example.com'
     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
@@ -1741,10 +1759,13 @@ async def test_462_apply_request_delay_active_delay( ):
     url = Url(
         scheme = 'https', netloc = 'example.com', path = '/test',
         params = '', query = '', fragment = '' )
-    # Check delay function is called
+    # Check delay function is called, use mock client factory to avoid network
+    mock_client = AsyncMock( )
+    mock_client_factory = Mock( return_value = mock_client )
     with patch.object( module.__.time, 'time', return_value = 1001.0 ):
         await module._apply_request_delay(
-            url, robots_cache = robots_cache )
+            url, robots_cache = robots_cache,
+            client_factory = mock_client_factory )
     mock_delay_fn.assert_called_once_with( 1.0 )
 
 
@@ -1759,23 +1780,26 @@ async def test_463_apply_request_delay_expired_delay( ):
     url = Url(
         scheme = 'https', netloc = 'example.com', path = '/test',
         params = '', query = '', fragment = '' )
+    # Use mock client factory to avoid network calls
+    mock_client = AsyncMock( )
+    mock_client_factory = Mock( return_value = mock_client )
     with (
         patch.object( module.__.asyncio, 'sleep' ) as mock_sleep,
         patch.object( module.__.time, 'time', return_value = 1005.0 )
     ):
         await module._apply_request_delay(
-            url, robots_cache = robots_cache )
+            url, robots_cache = robots_cache,
+            client_factory = mock_client_factory )
     mock_sleep.assert_not_called( )
 
 
 @pytest.mark.asyncio
-async def test_464_apply_request_delay_set_new_delay( robots_txt_samples ):
+async def test_464_apply_request_delay_set_new_delay(
+    safe_robots_parser_factory
+):
     ''' Sets delay from robots.txt crawl-delay directive. '''
     robots_cache = module.RobotsCache( )
-    from urllib.robotparser import RobotFileParser
-    parser = RobotFileParser( )
-    parser.set_url( 'https://example.com/robots.txt' )
-    parser.parse( robots_txt_samples[ 'with_crawl_delay' ].splitlines( ) )
+    parser = safe_robots_parser_factory( 'with_crawl_delay' )
     response = _generics.Value( parser )
     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
         await robots_cache.store( 'https://example.com', response, 3600.0 )
