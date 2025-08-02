@@ -10,7 +10,7 @@ Reference list of sites tested with the Sphinx MCP processor for future validati
 - **Test Query**: `pytest.fixture` → Full signature and detailed description
 
 ### **Python docs** - https://docs.python.org/3/
-- **Theme**: pydoctheme  
+- **Theme**: pydoctheme
 - **Inventory**: Large, comprehensive
 - **Test Query**: `print` → Complete signature and description
 
@@ -29,6 +29,15 @@ Reference list of sites tested with the Sphinx MCP processor for future validati
 - **Test Query**: `tyro.cli` → Perfect content extraction with proper spacing
 
 ## ❌ Sites That Correctly Failed Detection
+
+**Tested Sites:**
+- ✅ **Pydantic** (`docs.pydantic.dev/latest/`) - Has objects.inv, works with
+  current Sphinx processor
+- ✅ **FastAPI** (`fastapi.tiangolo.com/`) - Has objects.inv, works with
+  current Sphinx processor
+- ✅ **mkdocstrings** (`mkdocstrings.github.io/`) - Has objects.inv, reference
+  implementation
+- ❌ **HTTPX** (`python-httpx.org/`) - Pure MkDocs, no inventory (future scope)
 
 ### **httpx** - https://www.python-httpx.org/
 - Uses MkDocs (correctly rejected)
