@@ -118,11 +118,8 @@ import aiofiles as _aiofiles
 
 from . import __
 
-UserData: __.typx.TypeAlias = dict[ str, str | int ]
-
 def process_items(
     items: __.cabc.Sequence[ str ],           # Wide input type
-    config: __.cabc.Mapping[ str, int ] = __.immut.Dictionary( )
 ) -> tuple[ str, ... ]:                      # Narrow return type
     ''' Processes items according to configuration. '''
     return tuple( item.upper( ) for item in items )
@@ -148,14 +145,15 @@ def process_items(
 
 # Commits
 
-- Use the `code-conformer` agent to review all changes before committing.
+- Try to avoid bundling multiple features or fixes into the same commit.
+  Commits should reflect natural development milestones.
 - Use `git status` to ensure that all relevant changes are in the changeset to
   be committed.
-- **Do not commit without explicit user approval** unless the user has
-  previously requested the commit.
-- Look at the previous five commit messages for guidance on message style.
-- Use present tense, imperative mood verbs to describe changes. E.g. "Fix" and
+- Use the `code-conformer` agent to review all changes before committing.
+- Do **not** commit without explicit user approval.
+- Use present tense, imperative mood verbs to describe changes. E.g. "Fix",
   *not* "Fixed".
+- Write sentences which end with proper punctuation.
 - The commit message should include a `Co-Authored-By:` field as its final
   line. The name of the author should be your model name. The email address
   should either be one which you have been designated to use or else a

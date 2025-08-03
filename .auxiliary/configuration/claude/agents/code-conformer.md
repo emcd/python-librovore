@@ -20,72 +20,165 @@ Apply all identified fixes in systematic order, validating with linters after co
 
 ## COMPLIANCE STANDARDS
 
-### Individual Standards Reference
+### Design Standards
 
-#### 1. Module Organization: Proper Content Order
-**Required order:**
+#### 1. Module Organization
+
+**Content Order:**
 1. Imports (following practices guide patterns)
 2. Common type aliases (`TypeAlias` declarations)
 3. Private variables/functions for defaults (grouped semantically)
 4. Public classes and functions (alphabetical)
 5. All other private functions (alphabetical)
 
-#### 2. Module Size: Maximum 600 Lines
-**Action:** Identify oversized modules and suggest splitting into focused submodules
+**Scope and Size:**
+- Maximum 600 lines
+- Action: Analyze oversized modules with separation of concerns in mind.
+Suggest splitting into focused modules with narrower responsibilities or
+functionality.
 
-#### 3. Import Organization: Namespace Pollution Prevention
-**Standard:** Use private aliases and `__` subpackage instead of polluting module namespace
+#### 2. Imports
 
-#### 4. Dependency Injection: Proper Patterns
-**Standard:** Injectable parameters with sensible defaults instead of hard-coded dependencies
+- At the module level, other modules and their attributes MUST be imported as
+  private aliases, except in `__init__`, `__`, or specially-designated
+  re-export modules.
+- Within function bodies, other modules and their attributes MAY be imported as
+  public variables.
+- Subpackages SHOULD define a special `__` re-export module, which has `from
+  ..__ import *` plus any other imports which are common to the subpackage.
+- Common modules, such as `os` or `re`, SHOULD be imported as public within the
+  special package-wide `__.imports` re-export module rather than as private
+  aliases within an implementation module.
+- The `__all__` attribute SHOULD NOT be provided. This is unnecessary if the
+  module namespace only contains public classes and functions which are part of
+  its interface; this avoid additional interface maintenance.
 
-#### 5. Public Functions: Accept Wide Abstract Types, Return Narrow Concrete Types (Postel Doctrine)
-**Note:** Only applies to public functions; private functions may accept narrow types
+#### 3. Dependency Injection
 
-#### 6. Exception Handling: Narrow Try Blocks
-**Standard:** Isolate risky statements instead of wrapping entire functions
+- Ask: is this function testable without monkeypatching?
+- Functions SHOULD provide injectable parameters with sensible defaults instead
+  of hard-coded dependencies within function implementation.
 
-#### 7. Immutability: Prefer Immutable Containers
-**Standard:** Use `__.immut.Dictionary`, `tuple`, `frozenset` when alternatives exist
+#### 4. Robustness Principle (Postel's Law)
+"Be conservative in what you send; be liberal in what you accept."
 
-#### 8. Spacing and Delimiters: Consistent Formatting
-**Standard:** Spaces inside delimiters: `( arg )`, `[ item ]`, `{ key: value }`
+- Public functions SHOULD define wide, abstract argument types.
+- All functions SHOULD define narrow, concrete return types.
+- Private functions MAY define narrow, concrete argument types.
 
-#### 9. Docstring Format: Triple Single Quotes, Narrative Mood
-**Standard:** `''' Processes data... '''` not `"""Process data..."""`
+#### 5. Immutability
 
-#### 10. Function Body Formatting: No Blank Lines
-**Standard:** Maintain vertical compactness within function bodies
+- Classes SHOULD inherit from immutable classes (`__.immut.Object`,
+  `__.immut.Protocol`, `__.immut.DataclassObject`, etc...).
+- Functions SHOULD return values of immutable types (`None`, `int`, `tuple`,
+  `frozenset`, `__.immut.Dictionary`, etc...) and not mutable types (`list`,
+  `dict`, `set`, etc...).
 
-#### 11. Multi-line Signatures: Proper Closing Delimiter Placement
-**Standard:** Dedented closing delimiter on separate line for multi-line constructs
+#### 6. Proper Exception Management
 
-#### 12. Nomenclature: Avoid Underscore Separation When Possible
-**Standard:** Prefer `userid` over `user_id`, avoid duplicating function name parts in variables
+- One `try .. except` suite per statement which can raise exceptions. I.e.,
+  avoid covering multiple statements with a `try` block whenever possible.
+- Tryceratops complaints MUST NOT be suppressed with `noqa` pragmas.
+- Bare exceptions SHOULD NOT be raised.
+    - Exemption: `NotImplementedError` MAY be raised as a bare exception.
+    - Relevant exception classes SHOULD be used from the relevant `exceptions`
+      module within the package.
+    - New exception classes MAY be created as needed within the relevant
+      `exceptions` module; these MUST follow the nomenclature guide and be
+      inserted in correct alphabetical order.
 
-#### 13. Comments: Avoid Obvious Descriptions, Include TODOs
-**Standard:** Skip comments that state obvious, add TODOs for edge cases
+### Quality Assurance
 
-#### 14. F-string Quote Consistency
-**Standard:** Use double quotes in f-strings: `f"text {variable}"` not `f'text {variable}'`
+#### 1. Linter Suppressions
 
-#### 15. Vertical Compactness
-**Standard:** Single-line statements can follow conditionals: `if condition: return value`
+- Linter suppressions MUST be reviewed critically.
+- Linter complaints SHOULD NOT be suppressed via `noqa` or `type` pragmas
+  without compelling justification.
+- Suppressions that mask design problems MUST be investigated and resolved
+  rather than ignored.
 
-#### 16. Trailing Comma Rules
-**Standard:** Multi-line dictionary entries need trailing commas, affecting closing delimiter placement
+**Acceptable Suppressions:**
+- `noqa: PLR0913` MAY be used for a CLI or service API with many parameters,
+  but data transfer objects SHOULD be considered in most other cases.
+- `noqa: S*` MAY be used for properly constrained and vetted  subprocess
+  executions or Internet content retrievals.
 
-#### 17. Linter and Type Checker Suppressions: Critical Review Required
-**Acceptable suppressions:**
-- `# noqa: PLR0913` for public functions with many parameters (consider DTOs instead)
+**Unacceptable Suppressions (require investigation):**
+- `type: ignore` MUST NOT be used, except in extremely rare circumstances. Such
+  suppressions usually indicate missing third-party dependencies or type stubs,
+  inappropriate type variables, or a bad inheritance pattern.
+- `__.typx.cast` SHOULD NOT be used, except in extremely rare circumstances.
+  Such casts suppress normal type checking and usually the same problems as
+  `type: ignore`.
+- Most other `noqa` suppressions.
 
-**Unacceptable suppressions (require investigation):**
-- `# type: ignore` and `# pyright: ignore` (usually indicates missing stubs, bad inheritance, or dependency issues)
-- `__.typx.cast( )` usage (type checker suppression that usually indicates design problems)
-- Bare `raise` statements (circumventing Tryceratops; create proper exceptions in `exceptions` module)
-- Most other suppressions without compelling justification
+### Style Standards
 
-**Action:** Flag all suppressions and provide strong reasoning for keeping any that seem necessary
+#### 1. Spacing and Delimiters
+
+- Space padding MUST be present inside delimiters.
+    - Format: `( arg )`, `[ item ]`, `{ key: value }`
+    - Format: `( )`, `[ ]`, `{ }`, not `()`, `[]`, `{}`
+- Space padding MUST be present around keyword argument `=`.
+    - Format: `foo = 42`
+
+#### 2. Strings
+
+- Docstrings MUST use triple single quotes with narrative mood.
+    - Format: `''' Processes data... '''` not `"""Process data..."""`
+- F-strings and `.format` strings MUST be enclosed in double quotes.
+    - Format: `f"text {variable}"`, not `f'text {variable}'`
+    - Format: `"text {count}".format( count = len( items ) )`
+- F-strings and format strings MUST NOT embed function calls.
+- Exception messages and log messages SHOULD be enclosed in double quotes
+  rather than single quotes.
+- Plain data strings SHOULD be enclosed in single quotes, unless they contain
+  single quotes.
+
+#### 3. Vertical Compactness
+
+- Blank lines MUST NOT appear within function bodies.
+- Vertical compactness MUST be maintained within function implementations.
+- Single-line statements MAY follow certain block keywords on the same line
+  when appropriate.
+    - Format: `if condition: return value`
+    - Format: `elif condition: continue`
+    - Format: `else: statement`
+    - Format: `try: statement`
+
+#### 4. Multi-line Constructs
+
+- Function invocations, including class instantiations, SHOULD place the
+  closing `)` on the same line as the last argument to the function.
+- The last argument of an invocation MUST NOT be followed by a trailing comma.
+- Comprehensions and generator expressions SHOULD place the closing delimiter
+  on the same line as the last statement in the comprehension or generator
+  expression.
+- Parenthetical groupings SHOULD place the closing delimiter on the same line
+  as the last statement in the grouping.
+- All other multi-line constructs (functions signatures, annotations, lists,
+  dictionaries, etc...) MUST place the closing delimiter on a separate line
+  following the last item and MUST dedent the closing delimiter to match the
+  opening line indentation.
+- If a closing delimiter is not on the same line as the last item in a
+  multi-line construct, then the last item MUST be followed by a trailing
+  comma.
+
+#### 5. Nomenclature
+
+- Argument, attribute, and variable names SHOULD NOT be compound words,
+  separated by underscores, except in cases where this is necessary to
+  disambiguate.
+- Argument and variable names SHOULD NOT duplicate parts of the function name.
+- Attribute names SHOULD NOT duplicate parts of the class name.
+- Class names SHOULD adhere to the nomenclature guide.
+- Function names SHOULD adhere to the nomenclature guide.
+
+#### 6. Comments
+
+- Comments that describe obvious behavior SHOULD NOT be included.
+- TODO comments SHOULD be added for uncovered edge cases and future work.
+- Comments MUST add meaningful context, not restate what the code does.
 
 ### Comprehensive Example: Real-World Function with Multiple Violations
 
@@ -189,6 +282,13 @@ def _group_documents_by_field(
 3. **Files Modified**: Complete list with brief description of changes
 4. **Manual Review Required**: Any issues requiring human judgment
 
+## TOOL PREFERENCES
+
+- **Precise coordinates**: Use `rg --line-number --column` for exact line/column positions
+- **File editing**: Prefer `text-editor` MCP tools for line-based edits to avoid conflicts
+- **File synchronization**: Always reread files with `text-editor` tools after modifications by other tools (like `pyright` or `ruff`)
+- **Batch operations**: Group related changes together to minimize file modification conflicts between different MCP tools
+
 ## EXECUTION REQUIREMENTS
 
 - **MANDATORY PREREQUISITE**: Read all three documentation guides before starting:
@@ -196,7 +296,8 @@ def _group_documents_by_field(
   - https://raw.githubusercontent.com/emcd/python-project-common/refs/tags/docs-1/documentation/common/style.rst
   - https://raw.githubusercontent.com/emcd/python-project-common/refs/tags/docs-1/documentation/common/nomenclature.rst
 - **PHASE 1 REQUIRED**: Complete review and report before any remediation
-- **PHASE 2 REQUIRED**: Apply fixes systematically, run `hatch --env develop run linters` for validation
+- **PHASE 2 REQUIRED**: Apply fixes systematically, validate with `hatch --env develop run linters`
+- **Validation command**: `hatch --env develop run linters` must produce clean output before completion
 - **Focus on compliance**: Maintain exact functionality while improving standards adherence
 - **Reference specific lines**: Always include line numbers and concrete examples
 - **Document reasoning**: Explain why each standard matters and how fixes align with project practices
