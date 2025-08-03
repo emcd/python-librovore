@@ -248,15 +248,12 @@ def _extract_description(
     patterns: __.cabc.Mapping[ str, __.typx.Any ]
 ) -> str:
     ''' Extracts description content from element. '''
-    description_selectors = __.typx.cast(
-        __.cabc.Sequence[ str ], patterns[ 'description_selectors' ] )
     descriptions: list[ str ] = [ ]
-    for selector in description_selectors:
-        desc_elements = element.select( selector )
-        for desc_elem in desc_elements:
-            text = _clean_extracted_text( desc_elem.get_text( ) )
-            if text and text not in descriptions:
-                descriptions.append( text )
+    doc_contents = _find_doc_contents_container( element )
+    if doc_contents:
+        descriptions = _extract_paragraphs_from_doc_contents( doc_contents )
+    if not descriptions:
+        descriptions = _extract_using_fallback_selectors( element, patterns )
     return '\n\n'.join( descriptions ) if descriptions else ''
 
 
@@ -301,6 +298,24 @@ async def _extract_object_documentation(
     }
 
 
+def _extract_paragraphs_from_doc_contents(
+    doc_contents: __.typx.Any
+) -> list[ str ]:
+    ''' Extracts paragraph text from doc-contents, skipping admonitions. '''
+    descriptions: list[ str ] = [ ]
+    for child in doc_contents.children:
+        if hasattr( child, 'name' ):
+            if (
+                child.name == 'div' and
+                'admonition' in child.get( 'class', [ ] )
+            ): continue
+            if child.name == 'p':
+                text = _clean_extracted_text( child.get_text( ) )
+                if text and text not in descriptions:
+                    descriptions.append( text )
+    return descriptions
+
+
 def _extract_signature(
     element: __.typx.Any,
     patterns: __.cabc.Mapping[ str, __.typx.Any ]
@@ -312,8 +327,41 @@ def _extract_signature(
         signature_elem = element.select_one( selector )
         if signature_elem:
             return _clean_extracted_text( signature_elem.get_text( ) )
-    # Fallback to element's own text if no signature found
     return _clean_extracted_text( element.get_text( ) )
+
+
+def _extract_using_fallback_selectors(
+    element: __.typx.Any,
+    patterns: __.cabc.Mapping[ str, __.typx.Any ]
+) -> list[ str ]:
+    ''' Extracts description using fallback selectors. '''
+    descriptions: list[ str ] = [ ]
+    description_selectors = __.typx.cast(
+        __.cabc.Sequence[ str ], patterns[ 'description_selectors' ] )
+    for selector in description_selectors:
+        desc_elements = element.select( selector )
+        for desc_elem in desc_elements:
+            if (
+                desc_elem.get( 'class' ) and
+                'admonition-title' in desc_elem.get( 'class', [ ] )
+            ): continue
+            text = _clean_extracted_text( desc_elem.get_text( ) )
+            if text and text not in descriptions:
+                descriptions.append( text )
+    return descriptions
+
+
+def _find_doc_contents_container( element: __.typx.Any ) -> __.typx.Any | None:
+    ''' Finds the doc-contents container for the element. '''
+    if element.name in ( 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' ):
+        sibling = element.next_sibling
+        while sibling:
+            if (
+                hasattr( sibling, 'get' ) and sibling.name == 'div' and
+                'doc-contents' in sibling.get( 'class', [ ] )
+            ): return sibling
+            sibling = sibling.next_sibling
+    return element.select_one( '.doc-contents' )
 
 
 def _find_target_element(

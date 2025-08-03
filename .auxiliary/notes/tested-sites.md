@@ -75,7 +75,8 @@ Reference list of sites tested with both Sphinx and MkDocs processors for future
 - Material for MkDocs theme fully supported
 - mkdocstrings integration provides rich API documentation
 - Enhanced HTML-to-Markdown with language-aware code blocks
-- Admonition processing converts to clean text format
+- Improved content extraction that skips admonition titles
+- Smart handling of mkdocstrings structure (heading + doc-contents siblings)
 - Navigation cleanup removes Material theme UI elements
 
 ### General
