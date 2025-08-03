@@ -341,13 +341,11 @@ def _format_inventory_summary(
         if isinstance( inventory_data[ 'objects' ], dict ):
             summary_lines.append( "\nBreakdown by groups:" )
             grouped_objects = __.typx.cast(
-                dict[ str, list[ dict[ str, __.typx.Any ] ] ],
-                inventory_data[ 'objects' ] )
+                dict[ str, __.typx.Any ], inventory_data[ 'objects' ] )
             for group_name, objects in grouped_objects.items( ):
                 object_count = len( objects )
                 summary_lines.append(
-                    "  {group}: {count} objects".format(
-                        group = group_name, count = object_count ) )
+                    f"  {group_name}: {object_count} objects" )
         else:
             objects = inventory_data[ 'objects' ]
             summary_lines.append( "\nObjects listed without grouping." )
@@ -375,42 +373,31 @@ def _serialize_dataclass( obj: __.typx.Any ) -> __.typx.Any:
 
 
 def _group_documents_by_field(
-    documents: list[ dict[ str, __.typx.Any ] ],
-    field_name: __.typx.Optional[ str ]
+    documents: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ],
+    field: __.typx.Optional[ str ]
 ) -> dict[ str, list[ dict[ str, __.typx.Any ] ] ]:
-    ''' Groups documents by specified field for inventory format compatibility.
-    '''
-    if field_name is None:
-        return { }
-
+    ''' Groups documents by specified field for inventory format. '''
+    if field is None: return { }
     groups: dict[ str, list[ dict[ str, __.typx.Any ] ] ] = { }
     for doc in documents:
-        # Get grouping value, with fallback for missing field
-        group_value = doc.get( field_name, f'(missing {field_name})' )
-        if isinstance( group_value, ( list, dict ) ):
-            # Handle complex field types by converting to string
-            group_value = str( group_value )  # type: ignore[arg-type]
-        elif group_value is None or group_value == '':
-            group_value = f'(missing {field_name})'
+        value = doc.get( field, f"(missing {field})" )
+        if isinstance( value, ( list, dict ) ):
+            value = str( __.typx.cast( __.typx.Any, value ) )
+        elif value is None or value == '':
+            value = f"(missing {field})"
         else:
-            group_value = str( group_value )
-
-        if group_value not in groups:
-            groups[ group_value ] = [ ]
-
-        # Convert document format back to inventory object format
-        inventory_obj = {
+            value = str( value )
+        if value not in groups: groups[ value ] = [ ]
+        obj = {
             'name': doc[ 'name' ],
             'role': doc[ 'role' ],
             'domain': doc.get( 'domain', '' ),
             'uri': doc[ 'uri' ],
-            'dispname': doc[ 'dispname' ]
+            'dispname': doc[ 'dispname' ],
         }
-        if 'fuzzy_score' in doc:
-            inventory_obj[ 'fuzzy_score' ] = doc[ 'fuzzy_score' ]
-        groups[ group_value ].append( inventory_obj )
+        if 'fuzzy_score' in doc: obj[ 'fuzzy_score' ] = doc[ 'fuzzy_score' ]
+        groups[ value ].append( obj )
     return groups
-
 
 
 def _select_top_objects(
