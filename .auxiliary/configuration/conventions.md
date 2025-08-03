@@ -148,8 +148,11 @@ def process_items(
 
 # Commits
 
+- Use the `code-conformer` agent to review all changes before committing.
 - Use `git status` to ensure that all relevant changes are in the changeset to
   be committed.
+- **Do not commit without explicit user approval** unless the user has
+  previously requested the commit.
 - Look at the previous five commit messages for guidance on message style.
 - Use present tense, imperative mood verbs to describe changes. E.g. "Fix" and
   *not* "Fixed".
