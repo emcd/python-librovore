@@ -25,7 +25,11 @@
 
 from . import __
 
-from .cacheproxy import probe_url, retrieve_url, retrieve_url_as_text
+from .cacheproxy import (
+    probe_url, retrieve_url, retrieve_url_as_text,
+    CacheContext, probe_url_with_context, retrieve_url_with_context,
+    retrieve_url_as_text_with_context, configure_caches,
+)
 from .exceptions import *
 from .interfaces import *
 from .urls import *

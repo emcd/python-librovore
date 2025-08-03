@@ -25,12 +25,21 @@ Add cache configuration section to the general configuration file allowing granu
 
 **Configuration Structure:**
 ```
-[cache]
-content-ttl = 3600      # Documentation pages (1 hour)
-inventory-ttl = 7200    # Inventory files (2 hours)  
-robots-ttl = 86400      # Robots.txt files (24 hours)
-probe-ttl = 1800        # Resource existence checks (30 minutes)
+[cache.content]
+success-ttl = 3600      # Documentation pages (1 hour)
+error-ttl = 30          # Failed requests (30 seconds)
 memory-limit = 33554432 # 32MB memory limit
+
+[cache.probe] 
+success-ttl = 1800      # Resource existence checks (30 minutes)
+error-ttl = 30          # Failed probes (30 seconds)
+entries-max = 1000      # Maximum cached entries
+
+[cache.robots]
+ttl = 86400             # Robots.txt files (24 hours)
+entries-max = 500       # Maximum cached entries
+request-timeout = 5.0   # Request timeout in seconds
+user-agent = "librovore/1.0"
 ```
 
 **Key Design Principles:**
@@ -87,10 +96,34 @@ Provide immediate cache bypass capability through command-line flags for debuggi
 - MCP server operations respect configuration file settings
 - Consistent cache behavior across all access patterns
 
+## Implementation Architecture
+
+### No Global State
+- **Principle**: Avoid global variables and state that require linter suppressions
+- **Approach**: Pass cache instances through the application via dependency injection
+- **Benefit**: Improved testability, thread safety, and architectural clarity
+
+### Custom Globals Subclass
+- **Design**: Subclass `appcore.Globals` to create `LibrovoreGlobals` 
+- **Content**: Include configured cache instances as attributes
+- **Initialization**: Configure caches during application preparation phase
+- **Threading**: Cache instances initialized once per application context
+
+### Function Threading Strategy
+- **CLI Functions**: Pass `auxdata` parameter through all function signatures
+- **MCP Server**: Use closures to capture `auxdata` for tool functions
+- **Processor Interface**: Modify processor methods to accept cache parameters
+- **Backward Compatibility**: Maintain existing processor interfaces where possible
+
+### Configuration Structure
+- **Separate Tables**: Each cache type gets its own TOML table (`[cache.content]`, `[cache.probe]`, `[cache.robots]`)
+- **Granular Control**: Individual TTL, memory, and behavioral settings per cache type
+- **Validation**: Configuration validation with clear error messages for invalid values
+
 ## Technical Considerations
 
 ### Cache Granularity
-The proposed solution provides content-type granularity rather than per-site or per-URL granularity. This balances configurability with complexity, addressing the most common use cases without over-engineering.
+The solution provides content-type granularity rather than per-site or per-URL granularity. This balances configurability with complexity, addressing the most common use cases without over-engineering.
 
 ### Memory Management
 Existing memory management and LRU eviction remain unchanged. The memory limit becomes configurable to support different deployment scenarios.

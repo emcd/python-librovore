@@ -220,6 +220,9 @@ async def serve(
     transport: str = 'stdio',
 ) -> None:
     ''' Runs MCP server. '''
+    # Configure caches from application configuration
+    from . import cacheproxy as _cacheproxy
+    _cacheproxy.configure_caches( auxdata.configuration )
     _scribe.debug( "Initializing FastMCP server." )
     mcp = _FastMCP( 'Sphinx MCP Server', port = port )
     _scribe.debug( "Registering tools." )

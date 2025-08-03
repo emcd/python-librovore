@@ -317,6 +317,9 @@ class Cli( __.immut.DataclassObject, decorators = ( __.simple_tyro_class, ) ):
         nomargs = self.prepare_invocation_args( )
         async with __.ctxl.AsyncExitStack( ) as exits:
             auxdata = await _prepare( exits = exits, **nomargs )
+            # Configure caches from application configuration
+            from . import cacheproxy as _cacheproxy
+            _cacheproxy.configure_caches( auxdata.configuration )
             # Load processors for CLI operations
             from . import xtnsmgr
             await xtnsmgr.register_processors( auxdata )
