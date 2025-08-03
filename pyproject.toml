@@ -127,6 +127,7 @@ dependencies = [
   'sphinx-copybutton',
   'sphinx-inline-tabs',
   'towncrier',
+  'vulture',
   # --- BEGIN: Injected by Copier ---
   'pyinstaller',
   # --- END: Injected by Copier ---
@@ -150,6 +151,7 @@ linters = [
   """ruff check --quiet sources documentation tests""",
   # --- BEGIN: Injected by Copier ---
   # --- END: Injected by Copier ---
+  """vulture sources""",
   """pyright sources""",
 ]
 packagers = [
@@ -359,3 +361,13 @@ showcontent = true
 directory = 'repair'
 name = 'Repairs'
 showcontent = true
+
+[tool.vulture]
+paths = [ 'sources' ]
+min_confidence = 80
+exclude = [ '*/imports.py', '*/xtnsapi.py' ]
+ignore_decorators = [ '@__.cabc.abstractmethod', '@__.typx.overload' ]
+ignore_names = [
+  # '_*',  # Ignore private functions/methods
+  'main',  # Entry points
+]
