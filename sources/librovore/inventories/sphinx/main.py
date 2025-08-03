@@ -26,7 +26,7 @@ from urllib.parse import ParseResult as _Url
 import sphobjinv as _sphobjinv
 
 from . import __
-from .. import detection as _detection
+from . import detection as _detection
 
 
 def derive_inventory_url( base_url: _Url ) -> _Url:

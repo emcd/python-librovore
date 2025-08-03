@@ -42,8 +42,7 @@ class SphinxInventoryDetection( __.InventoryDetection ):
             __.InventoryQueryDetails.Documentation ),
     ) -> list[ dict[ str, __.typx.Any ] ]:
         ''' Filters inventory objects from Sphinx source. '''
-        # Delegate to the processor's filter_inventory method
-        from .sphinx import SphinxInventoryProcessor
+        from .main import SphinxInventoryProcessor
         processor = __.typx.cast(
             SphinxInventoryProcessor, self.processor )
         return await processor.filter_inventory(
