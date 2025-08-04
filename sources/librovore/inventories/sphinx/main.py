@@ -20,89 +20,11 @@
 
 ''' Sphinx inventory processor for objects.inv format. '''
 
-
-from urllib.parse import ParseResult as _Url
-
-import sphobjinv as _sphobjinv
-
 from . import __
 from . import detection as _detection
 
 
-def derive_inventory_url( base_url: _Url ) -> _Url:
-    ''' Derives objects.inv URL from base URL ParseResult. '''
-    new_path = f"{base_url.path}/objects.inv"
-    return base_url._replace( path = new_path )
-
-
-def extract_inventory( base_url: _Url ) -> _sphobjinv.Inventory:
-    ''' Extracts and parses Sphinx inventory from URL or file path. '''
-    url = derive_inventory_url( base_url )
-    url_s = url.geturl( )
-    nomargs: __.NominativeArguments = { }
-    match url.scheme:
-        case 'http' | 'https': nomargs[ 'url' ] = url_s
-        case 'file': nomargs[ 'fname_zlib' ] = url.path
-        case _:
-            raise __.InventoryUrlNoSupport(
-                url, component = 'scheme', value = url.scheme )
-    try: return _sphobjinv.Inventory( **nomargs )
-    except ( ConnectionError, OSError, TimeoutError ) as exc:
-        raise __.InventoryInaccessibility(
-            url_s, cause = exc ) from exc
-    except Exception as exc:
-        raise __.InventoryInvalidity( url_s, cause = exc ) from exc
-
-
-async def check_objects_inv( base_url: __.typx.Any ) -> bool:
-    ''' Checks if objects.inv exists at the source for inventory detection. '''
-    inventory_url = derive_inventory_url( base_url )
-    try: return await __.probe_url( inventory_url )
-    except Exception: return False
-
-
-async def filter_inventory(
-    source: str, /, *,
-    filters: __.cabc.Mapping[ str, __.typx.Any ],
-    details: __.InventoryQueryDetails = (
-        __.InventoryQueryDetails.Documentation ),
-) -> list[ dict[ str, __.typx.Any ] ]:
-    ''' Extracts and filters inventory objects by structural criteria only. '''
-    domain = filters.get( 'domain', '' ) or __.absent
-    role = filters.get( 'role', '' ) or __.absent
-    priority = filters.get( 'priority', '' ) or __.absent
-    base_url = __.normalize_base_url( source )
-    inventory = extract_inventory( base_url )
-    all_objects: list[ dict[ str, __.typx.Any ] ] = [ ]
-    for objct in inventory.objects:
-        if not __.is_absent( domain ) and objct.domain != domain: continue
-        if not __.is_absent( role ) and objct.role != role: continue
-        if not __.is_absent( priority ) and objct.priority != priority:
-            continue
-        obj = dict( format_inventory_object( objct ) )
-        obj[ '_inventory_project' ] = inventory.project
-        obj[ '_inventory_version' ] = inventory.version
-        all_objects.append( obj )
-    return all_objects
-
-
-def format_inventory_object(
-    objct: __.typx.Any,
-) -> __.cabc.Mapping[ str, __.typx.Any ]:
-    ''' Formats an inventory object for output. '''
-    return {
-        'name': objct.name,
-        'domain': objct.domain,
-        'role': objct.role,
-        'priority': objct.priority,
-        'uri': objct.uri,
-        'dispname': (
-            objct.dispname if objct.dispname != '-' else objct.name
-        ),
-    }
-
-
-class SphinxInventoryProcessor( __.InventoryProcessor ):
+class SphinxInventoryProcessor( __.Processor ):
     ''' Processes Sphinx inventory files (objects.inv format). '''
 
     name: str = 'sphinx'
@@ -135,31 +57,25 @@ class SphinxInventoryProcessor( __.InventoryProcessor ):
             notes = 'Processes Sphinx inventory files (objects.inv format)'
         )
 
-    async def detect( self, source: str ) -> __.InventoryDetection:
+    async def detect(
+        self, auxdata: __.ApplicationGlobals, source: str
+    ) -> __.InventoryDetection:
         ''' Detects if source has a Sphinx inventory file. '''
-        try:
-            # Try to derive inventory URL and check if it exists
-            base_url = __.normalize_base_url( source )
-            inventory_url = derive_inventory_url( base_url )
-            # For now, basic confidence based on URL structure
-            confidence = 0.9 if 'objects.inv' in str( inventory_url ) else 0.1
-            # TODO: Actually probe the URL to check if inventory exists
+        base_url = __.normalize_base_url( source )
+        has_objects_inv = await check_objects_inv( auxdata, base_url )
+        if has_objects_inv:
             return _detection.SphinxInventoryDetection(
-                processor = self,
-                confidence = confidence
-            )
-        except Exception:
-            return _detection.SphinxInventoryDetection(
-                processor = self,
-                confidence = 0.0
-            )
+                processor = self, confidence = 1.0 )
+        return _detection.SphinxInventoryDetection(
+            processor = self, confidence = 0.0 )
 
-    async def filter_inventory(
-        self, source: str, /, *,
-        filters: __.cabc.Mapping[ str, __.typx.Any ],
-        details: __.InventoryQueryDetails = (
-            __.InventoryQueryDetails.Documentation ),
-    ) -> list[ dict[ str, __.typx.Any ] ]:
-        ''' Extracts and filters inventory objects from source. '''
-        return await filter_inventory(
-            source, filters = filters, details = details )
+
+async def check_objects_inv(
+    auxdata: __.ApplicationGlobals, base_url: __.typx.Any
+) -> bool:
+    ''' Checks if objects.inv exists at the source for inventory detection. '''
+    inventory_url = _detection.derive_inventory_url( base_url )
+    try:
+        return await __.probe_url(
+            auxdata.probe_cache, auxdata.robots_cache, inventory_url )
+    except Exception: return False

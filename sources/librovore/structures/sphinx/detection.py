@@ -35,86 +35,71 @@ class SphinxDetection( __.StructureDetection ):
     ''' Detection result for Sphinx documentation sources. '''
 
     source: str
-    has_objects_inv: bool = False
     has_searchindex: bool = False
     normalized_source: str = ''
     theme: __.typx.Optional[ str ] = None
 
     @classmethod
     async def from_source(
-        cls, processor: __.Processor, source: str
+        selfclass,
+        auxdata: __.ApplicationGlobals,
+        processor: __.Processor,
+        source: str,
     ) -> __.typx.Self:
         ''' Constructs detection from source location. '''
-        from .main import SphinxProcessor
-        if not isinstance( processor, SphinxProcessor ):
-            raise __.ProcessorInvalidity(
-                "SphinxProcessor", type( processor ) )
-        detection = await processor.detect( source )
+        detection = await processor.detect( auxdata, source )
         return __.typx.cast( __.typx.Self, detection )
 
     async def extract_contents(
-        self, source: str,
+        self,
+        auxdata: __.ApplicationGlobals,
+        source: str,
         objects: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ], /, *,
         include_snippets: bool = True,
     ) -> list[ dict[ str, __.typx.Any ] ]:
         ''' Extracts documentation content for specified objects. '''
         theme = self.theme if self.theme is not None else __.absent
         return await _extraction.extract_contents(
-            source, objects,
-            theme = theme,
-            include_snippets = include_snippets
-        )
-
-    async def filter_inventory(
-        self, source: str, /, *,
-        filters: __.cabc.Mapping[ str, __.typx.Any ],
-        details: __.InventoryQueryDetails = (
-            __.InventoryQueryDetails.Documentation ),
-    ) -> list[ dict[ str, __.typx.Any ] ]:
-        ''' Extracts and filters inventory objects from source. '''
-        if 'sphinx' not in __.inventory_processors:
-            return [ ]
-        inventory_processor = __.inventory_processors[ 'sphinx' ]
-        return await inventory_processor.filter_inventory(
-            source, filters = filters, details = details )
+            auxdata, source, objects,
+            theme = theme, include_snippets = include_snippets )
 
 
-async def check_objects_inv( source: _Url ) -> bool:
-    ''' Checks if objects.inv exists at the source. '''
-    inventory_url = _urls.derive_inventory_url( source )
-    return await __.probe_url( inventory_url )
-
-
-async def check_searchindex( source: _Url ) -> bool:
+async def check_searchindex(
+    auxdata: __.ApplicationGlobals, source: _Url
+) -> bool:
     ''' Checks if searchindex.js exists (indicates full Sphinx site). '''
-    searchindex_url = _urls.derive_searchindex_url( source )
-    return await __.probe_url( searchindex_url )
+    url = _urls.derive_searchindex_url( source )
+    return await __.probe_url( auxdata.probe_cache, auxdata.robots_cache, url )
 
 
-async def detect_theme( source: _Url ) -> dict[ str, __.typx.Any ]:
+async def detect_theme(
+    auxdata: __.ApplicationGlobals, source: _Url
+) -> dict[ str, __.typx.Any ]:
     ''' Detects Sphinx theme and other metadata. '''
     theme_metadata: dict[ str, __.typx.Any ] = { }
     html_url = _urls.derive_html_url( source )
-    try: html_content = await __.retrieve_url_as_text(
-        html_url, duration_max = 10.0 )
+    try:
+        # TODO: Use probe_url instead of `try`.
+        html_content = await __.retrieve_url_as_text(
+            auxdata.content_cache, auxdata.robots_cache,
+            html_url, duration_max = 10.0 )
     except __.DocumentationInaccessibility: pass
     else:
         html_content_lower = html_content.lower( )
-        # Check for theme-specific CSS files and identifiers
         if ( 'furo' in html_content_lower
-             or 'css/furo.css' in html_content_lower ):
-            theme_metadata[ 'theme' ] = 'furo'
+             or 'css/furo.css' in html_content_lower
+        ): theme_metadata[ 'theme' ] = 'furo'
         elif ( 'sphinx_rtd_theme' in html_content_lower
-               or 'css/theme.css' in html_content_lower ):
-            theme_metadata[ 'theme' ] = 'sphinx_rtd_theme'
+               or 'css/theme.css' in html_content_lower
+        ): theme_metadata[ 'theme' ] = 'sphinx_rtd_theme'
         elif ( 'alabaster' in html_content_lower
-               or 'css/alabaster.css' in html_content_lower ):
-            theme_metadata[ 'theme' ] = 'alabaster'
+               or 'css/alabaster.css' in html_content_lower
+        ): theme_metadata[ 'theme' ] = 'alabaster'
         elif ( 'pydoctheme.css' in html_content_lower
-               or 'classic.css' in html_content_lower ):
-            theme_metadata[ 'theme' ] = 'pydoctheme'  # Python docs theme
+               or 'classic.css' in html_content_lower
+        ): theme_metadata[ 'theme' ] = 'pydoctheme'
         elif 'flask.css' in html_content_lower:
-            theme_metadata[ 'theme' ] = 'flask'  # Flask docs theme
+            theme_metadata[ 'theme' ] = 'flask'
         elif 'css/nature.css' in html_content_lower:
             theme_metadata[ 'theme' ] = 'nature'
         elif 'css/default.css' in html_content_lower:
@@ -125,5 +110,3 @@ async def detect_theme( source: _Url ) -> dict[ str, __.typx.Any ]:
             theme_metadata[ 'theme' ] = 'pydata_sphinx_theme'
         # If no theme detected, don't set theme key (returns None)
     return theme_metadata
-
-

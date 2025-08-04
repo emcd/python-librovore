@@ -30,6 +30,7 @@ from . import __
 from . import exceptions as _exceptions
 from . import functions as _functions
 from . import interfaces as _interfaces
+from . import state as _state
 
 
 @__.dcls.dataclass( kw_only = True, slots = True )
@@ -69,14 +70,14 @@ _scribe = __.acquire_scribe( __name__ )
 
 
 async def serve(
-    auxdata: __.Globals, /, *,
+    auxdata: _state.Globals, /, *,
     port: int = 0,
     transport: str = 'stdio',
 ) -> None:
     ''' Runs MCP server. '''
     _scribe.debug( "Initializing FastMCP server." )
     mcp = _FastMCP( 'Sphinx MCP Server', port = port )
-    _register_server_functions( mcp, auxdata )
+    _register_server_functions( auxdata, mcp )
     match transport:
         case 'sse': await mcp.run_sse_async( mount_path = None )
         case 'stdio': await mcp.run_stdio_async( )
@@ -141,7 +142,7 @@ def _exception_to_error_response( exc: Exception ) -> dict[ str, str ]:  # noqa:
             }
 
 
-def _produce_detect_function( auxdata: __.Globals ):
+def _produce_detect_function( auxdata: _state.Globals ):
     async def detect_with_context(
         source: SourceArgument,
         genus: __.typx.Annotated[
@@ -161,7 +162,7 @@ def _produce_detect_function( auxdata: __.Globals ):
     return detect_with_context
 
 
-def _produce_query_content_function( auxdata: __.Globals ):
+def _produce_query_content_function( auxdata: _state.Globals ):
     async def query_content_with_context(  # noqa: PLR0913
         source: SourceArgument,
         query: Query,
@@ -189,7 +190,7 @@ def _produce_query_content_function( auxdata: __.Globals ):
     return query_content_with_context
 
 
-def _produce_query_inventory_function( auxdata: __.Globals ):
+def _produce_query_inventory_function( auxdata: _state.Globals ):
     async def query_inventory_with_context(  # noqa: PLR0913
         source: SourceArgument,
         query: Query,
@@ -220,7 +221,7 @@ def _produce_query_inventory_function( auxdata: __.Globals ):
     return query_inventory_with_context
 
 
-def _produce_summarize_inventory_function( auxdata: __.Globals ):
+def _produce_summarize_inventory_function( auxdata: _state.Globals ):
     async def summarize_inventory_with_context(
         source: SourceArgument,
         search_behaviors: __.typx.Annotated[
@@ -246,7 +247,7 @@ def _produce_summarize_inventory_function( auxdata: __.Globals ):
     return summarize_inventory_with_context
 
 
-def _produce_survey_processors_function( auxdata: __.Globals ):
+def _produce_survey_processors_function( auxdata: _state.Globals ):
     async def survey_processors_with_context(
         genus: __.typx.Annotated[
             _interfaces.ProcessorGenera,
@@ -262,7 +263,9 @@ def _produce_survey_processors_function( auxdata: __.Globals ):
     return survey_processors_with_context
 
 
-def _register_server_functions( mcp: _FastMCP, auxdata: __.Globals ) -> None:
+def _register_server_functions(
+    auxdata: _state.Globals, mcp: _FastMCP
+) -> None:
     ''' Registers MCP server tools with closures for auxdata access. '''
     _scribe.debug( "Registering tools." )
     mcp.tool( )( _produce_detect_function( auxdata ) )

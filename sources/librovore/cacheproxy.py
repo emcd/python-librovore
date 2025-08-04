@@ -30,7 +30,6 @@ import httpx as _httpx
 
 from . import __
 from . import exceptions as _exceptions
-from . import state as _state
 
 
 HttpClientFactory: __.typx.TypeAlias = (
@@ -423,22 +422,15 @@ def prepare(
     )
 
 
-async def probe_url( # noqa: PLR0913
-    auxdata: _state.Globals,
+async def probe_url(
+    probe_cache: ProbeCache,
+    robots_cache: RobotsCache,
     url: _Url, *,
     duration_max: float = 10.0,
     client_factory: HttpClientFactory = _httpx.AsyncClient,
-    probe_cache: __.Absential[ ProbeCache ] = __.absent,
-    robots_cache: __.Absential[ RobotsCache ] = __.absent,
 ) -> bool:
     ''' Cached HEAD request to check URL existence. '''
     url_s = url.geturl( )
-    probe_cache = (
-        probe_cache if not __.is_absent( probe_cache )
-        else auxdata.probe_cache )
-    robots_cache = (
-        robots_cache if not __.is_absent( robots_cache )
-        else auxdata.robots_cache )
     match url.scheme:
         case '' | 'file':
             return __.Path( url.path ).exists( )
@@ -447,7 +439,7 @@ async def probe_url( # noqa: PLR0913
             if not __.is_absent( result ): return result
             async with client_factory( ) as client:
                 result = await _probe_url(
-                    auxdata, url, duration_max = duration_max,
+                    url, duration_max = duration_max,
                     client = client,
                     probe_cache = probe_cache,
                     robots_cache = robots_cache )
@@ -457,22 +449,15 @@ async def probe_url( # noqa: PLR0913
         case _: return False
 
 
-async def retrieve_url( # noqa: PLR0913
-    auxdata: _state.Globals,
+async def retrieve_url(
+    content_cache: ContentCache,
+    robots_cache: RobotsCache,
     url: _Url, *,
     duration_max: float = 30.0,
     client_factory: HttpClientFactory = _httpx.AsyncClient,
-    content_cache: __.Absential[ ContentCache ] = __.absent,
-    robots_cache: __.Absential[ RobotsCache ] = __.absent,
 ) -> bytes:
     ''' Cached GET request to fetch URL content as bytes. '''
     url_s = url.geturl( )
-    content_cache = (
-        content_cache if not __.is_absent( content_cache )
-        else auxdata.content_cache )
-    robots_cache = (
-        robots_cache if not __.is_absent( robots_cache )
-        else auxdata.robots_cache )
     match url.scheme:
         case '' | 'file':
             location = __.Path( url.path )
@@ -487,7 +472,7 @@ async def retrieve_url( # noqa: PLR0913
                 return content_bytes
             async with client_factory( ) as client:
                 result, headers = await _retrieve_url(
-                    auxdata, url,
+                    url,
                     duration_max = duration_max,
                     client = client,
                     content_cache = content_cache,
@@ -501,22 +486,15 @@ async def retrieve_url( # noqa: PLR0913
 
 
 async def retrieve_url_as_text(  # noqa: PLR0913
-    auxdata: _state.Globals,
+    content_cache: ContentCache,
+    robots_cache: RobotsCache,
     url: _Url, *,
     duration_max: float = 30.0,
     charset_default: str = 'utf-8',
     client_factory: HttpClientFactory = _httpx.AsyncClient,
-    content_cache: __.Absential[ ContentCache ] = __.absent,
-    robots_cache: __.Absential[ RobotsCache ] = __.absent,
 ) -> str:
     ''' Cached GET request to fetch URL content as text. '''
     url_s = url.geturl( )
-    content_cache = (
-        content_cache if not __.is_absent( content_cache )
-        else auxdata.content_cache )
-    robots_cache = (
-        robots_cache if not __.is_absent( robots_cache )
-        else auxdata.robots_cache )
     match url.scheme:
         case '' | 'file':
             location = __.Path( url.path )
@@ -535,7 +513,7 @@ async def retrieve_url_as_text(  # noqa: PLR0913
                 return content_bytes.decode( charset )
             async with client_factory( ) as client:
                 result, headers = await _retrieve_url(
-                    auxdata, url, duration_max = duration_max,
+                    url, duration_max = duration_max,
                     client = client,
                     content_cache = content_cache,
                     robots_cache = robots_cache )
@@ -551,7 +529,6 @@ async def retrieve_url_as_text(  # noqa: PLR0913
 
 
 async def _apply_request_delay(
-    auxdata: _state.Globals,
     url: _Url,
     client: _httpx.AsyncClient,
     cache: RobotsCache,
@@ -589,15 +566,13 @@ async def _cache_robots_txt_result(
 
 
 async def _check_robots_txt(
-    auxdata: _state.Globals,
     url: _Url, *,
     client: _httpx.AsyncClient,
-    cache: __.Absential[ RobotsCache ] = __.absent,
+    cache: RobotsCache,
 ) -> bool:
     ''' Checks if URL is allowed by robots.txt. '''
     if url.scheme not in ( 'http', 'https' ): return True
     url_s = url.geturl( )
-    cache = cache if not __.is_absent( cache ) else auxdata.robots_cache
     domain = _extract_domain( url )
     parser = await cache.access( domain )
     if __.is_absent( parser ):
@@ -652,8 +627,7 @@ def _is_textual_mimetype( mimetype: str ) -> bool:
     )
 
 
-async def _probe_url( # noqa: PLR0913
-    auxdata: _state.Globals,
+async def _probe_url(
     url: _Url, /, *,
     duration_max: float,
     client: _httpx.AsyncClient,
@@ -663,12 +637,12 @@ async def _probe_url( # noqa: PLR0913
     ''' Makes HEAD request with deduplication. '''
     url_s = url.geturl( )
     if not await _check_robots_txt(
-        auxdata, url, client = client ):
+        url, client = client, cache = robots_cache
+    ):
         _scribe.debug( f"URL blocked by robots.txt: {url_s}" )
         return _generics.Error( _exceptions.UrlImpermissibility(
             url_s, robots_cache.user_agent ) )
-    await _apply_request_delay(
-        auxdata, url, cache = robots_cache, client = client )
+    await _apply_request_delay( url, cache = robots_cache, client = client )
     async with probe_cache.acquire_mutex_for( url_s ):
         try:
             response = await client.head(
@@ -709,8 +683,7 @@ async def _retrieve_robots_txt(
         return await _cache_robots_txt_result( cache, domain, result )
 
 
-async def _retrieve_url( # noqa: PLR0913
-    auxdata: _state.Globals,
+async def _retrieve_url(
     url: _Url, /, *,
     duration_max: float,
     client: _httpx.AsyncClient,
@@ -720,13 +693,13 @@ async def _retrieve_url( # noqa: PLR0913
     ''' Makes GET request with deduplication. '''
     url_s = url.geturl( )
     if not await _check_robots_txt(
-        auxdata, url, client = client ):
+        url, cache = robots_cache, client = client
+    ):
         return (
             _generics.Error( _exceptions.UrlImpermissibility(
                 url_s, robots_cache.user_agent ) ),
             _httpx.Headers( ) )
-    await _apply_request_delay(
-        auxdata, url, cache = robots_cache, client = client )
+    await _apply_request_delay( url, cache = robots_cache, client = client )
     async with content_cache.acquire_mutex_for( url_s ):
         try:
             response = await client.get(

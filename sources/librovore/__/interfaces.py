@@ -55,17 +55,3 @@ class ConsoleDisplay( __.immut.DataclassObject ):
                 return __.sys.stdout # pyright: ignore[reportReturnType]
             case DisplayStreams.Stderr:
                 return __.sys.stderr # pyright: ignore[reportReturnType]
-
-
-class CliCommand(
-    __.immut.DataclassProtocol, __.typx.Protocol,
-    decorators = ( __.typx.runtime_checkable, ),
-):
-    ''' CLI command. '''
-
-    @__.abc.abstractmethod
-    async def __call__(
-        self, auxdata: __.Globals, display: ConsoleDisplay
-    ) -> None:
-        ''' Executes command with global state. '''
-        raise NotImplementedError

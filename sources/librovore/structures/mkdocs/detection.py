@@ -40,38 +40,41 @@ class MkDocsDetection( __.StructureDetection ):
 
     @classmethod
     async def from_source(
-        cls, processor: __.Processor, source: str
+        selfclass,
+        auxdata: __.ApplicationGlobals,
+        processor: __.Processor,
+        source: str,
     ) -> __.typx.Self:
         ''' Constructs detection from source location. '''
-        if processor.name != 'mkdocs':
-            raise __.ProcessorInvalidity(
-                "MkDocsProcessor", type( processor ) )
-        detection = await processor.detect( source )
+        detection = await processor.detect( auxdata, source )
         return __.typx.cast( __.typx.Self, detection )
 
     async def extract_contents(
-        self, source: str,
+        self,
+        auxdata: __.ApplicationGlobals,
+        source: str,
         objects: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ], /, *,
         include_snippets: bool = True,
     ) -> list[ dict[ str, __.typx.Any ] ]:
         ''' Extracts documentation content for specified objects. '''
         theme_value = self.theme if self.theme is not None else __.absent
         return await _extraction.extract_contents(
-            source, objects,
+            auxdata, source, objects,
             theme = theme_value,
             include_snippets = include_snippets )
 
 
-
-
-
-async def check_mkdocs_yml( source: _Url ) -> bool:
+async def check_mkdocs_yml(
+    auxdata: __.ApplicationGlobals, source: _Url
+) -> bool:
     ''' Checks if mkdocs.yml exists (indicates MkDocs site). '''
-    mkdocs_url = source._replace( path = f"{source.path}/mkdocs.yml" )
-    return await __.probe_url( mkdocs_url )
+    url = source._replace( path = f"{source.path}/mkdocs.yml" )
+    return await __.probe_url( auxdata.probe_cache, auxdata.robots_cache, url )
 
 
-async def detect_theme( source: _Url ) -> dict[ str, __.typx.Any ]:
+async def detect_theme(
+    auxdata: __.ApplicationGlobals, source: _Url
+) -> dict[ str, __.typx.Any ]:
     ''' Detects MkDocs theme and other metadata. '''
     theme_metadata: dict[ str, __.typx.Any ] = { }
     html_candidates = [
@@ -80,17 +83,18 @@ async def detect_theme( source: _Url ) -> dict[ str, __.typx.Any ]:
     ]
     html_content = None
     for html_url in html_candidates:
+        # TODO: Use probe_url instead of `try`.
         try:
             html_content = await __.retrieve_url_as_text(
+                auxdata.content_cache, auxdata.robots_cache,
                 html_url, duration_max = 10.0 )
-            break
-        except __.DocumentationInaccessibility:
-            continue
+        except __.DocumentationInaccessibility: continue # noqa: PERF203
+        else: break
     if html_content:
         html_content_lower = html_content.lower( )
         if ( 'material' in html_content_lower
-             or 'mkdocs-material' in html_content_lower ):
-            theme_metadata[ 'theme' ] = 'material'
+             or 'mkdocs-material' in html_content_lower
+        ): theme_metadata[ 'theme' ] = 'material'
         elif 'readthedocs' in html_content_lower:
             theme_metadata[ 'theme' ] = 'readthedocs'
     return theme_metadata

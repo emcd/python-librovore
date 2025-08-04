@@ -25,8 +25,9 @@ from . import __
 from . import detection as _detection
 from . import exceptions as _exceptions
 from . import interfaces as _interfaces
+from . import processors as _processors
 from . import search as _search
-from . import xtnsapi as _xtnsapi # TODO: Replace with 'registries' module.
+from . import state as _state
 
 
 DocumentationResult: __.typx.TypeAlias = __.cabc.Mapping[ str, __.typx.Any ]
@@ -40,7 +41,7 @@ _filters_default = __.immut.Dictionary[ str, __.typx.Any ]( )
 
 
 async def detect(
-    auxdata: __.Globals,
+    auxdata: _state.Globals,
     source: SourceArgument, /,
     genus: _interfaces.ProcessorGenera,
     processor_name: __.Absential[ str ] = __.absent,
@@ -49,10 +50,10 @@ async def detect(
     start_time = __.time.perf_counter( )
     detections, detection_optimal = (
         await _detection.access_detections(
-            source, genus = genus ) )
+            auxdata, source, genus = genus ) )
     end_time = __.time.perf_counter( )
     detection_time_ms = int( ( end_time - start_time ) * 1000 )
-    response = _interfaces.DetectionsForLocation(
+    response = _processors.DetectionsForLocation(
         source = source,
         detections = detections,
         detection_optimal = (
@@ -62,7 +63,7 @@ async def detect(
 
 
 async def query_content(  # noqa: PLR0913
-    auxdata: __.Globals,
+    auxdata: _state.Globals,
     source: SourceArgument,
     query: str, /, *,
     processor_name: __.Absential[ str ] = __.absent,
@@ -75,9 +76,10 @@ async def query_content(  # noqa: PLR0913
     __.ddoc.Fname( 'content query return' ) ]:
     ''' Searches documentation content with relevance ranking. '''
     idetection = await _detection.detect_inventory(
-        source, processor_name = processor_name )
+        auxdata, source, processor_name = processor_name )
     objects = await idetection.filter_inventory(
-        source, filters = filters,
+        auxdata, source,
+        filters = filters,
         details = _interfaces.InventoryQueryDetails.Name )
     results = _search.filter_by_name(
         objects, query,
@@ -95,9 +97,9 @@ async def query_content(  # noqa: PLR0913
             'documents': [ ],
         }
     sdetection = await _detection.detect_structure(
-        source, processor_name = processor_name )
+        auxdata, source, processor_name = processor_name )
     contents = await sdetection.extract_contents(
-        source, candidates, include_snippets = include_snippets )
+        auxdata, source, candidates, include_snippets = include_snippets )
     contents_by_relevance = sorted(
         contents,
         key = lambda x: x.get( 'relevance_score', 0.0 ),
@@ -130,7 +132,7 @@ async def query_content(  # noqa: PLR0913
 
 
 async def query_inventory(  # noqa: PLR0913
-    auxdata: __.Globals,
+    auxdata: _state.Globals,
     source: SourceArgument,
     query: str, /, *,
     processor_name: __.Absential[ str ] = __.absent,
@@ -147,9 +149,9 @@ async def query_inventory(  # noqa: PLR0913
         plus requested detail flags (signatures, summaries, documentation).
     '''
     detection = await _detection.detect_inventory(
-        source, processor_name = processor_name )
+        auxdata, source, processor_name = processor_name )
     objects = await detection.filter_inventory(
-        source, filters = filters, details = details )
+        auxdata, source, filters = filters, details = details )
     results = _search.filter_by_name(
         objects, query,
         match_mode = search_behaviors.match_mode,
@@ -185,7 +187,7 @@ async def query_inventory(  # noqa: PLR0913
 
 
 async def summarize_inventory(  # noqa: PLR0913
-    auxdata: __.Globals,
+    auxdata: _state.Globals,
     source: SourceArgument, /,
     query: str = '', *,
     processor_name: __.Absential[ str ] = __.absent,
@@ -216,16 +218,16 @@ async def summarize_inventory(  # noqa: PLR0913
 
 
 async def survey_processors(
-    auxdata: __.Globals, /,
+    auxdata: _state.Globals, /,
     genus: _interfaces.ProcessorGenera,
     name: __.typx.Optional[ str ] = None,
 ) -> dict[ str, __.typx.Any ]:
     ''' Lists processor capabilities for specified genus, filtered by name. '''
     match genus:
         case _interfaces.ProcessorGenera.Inventory:
-            processors = dict( _xtnsapi.inventory_processors )
+            processors = dict( _processors.inventory_processors )
         case _interfaces.ProcessorGenera.Structure:
-            processors = dict( _xtnsapi.structure_processors )
+            processors = dict( _processors.structure_processors )
     if name is not None and name not in processors:
         raise _exceptions.ProcessorInavailability( name )
     processors_capabilities = {
@@ -357,26 +359,6 @@ def _format_inventory_summary(
     return '\n'.join( summary_lines )
 
 
-def _serialize_dataclass( obj: __.typx.Any ) -> __.typx.Any:
-    ''' Recursively serializes dataclass objects to JSON-compatible format. '''
-    if __.dcls.is_dataclass( obj ):
-        result = { }  # type: ignore[var-annotated]
-        for field in __.dcls.fields( obj ):
-            if field.name.startswith( '_' ):
-                continue  # Skip private/internal fields
-            value = getattr( obj, field.name )
-            result[ field.name ] = _serialize_dataclass( value )
-        return result  # type: ignore[return-value]
-    if isinstance( obj, list ):
-        return [ _serialize_dataclass( item ) for item in obj ]  # type: ignore[misc]
-    if isinstance( obj, ( frozenset, set ) ):
-        return list( obj )  # type: ignore[arg-type]
-    if obj is None or isinstance( obj, ( str, int, float, bool ) ):
-        return obj
-    # For other objects, try to convert to string
-    return str( obj )
-
-
 def _group_documents_by_field(
     documents: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ],
     field: __.typx.Optional[ str ]
@@ -403,6 +385,26 @@ def _group_documents_by_field(
         if 'fuzzy_score' in doc: obj[ 'fuzzy_score' ] = doc[ 'fuzzy_score' ]
         groups[ value ].append( obj )
     return groups
+
+
+def _serialize_dataclass( obj: __.typx.Any ) -> __.typx.Any:
+    ''' Recursively serializes dataclass objects to JSON-compatible format. '''
+    if __.dcls.is_dataclass( obj ):
+        result = { }  # type: ignore[var-annotated]
+        for field in __.dcls.fields( obj ):
+            if field.name.startswith( '_' ):
+                continue  # Skip private/internal fields
+            value = getattr( obj, field.name )
+            result[ field.name ] = _serialize_dataclass( value )
+        return result  # type: ignore[return-value]
+    if isinstance( obj, list ):
+        return [ _serialize_dataclass( item ) for item in obj ]  # type: ignore[misc]
+    if isinstance( obj, ( frozenset, set ) ):
+        return list( obj )  # type: ignore[arg-type]
+    if obj is None or isinstance( obj, ( str, int, float, bool ) ):
+        return obj
+    # For other objects, try to convert to string
+    return str( obj )
 
 
 def _select_top_objects(

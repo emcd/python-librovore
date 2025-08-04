@@ -42,14 +42,18 @@ class MkDocsProcessor( __.Processor ):
             notes = 'Processes MkDocs site structure and themes'
         )
 
-    async def detect( self, source: str ) -> _detection.MkDocsDetection:
+    async def detect(
+        self, auxdata: __.ApplicationGlobals, source: str
+    ) -> _detection.MkDocsDetection:
         ''' Detects MkDocs documentation structure from source. '''
         base_url = __.normalize_base_url( source )
         normalized_source = base_url.geturl( )
-        has_mkdocs_yml = await _detection.check_mkdocs_yml( base_url )
+        has_mkdocs_yml = (
+            await _detection.check_mkdocs_yml( auxdata, base_url ) )
         confidence = 0.0
         if has_mkdocs_yml: confidence += 1.0
-        theme_metadata = await _detection.detect_theme( base_url )
+        theme_metadata = (
+            await _detection.detect_theme( auxdata, base_url ) )
         theme = theme_metadata.get( 'theme' )
         return _detection.MkDocsDetection(
             processor = self,

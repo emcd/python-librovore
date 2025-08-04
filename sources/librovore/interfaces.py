@@ -22,7 +22,6 @@
 
 
 from . import __
-from . import exceptions as _exceptions
 
 
 class FilterCapability( __.immut.DataclassObject ):
@@ -79,99 +78,3 @@ class ProcessorCapabilities( __.immut.DataclassObject ):
     results_limit_max: __.typx.Optional[ int ] = None
     response_time_typical: __.typx.Optional[ str ] = None  # "fast", etc.
     notes: __.typx.Optional[ str ] = None
-
-
-class Processor( __.immut.DataclassProtocol ):
-    ''' Abstract base class for documentation source detectors. '''
-
-    name: str
-
-    @property
-    @__.abc.abstractmethod
-    def capabilities( self ) -> ProcessorCapabilities:
-        ''' Returns processor capabilities for advertisement. '''
-        raise NotImplementedError
-
-    @__.abc.abstractmethod
-    async def detect( self, source: str ) -> 'Detection':
-        ''' Detects if can process documentation from source. '''
-        raise NotImplementedError
-
-
-class InventoryProcessor( Processor ):
-    ''' Abstract base class for inventory processors with detection. '''
-
-    @__.abc.abstractmethod
-    async def filter_inventory(
-        self, source: str, /, *,
-        filters: __.cabc.Mapping[ str, __.typx.Any ],
-        details: 'InventoryQueryDetails' = InventoryQueryDetails.Documentation,
-    ) -> list[ dict[ str, __.typx.Any ] ]:
-        ''' Extracts and filters inventory objects from source. '''
-        raise NotImplementedError
-
-
-class Detection( __.immut.DataclassProtocol ):
-    ''' Abstract base class for documentation detector selections. '''
-
-    processor: Processor
-    confidence: float
-    timestamp: float = __.dcls.field( default_factory = __.time.time )
-
-    @property
-    def capabilities( self ) -> ProcessorCapabilities:
-        ''' Returns capabilities for processor. '''
-        return self.processor.capabilities
-
-    def __post_init__( self ) -> None:
-        ''' Validates confidence is in valid range [0.0, 1.0]. '''
-        if not ( 0.0 <= self.confidence <= 1.0 ):
-            raise _exceptions.DetectionConfidenceInvalidity( self.confidence )
-
-    @classmethod
-    @__.abc.abstractmethod
-    async def from_source(
-        selfclass, processor: Processor, source: str
-    ) -> __.typx.Self:
-        ''' Constructs detection from source location. '''
-        raise NotImplementedError
-
-
-class InventoryDetection( Detection ):
-    ''' Base class for inventory detection results. '''
-
-    @__.abc.abstractmethod
-    async def filter_inventory(
-        self, source: str, /, *,
-        filters: __.cabc.Mapping[ str, __.typx.Any ],
-        details: 'InventoryQueryDetails' = (
-            InventoryQueryDetails.Documentation ),
-    ) -> list[ dict[ str, __.typx.Any ] ]:
-        ''' Extracts and filters inventory objects from source. '''
-        raise NotImplementedError
-
-
-class StructureDetection( Detection ):
-    ''' Base class for structure detection results. '''
-
-    @__.abc.abstractmethod
-    async def extract_contents(
-        self,
-        source: str,
-        objects: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ], /, *,
-        include_snippets: bool = True,
-    ) -> list[ dict[ str, __.typx.Any ] ]:
-        ''' Extracts documentation content for specified objects. '''
-        raise NotImplementedError
-
-
-DetectionsByProcessor: __.typx.TypeAlias = __.cabc.Mapping[ str, Detection ]
-
-
-class DetectionsForLocation( __.immut.DataclassObject ):
-    ''' Detections for location. '''
-
-    source: str
-    detections: DetectionsByProcessor
-    detection_optimal: __.typx.Optional[ Detection ]
-    time_detection_ms: int

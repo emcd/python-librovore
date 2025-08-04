@@ -67,21 +67,22 @@ class SphinxProcessor( __.Processor ):
             notes = 'Works with Sphinx-generated documentation sites',
         )
 
-    async def detect( self, source: str ) -> __.StructureDetection:
+    async def detect(
+        self, auxdata: __.ApplicationGlobals, source: str
+    ) -> __.StructureDetection:
         ''' Detects if can process documentation from source. '''
         try: base_url = _urls.normalize_base_url( source )
         except Exception:
             return _detection.SphinxDetection(
                 processor = self, confidence = 0.0, source = source )
-        has_objects_inv = await _detection.check_objects_inv( base_url )
-        if not has_objects_inv:
-            return _detection.SphinxDetection(
-                processor = self, confidence = 0.0, source = source )
-        has_searchindex = await _detection.check_searchindex( base_url )
+        has_searchindex = (
+            await _detection.check_searchindex( auxdata, base_url ) )
         confidence = 0.95 if has_searchindex else 0.7
         theme = None
         if has_searchindex:
-            try: theme_metadata = await _detection.detect_theme( base_url )
+            try:
+                theme_metadata = (
+                    await _detection.detect_theme( auxdata, base_url ) )
             except Exception as exc:
                 _scribe.debug( f"Theme detection failed for {source}: {exc}" )
             else: theme = theme_metadata.get( 'theme' )
@@ -89,10 +90,6 @@ class SphinxProcessor( __.Processor ):
             processor = self,
             confidence = confidence,
             source = source,
-            has_objects_inv = has_objects_inv,
             has_searchindex = has_searchindex,
             normalized_source = base_url.geturl( ),
             theme = theme )
-
-
-

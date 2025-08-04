@@ -27,6 +27,9 @@ from . import __
 from . import urls as _urls
 
 
+_scribe = __.acquire_scribe( __name__ )
+
+
 # Theme-specific content extraction patterns
 THEME_EXTRACTION_PATTERNS: __.cabc.Mapping[
     str, __.cabc.Mapping[ str, __.typx.Any ]
@@ -117,6 +120,7 @@ _GENERIC_PATTERN = __.immut.Dictionary( {
 
 
 async def extract_contents(
+    auxdata: __.ApplicationGlobals,
     source: str,
     objects: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ], /, *,
     theme: __.Absential[ str ] = __.absent,
@@ -127,7 +131,7 @@ async def extract_contents(
     if not objects: return [ ]
     tasks = [
         _extract_object_documentation(
-            base_url, dict( obj ), include_snippets, theme )
+            auxdata, base_url, dict( obj ), include_snippets, theme )
         for obj in objects ]
     candidate_results = await __.asyncf.gather_async(
         *tasks, return_exceptions = True )
@@ -209,6 +213,7 @@ def _extract_description_with_strategy(
 
 
 async def _extract_object_documentation(
+    auxdata: __.ApplicationGlobals,
     base_url: __.typx.Any,
     obj: dict[ str, __.typx.Any ],
     include_snippets: bool,
@@ -218,10 +223,12 @@ async def _extract_object_documentation(
     from . import conversion as _conversion
     doc_url = _urls.derive_documentation_url(
         base_url, obj[ 'uri' ], obj[ 'name' ] )
-    try: html_content = await __.retrieve_url_as_text( doc_url )
+    try:
+        html_content = (
+            await __.retrieve_url_as_text(
+                auxdata.content_cache, auxdata.robots_cache, doc_url ) )
     except Exception as exc:
-        __.acquire_scribe( __name__ ).debug(
-            "Failed to retrieve %s: %s", doc_url, exc )
+        _scribe.debug( "Failed to retrieve %s: %s", doc_url, exc )
         return None
     anchor = doc_url.fragment or str( obj[ 'name' ] )
     try:

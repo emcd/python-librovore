@@ -67,8 +67,22 @@ _search_behaviors_default = _interfaces.SearchBehaviors( )
 _filters_default = __.immut.Dictionary[ str, __.typx.Any ]( )
 
 
+class _CliCommand(
+    __.immut.DataclassProtocol, __.typx.Protocol,
+    decorators = ( __.typx.runtime_checkable, ),
+):
+    ''' CLI command. '''
+
+    @__.abc.abstractmethod
+    async def __call__(
+        self, auxdata: _state.Globals, display: __.ConsoleDisplay
+    ) -> None:
+        ''' Executes command with global state. '''
+        raise NotImplementedError
+
+
 class DetectCommand(
-    __.CliCommand, decorators = ( __.standard_tyro_class, ),
+    _CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
     ''' Detect which processors can handle a documentation source. '''
 
@@ -83,7 +97,7 @@ class DetectCommand(
     ] = None
 
     async def __call__(
-        self, auxdata: __.Globals, display: __.ConsoleDisplay
+        self, auxdata: _state.Globals, display: __.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
         try:
@@ -101,7 +115,7 @@ class DetectCommand(
 
 
 class QueryInventoryCommand(
-    __.CliCommand, decorators = ( __.standard_tyro_class, ),
+    _CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
     ''' Searches object inventory by name with fuzzy matching. '''
 
@@ -126,7 +140,7 @@ class QueryInventoryCommand(
     ] = 5
 
     async def __call__(
-        self, auxdata: __.Globals, display: __.ConsoleDisplay
+        self, auxdata: _state.Globals, display: __.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
         try:
@@ -146,7 +160,7 @@ class QueryInventoryCommand(
 
 
 class QueryContentCommand(
-    __.CliCommand, decorators = ( __.standard_tyro_class, ),
+    _CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
     ''' Searches documentation content with relevance ranking and snippets. '''
 
@@ -164,7 +178,7 @@ class QueryContentCommand(
     results_max: ResultsMax = 10
 
     async def __call__(
-        self, auxdata: __.Globals, display: __.ConsoleDisplay
+        self, auxdata: _state.Globals, display: __.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
         try:
@@ -182,7 +196,7 @@ class QueryContentCommand(
 
 
 class SummarizeInventoryCommand(
-    __.CliCommand, decorators = ( __.standard_tyro_class, ),
+    _CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
     ''' Provides human-readable summary of inventory. '''
 
@@ -199,7 +213,7 @@ class SummarizeInventoryCommand(
     ] = _search_behaviors_default
 
     async def __call__(
-        self, auxdata: __.Globals, display: __.ConsoleDisplay
+        self, auxdata: _state.Globals, display: __.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
         result = await _functions.summarize_inventory(
@@ -211,7 +225,7 @@ class SummarizeInventoryCommand(
 
 
 class SurveyProcessorsCommand(
-    __.CliCommand, decorators = ( __.standard_tyro_class, ),
+    _CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
     ''' List processors for specified genus and their capabilities. '''
 
@@ -225,7 +239,7 @@ class SurveyProcessorsCommand(
     ] = None
 
     async def __call__(
-        self, auxdata: __.Globals, display: __.ConsoleDisplay
+        self, auxdata: _state.Globals, display: __.ConsoleDisplay
     ) -> None:
         stream = await display.provide_stream( )
         nomargs: __.NominativeArguments = { 'genus': self.genus }
@@ -240,7 +254,7 @@ class SurveyProcessorsCommand(
 
 
 class UseCommand(
-    __.CliCommand, decorators = ( __.standard_tyro_class, ),
+    _CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
     ''' Use MCP server tools. '''
 
@@ -271,23 +285,23 @@ class UseCommand(
     ]
 
     async def __call__(
-        self, auxdata: __.Globals, display: __.ConsoleDisplay
+        self, auxdata: _state.Globals, display: __.ConsoleDisplay
     ) -> None:
         await self.operation( auxdata = auxdata, display = display )
 
 
 class ServeCommand(
-    __.CliCommand, decorators = ( __.standard_tyro_class, ),
+    _CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
     ''' Starts MCP server. '''
 
     port: PortArgument = None
     transport: TransportArgument = None
     serve_function: __.typx.Callable[
-        [ __.Globals ], __.cabc.Awaitable[ None ]
+        [ _state.Globals ], __.cabc.Awaitable[ None ]
     ] = _server.serve
     async def __call__(
-        self, auxdata: __.Globals, display: __.ConsoleDisplay
+        self, auxdata: _state.Globals, display: __.ConsoleDisplay
     ) -> None:
         nomargs: __.NominativeArguments = { }
         if self.port is not None:
