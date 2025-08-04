@@ -24,16 +24,17 @@
 import pytest
 from unittest.mock import patch
 from dataclasses import dataclass
+from unittest.mock import Mock
 
 import librovore.detection as module
-import librovore.interfaces as _interfaces
+import librovore.processors as _processors
 from librovore import __
 
 
 @dataclass( frozen = True )
 class MockDetection:
     ''' Mock Detection implementation for testing. '''
-    processor: _interfaces.Processor
+    processor: _processors.Processor
     confidence: float
     timestamp: float = 1000.0
 
@@ -45,7 +46,7 @@ class MockProcessor:
     detect_result: MockDetection = None
     detect_exception: Exception = None
 
-    async def detect( self, source: str ) -> MockDetection:
+    async def detect( self, auxdata, source: str ) -> MockDetection:
         ''' Mock detect that returns configured result or raises exception. '''
         if self.detect_exception:
             raise self.detect_exception
@@ -76,6 +77,12 @@ def mock_detections( ):
             'processor_b': MockDetection( mock_processor_b, 0.8 )
         }
     }
+
+
+@pytest.fixture
+def mock_auxdata( ):
+    ''' Fixture providing mock auxdata/globals object. '''
+    return Mock( )
 
 
 @pytest.fixture
@@ -311,7 +318,7 @@ def test_290_cache_integration_add_access_expire_cycle( mock_detections ):
 
 @pytest.mark.asyncio
 async def test_300_determine_processor_cache_hit_returns_cached(
-    mock_detections
+    mock_detections, mock_auxdata
 ):
     ''' Determine processor with cache hit returns cached result. '''
     cache = module.DetectionsCache( ttl = 3600 )
@@ -321,6 +328,7 @@ async def test_300_determine_processor_cache_hit_returns_cached(
         cache.add_entry( 'test_source', detections )
     with patch.object( module.__.time, 'time', return_value = 1500.0 ):
         result = await module.determine_detection_optimal_ll(
+            mock_auxdata,
             'test_source',
             cache = cache,
             processors = { }  # Empty registry to ensure cache hit
@@ -331,7 +339,7 @@ async def test_300_determine_processor_cache_hit_returns_cached(
 
 @pytest.mark.asyncio
 async def test_310_determine_processor_cache_miss_executes_processors(
-    mock_registry
+    mock_registry, mock_auxdata
 ):
     ''' Determine processor with cache miss executes all processors. '''
     cache = module.DetectionsCache( ttl = 3600 )
@@ -342,37 +350,41 @@ async def test_310_determine_processor_cache_miss_executes_processors(
     mock_registry[ 'processor_c' ].detect_result = MockDetection(
         mock_registry[ 'processor_c' ], 0.5 )
     result = await module.determine_detection_optimal_ll(
-        'test_source', cache = cache, processors = mock_registry )
+        mock_auxdata, 'test_source', cache = cache,
+        processors = mock_registry )
     assert not __.is_absent( result )
     assert result.confidence == 0.8
     assert result.processor.name == 'processor_b'
 
 
 @pytest.mark.asyncio
-async def test_320_determine_processor_empty_registry_returns_absent( ):
+async def test_320_determine_processor_empty_registry_returns_absent(
+    mock_auxdata
+):
     ''' Determine processor with empty registry returns absent. '''
     cache = module.DetectionsCache( ttl = 3600 )
     result = await module.determine_detection_optimal_ll(
-        'test_source', cache = cache, processors = { } )
+        mock_auxdata, 'test_source', cache = cache, processors = { } )
     assert __.is_absent( result )
 
 
 @pytest.mark.asyncio
 async def test_330_determine_processor_zero_confidence_returns_absent(
-    mock_registry
+    mock_registry, mock_auxdata
 ):
     ''' Determine processor with only zero confidence returns absent. '''
     cache = module.DetectionsCache( ttl = 3600 )
     for processor in mock_registry.values( ):
         processor.detect_result = MockDetection( processor, 0.0 )
     result = await module.determine_detection_optimal_ll(
-        'test_source', cache = cache, processors = mock_registry )
+        mock_auxdata, 'test_source', cache = cache,
+        processors = mock_registry )
     assert __.is_absent( result )
 
 
 @pytest.mark.asyncio
 async def test_340_determine_processor_highest_confidence_wins(
-    mock_registry
+    mock_registry, mock_auxdata
 ):
     ''' Determine processor selects highest confidence result. '''
     cache = module.DetectionsCache( ttl = 3600 )
@@ -383,7 +395,8 @@ async def test_340_determine_processor_highest_confidence_wins(
     mock_registry[ 'processor_c' ].detect_result = MockDetection(
         mock_registry[ 'processor_c' ], 0.6 )
     result = await module.determine_detection_optimal_ll(
-        'test_source', cache = cache, processors = mock_registry )
+        mock_auxdata, 'test_source', cache = cache,
+        processors = mock_registry )
     assert not __.is_absent( result )
     assert result.confidence == 0.9
     assert result.processor.name == 'processor_b'
@@ -391,7 +404,7 @@ async def test_340_determine_processor_highest_confidence_wins(
 
 @pytest.mark.asyncio
 async def test_350_determine_processor_confidence_tie_registration_order(
-    mock_registry
+    mock_registry, mock_auxdata
 ):
     ''' Determine processor with tied confidence uses registration order. '''
     cache = module.DetectionsCache( ttl = 3600 )
@@ -403,7 +416,8 @@ async def test_350_determine_processor_confidence_tie_registration_order(
     mock_registry[ 'processor_c' ].detect_result = MockDetection(
         mock_registry[ 'processor_c' ], 0.3 )
     result = await module.determine_detection_optimal_ll(
-        'test_source', cache = cache, processors = mock_registry )
+        mock_auxdata, 'test_source', cache = cache,
+        processors = mock_registry )
     assert not __.is_absent( result )
     assert result.confidence == 0.8
     # Should pick first processor in registration order
@@ -412,7 +426,7 @@ async def test_350_determine_processor_confidence_tie_registration_order(
 
 @pytest.mark.asyncio
 async def test_360_determine_processor_stores_results_in_cache(
-    mock_registry
+    mock_registry, mock_auxdata
 ):
     ''' Determine processor stores detection results in cache. '''
     cache = module.DetectionsCache( ttl = 3600 )
@@ -425,7 +439,8 @@ async def test_360_determine_processor_stores_results_in_cache(
         RuntimeError( 'Disabled' ) )
     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
         await module.determine_detection_optimal_ll(
-            'test_source', cache = cache, processors = mock_registry )
+            mock_auxdata, 'test_source', cache = cache,
+            processors = mock_registry )
     assert 'test_source' in cache._entries
     cached_entry = cache._entries[ 'test_source' ]
     assert len( cached_entry.detections ) == 2
@@ -434,14 +449,17 @@ async def test_360_determine_processor_stores_results_in_cache(
 
 
 @pytest.mark.asyncio
-async def test_370_determine_processor_dependency_injection( mock_registry ):
+async def test_370_determine_processor_dependency_injection(
+    mock_registry, mock_auxdata
+):
     ''' Determine processor accepts injected cache and processors deps. '''
     custom_cache = module.DetectionsCache( ttl = 1800 )
     mock_registry[ 'processor_a' ].detect_result = MockDetection(
         mock_registry[ 'processor_a' ], 0.6 )
     custom_processors = { 'processor_a': mock_registry[ 'processor_a' ] }
     result = await module.determine_detection_optimal_ll(
-        'test_source', cache = custom_cache, processors = custom_processors )
+        mock_auxdata, 'test_source', cache = custom_cache,
+        processors = custom_processors )
     assert not __.is_absent( result )
     assert result.confidence == 0.6
     assert 'test_source' in custom_cache._entries
@@ -450,7 +468,7 @@ async def test_370_determine_processor_dependency_injection( mock_registry ):
 
 @pytest.mark.asyncio
 async def test_380_determine_processor_handles_processor_exceptions(
-    mock_registry
+    mock_registry, mock_auxdata
 ):
     ''' Determine processor gracefully handles exceptions from processors. '''
     cache = module.DetectionsCache( ttl = 3600 )
@@ -462,7 +480,8 @@ async def test_380_determine_processor_handles_processor_exceptions(
     mock_registry[ 'processor_c' ].detect_exception = (
         RuntimeError( 'Processor C failed') )
     result = await module.determine_detection_optimal_ll(
-        'test_source', cache = cache, processors = mock_registry )
+        mock_auxdata, 'test_source', cache = cache,
+        processors = mock_registry )
     assert not __.is_absent( result )
     assert result.confidence == 0.7
     assert result.processor.name == 'processor_b'
