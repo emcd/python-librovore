@@ -59,11 +59,25 @@ enabled = true
 # theme = "material"
 # strict = true
 
-# Global Configuration (Future)
-# These settings would apply to all extensions unless overridden.
+# HTTP Cache Configuration
+# Configure cache behavior for different content types to improve performance
+# and reduce server load when accessing documentation sites.
 
-# [global]
-# cache-ttl = 3600  # Cache time-to-live in seconds
-# timeout = 30      # Default network timeout
-# concurrent-max = 10  # Maximum concurrent operations
-# log-level = "INFO"   # Logging level
+[cache.content]
+# Documentation pages cache settings
+success-ttl = 3600      # Successful requests cached for 1 hour (seconds)
+error-ttl = 30          # Failed requests cached for 30 seconds (seconds)  
+memory-limit = 33554432 # Maximum memory usage: 32MB (bytes)
+
+[cache.probe]
+# Resource existence check cache settings
+success-ttl = 1800      # Successful probes cached for 30 minutes (seconds)
+error-ttl = 30          # Failed probes cached for 30 seconds (seconds)
+entries-max = 1000      # Maximum number of cached entries
+
+[cache.robots]
+# Robots.txt file cache settings
+ttl = 86400             # Robots.txt files cached for 24 hours (seconds)
+entries-max = 500       # Maximum number of cached entries
+request-timeout = 5.0   # Request timeout in seconds
+user-agent = "librovore/1.0"  # User agent string for requests

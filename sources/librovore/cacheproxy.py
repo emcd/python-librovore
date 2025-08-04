@@ -30,8 +30,11 @@ import httpx as _httpx
 
 from . import __
 from . import exceptions as _exceptions
+from . import state as _state
 
 
+HttpClientFactory: __.typx.TypeAlias = (
+    __.cabc.Callable[ [ ], _httpx.AsyncClient ] )
 ContentResponse: __.typx.TypeAlias = _generics.Result[ bytes, Exception ]
 ProbeResponse: __.typx.TypeAlias = _generics.Result[ bool, Exception ]
 RobotsResponse: __.typx.TypeAlias = (
@@ -384,11 +387,11 @@ _http_success_threshold = 400
 
 class CacheContext( __.immut.DataclassObject ):
     ''' Context carrying configured cache instances. '''
-    
+
     content_cache: ContentCache
     probe_cache: ProbeCache
     robots_cache: RobotsCache
-    
+
     @classmethod
     def from_configuration(
         cls,
@@ -402,107 +405,74 @@ class CacheContext( __.immut.DataclassObject ):
         )
 
 
-_content_cache_default = ContentCache( )
-_probe_cache_default = ProbeCache( )
-_robots_cache_default = RobotsCache( )
 _scribe = __.acquire_scribe( __name__ )
 
-# Global cache context for application-level configuration
-_global_cache_context: __.Absential[ CacheContext ] = __.absent
 
+def prepare(
+    auxdata: __.Globals
+) -> tuple[ ContentCache, ProbeCache, RobotsCache ]:
+    ''' Prepares cache instances from configuration.
 
-def configure_caches(
-    configuration: __.cabc.Mapping[ str, __.typx.Any ]
-) -> None:
-    ''' Configures global cache instances from application configuration. '''
-    global _global_cache_context  # noqa: PLW0603
-    _global_cache_context = CacheContext.from_configuration( configuration )
-
-
-def get_configured_content_cache( ) -> ContentCache:
-    ''' Returns configured content cache or default if not configured. '''
+        Returns cache instances constructed from application configuration.
+    '''
+    configuration = auxdata.configuration
     return (
-        _global_cache_context.content_cache
-        if not __.is_absent( _global_cache_context )
-        else _content_cache_default )
+        ContentCache.from_configuration( configuration ),
+        ProbeCache.from_configuration( configuration ),
+        RobotsCache.from_configuration( configuration ),
+    )
 
 
-def get_configured_probe_cache( ) -> ProbeCache:
-    ''' Returns configured probe cache or default if not configured. '''
-    return (
-        _global_cache_context.probe_cache
-        if not __.is_absent( _global_cache_context )
-        else _probe_cache_default )
-
-
-def get_configured_robots_cache( ) -> RobotsCache:
-    ''' Returns configured robots cache or default if not configured. '''
-    return (
-        _global_cache_context.robots_cache
-        if not __.is_absent( _global_cache_context )
-        else _robots_cache_default )
-
-
-async def _check_robots_txt(
+async def probe_url( # noqa: PLR0913
+    auxdata: _state.Globals,
     url: _Url, *,
-    robots_cache: __.Absential[ RobotsCache ] = __.absent,
-    user_agent: str = _robots_cache_default.user_agent,
-    client_factory: __.cabc.Callable[ [ ], _httpx.AsyncClient ] = (
-        _httpx.AsyncClient )
-) -> bool:
-    ''' Checks if URL is allowed by robots.txt. '''
-    if url.scheme not in ( 'http', 'https' ): return True
-    cache = (
-        robots_cache if not __.is_absent( robots_cache )
-        else get_configured_robots_cache( ) )
-    domain = _extract_domain( url )
-    robots_parser = await cache.access( domain )
-    if __.is_absent( robots_parser ):
-        robots_parser = await _retrieve_robots_txt(
-            domain, cache, client_factory = client_factory )
-        if __.is_absent( robots_parser ): return True
-    try: return robots_parser.can_fetch( user_agent, url.geturl( ) )
-    except Exception as exc:
-        _scribe.debug( f"robots.txt check failed for {url.geturl()}: {exc}" )
-        return True
-
-
-async def probe_url(
-    url: _Url, *,
-    cache: __.Absential[ ProbeCache ] = __.absent,
     duration_max: float = 10.0,
-    client_factory: __.cabc.Callable[ [ ], _httpx.AsyncClient ] = (
-        _httpx.AsyncClient ),
+    client_factory: HttpClientFactory = _httpx.AsyncClient,
+    probe_cache: __.Absential[ ProbeCache ] = __.absent,
+    robots_cache: __.Absential[ RobotsCache ] = __.absent,
 ) -> bool:
     ''' Cached HEAD request to check URL existence. '''
     url_s = url.geturl( )
+    probe_cache = (
+        probe_cache if not __.is_absent( probe_cache )
+        else auxdata.probe_cache )
+    robots_cache = (
+        robots_cache if not __.is_absent( robots_cache )
+        else auxdata.robots_cache )
     match url.scheme:
         case '' | 'file':
             return __.Path( url.path ).exists( )
         case 'http' | 'https':
-            probe_cache = (
-                cache if not __.is_absent( cache )
-                else get_configured_probe_cache( ) )
             result = await probe_cache.access( url_s )
             if not __.is_absent( result ): return result
-            result = await _probe_url(
-                url, duration_max = duration_max,
-                cache = probe_cache, client_factory = client_factory )
+            async with client_factory( ) as client:
+                result = await _probe_url(
+                    auxdata, url, duration_max = duration_max,
+                    client = client,
+                    probe_cache = probe_cache,
+                    robots_cache = robots_cache )
             ttl = probe_cache.determine_ttl( result )
             await probe_cache.store( url_s, result, ttl )
             return result.extract( )
         case _: return False
 
 
-async def retrieve_url(
+async def retrieve_url( # noqa: PLR0913
+    auxdata: _state.Globals,
     url: _Url, *,
-    cache: __.Absential[ ContentCache ] = __.absent,
     duration_max: float = 30.0,
-    client_factory: __.cabc.Callable[ [ ], _httpx.AsyncClient ] = (
-        _httpx.AsyncClient ),
+    client_factory: HttpClientFactory = _httpx.AsyncClient,
+    content_cache: __.Absential[ ContentCache ] = __.absent,
+    robots_cache: __.Absential[ RobotsCache ] = __.absent,
 ) -> bytes:
     ''' Cached GET request to fetch URL content as bytes. '''
     url_s = url.geturl( )
+    content_cache = (
+        content_cache if not __.is_absent( content_cache )
+        else auxdata.content_cache )
+    robots_cache = (
+        robots_cache if not __.is_absent( robots_cache )
+        else auxdata.robots_cache )
     match url.scheme:
         case '' | 'file':
             location = __.Path( url.path )
@@ -511,16 +481,17 @@ async def retrieve_url(
                 raise _exceptions.DocumentationInaccessibility(
                     url_s, exc ) from exc
         case 'http' | 'https':
-            content_cache = (
-                cache if not __.is_absent( cache )
-                else get_configured_content_cache( ) )
             result = await content_cache.access( url_s )
             if not __.is_absent( result ):
                 content_bytes, _ = result
                 return content_bytes
-            result, headers = await _retrieve_url(
-                url, duration_max = duration_max,
-                cache = content_cache, client_factory = client_factory )
+            async with client_factory( ) as client:
+                result, headers = await _retrieve_url(
+                    auxdata, url,
+                    duration_max = duration_max,
+                    client = client,
+                    content_cache = content_cache,
+                    robots_cache = robots_cache )
             ttl = content_cache.determine_ttl( result )
             await content_cache.store( url_s, result, headers, ttl )
             return result.extract( )
@@ -529,16 +500,23 @@ async def retrieve_url(
                 url_s, f"Unsupported scheme: {url.scheme}" )
 
 
-async def retrieve_url_as_text(
+async def retrieve_url_as_text(  # noqa: PLR0913
+    auxdata: _state.Globals,
     url: _Url, *,
-    cache: __.Absential[ ContentCache ] = __.absent,
     duration_max: float = 30.0,
     charset_default: str = 'utf-8',
-    client_factory: __.cabc.Callable[ [ ], _httpx.AsyncClient ] = (
-        _httpx.AsyncClient ),
+    client_factory: HttpClientFactory = _httpx.AsyncClient,
+    content_cache: __.Absential[ ContentCache ] = __.absent,
+    robots_cache: __.Absential[ RobotsCache ] = __.absent,
 ) -> str:
     ''' Cached GET request to fetch URL content as text. '''
     url_s = url.geturl( )
+    content_cache = (
+        content_cache if not __.is_absent( content_cache )
+        else auxdata.content_cache )
+    robots_cache = (
+        robots_cache if not __.is_absent( robots_cache )
+        else auxdata.robots_cache )
     match url.scheme:
         case '' | 'file':
             location = __.Path( url.path )
@@ -548,9 +526,6 @@ async def retrieve_url_as_text(
                 raise _exceptions.DocumentationInaccessibility(
                     url_s, exc ) from exc
         case 'http' | 'https':
-            content_cache = (
-                cache if not __.is_absent( cache )
-                else get_configured_content_cache( ) )
             result = await content_cache.access( url_s )
             if not __.is_absent( result ):
                 content_bytes, headers = result
@@ -558,15 +533,17 @@ async def retrieve_url_as_text(
                 charset = _extract_charset_from_headers(
                     headers, charset_default )
                 return content_bytes.decode( charset )
-            result, headers = await _retrieve_url(
-                url, duration_max = duration_max,
-                cache = content_cache, client_factory = client_factory )
+            async with client_factory( ) as client:
+                result, headers = await _retrieve_url(
+                    auxdata, url, duration_max = duration_max,
+                    client = client,
+                    content_cache = content_cache,
+                    robots_cache = robots_cache )
             ttl = content_cache.determine_ttl( result )
             await content_cache.store( url_s, result, headers, ttl )
             content_bytes = result.extract( )
             _validate_textual_content( headers, url_s )
-            charset = _extract_charset_from_headers(
-                headers, charset_default )
+            charset = _extract_charset_from_headers( headers, charset_default )
             return content_bytes.decode( charset )
         case _:
             raise _exceptions.DocumentationInaccessibility(
@@ -574,30 +551,25 @@ async def retrieve_url_as_text(
 
 
 async def _apply_request_delay(
-    url: _Url, *,
-    robots_cache: RobotsCache = _robots_cache_default,
-    client_factory: __.cabc.Callable[ [ ], _httpx.AsyncClient ] = (
-        _httpx.AsyncClient )
+    auxdata: _state.Globals,
+    url: _Url,
+    client: _httpx.AsyncClient,
+    cache: RobotsCache,
 ) -> None:
     ''' Applies crawl delay to request if specified in robots.txt. '''
     if url.scheme not in ( 'http', 'https' ): return
     domain = _extract_domain( url )
-    delay_remaining = robots_cache.calculate_delay_remainder( domain )
-    if delay_remaining > 0:
-        await robots_cache.delay_function( delay_remaining )
-    robots_parser = await robots_cache.access( domain )
-    if __.is_absent( robots_parser ):
-        # Fetch robots.txt if not cached yet
-        robots_parser = await _retrieve_robots_txt(
-            domain, robots_cache, client_factory = client_factory )
-    if not __.is_absent( robots_parser ):
-        try:
-            delay = robots_parser.crawl_delay( robots_cache.user_agent )
+    delay = cache.calculate_delay_remainder( domain )
+    if delay > 0: await cache.delay_function( delay )
+    parser = await cache.access( domain )
+    if __.is_absent( parser ):
+        parser = await _retrieve_robots_txt( client, cache, domain )
+    if not __.is_absent( parser ):
+        try: delay = parser.crawl_delay( cache.user_agent )
         except Exception as exc:
             _scribe.debug( f"Failed to get crawl delay for {domain}: {exc}" )
         else:
-            if delay:
-                robots_cache.assign_delay( domain, float( delay ) )
+            if delay: cache.assign_delay( domain, float( delay ) )
 
 
 async def _cache_robots_txt_error(
@@ -605,15 +577,36 @@ async def _cache_robots_txt_error(
 ) -> __.Absential[ _RobotFileParser ]:
     _scribe.debug( f"Failed to fetch/parse robots.txt from {domain}: {error}" )
     result: RobotsResponse = _generics.Error( error )
-    return await _cache_robots_txt_result( domain, cache, result )
+    return await _cache_robots_txt_result( cache, domain, result )
 
 
 async def _cache_robots_txt_result(
-    domain: str, cache: RobotsCache, result: RobotsResponse
+    cache: RobotsCache, domain: str, result: RobotsResponse
 ) -> __.Absential[ _RobotFileParser ]:
     ttl = cache.determine_ttl( result )
     await cache.store( domain, result, ttl )
     return result.extract( ) if result.is_value( ) else __.absent
+
+
+async def _check_robots_txt(
+    auxdata: _state.Globals,
+    url: _Url, *,
+    client: _httpx.AsyncClient,
+    cache: __.Absential[ RobotsCache ] = __.absent,
+) -> bool:
+    ''' Checks if URL is allowed by robots.txt. '''
+    if url.scheme not in ( 'http', 'https' ): return True
+    url_s = url.geturl( )
+    cache = cache if not __.is_absent( cache ) else auxdata.robots_cache
+    domain = _extract_domain( url )
+    parser = await cache.access( domain )
+    if __.is_absent( parser ):
+        parser = await _retrieve_robots_txt( client, cache, domain )
+        if __.is_absent( parser ): return True
+    try: return parser.can_fetch( cache.user_agent, url_s )
+    except Exception as exc:
+        _scribe.debug( f"robots.txt check failed for {url_s}: {exc}" )
+        return True # if no robots.txt, then assume URL allowed
 
 
 def _extract_charset_from_headers(
@@ -659,21 +652,24 @@ def _is_textual_mimetype( mimetype: str ) -> bool:
     )
 
 
-async def _probe_url(
-    url: _Url, *, duration_max: float,
-    cache: ProbeCache,
-    client_factory: __.cabc.Callable[ [ ], _httpx.AsyncClient ]
+async def _probe_url( # noqa: PLR0913
+    auxdata: _state.Globals,
+    url: _Url, /, *,
+    duration_max: float,
+    client: _httpx.AsyncClient,
+    probe_cache: ProbeCache,
+    robots_cache: RobotsCache,
 ) -> ProbeResponse:
     ''' Makes HEAD request with deduplication. '''
     url_s = url.geturl( )
-    if not await _check_robots_txt( url, client_factory = client_factory ):
+    if not await _check_robots_txt(
+        auxdata, url, client = client ):
         _scribe.debug( f"URL blocked by robots.txt: {url_s}" )
         return _generics.Error( _exceptions.UrlImpermissibility(
-            url_s, _robots_cache_default.user_agent ) )
-    await _apply_request_delay( url, client_factory = client_factory )
-    async with (
-        cache.acquire_mutex_for( url_s ), client_factory( ) as client
-    ):
+            url_s, robots_cache.user_agent ) )
+    await _apply_request_delay(
+        auxdata, url, cache = robots_cache, client = client )
+    async with probe_cache.acquire_mutex_for( url_s ):
         try:
             response = await client.head(
                 url_s, timeout = duration_max, follow_redirects = True )
@@ -686,15 +682,11 @@ async def _probe_url(
 
 
 async def _retrieve_robots_txt(
-    domain: str, cache: RobotsCache, *,
-    client_factory: __.cabc.Callable[ [ ], _httpx.AsyncClient ] = (
-        _httpx.AsyncClient )
+    client: _httpx.AsyncClient, cache: RobotsCache, domain: str
 ) -> __.Absential[ _RobotFileParser ]:
     ''' Fetches and parses robots.txt for domain. '''
     robots_url = f"{domain}/robots.txt"
-    async with (
-        cache.acquire_mutex_for( domain ), client_factory( ) as client
-    ):
+    async with cache.acquire_mutex_for( domain ):
         timeout = cache.request_timeout
         try:
             response = await client.get(
@@ -714,25 +706,28 @@ async def _retrieve_robots_txt(
         except Exception as exc:
             return await _cache_robots_txt_error( domain, cache, exc )
         result: RobotsResponse = _generics.Value( robots_parser )
-        return await _cache_robots_txt_result( domain, cache, result )
+        return await _cache_robots_txt_result( cache, domain, result )
 
 
-async def _retrieve_url(
-    url: _Url, *, duration_max: float,
-    cache: ContentCache,
-    client_factory: __.cabc.Callable[ [ ], _httpx.AsyncClient ]
+async def _retrieve_url( # noqa: PLR0913
+    auxdata: _state.Globals,
+    url: _Url, /, *,
+    duration_max: float,
+    client: _httpx.AsyncClient,
+    content_cache: ContentCache,
+    robots_cache: RobotsCache,
 ) -> tuple[ ContentResponse, _httpx.Headers ]:
     ''' Makes GET request with deduplication. '''
     url_s = url.geturl( )
-    if not await _check_robots_txt( url, client_factory = client_factory ):
+    if not await _check_robots_txt(
+        auxdata, url, client = client ):
         return (
             _generics.Error( _exceptions.UrlImpermissibility(
-                url_s, _robots_cache_default.user_agent ) ),
+                url_s, robots_cache.user_agent ) ),
             _httpx.Headers( ) )
-    await _apply_request_delay( url, client_factory = client_factory )
-    async with (
-        cache.acquire_mutex_for( url_s ), client_factory( ) as client
-    ):
+    await _apply_request_delay(
+        auxdata, url, cache = robots_cache, client = client )
+    async with content_cache.acquire_mutex_for( url_s ):
         try:
             response = await client.get(
                 url_s, timeout = duration_max, follow_redirects = True )
@@ -749,47 +744,3 @@ def _validate_textual_content( headers: _httpx.Headers, url: str ) -> None:
     if mimetype and not _is_textual_mimetype( mimetype ):
         raise _exceptions.HttpContentTypeInvalidity(
             url, mimetype, "text decoding" )
-
-
-# Context-aware cache functions
-
-
-async def retrieve_url_with_context(
-    url: _Url,
-    cache_context: CacheContext, *,
-    duration_max: float = 30.0,
-    client_factory: __.cabc.Callable[ [ ], _httpx.AsyncClient ] = (
-        _httpx.AsyncClient ),
-) -> bytes:
-    ''' Cached GET request using configured cache context. '''
-    return await retrieve_url(
-        url, cache = cache_context.content_cache,
-        duration_max = duration_max, client_factory = client_factory )
-
-
-async def retrieve_url_as_text_with_context(
-    url: _Url,
-    cache_context: CacheContext, *,
-    duration_max: float = 30.0,
-    client_factory: __.cabc.Callable[ [ ], _httpx.AsyncClient ] = (
-        _httpx.AsyncClient ),
-    charset_default: str = 'utf-8',
-) -> str:
-    ''' Cached GET request with text decoding using cache context. '''
-    return await retrieve_url_as_text(
-        url, cache = cache_context.content_cache,
-        duration_max = duration_max, client_factory = client_factory,
-        charset_default = charset_default )
-
-
-async def probe_url_with_context(
-    url: _Url,
-    cache_context: CacheContext, *,
-    duration_max: float = 10.0,
-    client_factory: __.cabc.Callable[ [ ], _httpx.AsyncClient ] = (
-        _httpx.AsyncClient ),
-) -> bool:
-    ''' Cached HEAD request using configured cache context. '''
-    return await probe_url(
-        url, cache = cache_context.probe_cache,
-        duration_max = duration_max, client_factory = client_factory )

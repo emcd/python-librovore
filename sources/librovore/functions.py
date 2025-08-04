@@ -40,7 +40,8 @@ _filters_default = __.immut.Dictionary[ str, __.typx.Any ]( )
 
 
 async def detect(
-    source: SourceArgument,
+    auxdata: __.Globals,
+    source: SourceArgument, /,
     genus: _interfaces.ProcessorGenera,
     processor_name: __.Absential[ str ] = __.absent,
 ) -> dict[ str, __.typx.Any ]:
@@ -61,6 +62,7 @@ async def detect(
 
 
 async def query_content(  # noqa: PLR0913
+    auxdata: __.Globals,
     source: SourceArgument,
     query: str, /, *,
     processor_name: __.Absential[ str ] = __.absent,
@@ -128,6 +130,7 @@ async def query_content(  # noqa: PLR0913
 
 
 async def query_inventory(  # noqa: PLR0913
+    auxdata: __.Globals,
     source: SourceArgument,
     query: str, /, *,
     processor_name: __.Absential[ str ] = __.absent,
@@ -182,8 +185,9 @@ async def query_inventory(  # noqa: PLR0913
 
 
 async def summarize_inventory(  # noqa: PLR0913
-    source: SourceArgument,
-    query: str = '', /, *,
+    auxdata: __.Globals,
+    source: SourceArgument, /,
+    query: str = '', *,
     processor_name: __.Absential[ str ] = __.absent,
     search_behaviors: _interfaces.SearchBehaviors = _search_behaviors_default,
     filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
@@ -193,7 +197,7 @@ async def summarize_inventory(  # noqa: PLR0913
     ''' Provides human-readable summary of inventory. '''
     details = _interfaces.InventoryQueryDetails.Name
     inventory_result = await query_inventory(
-        source, query, processor_name = processor_name,
+        auxdata, source, query, processor_name = processor_name,
         search_behaviors = search_behaviors, filters = filters,
         results_max = 1000,  # Large number to get all matches
         details = details )
@@ -212,6 +216,7 @@ async def summarize_inventory(  # noqa: PLR0913
 
 
 async def survey_processors(
+    auxdata: __.Globals, /,
     genus: _interfaces.ProcessorGenera,
     name: __.typx.Optional[ str ] = None,
 ) -> dict[ str, __.typx.Any ]:

@@ -67,152 +67,6 @@ _search_behaviors_default = SearchBehaviorsMutable( )
 _scribe = __.acquire_scribe( __name__ )
 
 
-@__.ddoc.exclude
-async def detect(
-    source: SourceArgument,
-    genus: __.typx.Annotated[
-        _interfaces.ProcessorGenera,
-        _Field( description = "Processor genus (inventory or structure)" ),
-    ],
-    processor_name: __.typx.Annotated[
-        __.typx.Optional[ str ],
-        _Field( description = "Optional processor name to filter results" ),
-    ] = None,
-) -> dict[ str, __.typx.Any ]:
-    ''' Detects which processor(s) can handle a documentation source. '''
-    _scribe.debug( "Starting detection for source: %s", source )
-    processor_name_arg = (
-        processor_name if processor_name is not None else __.absent )
-    try:
-        return await _functions.detect(
-            source, genus, processor_name = processor_name_arg )
-    except Exception as exc:
-        _scribe.error( "Error in detect: %s", exc )
-        return _exception_to_error_response( exc )
-
-
-@__.ddoc.exclude
-async def query_inventory(  # noqa: PLR0913
-    source: SourceArgument,
-    query: Query,
-    search_behaviors: __.typx.Annotated[
-        SearchBehaviorsMutable,
-        _Field( description = "Search behavior configuration" ),
-    ] = _search_behaviors_default,
-    filters: __.typx.Annotated[
-        FiltersMutable,
-        _Field( description = "Processor-specific filters" ),
-    ] = _filters_default,
-    details: __.typx.Annotated[
-        _interfaces.InventoryQueryDetails,
-        _Field( description = "Detail level for inventory results" ),
-    ] = _interfaces.InventoryQueryDetails.Documentation,
-    results_max: ResultsMax = 5,
-) -> dict[ str, __.typx.Any ]:
-    ''' Searches object inventory by name with fuzzy matching. '''
-    _scribe.debug(
-        "query_inventory called: source=%s, query=%s, "
-        "search_behaviors=%s, filters=%s, results_max=%s, details=%s",
-        source, query, search_behaviors, filters, results_max, details )
-    immutable_search_behaviors = (
-        _to_immutable_search_behaviors( search_behaviors ) )
-    immutable_filters = _to_immutable_filters( filters )
-    try:
-        return await _functions.query_inventory(
-            source, query,
-            search_behaviors = immutable_search_behaviors,
-            filters = immutable_filters,
-            results_max = results_max,
-            details = details )
-    except Exception as exc:
-        _scribe.error( "Error in query_inventory: %s", exc )
-        return _exception_to_error_response( exc )
-
-
-@__.ddoc.exclude
-async def query_content(  # noqa: PLR0913
-    source: SourceArgument,
-    query: Query,
-    search_behaviors: __.typx.Annotated[
-        SearchBehaviorsMutable,
-        _Field( description = "Search behavior configuration" ),
-    ] = _search_behaviors_default,
-    filters: __.typx.Annotated[
-        FiltersMutable,
-        _Field( description = "Processor-specific filters" ),
-    ] = _filters_default,
-    include_snippets: IncludeSnippets = True,
-    results_max: ResultsMax = 10,
-) -> dict[ str, __.typx.Any ]:
-    ''' Searches documentation content with relevance ranking and snippets. '''
-    _scribe.debug(
-        "query_content called: source=%s, query=%s, "
-        "search_behaviors=%s, filters=%s",
-        source, query, search_behaviors, filters )
-    immutable_search_behaviors = (
-        _to_immutable_search_behaviors( search_behaviors ) )
-    immutable_filters = _to_immutable_filters( filters )
-    try:
-        return await _functions.query_content(
-            source, query,
-            search_behaviors = immutable_search_behaviors,
-            filters = immutable_filters,
-            results_max = results_max, include_snippets = include_snippets )
-    except Exception as exc:
-        _scribe.error( "Error in query_content: %s", exc )
-        return _exception_to_error_response( exc )
-
-
-@__.ddoc.exclude
-async def summarize_inventory(
-    source: SourceArgument,
-    search_behaviors: __.typx.Annotated[
-        SearchBehaviorsMutable,
-        _Field( description = "Search behavior configuration." ),
-    ] = _search_behaviors_default,
-    filters: __.typx.Annotated[
-        FiltersMutable,
-        _Field( description = "Processor-specific filters." ),
-    ] = _filters_default,
-    group_by: GroupByArgument = None,
-    query: Query = '',
-) -> str:
-    ''' Provides summary of inventory. '''
-    immutable_search_behaviors = (
-        _to_immutable_search_behaviors( search_behaviors ) )
-    immutable_filters = _to_immutable_filters( filters )
-    try:
-        return await _functions.summarize_inventory(
-            source, query,
-            search_behaviors = immutable_search_behaviors,
-            filters = immutable_filters,
-            group_by = group_by )
-    except Exception as exc:
-        _scribe.error( "Error in summarize_inventory: %s", exc )
-        error_response = _exception_to_error_response( exc )
-        return (
-            f"Error: {error_response['message']} - "
-            f"{error_response['suggestion']}" )
-
-
-@__.ddoc.exclude
-async def survey_processors(
-    genus: __.typx.Annotated[
-        _interfaces.ProcessorGenera,
-        _Field( description = "Processor genus (inventory or structure)" ),
-    ],
-    name: __.typx.Annotated[
-        __.typx.Optional[ str ],
-        _Field( description = "Optional processor name to filter results." )
-    ] = None,
-) -> dict[ str, __.typx.Any ]:
-    ''' Lists processors of specified genus, optionally filtered by name. '''
-    _scribe.debug( "Surveying %s processors: %s", genus.value, name or "all" )
-    try: return await _functions.survey_processors( genus, name )
-    except Exception as exc:
-        _scribe.error( "Error in survey_processors: %s", exc )
-        return _exception_to_error_response( exc )
-
 
 async def serve(
     auxdata: __.Globals, /, *,
@@ -220,18 +74,9 @@ async def serve(
     transport: str = 'stdio',
 ) -> None:
     ''' Runs MCP server. '''
-    # Configure caches from application configuration
-    from . import cacheproxy as _cacheproxy
-    _cacheproxy.configure_caches( auxdata.configuration )
     _scribe.debug( "Initializing FastMCP server." )
     mcp = _FastMCP( 'Sphinx MCP Server', port = port )
-    _scribe.debug( "Registering tools." )
-    mcp.tool( )( detect )
-    mcp.tool( )( query_inventory )
-    mcp.tool( )( query_content )
-    mcp.tool( )( summarize_inventory )
-    mcp.tool( )( survey_processors )
-    _scribe.debug( "All tools registered successfully." )
+    _register_server_functions( mcp, auxdata )
     match transport:
         case 'sse': await mcp.run_sse_async( mount_path = None )
         case 'stdio': await mcp.run_stdio_async( )
@@ -294,6 +139,138 @@ def _exception_to_error_response( exc: Exception ) -> dict[ str, str ]:  # noqa:
                 'details': f"Exception: {type( exc ).__name__}: {exc}",
                 'suggestion': 'Please report this issue if it persists'
             }
+
+
+def _produce_detect_function( auxdata: __.Globals ):
+    async def detect_with_context(
+        source: SourceArgument,
+        genus: __.typx.Annotated[
+            _interfaces.ProcessorGenera,
+            _Field( description = "Processor genus (inventory or structure)" ),
+        ],
+        processor_name: __.typx.Annotated[
+            __.typx.Optional[ str ],
+            _Field( description = "Optional processor name." ),
+        ] = None,
+    ) -> dict[ str, __.typx.Any ]:
+        nomargs: __.NominativeArguments = { }
+        if processor_name is not None:
+            nomargs[ 'processor_name' ] = processor_name
+        return await _functions.detect( auxdata, source, genus, **nomargs )
+
+    return detect_with_context
+
+
+def _produce_query_content_function( auxdata: __.Globals ):
+    async def query_content_with_context(  # noqa: PLR0913
+        source: SourceArgument,
+        query: Query,
+        search_behaviors: __.typx.Annotated[
+            SearchBehaviorsMutable,
+            _Field( description = "Search behavior configuration" ),
+        ] = _search_behaviors_default,
+        filters: __.typx.Annotated[
+            FiltersMutable,
+            _Field( description = "Processor-specific filters" ),
+        ] = _filters_default,
+        include_snippets: IncludeSnippets = True,
+        results_max: ResultsMax = 10,
+    ) -> dict[ str, __.typx.Any ]:
+        immutable_search_behaviors = (
+            _to_immutable_search_behaviors( search_behaviors ) )
+        immutable_filters = _to_immutable_filters( filters )
+        return await _functions.query_content(
+            auxdata, source, query,
+            search_behaviors = immutable_search_behaviors,
+            filters = immutable_filters,
+            include_snippets = include_snippets,
+            results_max = results_max )
+
+    return query_content_with_context
+
+
+def _produce_query_inventory_function( auxdata: __.Globals ):
+    async def query_inventory_with_context(  # noqa: PLR0913
+        source: SourceArgument,
+        query: Query,
+        search_behaviors: __.typx.Annotated[
+            SearchBehaviorsMutable,
+            _Field( description = "Search behavior configuration" ),
+        ] = _search_behaviors_default,
+        filters: __.typx.Annotated[
+            FiltersMutable,
+            _Field( description = "Processor-specific filters" ),
+        ] = _filters_default,
+        details: __.typx.Annotated[
+            _interfaces.InventoryQueryDetails,
+            _Field( description = "Detail level for inventory results" ),
+        ] = _interfaces.InventoryQueryDetails.Documentation,
+        results_max: ResultsMax = 5,
+    ) -> dict[ str, __.typx.Any ]:
+        immutable_search_behaviors = (
+            _to_immutable_search_behaviors( search_behaviors ) )
+        immutable_filters = _to_immutable_filters( filters )
+        return await _functions.query_inventory(
+            auxdata, source, query,
+            search_behaviors = immutable_search_behaviors,
+            filters = immutable_filters,
+            details = details,
+            results_max = results_max )
+
+    return query_inventory_with_context
+
+
+def _produce_summarize_inventory_function( auxdata: __.Globals ):
+    async def summarize_inventory_with_context(
+        source: SourceArgument,
+        search_behaviors: __.typx.Annotated[
+            SearchBehaviorsMutable,
+            _Field( description = "Search behavior configuration." ),
+        ] = _search_behaviors_default,
+        filters: __.typx.Annotated[
+            FiltersMutable,
+            _Field( description = "Processor-specific filters." ),
+        ] = _filters_default,
+        group_by: GroupByArgument = None,
+        query: Query = '',
+    ) -> str:
+        immutable_search_behaviors = (
+            _to_immutable_search_behaviors( search_behaviors ) )
+        immutable_filters = _to_immutable_filters( filters )
+        return await _functions.summarize_inventory(
+            auxdata, source, query,
+            search_behaviors = immutable_search_behaviors,
+            filters = immutable_filters,
+            group_by = group_by )
+
+    return summarize_inventory_with_context
+
+
+def _produce_survey_processors_function( auxdata: __.Globals ):
+    async def survey_processors_with_context(
+        genus: __.typx.Annotated[
+            _interfaces.ProcessorGenera,
+            _Field( description = "Processor genus (inventory or structure)" ),
+        ],
+        name: __.typx.Annotated[
+            __.typx.Optional[ str ],
+            _Field( description = "Optional processor name to filter." )
+        ] = None,
+    ) -> dict[ str, __.typx.Any ]:
+        return await _functions.survey_processors( auxdata, genus, name )
+
+    return survey_processors_with_context
+
+
+def _register_server_functions( mcp: _FastMCP, auxdata: __.Globals ) -> None:
+    ''' Registers MCP server tools with closures for auxdata access. '''
+    _scribe.debug( "Registering tools." )
+    mcp.tool( )( _produce_detect_function( auxdata ) )
+    mcp.tool( )( _produce_query_inventory_function( auxdata ) )
+    mcp.tool( )( _produce_query_content_function( auxdata ) )
+    mcp.tool( )( _produce_summarize_inventory_function( auxdata ) )
+    mcp.tool( )( _produce_survey_processors_function( auxdata ) )
+    _scribe.debug( "All tools registered successfully." )
 
 
 def _to_immutable_filters(

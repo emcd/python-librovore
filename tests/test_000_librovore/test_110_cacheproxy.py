@@ -611,7 +611,7 @@ async def test_210_probe_url_http_cache_hit_returns_cached( ):
     ''' Cache hits return cached probe results. '''
     mock_cache = Mock( spec = module.ProbeCache )
     mock_cache.access.return_value = True
-    result = await module.probe_url( _URL_HTTP_TEST, cache = mock_cache )
+    result = await module.probe_url( _URL_HTTP_TEST, probe_cache = mock_cache )
     assert result is True
     mock_cache.access.assert_called_once_with( _URL_HTTP_TEST.geturl( ) )
 
@@ -626,7 +626,7 @@ async def test_211_probe_url_http_cache_miss_success(
         params = '', query = '', fragment = '' )
     client_factory = mock_client_factory( status = 200 )
     result = await module.probe_url(
-        url_status, cache = probe_cache, client_factory = client_factory )
+        url_status, probe_cache = probe_cache, client_factory = client_factory )
     assert result is True
 
 
@@ -640,7 +640,7 @@ async def test_212_probe_url_http_cache_miss_failure( probe_cache ):
         return _httpx.AsyncClient( transport = mock_transport )
     with pytest.raises( _httpx.TimeoutException ):
         await module.probe_url(
-            _URL_HTTP_TEST, cache = probe_cache,
+            _URL_HTTP_TEST, probe_cache = probe_cache,
             client_factory = client_factory )
 
 
@@ -654,7 +654,7 @@ async def test_220_probe_url_dependency_injection_with_custom_cache(
     url = Url(
         scheme = 'file', netloc = '', path = '/nonexistent',
         params = '', query = '', fragment = '' )
-    result = await module.probe_url( url, cache = custom_cache )
+    result = await module.probe_url( url, probe_cache = custom_cache )
     assert result is False
     assert custom_cache.entries_max == 5
 
@@ -669,7 +669,7 @@ async def test_221_probe_url_cache_configuration_affects_behavior(
     url = Url(
         scheme = 'file', netloc = '', path = '/nonexistent',
         params = '', query = '', fragment = '' )
-    result = await module.probe_url( url, cache = custom_cache )
+    result = await module.probe_url( url, probe_cache = custom_cache )
     assert result is False
     assert custom_cache.entries_max == 2
     assert custom_cache.success_ttl == 60.0
@@ -694,12 +694,12 @@ async def test_222_probe_url_mutex_reuse_sequential_requests( ):
 
     # First request creates mutex
     result1 = await module.probe_url(
-        url, cache = cache1, client_factory = client_factory )
+        url, probe_cache = cache1, client_factory = client_factory )
     assert result1 is True
 
     # Second request reuses existing mutex (exercises false branch)
     result2 = await module.probe_url(
-        url, cache = cache2, client_factory = client_factory )
+        url, probe_cache = cache2, client_factory = client_factory )
     assert result2 is True
 
     # Both requests should have completed
@@ -755,7 +755,7 @@ async def test_310_retrieve_url_http_cache_hit_returns_cached( ):
     mock_cache = Mock( spec = module.ContentCache )
     test_content = b'cached content'
     mock_cache.access.return_value = ( test_content, _HEADERS_TEXT_PLAIN )
-    result = await module.retrieve_url( _URL_HTTP_TEST, cache = mock_cache )
+    result = await module.retrieve_url( _URL_HTTP_TEST, content_cache = mock_cache )
     assert result == test_content
     mock_cache.access.assert_called_once_with( _URL_HTTP_TEST.geturl( ) )
 
@@ -777,7 +777,7 @@ async def test_311_retrieve_url_http_cache_miss( ):
     def client_factory( ):
         return _httpx.AsyncClient( transport = mock_transport )
     result = await module.retrieve_url(
-        url, cache = cache, client_factory = client_factory )
+        url, content_cache = cache, client_factory = client_factory )
     assert result == test_content
     cached_result = await cache.access( url.geturl( ) )
     assert not __.is_absent( cached_result )
@@ -804,7 +804,7 @@ async def test_320_retrieve_url_dependency_injection_with_custom_cache( fs ):
     url = Url(
         scheme = 'file', netloc = '', path = '/test/custom.txt',
         params = '', query = '', fragment = '' )
-    result = await module.retrieve_url( url, cache = custom_cache )
+    result = await module.retrieve_url( url, content_cache = custom_cache )
     assert result == test_content
     assert custom_cache.memory_max == 2048
 
@@ -829,12 +829,12 @@ async def test_321_retrieve_url_mutex_reuse_sequential_requests( ):
 
     # First request creates mutex
     result1 = await module.retrieve_url(
-        url, cache = cache1, client_factory = client_factory )
+        url, content_cache = cache1, client_factory = client_factory )
     assert result1 == test_content
 
     # Second request reuses existing mutex (exercises false branch)
     result2 = await module.retrieve_url(
-        url, cache = cache2, client_factory = client_factory )
+        url, content_cache = cache2, client_factory = client_factory )
     assert result2 == test_content
 
     # Both requests should have completed
@@ -894,7 +894,7 @@ async def test_362_retrieve_url_as_text_http_cache_hit_with_charset( ):
     mock_cache.access.return_value = (
         test_content.encode( 'iso-8859-1' ), test_headers )
     result = await module.retrieve_url_as_text(
-        _URL_HTTP_TEST, cache = mock_cache )
+        _URL_HTTP_TEST, content_cache = mock_cache )
     assert result == test_content
     mock_cache.access.assert_called_once_with( _URL_HTTP_TEST.geturl( ) )
 
@@ -908,7 +908,7 @@ async def test_363_retrieve_url_as_text_http_validates_content_type( ):
         scheme = 'http', netloc = 'example.com', path = '/image',
         params = '', query = '', fragment = '' )
     with pytest.raises( _exceptions.HttpContentTypeInvalidity ):
-        await module.retrieve_url_as_text( url_image, cache = mock_cache )
+        await module.retrieve_url_as_text( url_image, content_cache = mock_cache )
 
 
 @pytest.mark.asyncio
@@ -922,7 +922,7 @@ async def test_364_retrieve_url_as_text_http_default_charset_fallback( ):
     url = Url(
         scheme = 'http', netloc = 'example.com', path = '/text',
         params = '', query = '', fragment = '' )
-    result = await module.retrieve_url_as_text( url, cache = mock_cache )
+    result = await module.retrieve_url_as_text( url, content_cache = mock_cache )
     assert result == test_content
 
 
@@ -942,7 +942,7 @@ async def test_365_retrieve_url_as_text_http_cache_miss( ):
     def client_factory( ):
         return _httpx.AsyncClient( transport = mock_transport )
     result = await module.retrieve_url_as_text(
-        url, cache = cache, client_factory = client_factory )
+        url, content_cache = cache, client_factory = client_factory )
     assert result == test_content
     cached_result = await cache.access( url.geturl( ) )
     assert not __.is_absent( cached_result )
@@ -966,7 +966,7 @@ async def test_366_retrieve_url_as_text_http_cache_miss_custom_charset( ):
     def client_factory( ):
         return _httpx.AsyncClient( transport = mock_transport )
     result = await module.retrieve_url_as_text(
-        url, cache = cache, client_factory = client_factory )
+        url, content_cache = cache, client_factory = client_factory )
     assert result == test_content
     cached_result = await cache.access( url.geturl( ) )
     assert not __.is_absent( cached_result )
@@ -983,7 +983,7 @@ async def test_370_retrieve_url_as_text_dependency_injection( fs ):
     url = Url(
         scheme = 'file', netloc = '', path = '/test/text.txt',
         params = '', query = '', fragment = '' )
-    result = await module.retrieve_url_as_text( url, cache = custom_cache )
+    result = await module.retrieve_url_as_text( url, content_cache = custom_cache )
     assert result == test_content
     assert custom_cache.memory_max == 1024
 
@@ -1060,11 +1060,11 @@ async def test_900_probe_url_concurrent_requests_deduplication( ):
         return _httpx.AsyncClient( transport = mock_transport )
     results = await asyncio.gather(
         module.probe_url(
-            url, cache = cache, client_factory = client_factory ),
+            url, probe_cache = cache, client_factory = client_factory ),
         module.probe_url(
-            url, cache = cache, client_factory = client_factory ),
+            url, probe_cache = cache, client_factory = client_factory ),
         module.probe_url(
-            url, cache = cache, client_factory = client_factory ) )
+            url, probe_cache = cache, client_factory = client_factory ) )
     assert all( results )
     # But only one HTTP request should have been made due to deduplication
     assert call_count == 1
@@ -1090,11 +1090,11 @@ async def test_901_retrieve_url_concurrent_requests_deduplication( ):
         return _httpx.AsyncClient( transport = mock_transport )
     results = await asyncio.gather(
         module.retrieve_url(
-            url, cache = cache, client_factory = client_factory ),
+            url, content_cache = cache, client_factory = client_factory ),
         module.retrieve_url(
-            url, cache = cache, client_factory = client_factory ),
+            url, content_cache = cache, client_factory = client_factory ),
         module.retrieve_url(
-            url, cache = cache, client_factory = client_factory ) )
+            url, content_cache = cache, client_factory = client_factory ) )
     # All should return same content
     assert all( result == test_content for result in results )
     # But only one HTTP request should have been made due to deduplication
@@ -1117,14 +1117,14 @@ async def test_902_request_mutex_cleanup_after_completion( ):
     # Test probe cache mutex cleanup
     probe_cache = module.ProbeCache( )
     await module.probe_url(
-        url, cache = probe_cache, client_factory = client_factory )
+        url, probe_cache = probe_cache, client_factory = client_factory )
     # Mutex should be cleaned up after request completes
     assert url_key not in probe_cache._request_mutexes
 
     # Test content cache mutex cleanup
     content_cache = module.ContentCache( )
     await module.retrieve_url(
-        url, cache = content_cache, client_factory = client_factory )
+        url, content_cache = content_cache, client_factory = client_factory )
     # Mutex should be cleaned up after request completes
     assert url_key not in content_cache._request_mutexes
 

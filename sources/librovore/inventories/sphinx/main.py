@@ -56,11 +56,9 @@ def extract_inventory( base_url: _Url ) -> _sphobjinv.Inventory:
 
 async def check_objects_inv( base_url: __.typx.Any ) -> bool:
     ''' Checks if objects.inv exists at the source for inventory detection. '''
-    try:
-        inventory_url = derive_inventory_url( base_url )
-        return await __.probe_url( inventory_url )
-    except Exception:
-        return False
+    inventory_url = derive_inventory_url( base_url )
+    try: return await __.probe_url( inventory_url )
+    except Exception: return False
 
 
 async def filter_inventory(

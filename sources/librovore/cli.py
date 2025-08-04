@@ -22,10 +22,12 @@
 
 
 from . import __
+from . import cacheproxy as _cacheproxy
 from . import exceptions as _exceptions
 from . import functions as _functions
 from . import interfaces as _interfaces
 from . import server as _server
+from . import state as _state
 
 
 _scribe = __.acquire_scribe( __name__ )
@@ -89,7 +91,8 @@ class DetectCommand(
                 self.processor_name if self.processor_name is not None
                 else __.absent )
             result = await _functions.detect(
-                self.source, self.genus, processor_name = processor_name )
+                auxdata, self.source, self.genus,
+                processor_name = processor_name )
             print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
             _scribe.error( "detect failed: %s", exc )
@@ -128,6 +131,7 @@ class QueryInventoryCommand(
         stream = await display.provide_stream( )
         try:
             result = await _functions.query_inventory(
+                auxdata,
                 self.source,
                 self.query,
                 search_behaviors = self.search_behaviors,
@@ -165,7 +169,7 @@ class QueryContentCommand(
         stream = await display.provide_stream( )
         try:
             result = await _functions.query_content(
-                self.source, self.query,
+                auxdata, self.source, self.query,
                 search_behaviors = self.search_behaviors,
                 filters = self.filters,
                 results_max = self.results_max,
@@ -199,7 +203,7 @@ class SummarizeInventoryCommand(
     ) -> None:
         stream = await display.provide_stream( )
         result = await _functions.summarize_inventory(
-            self.source, self.query or '',
+            auxdata, self.source, self.query or '',
             search_behaviors = self.search_behaviors,
             filters = self.filters,
             group_by = self.group_by )
@@ -227,7 +231,7 @@ class SurveyProcessorsCommand(
         nomargs: __.NominativeArguments = { 'genus': self.genus }
         if self.name is not None: nomargs[ 'name' ] = self.name
         try:
-            result = await _functions.survey_processors( **nomargs )
+            result = await _functions.survey_processors( auxdata, **nomargs )
             print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
             _scribe.error( "survey-processors failed: %s", exc )
@@ -317,9 +321,6 @@ class Cli( __.immut.DataclassObject, decorators = ( __.simple_tyro_class, ) ):
         nomargs = self.prepare_invocation_args( )
         async with __.ctxl.AsyncExitStack( ) as exits:
             auxdata = await _prepare( exits = exits, **nomargs )
-            # Configure caches from application configuration
-            from . import cacheproxy as _cacheproxy
-            _cacheproxy.configure_caches( auxdata.configuration )
             # Load processors for CLI operations
             from . import xtnsmgr
             await xtnsmgr.register_processors( auxdata )
@@ -399,7 +400,7 @@ async def _prepare(
         __.ddoc.Doc( ''' Path to log capture file. ''' )
     ],
 ) -> __.typx.Annotated[
-    __.Globals,
+    _state.Globals,
     __.ddoc.Doc( ''' Configured global state. ''' )
 ]:
     ''' Configures application based on arguments. '''
@@ -414,4 +415,10 @@ async def _prepare(
         inscription = __.appcore.inscription.Control(
             level = 'debug', target = logstream )
         nomargs[ 'inscription' ] = inscription
-    return await __.appcore.prepare( **nomargs )
+    auxdata = await __.appcore.prepare( **nomargs )
+    content_cache, probe_cache, robots_cache = _cacheproxy.prepare( auxdata )
+    return _state.Globals(
+        **__.dcls.asdict( auxdata ),
+        content_cache = content_cache,
+        probe_cache = probe_cache,
+        robots_cache = robots_cache )

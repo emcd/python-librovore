@@ -18,35 +18,20 @@
 #============================================================================#
 
 
-''' Interface for extension development. '''
-
-# ruff: noqa: F401,F403,F405
+''' Application state management. '''
 
 
 from . import __
-
-from .cacheproxy import probe_url, retrieve_url, retrieve_url_as_text
-from .exceptions import *
-from .interfaces import *
-from .urls import *
+from . import cacheproxy as _cacheproxy
 
 
-InventoryProcessorsRegistry: __.typx.TypeAlias = (
-    __.accret.ValidatorDictionary[ str, InventoryProcessor ] )
-StructureProcessorsRegistry: __.typx.TypeAlias = (
-    __.accret.ValidatorDictionary[ str, Processor ] )
-
-
-def _inventory_validator( name: str, value: InventoryProcessor ) -> bool:
-    return isinstance( value, InventoryProcessor )
-
-
-def _structure_validator( name: str, value: Processor ) -> bool:
-    return isinstance( value, Processor )
-
-
-inventory_processors: InventoryProcessorsRegistry = (
-    __.accret.ValidatorDictionary( _inventory_validator ) )
-structure_processors: StructureProcessorsRegistry = (
-    __.accret.ValidatorDictionary( _structure_validator ) )
-
+class Globals( __.Globals ):
+    ''' Librovore-specific global state container.
+    
+        Extends appcore.Globals with cache instances configured from
+        application configuration.
+    '''
+    
+    content_cache: _cacheproxy.ContentCache
+    probe_cache: _cacheproxy.ProbeCache  
+    robots_cache: _cacheproxy.RobotsCache
