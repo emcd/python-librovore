@@ -1,8 +1,8 @@
 # Small UX Improvements for Alpha Release
 
 ## CLI Structure Changes
-- [ ] Remove `use` subcommand and hoist subcommands up one level
-- [ ] Use `tyro.conf.Positional` for the `source` argument
+- [x] Remove `use` subcommand and hoist subcommands up one level
+- [x] Use `tyro.conf.Positional` for the `source` argument
 - [ ] Add `--extra-functions` argument to `serve` subcommand (controls `detect` and `survey_processors` exposure)
 - [ ] Rename `source` argument to `location` 
 - [ ] Rename `query` argument to `term`
