@@ -46,7 +46,7 @@ async def test_100_summarize_inventory_wrapper( mock_auxdata ):
     summarize_func = module._produce_summarize_inventory_function(
         mock_auxdata )
     result = await summarize_func(
-        source = test_inventory_path,
+        location = test_inventory_path,
         search_behaviors = search_behaviors,
         filters = filters )
     assert isinstance( result, str )
@@ -60,7 +60,7 @@ async def test_110_summarize_inventory_wrapper_no_filters( mock_auxdata ):
     test_inventory_path = get_test_inventory_path( 'librovore' )
     summarize_func = module._produce_summarize_inventory_function(
         mock_auxdata )
-    result = await summarize_func( source = test_inventory_path )
+    result = await summarize_func( location = test_inventory_path )
     assert isinstance( result, str )
     assert 'Project:' in result
 
@@ -75,8 +75,8 @@ async def test_120_summarize_inventory_wrapper_with_regex( mock_auxdata ):
     summarize_func = module._produce_summarize_inventory_function(
         mock_auxdata )
     result = await summarize_func(
-        source = test_inventory_path,
-        query = 'test.*pattern',
+        location = test_inventory_path,
+        term = 'test.*pattern',
         search_behaviors = search_behaviors,
         filters = filters )
     assert isinstance( result, str )
@@ -92,7 +92,7 @@ async def test_150_summarize_inventory_wrapper_with_priority( mock_auxdata ):
     summarize_func = module._produce_summarize_inventory_function(
         mock_auxdata )
     result = await summarize_func(
-        source = test_inventory_path,
+        location = test_inventory_path,
         search_behaviors = search_behaviors,
         filters = filters )
     assert isinstance( result, str )
@@ -108,7 +108,7 @@ async def test_170_explore_wrapper( mock_auxdata ):
     filters = module.FiltersMutable( { 'domain': 'py', 'role': 'function' } )
     query_func = module._produce_query_inventory_function( mock_auxdata )
     result = await query_func(
-        source = test_inventory_path, query = 'test',
+        location = test_inventory_path, term = 'test',
         search_behaviors = search_behaviors,
         filters = filters )
     assert isinstance( result, dict )
@@ -122,7 +122,7 @@ async def test_180_explore_wrapper_no_filters( mock_auxdata ):
     test_inventory_path = get_test_inventory_path( 'librovore' )
     query_func = module._produce_query_inventory_function( mock_auxdata )
     result = await query_func(
-        source = test_inventory_path, query = 'test',
+        location = test_inventory_path, term = 'test',
         details = module._interfaces.InventoryQueryDetails.Name )
     assert isinstance( result, dict )
     assert 'project' in result
@@ -139,8 +139,8 @@ async def test_190_explore_wrapper_with_fuzzy( mock_auxdata ):
     filters = module.FiltersMutable( )
     query_func = module._produce_query_inventory_function( mock_auxdata )
     result = await query_func(
-        source = test_inventory_path,
-        query = 'DataObj',
+        location = test_inventory_path,
+        term = 'DataObj',
         search_behaviors = search_behaviors,
         filters = filters,
         details = module._interfaces.InventoryQueryDetails.Name )

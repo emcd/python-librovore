@@ -39,8 +39,8 @@ fragments: __.cabc.Mapping[ str, str ] = __.types.MappingProxyType( {
     'include snippets argument':
     ''' Include content snippets in results. ''',
 
-    'query argument':
-    ''' Search query for documentation content. ''',
+    'term argument':
+    ''' Search term for documentation content. ''',
 
     'query details argument':
     ''' Detail level for inventory results.
@@ -54,8 +54,8 @@ fragments: __.cabc.Mapping[ str, str ] = __.types.MappingProxyType( {
     'server port argument':
     ''' TCP port for server. ''',
 
-    'source argument':
-    ''' URL or file path to documentation source. ''',
+    'location argument':
+    ''' URL or file path to documentation location. ''',
 
     'term filter argument':
     ''' Filter objects by name containing this text. ''',

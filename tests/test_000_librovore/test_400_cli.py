@@ -55,7 +55,7 @@ async def test_030_summarize_inventory_command_unit( ):
     search_behaviors = module._interfaces.SearchBehaviors( )
     filters = { 'domain': 'py' }
     cmd = module.SummarizeInventoryCommand(
-        source = test_inventory_path,
+        location = test_inventory_path,
         search_behaviors = search_behaviors,
         filters = filters )
     await cmd( auxdata, display )
@@ -70,7 +70,7 @@ async def test_040_summarize_inventory_command_no_filters( ):
     display = MockConsoleDisplay( )
     auxdata = create_test_auxdata( )
     test_inventory_path = get_test_inventory_path( 'librovore' )
-    cmd = module.SummarizeInventoryCommand( source = test_inventory_path )
+    cmd = module.SummarizeInventoryCommand( location = test_inventory_path )
     await cmd( auxdata, display )
     output = display.stream.getvalue( )
     assert 'Project:' in output
@@ -85,7 +85,7 @@ async def test_060_use_command_summarize_delegation( ):
     search_behaviors = module._interfaces.SearchBehaviors( )
     filters = { 'domain': 'py' }
     summarize_cmd = module.SummarizeInventoryCommand(
-        source = test_inventory_path,
+        location = test_inventory_path,
         search_behaviors = search_behaviors,
         filters = filters )
     await summarize_cmd( auxdata, display )

@@ -45,17 +45,17 @@ PortArgument: __.typx.TypeAlias = __.typx.Annotated[
     __.typx.Optional[ int ],
     __.tyro.conf.arg( help = __.access_doctab( 'server port argument' ) ),
 ]
-QueryArgument: __.typx.TypeAlias = __.typx.Annotated[
+TermArgument: __.typx.TypeAlias = __.typx.Annotated[
     str,
-    __.tyro.conf.arg( help = __.access_doctab( 'query argument' ) ),
+    __.tyro.conf.arg( help = __.access_doctab( 'term argument' ) ),
 ]
 ResultsMax: __.typx.TypeAlias = __.typx.Annotated[
     int,
     __.tyro.conf.arg( help = __.access_doctab( 'results max argument' ) ),
 ]
-SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
+LocationArgument: __.typx.TypeAlias = __.typx.Annotated[
     __.tyro.conf.Positional[ str ],
-    __.tyro.conf.arg( help = __.access_doctab( 'source argument' ) ),
+    __.tyro.conf.arg( help = __.access_doctab( 'location argument' ) ),
 ]
 TransportArgument: __.typx.TypeAlias = __.typx.Annotated[
     __.typx.Optional[ str ],
@@ -86,7 +86,7 @@ class DetectCommand(
 ):
     ''' Detect which processors can handle a documentation source. '''
 
-    source: SourceArgument
+    location: LocationArgument
     genus: __.typx.Annotated[
         _interfaces.ProcessorGenera,
         __.tyro.conf.arg( help = "Processor genus (inventory or structure)." ),
@@ -105,7 +105,7 @@ class DetectCommand(
                 self.processor_name if self.processor_name is not None
                 else __.absent )
             result = await _functions.detect(
-                auxdata, self.source, self.genus,
+                auxdata, self.location, self.genus,
                 processor_name = processor_name )
             print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
@@ -119,8 +119,8 @@ class QueryInventoryCommand(
 ):
     ''' Searches object inventory by name with fuzzy matching. '''
 
-    source: SourceArgument
-    query: QueryArgument
+    location: LocationArgument
+    term: TermArgument
     details: __.typx.Annotated[
         _interfaces.InventoryQueryDetails,
         __.tyro.conf.arg(
@@ -146,8 +146,8 @@ class QueryInventoryCommand(
         try:
             result = await _functions.query_inventory(
                 auxdata,
-                self.source,
-                self.query,
+                self.location,
+                self.term,
                 search_behaviors = self.search_behaviors,
                 filters = self.filters,
                 results_max = self.results_max,
@@ -164,8 +164,8 @@ class QueryContentCommand(
 ):
     ''' Searches documentation content with relevance ranking and snippets. '''
 
-    source: SourceArgument
-    query: QueryArgument
+    location: LocationArgument
+    term: TermArgument
     search_behaviors: __.typx.Annotated[
         _interfaces.SearchBehaviors,
         __.tyro.conf.arg( prefix_name = False ),
@@ -183,7 +183,7 @@ class QueryContentCommand(
         stream = await display.provide_stream( )
         try:
             result = await _functions.query_content(
-                auxdata, self.source, self.query,
+                auxdata, self.location, self.term,
                 search_behaviors = self.search_behaviors,
                 filters = self.filters,
                 results_max = self.results_max,
@@ -200,8 +200,8 @@ class SummarizeInventoryCommand(
 ):
     ''' Provides human-readable summary of inventory. '''
 
-    source: SourceArgument
-    query: QueryArgument = ''
+    location: LocationArgument
+    term: TermArgument = ''
     filters: __.typx.Annotated[
         dict[ str, __.typx.Any ],
         __.tyro.conf.arg( prefix_name = False ),
@@ -217,7 +217,7 @@ class SummarizeInventoryCommand(
     ) -> None:
         stream = await display.provide_stream( )
         result = await _functions.summarize_inventory(
-            auxdata, self.source, self.query or '',
+            auxdata, self.location, self.term or '',
             search_behaviors = self.search_behaviors,
             filters = self.filters,
             group_by = self.group_by )

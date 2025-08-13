@@ -32,8 +32,8 @@ from . import state as _state
 
 DocumentationResult: __.typx.TypeAlias = __.cabc.Mapping[ str, __.typx.Any ]
 SearchResult: __.typx.TypeAlias = __.cabc.Mapping[ str, __.typx.Any ]
-SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
-    str, __.ddoc.Fname( 'source argument' ) ]
+LocationArgument: __.typx.TypeAlias = __.typx.Annotated[
+    str, __.ddoc.Fname( 'location argument' ) ]
 
 
 _search_behaviors_default = _interfaces.SearchBehaviors( )
@@ -42,7 +42,7 @@ _filters_default = __.immut.Dictionary[ str, __.typx.Any ]( )
 
 async def detect(
     auxdata: _state.Globals,
-    source: SourceArgument, /,
+    location: LocationArgument, /,
     genus: _interfaces.ProcessorGenera,
     processor_name: __.Absential[ str ] = __.absent,
 ) -> dict[ str, __.typx.Any ]:
@@ -50,11 +50,11 @@ async def detect(
     start_time = __.time.perf_counter( )
     detections, detection_optimal = (
         await _detection.access_detections(
-            auxdata, source, genus = genus ) )
+            auxdata, location, genus = genus ) )
     end_time = __.time.perf_counter( )
     detection_time_ms = int( ( end_time - start_time ) * 1000 )
     response = _processors.DetectionsForLocation(
-        source = source,
+        source = location,
         detections = detections,
         detection_optimal = (
             None if __.is_absent( detection_optimal ) else detection_optimal ),
@@ -64,8 +64,8 @@ async def detect(
 
 async def query_content(  # noqa: PLR0913
     auxdata: _state.Globals,
-    source: SourceArgument,
-    query: str, /, *,
+    location: LocationArgument,
+    term: str, /, *,
     processor_name: __.Absential[ str ] = __.absent,
     search_behaviors: _interfaces.SearchBehaviors = _search_behaviors_default,
     filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
@@ -76,20 +76,20 @@ async def query_content(  # noqa: PLR0913
     __.ddoc.Fname( 'content query return' ) ]:
     ''' Searches documentation content with relevance ranking. '''
     idetection = await _detection.detect_inventory(
-        auxdata, source, processor_name = processor_name )
+        auxdata, location, processor_name = processor_name )
     objects = await idetection.filter_inventory(
-        auxdata, source,
+        auxdata, location,
         filters = filters,
         details = _interfaces.InventoryQueryDetails.Name )
     results = _search.filter_by_name(
-        objects, query,
+        objects, term,
         match_mode = search_behaviors.match_mode,
         fuzzy_threshold = search_behaviors.fuzzy_threshold )
     candidates = [ result.object for result in results[ : results_max * 3 ] ]
     if not candidates:
         return {
-            'source': source,
-            'query': query,
+            'source': location,
+            'query': term,
             'search_metadata': {
                 'results_count': 0,
                 'results_max': results_max,
@@ -97,9 +97,9 @@ async def query_content(  # noqa: PLR0913
             'documents': [ ],
         }
     sdetection = await _detection.detect_structure(
-        auxdata, source, processor_name = processor_name )
+        auxdata, location, processor_name = processor_name )
     contents = await sdetection.extract_contents(
-        auxdata, source, candidates, include_snippets = include_snippets )
+        auxdata, location, candidates, include_snippets = include_snippets )
     contents_by_relevance = sorted(
         contents,
         key = lambda x: x.get( 'relevance_score', 0.0 ),
@@ -124,8 +124,8 @@ async def query_content(  # noqa: PLR0913
         }
         for result in contents_ ]
     return {
-        'source': source,
-        'query': query,
+        'source': location,
+        'query': term,
         'search_metadata': search_metadata,
         'documents': documents,
     }
@@ -133,8 +133,8 @@ async def query_content(  # noqa: PLR0913
 
 async def query_inventory(  # noqa: PLR0913
     auxdata: _state.Globals,
-    source: SourceArgument,
-    query: str, /, *,
+    location: LocationArgument,
+    term: str, /, *,
     processor_name: __.Absential[ str ] = __.absent,
     search_behaviors: _interfaces.SearchBehaviors = _search_behaviors_default,
     filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
@@ -149,11 +149,11 @@ async def query_inventory(  # noqa: PLR0913
         plus requested detail flags (signatures, summaries, documentation).
     '''
     detection = await _detection.detect_inventory(
-        auxdata, source, processor_name = processor_name )
+        auxdata, location, processor_name = processor_name )
     objects = await detection.filter_inventory(
-        auxdata, source, filters = filters, details = details )
+        auxdata, location, filters = filters, details = details )
     results = _search.filter_by_name(
-        objects, query,
+        objects, term,
         match_mode = search_behaviors.match_mode,
         fuzzy_threshold = search_behaviors.fuzzy_threshold )
     selections = [ result.object for result in results[ : results_max ] ]
@@ -178,18 +178,18 @@ async def query_inventory(  # noqa: PLR0913
         'version': (
             objects[ 0 ].get( '_inventory_version', 'Unknown' )
             if objects else 'Unknown' ),
-        'query': query,
+        'query': term,
         'documents': documents,
         'search_metadata': search_metadata,
         'objects_count': len( selections ),
-        'source': source,
+        'source': location,
     }
 
 
 async def summarize_inventory(  # noqa: PLR0913
     auxdata: _state.Globals,
-    source: SourceArgument, /,
-    query: str = '', *,
+    location: LocationArgument, /,
+    term: str = '', *,
     processor_name: __.Absential[ str ] = __.absent,
     search_behaviors: _interfaces.SearchBehaviors = _search_behaviors_default,
     filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
@@ -199,7 +199,7 @@ async def summarize_inventory(  # noqa: PLR0913
     ''' Provides human-readable summary of inventory. '''
     details = _interfaces.InventoryQueryDetails.Name
     inventory_result = await query_inventory(
-        auxdata, source, query, processor_name = processor_name,
+        auxdata, location, term, processor_name = processor_name,
         search_behaviors = search_behaviors, filters = filters,
         results_max = 1000,  # Large number to get all matches
         details = details )

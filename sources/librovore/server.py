@@ -54,12 +54,12 @@ IncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
     bool,
     _Field( description = __.access_doctab( 'include snippets argument' ) ),
 ]
-Query: __.typx.TypeAlias = __.typx.Annotated[
-    str, _Field( description = __.access_doctab( 'query argument' ) ) ]
+TermArgument: __.typx.TypeAlias = __.typx.Annotated[
+    str, _Field( description = __.access_doctab( 'term argument' ) ) ]
 ResultsMax: __.typx.TypeAlias = __.typx.Annotated[
     int, _Field( description = __.access_doctab( 'results max argument' ) ) ]
-SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
-    str, _Field( description = __.access_doctab( 'source argument' ) ) ]
+LocationArgument: __.typx.TypeAlias = __.typx.Annotated[
+    str, _Field( description = __.access_doctab( 'location argument' ) ) ]
 
 
 _filters_default = FiltersMutable( )
@@ -146,7 +146,7 @@ def _exception_to_error_response( exc: Exception ) -> dict[ str, str ]:  # noqa:
 
 def _produce_detect_function( auxdata: _state.Globals ):
     async def detect_with_context(
-        source: SourceArgument,
+        location: LocationArgument,
         genus: __.typx.Annotated[
             _interfaces.ProcessorGenera,
             _Field( description = "Processor genus (inventory or structure)" ),
@@ -159,15 +159,15 @@ def _produce_detect_function( auxdata: _state.Globals ):
         nomargs: __.NominativeArguments = { }
         if processor_name is not None:
             nomargs[ 'processor_name' ] = processor_name
-        return await _functions.detect( auxdata, source, genus, **nomargs )
+        return await _functions.detect( auxdata, location, genus, **nomargs )
 
     return detect_with_context
 
 
 def _produce_query_content_function( auxdata: _state.Globals ):
     async def query_content_with_context(  # noqa: PLR0913
-        source: SourceArgument,
-        query: Query,
+        location: LocationArgument,
+        term: TermArgument,
         search_behaviors: __.typx.Annotated[
             SearchBehaviorsMutable,
             _Field( description = "Search behavior configuration" ),
@@ -183,7 +183,7 @@ def _produce_query_content_function( auxdata: _state.Globals ):
             _to_immutable_search_behaviors( search_behaviors ) )
         immutable_filters = _to_immutable_filters( filters )
         return await _functions.query_content(
-            auxdata, source, query,
+            auxdata, location, term,
             search_behaviors = immutable_search_behaviors,
             filters = immutable_filters,
             include_snippets = include_snippets,
@@ -194,8 +194,8 @@ def _produce_query_content_function( auxdata: _state.Globals ):
 
 def _produce_query_inventory_function( auxdata: _state.Globals ):
     async def query_inventory_with_context(  # noqa: PLR0913
-        source: SourceArgument,
-        query: Query,
+        location: LocationArgument,
+        term: TermArgument,
         search_behaviors: __.typx.Annotated[
             SearchBehaviorsMutable,
             _Field( description = "Search behavior configuration" ),
@@ -214,7 +214,7 @@ def _produce_query_inventory_function( auxdata: _state.Globals ):
             _to_immutable_search_behaviors( search_behaviors ) )
         immutable_filters = _to_immutable_filters( filters )
         return await _functions.query_inventory(
-            auxdata, source, query,
+            auxdata, location, term,
             search_behaviors = immutable_search_behaviors,
             filters = immutable_filters,
             details = details,
@@ -225,7 +225,7 @@ def _produce_query_inventory_function( auxdata: _state.Globals ):
 
 def _produce_summarize_inventory_function( auxdata: _state.Globals ):
     async def summarize_inventory_with_context(
-        source: SourceArgument,
+        location: LocationArgument,
         search_behaviors: __.typx.Annotated[
             SearchBehaviorsMutable,
             _Field( description = "Search behavior configuration." ),
@@ -235,13 +235,13 @@ def _produce_summarize_inventory_function( auxdata: _state.Globals ):
             _Field( description = "Processor-specific filters." ),
         ] = _filters_default,
         group_by: GroupByArgument = None,
-        query: Query = '',
+        term: TermArgument = '',
     ) -> str:
         immutable_search_behaviors = (
             _to_immutable_search_behaviors( search_behaviors ) )
         immutable_filters = _to_immutable_filters( filters )
         return await _functions.summarize_inventory(
-            auxdata, source, query,
+            auxdata, location, term,
             search_behaviors = immutable_search_behaviors,
             filters = immutable_filters,
             group_by = group_by )
