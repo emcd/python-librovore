@@ -261,6 +261,11 @@ class ServeCommand(
 
     port: PortArgument = None
     transport: TransportArgument = None
+    extra_functions: __.typx.Annotated[
+        bool,
+        __.tyro.conf.arg(
+            help = "Enable extra functions (detect and survey-processors)." ),
+    ] = False
     serve_function: __.typx.Callable[
         [ _state.Globals ], __.cabc.Awaitable[ None ]
     ] = _server.serve
@@ -272,6 +277,7 @@ class ServeCommand(
             nomargs[ 'port' ] = self.port
         if self.transport is not None:
             nomargs[ 'transport' ] = self.transport
+        nomargs[ 'extra_functions' ] = self.extra_functions
         await self.serve_function( auxdata, **nomargs )
 
 

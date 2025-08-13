@@ -105,7 +105,7 @@ async def test_070_serve_command_unit( ):
     )
     await cmd( auxdata, display )
     mock_serve.assert_called_once_with(
-        auxdata, port = 8080, transport = 'stdio' )
+        auxdata, port = 8080, transport = 'stdio', extra_functions = False )
 
 
 @pytest.mark.asyncio
@@ -116,7 +116,19 @@ async def test_080_serve_command_defaults( ):
     mock_serve = AsyncMock( )
     cmd = module.ServeCommand( serve_function = mock_serve )
     await cmd( auxdata, display )
-    mock_serve.assert_called_once_with( auxdata )
+    mock_serve.assert_called_once_with( auxdata, extra_functions = False )
+
+
+@pytest.mark.asyncio
+async def test_085_serve_command_extra_functions( ):
+    ''' ServeCommand passes extra_functions flag correctly. '''
+    display = MockConsoleDisplay( )
+    auxdata = create_test_auxdata( )
+    mock_serve = AsyncMock( )
+    cmd = module.ServeCommand(
+        extra_functions = True, serve_function = mock_serve )
+    await cmd( auxdata, display )
+    mock_serve.assert_called_once_with( auxdata, extra_functions = True )
 
 
 def test_090_cli_prepare_invocation_args( ):

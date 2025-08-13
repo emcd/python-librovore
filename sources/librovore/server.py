@@ -73,11 +73,13 @@ async def serve(
     auxdata: _state.Globals, /, *,
     port: int = 0,
     transport: str = 'stdio',
+    extra_functions: bool = False,
 ) -> None:
     ''' Runs MCP server. '''
     _scribe.debug( "Initializing FastMCP server." )
     mcp = _FastMCP( 'Sphinx MCP Server', port = port )
-    _register_server_functions( auxdata, mcp )
+    _register_server_functions(
+        auxdata, mcp, extra_functions = extra_functions )
     match transport:
         case 'sse': await mcp.run_sse_async( mount_path = None )
         case 'stdio': await mcp.run_stdio_async( )
@@ -264,15 +266,16 @@ def _produce_survey_processors_function( auxdata: _state.Globals ):
 
 
 def _register_server_functions(
-    auxdata: _state.Globals, mcp: _FastMCP
+    auxdata: _state.Globals, mcp: _FastMCP, /, *, extra_functions: bool = False
 ) -> None:
     ''' Registers MCP server tools with closures for auxdata access. '''
     _scribe.debug( "Registering tools." )
-    mcp.tool( )( _produce_detect_function( auxdata ) )
     mcp.tool( )( _produce_query_inventory_function( auxdata ) )
     mcp.tool( )( _produce_query_content_function( auxdata ) )
     mcp.tool( )( _produce_summarize_inventory_function( auxdata ) )
-    mcp.tool( )( _produce_survey_processors_function( auxdata ) )
+    if extra_functions:
+        mcp.tool( )( _produce_detect_function( auxdata ) )
+        mcp.tool( )( _produce_survey_processors_function( auxdata ) )
     _scribe.debug( "All tools registered successfully." )
 
 
