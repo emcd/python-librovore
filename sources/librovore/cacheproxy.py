@@ -114,10 +114,14 @@ class ContentCache( Cache, instances_mutables = ( '_memory_total', ) ):
 
     def __init__(
         self, *,
+        robots_cache: __.Absential[ 'RobotsCache' ] = __.absent,
         memory_max: __.Absential[ int ] = __.absent,
-        **base_kwargs: __.typx.Any
+        **base_initargs: __.typx.Any
     ) -> None:
-        super( ).__init__( **base_kwargs )
+        super( ).__init__( **base_initargs )
+        if __.is_absent( robots_cache ):
+            self.robots_cache = RobotsCache( **base_initargs )
+        else: self.robots_cache = robots_cache
         if not __.is_absent( memory_max ): self.memory_max = memory_max
         self._cache: dict[ str, ContentCacheEntry ] = { }
         self._memory_total = 0
@@ -126,16 +130,20 @@ class ContentCache( Cache, instances_mutables = ( '_memory_total', ) ):
     @classmethod
     def from_configuration(
         cls,
-        configuration: __.cabc.Mapping[ str, __.typx.Any ]
+        configuration: __.cabc.Mapping[ str, __.typx.Any ],
+        robots_cache: __.Absential[ 'RobotsCache' ] = __.absent
     ) -> 'ContentCache':
         ''' Creates ContentCache instance from application configuration. '''
         cache_config = configuration.get( 'cache', { } )
         content_ttl = cache_config.get( 'content-ttl', 300.0 )
         memory_limit = cache_config.get( 'memory-limit', 33554432 )
-        return cls(
-            success_ttl = content_ttl,
-            memory_max = memory_limit,
-        )
+        nomargs = {
+            'success_ttl': content_ttl,
+            'memory_max': memory_limit,
+        }
+        if not __.is_absent( robots_cache ):
+            nomargs[ 'robots_cache' ] = robots_cache
+        return cls( **nomargs )
 
     async def access(
         self, url: str
@@ -155,6 +163,18 @@ class ContentCache( Cache, instances_mutables = ( '_memory_total', ) ):
             return self.success_ttl
         # TODO: Inspect exception type for more granular TTL
         return self.error_ttl
+
+    async def retrieve_url(
+        self,
+        url: _Url, /, *,
+        duration_max: float = 30.0,
+        client_factory: HttpClientFactory = _httpx.AsyncClient,
+    ) -> bytes:
+        ''' Convenience method for retrieving URL content. '''
+        return await retrieve_url(
+            self, url,
+            duration_max = duration_max,
+            client_factory = client_factory )
 
     async def store(
         self, url: str, response: ContentResponse,
@@ -216,10 +236,14 @@ class ProbeCache( Cache ):
 
     def __init__(
         self, *,
+        robots_cache: __.Absential[ 'RobotsCache' ] = __.absent,
         entries_max: __.Absential[ int ] = __.absent,
-        **base_kwargs: __.typx.Any
+        **base_initargs: __.typx.Any
     ) -> None:
-        super( ).__init__( **base_kwargs )
+        super( ).__init__( **base_initargs )
+        if __.is_absent( robots_cache ):
+            self.robots_cache = RobotsCache( **base_initargs )
+        else: self.robots_cache = robots_cache
         if not __.is_absent( entries_max ): self.entries_max = entries_max
         self._cache: dict[ str, ProbeCacheEntry ] = { }
         self._recency: __.collections.deque[ str ] = __.collections.deque( )
@@ -227,12 +251,16 @@ class ProbeCache( Cache ):
     @classmethod
     def from_configuration(
         cls,
-        configuration: __.cabc.Mapping[ str, __.typx.Any ]
+        configuration: __.cabc.Mapping[ str, __.typx.Any ],
+        robots_cache: __.Absential[ 'RobotsCache' ] = __.absent
     ) -> 'ProbeCache':
         ''' Creates ProbeCache instance from application configuration. '''
         cache_config = configuration.get( 'cache', { } )
         probe_ttl = cache_config.get( 'probe-ttl', 300.0 )
-        return cls( success_ttl = probe_ttl )
+        nomargs = { 'success_ttl': probe_ttl }
+        if not __.is_absent( robots_cache ):
+            nomargs[ 'robots_cache' ] = robots_cache
+        return cls( **nomargs )
 
     async def access( self, url: str ) -> __.Absential[ bool ]:
         ''' Retrieves cached probe result if valid. '''
@@ -250,6 +278,18 @@ class ProbeCache( Cache ):
             return self.success_ttl
         # TODO: Inspect exception type for more granular TTL
         return self.error_ttl
+
+    async def probe_url(
+        self,
+        url: _Url, /, *,
+        duration_max: float = 10.0,
+        client_factory: HttpClientFactory = _httpx.AsyncClient,
+    ) -> bool:
+        ''' Convenience method for probing URL existence. '''
+        return await probe_url(
+            self, url,
+            duration_max = duration_max,
+            client_factory = client_factory )
 
     async def store(
         self, url: str, response: ProbeResponse, ttl: float
@@ -286,13 +326,13 @@ class ProbeCache( Cache ):
             self._recency.remove( url )
 
 
-class RobotsCache( Cache, instances_mutables = ( '_request_delays', ) ):
+class RobotsCache( Cache ):
     ''' Cache manager for robots.txt files with crawl delay tracking. '''
 
     entries_max: int = 500
-    ttl: float = 3600.0
     request_timeout: float = 5.0
-    user_agent: str = 'librovore/1.0'
+    ttl: float = 3600.0
+    user_agent: str = '*'
 
     def __init__(
         self, *,
@@ -300,9 +340,9 @@ class RobotsCache( Cache, instances_mutables = ( '_request_delays', ) ):
         ttl: __.Absential[ float ] = __.absent,
         request_timeout: __.Absential[ float ] = __.absent,
         user_agent: __.Absential[ str ] = __.absent,
-        **base_kwargs: __.typx.Any
+        **base_initargs: __.typx.Any
     ) -> None:
-        super( ).__init__( **base_kwargs )
+        super( ).__init__( **base_initargs )
         if not __.is_absent( entries_max ): self.entries_max = entries_max
         if not __.is_absent( ttl ): self.ttl = ttl
         if not __.is_absent( request_timeout ):
@@ -314,8 +354,7 @@ class RobotsCache( Cache, instances_mutables = ( '_request_delays', ) ):
 
     @classmethod
     def from_configuration(
-        cls,
-        configuration: __.cabc.Mapping[ str, __.typx.Any ]
+        cls, configuration: __.cabc.Mapping[ str, __.typx.Any ]
     ) -> 'RobotsCache':
         ''' Creates RobotsCache instance from application configuration. '''
         cache_config = configuration.get( 'cache', { } )
@@ -397,10 +436,13 @@ class CacheContext( __.immut.DataclassObject ):
         configuration: __.cabc.Mapping[ str, __.typx.Any ]
     ) -> 'CacheContext':
         ''' Creates cache context from application configuration. '''
+        robots_cache = RobotsCache.from_configuration( configuration )
         return cls(
-            content_cache = ContentCache.from_configuration( configuration ),
-            probe_cache = ProbeCache.from_configuration( configuration ),
-            robots_cache = RobotsCache.from_configuration( configuration ),
+            content_cache = ContentCache.from_configuration(
+                configuration, robots_cache ),
+            probe_cache = ProbeCache.from_configuration(
+                configuration, robots_cache ),
+            robots_cache = robots_cache,
         )
 
 
@@ -415,16 +457,16 @@ def prepare(
         Returns cache instances constructed from application configuration.
     '''
     configuration = auxdata.configuration
+    robots_cache = RobotsCache.from_configuration( configuration )
     return (
-        ContentCache.from_configuration( configuration ),
-        ProbeCache.from_configuration( configuration ),
-        RobotsCache.from_configuration( configuration ),
+        ContentCache.from_configuration( configuration, robots_cache ),
+        ProbeCache.from_configuration( configuration, robots_cache ),
+        robots_cache,
     )
 
 
 async def probe_url(
-    probe_cache: ProbeCache,
-    robots_cache: RobotsCache,
+    cache: ProbeCache,
     url: _Url, *,
     duration_max: float = 10.0,
     client_factory: HttpClientFactory = _httpx.AsyncClient,
@@ -435,23 +477,22 @@ async def probe_url(
         case '' | 'file':
             return __.Path( url.path ).exists( )
         case 'http' | 'https':
-            result = await probe_cache.access( url_s )
+            result = await cache.access( url_s )
             if not __.is_absent( result ): return result
             async with client_factory( ) as client:
                 result = await _probe_url(
                     url, duration_max = duration_max,
                     client = client,
-                    probe_cache = probe_cache,
-                    robots_cache = robots_cache )
-            ttl = probe_cache.determine_ttl( result )
-            await probe_cache.store( url_s, result, ttl )
+                    probe_cache = cache,
+                    robots_cache = cache.robots_cache )
+            ttl = cache.determine_ttl( result )
+            await cache.store( url_s, result, ttl )
             return result.extract( )
         case _: return False
 
 
 async def retrieve_url(
-    content_cache: ContentCache,
-    robots_cache: RobotsCache,
+    cache: ContentCache,
     url: _Url, *,
     duration_max: float = 30.0,
     client_factory: HttpClientFactory = _httpx.AsyncClient,
@@ -466,7 +507,7 @@ async def retrieve_url(
                 raise _exceptions.DocumentationInaccessibility(
                     url_s, exc ) from exc
         case 'http' | 'https':
-            result = await content_cache.access( url_s )
+            result = await cache.access( url_s )
             if not __.is_absent( result ):
                 content_bytes, _ = result
                 return content_bytes
@@ -475,19 +516,18 @@ async def retrieve_url(
                     url,
                     duration_max = duration_max,
                     client = client,
-                    content_cache = content_cache,
-                    robots_cache = robots_cache )
-            ttl = content_cache.determine_ttl( result )
-            await content_cache.store( url_s, result, headers, ttl )
+                    content_cache = cache,
+                    robots_cache = cache.robots_cache )
+            ttl = cache.determine_ttl( result )
+            await cache.store( url_s, result, headers, ttl )
             return result.extract( )
         case _:
             raise _exceptions.DocumentationInaccessibility(
                 url_s, f"Unsupported scheme: {url.scheme}" )
 
 
-async def retrieve_url_as_text(  # noqa: PLR0913
-    content_cache: ContentCache,
-    robots_cache: RobotsCache,
+async def retrieve_url_as_text(
+    cache: ContentCache,
     url: _Url, *,
     duration_max: float = 30.0,
     charset_default: str = 'utf-8',
@@ -504,7 +544,7 @@ async def retrieve_url_as_text(  # noqa: PLR0913
                 raise _exceptions.DocumentationInaccessibility(
                     url_s, exc ) from exc
         case 'http' | 'https':
-            result = await content_cache.access( url_s )
+            result = await cache.access( url_s )
             if not __.is_absent( result ):
                 content_bytes, headers = result
                 _validate_textual_content( headers, url_s )
@@ -515,10 +555,10 @@ async def retrieve_url_as_text(  # noqa: PLR0913
                 result, headers = await _retrieve_url(
                     url, duration_max = duration_max,
                     client = client,
-                    content_cache = content_cache,
-                    robots_cache = robots_cache )
-            ttl = content_cache.determine_ttl( result )
-            await content_cache.store( url_s, result, headers, ttl )
+                    content_cache = cache,
+                    robots_cache = cache.robots_cache )
+            ttl = cache.determine_ttl( result )
+            await cache.store( url_s, result, headers, ttl )
             content_bytes = result.extract( )
             _validate_textual_content( headers, url_s )
             charset = _extract_charset_from_headers( headers, charset_default )

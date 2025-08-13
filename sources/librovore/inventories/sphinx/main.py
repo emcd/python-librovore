@@ -77,5 +77,5 @@ async def check_objects_inv(
     inventory_url = _detection.derive_inventory_url( base_url )
     try:
         return await __.probe_url(
-            auxdata.probe_cache, auxdata.robots_cache, inventory_url )
+            auxdata.probe_cache, inventory_url )
     except Exception: return False

@@ -69,7 +69,7 @@ async def check_mkdocs_yml(
 ) -> bool:
     ''' Checks if mkdocs.yml exists (indicates MkDocs site). '''
     url = source._replace( path = f"{source.path}/mkdocs.yml" )
-    return await __.probe_url( auxdata.probe_cache, auxdata.robots_cache, url )
+    return await __.probe_url( auxdata.probe_cache, url )
 
 
 async def detect_theme(
@@ -86,7 +86,7 @@ async def detect_theme(
         # TODO: Use probe_url instead of `try`.
         try:
             html_content = await __.retrieve_url_as_text(
-                auxdata.content_cache, auxdata.robots_cache,
+                auxdata.content_cache,
                 html_url, duration_max = 10.0 )
         except __.DocumentationInaccessibility: continue # noqa: PERF203
         else: break

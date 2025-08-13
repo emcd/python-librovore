@@ -226,7 +226,7 @@ async def _extract_object_documentation(
     try:
         html_content = (
             await __.retrieve_url_as_text(
-                auxdata.content_cache, auxdata.robots_cache, doc_url ) )
+                auxdata.content_cache, doc_url ) )
     except Exception as exc:
         _scribe.debug( "Failed to retrieve %s: %s", doc_url, exc )
         return None

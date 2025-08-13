@@ -69,7 +69,7 @@ async def check_searchindex(
 ) -> bool:
     ''' Checks if searchindex.js exists (indicates full Sphinx site). '''
     url = _urls.derive_searchindex_url( source )
-    return await __.probe_url( auxdata.probe_cache, auxdata.robots_cache, url )
+    return await __.probe_url( auxdata.probe_cache, url )
 
 
 async def detect_theme(
@@ -81,7 +81,7 @@ async def detect_theme(
     try:
         # TODO: Use probe_url instead of `try`.
         html_content = await __.retrieve_url_as_text(
-            auxdata.content_cache, auxdata.robots_cache,
+            auxdata.content_cache,
             html_url, duration_max = 10.0 )
     except __.DocumentationInaccessibility: pass
     else:

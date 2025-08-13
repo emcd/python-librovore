@@ -73,9 +73,10 @@ def test_delay_fn( ):
 
 
 @pytest.fixture
-def content_cache( test_delay_fn ):
+def content_cache( test_delay_fn, robots_cache ):
     ''' Content cache with test configuration. '''
     return module.ContentCache(
+        robots_cache = robots_cache,
         memory_max = 1024,
         error_ttl = 30.0,
         success_ttl = 300.0,
@@ -83,9 +84,10 @@ def content_cache( test_delay_fn ):
 
 
 @pytest.fixture
-def probe_cache( test_delay_fn ):
+def probe_cache( test_delay_fn, robots_cache ):
     ''' Probe cache with test configuration. '''
     return module.ProbeCache(
+        robots_cache = robots_cache,
         entries_max = 500,
         error_ttl = 30.0,
         success_ttl = 300.0,
@@ -293,9 +295,10 @@ def test_047_validate_textual_content_missing_header( ):
 #
 
 
-def test_100_content_cache_initialization( test_delay_fn ):
+def test_100_content_cache_initialization( test_delay_fn, robots_cache ):
     ''' Content cache initializes with constructor parameters. '''
     cache = module.ContentCache(
+        robots_cache = robots_cache,
         memory_max = 1024,
         error_ttl = 45.0,
         success_ttl = 600.0,
@@ -350,19 +353,21 @@ async def test_112_content_cache_access_expired_returns_absent(
     assert url_key not in content_cache._cache
 
 
-def test_120_content_cache_determine_ttl_success( test_delay_fn ):
+def test_120_content_cache_determine_ttl_success( test_delay_fn, robots_cache ):
     ''' Successful responses get appropriate TTL. '''
     cache = module.ContentCache(
-        success_ttl = 123.0, delay_function = test_delay_fn )
+        robots_cache = robots_cache, success_ttl = 123.0,
+        delay_function = test_delay_fn )
     response = _generics.Value( b'content' )
     ttl = cache.determine_ttl( response )
     assert ttl == 123.0
 
 
-def test_121_content_cache_determine_ttl_error( test_delay_fn ):
+def test_121_content_cache_determine_ttl_error( test_delay_fn, robots_cache ):
     ''' Error responses get appropriate TTL. '''
     cache = module.ContentCache(
-        error_ttl = 45.0, delay_function = test_delay_fn )
+        robots_cache = robots_cache, error_ttl = 45.0,
+        delay_function = test_delay_fn )
     response = _generics.Error( Exception( 'test error' ) )
     ttl = cache.determine_ttl( response )
     assert ttl == 45.0
@@ -580,14 +585,14 @@ async def test_174_probe_cache_record_access_updates_lru( test_delay_fn ):
 async def test_200_probe_url_file_scheme_existing_file( fs, probe_cache, robots_cache ):
     ''' Existing file URLs return True when probed. '''
     fs.create_file( '/test/file.txt', contents = 'test content' )
-    result = await module.probe_url( probe_cache, robots_cache, _URL_FILE_TEST )
+    result = await module.probe_url( probe_cache, _URL_FILE_TEST )
     assert result is True
 
 
 @pytest.mark.asyncio
 async def test_201_probe_url_file_scheme_missing_file( fs, probe_cache, robots_cache ):
     ''' Missing file URLs return False when probed. '''
-    result = await module.probe_url( probe_cache, robots_cache, _URL_FILE_MISSING )
+    result = await module.probe_url( probe_cache, _URL_FILE_MISSING )
     assert result is False
 
 
@@ -595,14 +600,14 @@ async def test_201_probe_url_file_scheme_missing_file( fs, probe_cache, robots_c
 async def test_202_probe_url_empty_scheme_existing_file( fs, probe_cache, robots_cache ):
     ''' Empty schemes are handled as file paths when probing. '''
     fs.create_file( '/test/file.txt', contents = 'test content' )
-    result = await module.probe_url( probe_cache, robots_cache, _URL_EMPTY_SCHEME )
+    result = await module.probe_url( probe_cache, _URL_EMPTY_SCHEME )
     assert result is True
 
 
 @pytest.mark.asyncio
 async def test_203_probe_url_unsupported_scheme_returns_false( probe_cache, robots_cache ):
     ''' Unsupported URL schemes return False when probed. '''
-    result = await module.probe_url( probe_cache, robots_cache, _URL_FTP_TEST )
+    result = await module.probe_url( probe_cache, _URL_FTP_TEST )
     assert result is False
 
 
@@ -612,14 +617,14 @@ async def test_210_probe_url_http_cache_hit_returns_cached( robots_cache ):
     mock_cache = Mock( spec = module.ProbeCache )
     mock_cache.access.return_value = True
     result = await module.probe_url(
-        mock_cache, robots_cache, _URL_HTTP_TEST )
+        mock_cache, _URL_HTTP_TEST )
     assert result is True
     mock_cache.access.assert_called_once_with( _URL_HTTP_TEST.geturl( ) )
 
 
 @pytest.mark.asyncio
 async def test_211_probe_url_http_cache_miss_success(
-        probe_cache, robots_cache, mock_client_factory
+        probe_cache, mock_client_factory
 ):
     ''' HTTP cache miss executes successful HEAD request. '''
     url_status = Url(
@@ -627,7 +632,7 @@ async def test_211_probe_url_http_cache_miss_success(
         params = '', query = '', fragment = '' )
     client_factory = mock_client_factory( status = 200 )
     result = await module.probe_url(
-        probe_cache, robots_cache, url_status, client_factory = client_factory )
+        probe_cache, url_status, client_factory = client_factory )
     assert result is True
 
 
@@ -641,7 +646,7 @@ async def test_212_probe_url_http_cache_miss_failure( probe_cache, robots_cache 
         return _httpx.AsyncClient( transport = mock_transport )
     with pytest.raises( _httpx.TimeoutException ):
         await module.probe_url(
-            probe_cache, robots_cache, _URL_HTTP_TEST,
+            probe_cache, _URL_HTTP_TEST,
             client_factory = client_factory )
 
 
@@ -655,7 +660,7 @@ async def test_220_probe_url_dependency_injection_with_custom_cache(
     url = Url(
         scheme = 'file', netloc = '', path = '/nonexistent',
         params = '', query = '', fragment = '' )
-    result = await module.probe_url( custom_cache, robots_cache, url )
+    result = await module.probe_url( custom_cache, url )
     assert result is False
     assert custom_cache.entries_max == 5
 
@@ -670,7 +675,7 @@ async def test_221_probe_url_cache_configuration_affects_behavior(
     url = Url(
         scheme = 'file', netloc = '', path = '/nonexistent',
         params = '', query = '', fragment = '' )
-    result = await module.probe_url( custom_cache, robots_cache, url )
+    result = await module.probe_url( custom_cache, url )
     assert result is False
     assert custom_cache.entries_max == 2
     assert custom_cache.success_ttl == 60.0
@@ -687,11 +692,11 @@ async def test_222_probe_url_mutex_reuse_sequential_requests( robots_cache ):
     cache2 = module.ProbeCache( )
 
     # First request creates mutex
-    result1 = await module.probe_url( cache1, robots_cache, url )
+    result1 = await module.probe_url( cache1, url )
     assert result1 is False  # File doesn't exist
 
     # Second request reuses existing mutex (exercises false branch)
-    result2 = await module.probe_url( cache2, robots_cache, url )
+    result2 = await module.probe_url( cache2, url )
     assert result2 is False  # File doesn't exist
 
     # Both requests should have completed without HTTP calls
@@ -710,7 +715,7 @@ async def test_300_retrieve_url_file_scheme_existing_file( fs, content_cache, ro
     url_data = Url(
         scheme = 'file', netloc = '', path = '/test/data.txt',
         params = '', query = '', fragment = '' )
-    result = await module.retrieve_url( content_cache, robots_cache, url_data )
+    result = await module.retrieve_url( content_cache, url_data )
     assert result == test_content
 
 
@@ -718,7 +723,7 @@ async def test_300_retrieve_url_file_scheme_existing_file( fs, content_cache, ro
 async def test_301_retrieve_url_file_scheme_missing_file( fs, content_cache, robots_cache ):
     ''' Missing files raise DocumentationInaccessibility when retrieved. '''
     with pytest.raises( _exceptions.DocumentationInaccessibility ):
-        await module.retrieve_url( content_cache, robots_cache, _URL_FILE_MISSING )
+        await module.retrieve_url( content_cache, _URL_FILE_MISSING )
 
 
 @pytest.mark.asyncio
@@ -729,7 +734,7 @@ async def test_302_retrieve_url_empty_scheme_existing_file( fs, content_cache, r
     url = Url(
         scheme = '', netloc = '', path = '/test/data.txt',
         params = '', query = '', fragment = '' )
-    result = await module.retrieve_url( content_cache, robots_cache, url )
+    result = await module.retrieve_url( content_cache, url )
     assert result == test_content
 
 
@@ -737,7 +742,7 @@ async def test_302_retrieve_url_empty_scheme_existing_file( fs, content_cache, r
 async def test_303_retrieve_url_unsupported_scheme_raises_exception( content_cache, robots_cache ):
     ''' Unsupported schemes raise DocumentationInaccessibility. '''
     with pytest.raises( _exceptions.DocumentationInaccessibility ):
-        await module.retrieve_url( content_cache, robots_cache, _URL_FTP_TEST )
+        await module.retrieve_url( content_cache, _URL_FTP_TEST )
 
 
 @pytest.mark.asyncio
@@ -746,7 +751,7 @@ async def test_310_retrieve_url_http_cache_hit_returns_cached( robots_cache ):
     mock_cache = Mock( spec = module.ContentCache )
     test_content = b'cached content'
     mock_cache.access.return_value = ( test_content, _HEADERS_TEXT_PLAIN )
-    result = await module.retrieve_url( mock_cache, robots_cache, _URL_HTTP_TEST )
+    result = await module.retrieve_url( mock_cache, _URL_HTTP_TEST )
     assert result == test_content
     mock_cache.access.assert_called_once_with( _URL_HTTP_TEST.geturl( ) )
 
@@ -768,7 +773,7 @@ async def test_311_retrieve_url_http_cache_miss( robots_cache ):
     def client_factory( ):
         return _httpx.AsyncClient( transport = mock_transport )
     result = await module.retrieve_url(
-        cache, robots_cache, url, client_factory = client_factory )
+        cache, url, client_factory = client_factory )
     assert result == test_content
     cached_result = await cache.access( url.geturl( ) )
     assert not __.is_absent( cached_result )
@@ -783,7 +788,7 @@ async def test_312_retrieve_url_file_permission_error_raises_exception( content_
         scheme = 'file', netloc = '', path = '/nonexistent/file.txt',
         params = '', query = '', fragment = '' )
     with pytest.raises( _exceptions.DocumentationInaccessibility ):
-        await module.retrieve_url( content_cache, robots_cache, url )
+        await module.retrieve_url( content_cache, url )
 
 
 @pytest.mark.asyncio
@@ -795,7 +800,7 @@ async def test_320_retrieve_url_dependency_injection_with_custom_cache( fs, robo
     url = Url(
         scheme = 'file', netloc = '', path = '/test/custom.txt',
         params = '', query = '', fragment = '' )
-    result = await module.retrieve_url( custom_cache, robots_cache, url )
+    result = await module.retrieve_url( custom_cache, url )
     assert result == test_content
     assert custom_cache.memory_max == 2048
 
@@ -812,11 +817,11 @@ async def test_321_retrieve_url_mutex_reuse_sequential_requests( robots_cache ):
 
     # First request creates mutex - should raise exception for missing file
     with pytest.raises( _exceptions.DocumentationInaccessibility ):
-        await module.retrieve_url( cache1, robots_cache, url )
+        await module.retrieve_url( cache1, url )
 
     # Second request reuses existing mutex (exercises false branch)
     with pytest.raises( _exceptions.DocumentationInaccessibility ):
-        await module.retrieve_url( cache2, robots_cache, url )
+        await module.retrieve_url( cache2, url )
 
     # Both requests should have completed without HTTP calls
 
@@ -833,7 +838,7 @@ async def test_351_retrieve_url_as_text_unsupported_scheme_raises_exception( con
         scheme = 'ftp', netloc = 'example.com', path = '/test.txt',
         params = '', query = '', fragment = '' )
     with pytest.raises( _exceptions.DocumentationInaccessibility ):
-        await module.retrieve_url_as_text( content_cache, robots_cache, url_ftp_txt )
+        await module.retrieve_url_as_text( content_cache, url_ftp_txt )
 
 
 @pytest.mark.asyncio
@@ -845,7 +850,7 @@ async def test_360_retrieve_url_as_text_file_scheme_utf8( fs, content_cache, rob
     url = Url(
         scheme = 'file', netloc = '', path = '/test/utf8.txt',
         params = '', query = '', fragment = '' )
-    result = await module.retrieve_url_as_text( content_cache, robots_cache, url )
+    result = await module.retrieve_url_as_text( content_cache, url )
     assert result == test_content
 
 
@@ -859,7 +864,7 @@ async def test_361_retrieve_url_as_text_file_scheme_custom_charset( fs, content_
         scheme = 'file', netloc = '', path = '/test/ascii.txt',
         params = '', query = '', fragment = '' )
     result = await module.retrieve_url_as_text(
-        content_cache, robots_cache, url, charset_default = 'ascii' )
+        content_cache, url, charset_default = 'ascii' )
     assert result == test_content
 
 
@@ -874,7 +879,7 @@ async def test_362_retrieve_url_as_text_http_cache_hit_with_charset( robots_cach
     mock_cache.access.return_value = (
         test_content.encode( 'iso-8859-1' ), test_headers )
     result = await module.retrieve_url_as_text(
-        mock_cache, robots_cache, _URL_HTTP_TEST )
+        mock_cache, _URL_HTTP_TEST )
     assert result == test_content
     mock_cache.access.assert_called_once_with( _URL_HTTP_TEST.geturl( ) )
 
@@ -888,7 +893,7 @@ async def test_363_retrieve_url_as_text_http_validates_content_type( robots_cach
         scheme = 'http', netloc = 'example.com', path = '/image',
         params = '', query = '', fragment = '' )
     with pytest.raises( _exceptions.HttpContentTypeInvalidity ):
-        await module.retrieve_url_as_text( mock_cache, robots_cache, url_image )
+        await module.retrieve_url_as_text( mock_cache, url_image )
 
 
 @pytest.mark.asyncio
@@ -902,7 +907,7 @@ async def test_364_retrieve_url_as_text_http_default_charset_fallback( robots_ca
     url = Url(
         scheme = 'http', netloc = 'example.com', path = '/text',
         params = '', query = '', fragment = '' )
-    result = await module.retrieve_url_as_text( mock_cache, robots_cache, url )
+    result = await module.retrieve_url_as_text( mock_cache, url )
     assert result == test_content
 
 
@@ -922,7 +927,7 @@ async def test_365_retrieve_url_as_text_http_cache_miss( robots_cache ):
     def client_factory( ):
         return _httpx.AsyncClient( transport = mock_transport )
     result = await module.retrieve_url_as_text(
-        cache, robots_cache, url, client_factory = client_factory )
+        cache, url, client_factory = client_factory )
     assert result == test_content
     cached_result = await cache.access( url.geturl( ) )
     assert not __.is_absent( cached_result )
@@ -946,7 +951,7 @@ async def test_366_retrieve_url_as_text_http_cache_miss_custom_charset( robots_c
     def client_factory( ):
         return _httpx.AsyncClient( transport = mock_transport )
     result = await module.retrieve_url_as_text(
-        cache, robots_cache, url, client_factory = client_factory )
+        cache, url, client_factory = client_factory )
     assert result == test_content
     cached_result = await cache.access( url.geturl( ) )
     assert not __.is_absent( cached_result )
@@ -963,7 +968,7 @@ async def test_370_retrieve_url_as_text_dependency_injection( fs, robots_cache )
     url = Url(
         scheme = 'file', netloc = '', path = '/test/text.txt',
         params = '', query = '', fragment = '' )
-    result = await module.retrieve_url_as_text( custom_cache, robots_cache, url )
+    result = await module.retrieve_url_as_text( custom_cache, url )
     assert result == test_content
     assert custom_cache.memory_max == 1024
 
@@ -1040,11 +1045,11 @@ async def test_900_probe_url_concurrent_requests_deduplication( robots_cache ):
         return _httpx.AsyncClient( transport = mock_transport )
     results = await asyncio.gather(
         module.probe_url(
-            cache, robots_cache, url, client_factory = client_factory ),
+            cache, url, client_factory = client_factory ),
         module.probe_url(
-            cache, robots_cache, url, client_factory = client_factory ),
+            cache, url, client_factory = client_factory ),
         module.probe_url(
-            cache, robots_cache, url, client_factory = client_factory ) )
+            cache, url, client_factory = client_factory ) )
     assert all( results )
     # HTTP requests should be minimal due to deduplication (includes robots.txt check)
     assert call_count <= 2  # Main request + possible robots.txt check
@@ -1070,11 +1075,11 @@ async def test_901_retrieve_url_concurrent_requests_deduplication( robots_cache 
         return _httpx.AsyncClient( transport = mock_transport )
     results = await asyncio.gather(
         module.retrieve_url(
-            cache, robots_cache, url, client_factory = client_factory ),
+            cache, url, client_factory = client_factory ),
         module.retrieve_url(
-            cache, robots_cache, url, client_factory = client_factory ),
+            cache, url, client_factory = client_factory ),
         module.retrieve_url(
-            cache, robots_cache, url, client_factory = client_factory ) )
+            cache, url, client_factory = client_factory ) )
     # All should return same content
     assert all( result == test_content for result in results )
     # HTTP requests should be minimal due to deduplication (includes robots.txt check)
@@ -1097,14 +1102,14 @@ async def test_902_request_mutex_cleanup_after_completion( robots_cache ):
     # Test probe cache mutex cleanup
     probe_cache = module.ProbeCache( )
     await module.probe_url(
-        probe_cache, robots_cache, url, client_factory = client_factory )
+        probe_cache, url, client_factory = client_factory )
     # Mutex should be cleaned up after request completes
     assert url_key not in probe_cache._request_mutexes
 
     # Test content cache mutex cleanup
     content_cache = module.ContentCache( )
     await module.retrieve_url(
-        content_cache, robots_cache, url, client_factory = client_factory )
+        content_cache, url, client_factory = client_factory )
     # Mutex should be cleaned up after request completes
     assert url_key not in content_cache._request_mutexes
 

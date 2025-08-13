@@ -98,27 +98,110 @@ Provide immediate cache bypass capability through command-line flags for debuggi
 
 ## Implementation Architecture
 
-### No Global State
-- **Principle**: Avoid global variables and state that require linter suppressions
-- **Approach**: Pass cache instances through the application via dependency injection
-- **Benefit**: Improved testability, thread safety, and architectural clarity
+### Current Implementation (Completed)
+The cache configuration system has been successfully implemented with dependency injection:
 
-### Custom Globals Subclass
-- **Design**: Subclass `appcore.Globals` to create `LibrovoreGlobals` 
-- **Content**: Include configured cache instances as attributes
-- **Initialization**: Configure caches during application preparation phase
-- **Threading**: Cache instances initialized once per application context
+**State Management**:
+- `librovore.state.Globals` extends `appcore.Globals` with cache attributes
+- Three cache instances: `content_cache`, `probe_cache`, `robots_cache`
+- Created independently during application initialization via `cacheproxy.prepare()`
 
-### Function Threading Strategy
-- **CLI Functions**: Pass `auxdata` parameter through all function signatures
-- **MCP Server**: Use closures to capture `auxdata` for tool functions
-- **Processor Interface**: Modify processor methods to accept cache parameters
-- **Backward Compatibility**: Maintain existing processor interfaces where possible
+**Function Threading**:
+- **CLI Functions**: All functions accept `auxdata: _state.Globals` parameter
+- **MCP Server**: Uses closures to capture `auxdata` for tool functions  
+- **Module Functions**: Functions like `retrieve_url(content_cache, robots_cache, url)` require explicit cache parameters
+- **Processor Interface**: All processor methods accept `auxdata` parameter
 
-### Configuration Structure
-- **Separate Tables**: Each cache type gets its own TOML table (`[cache.content]`, `[cache.probe]`, `[cache.robots]`)
+**Configuration Structure**:
+- **Separate TOML Tables**: `[cache.content]`, `[cache.probe]`, `[cache.robots]`
 - **Granular Control**: Individual TTL, memory, and behavioral settings per cache type
-- **Validation**: Configuration validation with clear error messages for invalid values
+- **Factory Methods**: Each cache class has `from_configuration()` class method
+
+### Proposed Architecture Refinements
+
+**Problem**: Current module functions require multiple cache parameters, creating parameter threading overhead:
+```python
+# Current API
+await retrieve_url(auxdata.content_cache, auxdata.robots_cache, url)
+await probe_url(auxdata.probe_cache, auxdata.robots_cache, url)
+```
+
+**Solution**: Object-oriented convenience methods with shared robots cache dependency:
+
+**1. Robots Cache as Shared Dependency**
+```python
+# Proposed: Robots cache injected into other caches
+content_cache = ContentCache(robots_cache=shared_robots, ...)
+probe_cache = ProbeCache(robots_cache=shared_robots, ...)
+
+# State object simplified
+class Globals:
+    content_cache: ContentCache  # Contains robots_cache internally
+    probe_cache: ProbeCache      # Contains robots_cache internally
+```
+
+**2. Convenience Methods with UFCS**
+```python
+# Object-oriented API (primary)
+await auxdata.content_cache.retrieve_url(url)
+await auxdata.probe_cache.probe_url(url)
+
+# Functional API (for UFCS style)
+await retrieve_url(auxdata.content_cache, url)  # Simplified signature
+await probe_url(auxdata.probe_cache, url)       # Simplified signature
+```
+
+**3. Implementation Strategy**
+- **Lightweight Methods**: Convenience methods are thin wrappers around module functions
+- **Backward Compatibility**: Keep module-level functions for UFCS and testing
+- **Constructor Injection**: Pass robots cache to content/probe cache constructors
+- **Consistent Configuration**: TOML structure remains unchanged
+
+**Benefits**:
+- **Reduced Parameter Threading**: Fewer parameters to pass through function chains
+- **Better Encapsulation**: Robots compliance becomes internal cache concern
+- **Object-Oriented Design**: More natural method dispatch on cache objects
+- **UFCS Support**: Both `cache.method()` and `function(cache)` styles available
+- **Cleaner Call Sites**: Less cognitive overhead at usage points
+
+### Migration Path for Refinements
+
+**Phase 1: Cache Constructor Changes**
+1. **Add robots_cache parameter** to `ContentCache` and `ProbeCache` constructors
+2. **Update cacheproxy.prepare()** to create shared robots cache first:
+   ```python
+   def prepare(auxdata: __.Globals) -> tuple[ContentCache, ProbeCache]:
+       configuration = auxdata.configuration
+       robots_cache = RobotsCache.from_configuration(configuration)
+       content_cache = ContentCache.from_configuration(
+           configuration, robots_cache=robots_cache)
+       probe_cache = ProbeCache.from_configuration(
+           configuration, robots_cache=robots_cache)
+       return content_cache, probe_cache
+   ```
+3. **Update _state.Globals** to only contain `content_cache` and `probe_cache`
+
+**Phase 2: Add Convenience Methods**
+1. **Add lightweight wrapper methods** to cache classes:
+   ```python
+   class ContentCache:
+       async def retrieve_url(self, url, **kwargs):
+           return await retrieve_url(self, url, **kwargs)
+   
+   class ProbeCache:
+       async def probe_url(self, url, **kwargs):
+           return await probe_url(self, url, **kwargs)
+   ```
+
+**Phase 3: Simplify Module Functions**
+1. **Remove robots_cache parameter** from module function signatures
+2. **Access robots_cache** via `content_cache.robots_cache` or `probe_cache.robots_cache`
+3. **Update all call sites** to use either new convenience methods or simplified function signatures
+
+**Phase 4: Update Tests**
+1. **Update test fixtures** to create caches with shared robots cache
+2. **Migrate test calls** to use new API patterns
+3. **Verify both method and function styles work correctly**
 
 ## Technical Considerations
 
