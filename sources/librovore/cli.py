@@ -432,7 +432,11 @@ async def _prepare(
     auxdata = await __.appcore.prepare( **nomargs )
     content_cache, probe_cache, robots_cache = _cacheproxy.prepare( auxdata )
     return _state.Globals(
-        **__.dcls.asdict( auxdata ),
+        application = auxdata.application,
+        configuration = auxdata.configuration,
+        directories = auxdata.directories,
+        distribution = auxdata.distribution,
+        exits = auxdata.exits,
         content_cache = content_cache,
         probe_cache = probe_cache,
         robots_cache = robots_cache )
