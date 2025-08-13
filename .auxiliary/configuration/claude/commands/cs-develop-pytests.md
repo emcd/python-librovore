@@ -1,31 +1,24 @@
 ---
 allowed-tools: Bash(hatch --env develop run:*), Bash(git status), Bash(git log:*), Bash(echo:*), Bash(ls:*), Bash(find:*), LS, Read, Glob, Grep, Write, Edit, MultiEdit, WebFetch
-description: Implement comprehensive tests following an existing test plan and project guidelines
+description: Implement comprehensive Python tests following an existing test plan and project guidelines
 ---
 
-# Implement Tests
-
-**NOTE: This is an experimental workflow! If anything seems unclear or missing,
-please stop for consultation with the user.**
+# Implement Python Tests
 
 For systematic test implementation following a pre-created test plan and project testing guidelines.
 
-Test plan path: `$ARGUMENTS`
+Test plan path or special test-writing instructions: $ARGUMENTS
 
-**CRITICAL**: Implement tests according to the provided test plan only.
-**HALT if**:
-- No test plan path is provided
-- Test plan cannot be read or is invalid
-- Plan conflicts with project testing principles
-- Implementation deviates from plan without justification
+Implement tests according to the provided test plan only.
 
 ## Context
 
 - Current git status: !`git status --porcelain`
 - Current branch: !`git branch --show-current`
-- Test plan to implement: !`ls "$ARGUMENTS" 2>/dev/null && echo "Present" || echo "Missing - HALT"`
+- Test plan to implement: !`ls "$ARGUMENTS" 2>/dev/null && echo "Present" || echo "Missing"`
 - Existing test structure: !`find tests -name "*.py" | head -20`
-- Test README: !`ls tests/README.md 2>/dev/null && echo "Present" || echo "Missing"`
+- Test organization: @documentation/architecture/testplans/summary.rst
+- Test plans index: @documentation/architecture/testplans/index.rst
 
 ## Prerequisites
 
@@ -33,7 +26,7 @@ Ensure that you:
 - Have a valid test plan document
 - Have verified access to target code modules referenced in the plan
 - Have read any relevant `CLAUDE.md` file
-- Understand the [test-writing guidelines](https://raw.githubusercontent.com/emcd/python-project-common/refs/tags/docs-1/documentation/common/tests.rst)
+- Understand the test-writing guidelines: @.auxiliary/instructions/tests.rst
 
 ## Testing Principles (from project guidelines)
 
@@ -59,15 +52,17 @@ Ensure that you:
 
 ## Safety Requirements
 
-**CRITICAL**: You MUST halt the process and consult with the user if ANY of the
-following occur:
-
-- **Plan Deviation**: If implementation cannot follow the test plan as specified
-- **Anti-Pattern Detection**: If plan requires tests that violate project principles
-- **Architecture Conflicts**: If tests require monkey-patching internal code
-- **Numbering Conflicts**: If planned test numbering clashes with existing conventions
-- **Missing Dependencies**: If required test fixtures or dependencies are unavailable
-- **Plan Inconsistencies**: If the test plan contains contradictions or unclear instructions
+Stop and consult the user if:
+- No test plan path is provided
+- Test plan cannot be read or is invalid
+- Plan conflicts with project testing principles
+- Implementation deviates from plan without justification
+- Implementation cannot follow the test plan as specified
+- Plan requires tests that violate project principles
+- Tests require monkey-patching internal code
+- Planned test numbering clashes with existing conventions
+- Required test fixtures or dependencies are unavailable
+- Test plan contains contradictions or unclear instructions
 
 **Your responsibilities:**
 - Follow the test plan precisely while adhering to project conventions
@@ -82,18 +77,17 @@ following occur:
 Execute the following steps for test plan: `$ARGUMENTS`
 
 ### 0. Pre-Flight Verification
-**MANDATORY - Verify access to project guidelines:**
+Verify access to project guidelines:
 
-Use WebFetch to access and confirm you can read the complete project guidelines:
-- Testing: https://raw.githubusercontent.com/emcd/python-project-common/refs/tags/docs-1/documentation/common/tests.rst
-- Practices: https://raw.githubusercontent.com/emcd/python-project-common/refs/tags/docs-1/documentation/common/practices.rst
-- Style: https://raw.githubusercontent.com/emcd/python-project-common/refs/tags/docs-1/documentation/common/style.rst
+Read and confirm you can access the complete project guidelines:
+- Testing: @.auxiliary/instructions/tests.rst
+- Practices: @.auxiliary/instructions/practices.rst
+- Style: @.auxiliary/instructions/style.rst
 
-**CRITICAL**: You MUST successfully access and read all three guides before
-proceeding. If WebFetch fails for any guide, HALT and consult with the user.
+You must successfully access and read all three guides before proceeding. If any guide cannot be accessed, stop and inform the user.
 
 ### 1. Test Plan Reading and Validation
-**CRITICAL - Read and validate the provided test plan:**
+Read and validate the provided test plan:
 
 Read the test plan document at the provided path:
 ```
@@ -107,7 +101,7 @@ Read the test plan file at: $ARGUMENTS
 - Ensure implementation notes are present
 - Validate success metrics are specified
 
-**HALT if the plan is incomplete, unclear, or missing critical sections.**
+Stop if the plan is incomplete, unclear, or missing critical sections.
 
 ### 2. Plan Compliance Verification
 **Ensure plan aligns with project principles:**
@@ -131,7 +125,7 @@ Read the test plan file at: $ARGUMENTS
 - Prepare captured artifacts and snapshots (if planned)
 - Create any mock data files as specified in the plan
 
-**CRITICAL**: Only create test data explicitly mentioned in the test plan.
+Only create test data explicitly mentioned in the test plan.
 
 ### 4. Test Module Creation/Updates
 **Implement test modules following the plan:**
@@ -158,7 +152,7 @@ hatch --env develop run testers
 hatch --env develop run coverage report --show-missing
 ```
 
-**CRITICAL - VERIFY PLAN COMPLIANCE:**
+Verify plan compliance:
 - Run full test suite to ensure no regressions
 - Check that coverage matches the plan's target metrics
 - Verify all planned test functions are implemented
