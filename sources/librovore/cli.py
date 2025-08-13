@@ -54,7 +54,7 @@ ResultsMax: __.typx.TypeAlias = __.typx.Annotated[
     __.tyro.conf.arg( help = __.access_doctab( 'results max argument' ) ),
 ]
 SourceArgument: __.typx.TypeAlias = __.typx.Annotated[
-    str,
+    __.tyro.conf.Positional[ str ],
     __.tyro.conf.arg( help = __.access_doctab( 'source argument' ) ),
 ]
 TransportArgument: __.typx.TypeAlias = __.typx.Annotated[
