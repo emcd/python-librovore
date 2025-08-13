@@ -253,42 +253,6 @@ class SurveyProcessorsCommand(
             raise SystemExit( 1 ) from None
 
 
-class UseCommand(
-    _CliCommand, decorators = ( __.standard_tyro_class, ),
-):
-    ''' Use MCP server tools. '''
-
-    operation: __.typx.Union[
-        __.typx.Annotated[
-            DetectCommand,
-            __.tyro.conf.subcommand( 'detect', prefix_name = False ),
-        ],
-        __.typx.Annotated[
-            QueryInventoryCommand,
-            __.tyro.conf.subcommand( 'query-inventory', prefix_name = False ),
-        ],
-        __.typx.Annotated[
-            QueryContentCommand,
-            __.tyro.conf.subcommand(
-                'query-content', prefix_name = False ),
-        ],
-        __.typx.Annotated[
-            SummarizeInventoryCommand,
-            __.tyro.conf.subcommand(
-                'summarize-inventory', prefix_name = False ),
-        ],
-        __.typx.Annotated[
-            SurveyProcessorsCommand,
-            __.tyro.conf.subcommand(
-                'survey-processors', prefix_name = False ),
-        ],
-    ]
-
-    async def __call__(
-        self, auxdata: _state.Globals, display: __.ConsoleDisplay
-    ) -> None:
-        await self.operation( auxdata = auxdata, display = display )
-
 
 class ServeCommand(
     _CliCommand, decorators = ( __.standard_tyro_class, ),
@@ -317,8 +281,26 @@ class Cli( __.immut.DataclassObject, decorators = ( __.simple_tyro_class, ) ):
     display: __.ConsoleDisplay
     command: __.typx.Union[
         __.typx.Annotated[
-            UseCommand,
-            __.tyro.conf.subcommand( 'use', prefix_name = False ),
+            DetectCommand,
+            __.tyro.conf.subcommand( 'detect', prefix_name = False ),
+        ],
+        __.typx.Annotated[
+            QueryInventoryCommand,
+            __.tyro.conf.subcommand( 'query-inventory', prefix_name = False ),
+        ],
+        __.typx.Annotated[
+            QueryContentCommand,
+            __.tyro.conf.subcommand( 'query-content', prefix_name = False ),
+        ],
+        __.typx.Annotated[
+            SummarizeInventoryCommand,
+            __.tyro.conf.subcommand(
+                'summarize-inventory', prefix_name = False ),
+        ],
+        __.typx.Annotated[
+            SurveyProcessorsCommand,
+            __.tyro.conf.subcommand(
+                'survey-processors', prefix_name = False ),
         ],
         __.typx.Annotated[
             ServeCommand,

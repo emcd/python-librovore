@@ -88,8 +88,7 @@ async def test_060_use_command_summarize_delegation( ):
         source = test_inventory_path,
         search_behaviors = search_behaviors,
         filters = filters )
-    use_cmd = module.UseCommand( operation = summarize_cmd )
-    await use_cmd( auxdata, display )
+    await summarize_cmd( auxdata, display )
     output = display.stream.getvalue( )
     assert 'Project:' in output
     assert 'py' in output
