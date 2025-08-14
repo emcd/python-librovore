@@ -25,6 +25,7 @@ dependencies = [
   'frigid~=4.1',
   'httpx',
   'lxml',
+  'markdownify',
   'mcp',
   'rapidfuzz',
   'sphobjinv',
