@@ -49,9 +49,9 @@ async def test_100_summarize_inventory_wrapper( mock_auxdata ):
         location = test_inventory_path,
         search_behaviors = search_behaviors,
         filters = filters )
-    assert isinstance( result, str )
-    assert 'Project:' in result
-    assert 'py' in result
+    assert isinstance( result, dict )
+    assert result[ 'project' ] == 'python-sphinx-mcp-server'
+    assert any( 'py' == obj.get( 'domain' ) for obj in result[ 'objects' ] )
 
 
 @pytest.mark.asyncio
@@ -61,8 +61,8 @@ async def test_110_summarize_inventory_wrapper_no_filters( mock_auxdata ):
     summarize_func = module._produce_summarize_inventory_function(
         mock_auxdata )
     result = await summarize_func( location = test_inventory_path )
-    assert isinstance( result, str )
-    assert 'Project:' in result
+    assert isinstance( result, dict )
+    assert result[ 'project' ] == 'python-sphinx-mcp-server'
 
 
 @pytest.mark.asyncio
@@ -79,8 +79,8 @@ async def test_120_summarize_inventory_wrapper_with_regex( mock_auxdata ):
         term = 'test.*pattern',
         search_behaviors = search_behaviors,
         filters = filters )
-    assert isinstance( result, str )
-    assert 'Project:' in result
+    assert isinstance( result, dict )
+    assert result[ 'project' ] == 'python-sphinx-mcp-server'
 
 
 @pytest.mark.asyncio
@@ -95,9 +95,9 @@ async def test_150_summarize_inventory_wrapper_with_priority( mock_auxdata ):
         location = test_inventory_path,
         search_behaviors = search_behaviors,
         filters = filters )
-    assert isinstance( result, str )
-    assert 'objects' in result.lower( )
-    assert 'project:' in result.lower( )
+    assert isinstance( result, dict )
+    assert 'objects' in result
+    assert 'project' in result
 
 
 @pytest.mark.asyncio

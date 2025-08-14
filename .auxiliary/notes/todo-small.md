@@ -4,9 +4,9 @@
 - [x] Remove `use` subcommand and hoist subcommands up one level
 - [x] Use `tyro.conf.Positional` for the `source` argument
 - [x] Add `--extra-functions` argument to `serve` subcommand (controls `detect` and `survey_processors` exposure)
-- [x] Rename `source` argument to `location` 
+- [x] Rename `source` argument to `location`
 - [x] Rename `query` argument to `term`
-- [ ] Add option for non-JSON output from CLI subcommands
+- [x] Add option for non-JSON output from CLI subcommands
 - [ ] Add `--no-cache` or `--cache-bust` option to bypass HTTP caching
 
 ## Content Extraction Quality Issues

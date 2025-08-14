@@ -34,6 +34,13 @@ class FilterCapability( __.immut.DataclassObject ):
     required: bool = False
 
 
+class DisplayFormat( __.enum.Enum ):
+    ''' Enumeration for CLI display formats. '''
+
+    JSON = 'json'
+    Markdown = 'markdown'
+
+
 class ProcessorGenera( __.enum.Enum ):
     ''' Enumeration for processor types/genera. '''
 

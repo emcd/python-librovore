@@ -126,10 +126,13 @@ async def test_160_explore_auto_append_objects_inv( mock_auxdata ):
 
 @pytest.mark.asyncio
 async def test_200_summarize_inventory_basic( mock_auxdata ):
-    ''' Summarize inventory provides human-readable summary. '''
+    ''' Summarize inventory provides structured summary data. '''
     inventory_path = get_test_inventory_path( 'librovore' )
     result = await module.summarize_inventory( mock_auxdata, inventory_path )
-    assert 'objects' in result.lower( )
+    assert 'objects' in result
+    assert 'project' in result
+    assert 'version' in result
+    assert 'objects_count' in result
 
 
 @pytest.mark.asyncio
@@ -142,8 +145,8 @@ async def test_210_summarize_inventory_with_filters( mock_auxdata ):
         mock_auxdata, inventory_path,
         search_behaviors = search_behaviors,
         filters = filters )
-    assert 'objects' in result.lower( )
-    assert 'project:' in result.lower( )
+    assert 'objects' in result
+    assert 'project' in result
 
 
 @pytest.mark.asyncio
@@ -155,8 +158,8 @@ async def test_215_summarize_inventory_with_regex( mock_auxdata ):
     result = await module.summarize_inventory(
         mock_auxdata, inventory_path, '.*inventory.*',
         search_behaviors = search_behaviors )
-    assert 'objects' in result.lower( )
-    assert 'project:' in result.lower( )
+    assert 'objects' in result
+    assert 'project' in result
 
 
 @pytest.mark.asyncio
@@ -168,8 +171,8 @@ async def test_250_summarize_inventory_with_fuzzy( mock_auxdata ):
     result = await module.summarize_inventory(
         mock_auxdata, inventory_path, 'inventory',
         search_behaviors = search_behaviors )
-    assert 'objects' in result.lower( )
-    assert 'project:' in result.lower( )
+    assert 'objects' in result
+    assert 'project' in result
 
 
 @pytest.mark.asyncio
@@ -198,8 +201,8 @@ async def test_430_summarize_inventory_with_priority( mock_auxdata ):
         mock_auxdata, inventory_path,
         search_behaviors = search_behaviors,
         filters = filters )
-    assert 'objects' in result.lower( )
-    assert 'project:' in result.lower( )
+    assert 'objects' in result
+    assert 'project' in result
 
 
 @pytest.mark.asyncio

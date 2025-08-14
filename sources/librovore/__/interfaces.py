@@ -31,7 +31,7 @@ class DisplayStreams( __.enum.Enum ):
     Stdout = 'stdout'
 
 
-class ConsoleDisplay( __.immut.DataclassObject ):
+class DisplayTarget( __.immut.DataclassObject ):
     silence: __.typx.Annotated[
         bool,
         __.tyro.conf.arg(

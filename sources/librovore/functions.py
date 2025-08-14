@@ -195,8 +195,8 @@ async def summarize_inventory(  # noqa: PLR0913
     filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
     group_by: __.typx.Optional[ str ] = None,
 ) -> __.typx.Annotated[
-    str, __.ddoc.Fname( 'inventory summary return' ) ]:
-    ''' Provides human-readable summary of inventory. '''
+    dict[ str, __.typx.Any ], __.ddoc.Fname( 'inventory summary return' ) ]:
+    ''' Provides structured summary of inventory data. '''
     details = _interfaces.InventoryQueryDetails.Name
     inventory_result = await query_inventory(
         auxdata, location, term, processor_name = processor_name,
@@ -214,7 +214,7 @@ async def summarize_inventory(  # noqa: PLR0913
             inventory_result[ 'search_metadata' ][ 'matches_total' ],
         'objects': objects_data,
     }
-    return _format_inventory_summary( inventory_data )
+    return inventory_data
 
 
 async def survey_processors(
@@ -362,29 +362,36 @@ def _format_inventory_summary(
 def _group_documents_by_field(
     documents: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ],
     field: __.typx.Optional[ str ]
-) -> dict[ str, list[ dict[ str, __.typx.Any ] ] ]:
+) -> __.immut.Dictionary[
+    str, tuple[ __.cabc.Mapping[ str, __.typx.Any ], ... ]
+]:
     ''' Groups documents by specified field for inventory format. '''
-    if field is None: return { }
-    groups: dict[ str, list[ dict[ str, __.typx.Any ] ] ] = { }
+    if field is None: return __.immut.Dictionary( )
+    groups: dict[ str, list[ __.cabc.Mapping[ str, __.typx.Any ] ] ] = { }
     for doc in documents:
-        value = doc.get( field, f"(missing {field})" )
-        if isinstance( value, ( list, dict ) ):
-            value = str( __.typx.cast( __.typx.Any, value ) )
-        elif value is None or value == '':
-            value = f"(missing {field})"
+        raw_value = doc.get( field, f"(missing {field})" )
+        if isinstance( raw_value, list ):
+            str_value = "[list]"
+        elif isinstance( raw_value, dict ):
+            str_value = "[dict]"
+        elif raw_value is None or raw_value == '':
+            str_value = f"(missing {field})"
         else:
-            value = str( value )
-        if value not in groups: groups[ value ] = [ ]
-        obj = {
+            str_value = str( raw_value )
+        if str_value not in groups: groups[ str_value ] = [ ]
+        obj_data = {
             'name': doc[ 'name' ],
             'role': doc[ 'role' ],
             'domain': doc.get( 'domain', '' ),
             'uri': doc[ 'uri' ],
             'dispname': doc[ 'dispname' ],
         }
-        if 'fuzzy_score' in doc: obj[ 'fuzzy_score' ] = doc[ 'fuzzy_score' ]
-        groups[ value ].append( obj )
-    return groups
+        if 'fuzzy_score' in doc:
+            obj_data[ 'fuzzy_score' ] = doc[ 'fuzzy_score' ]
+        obj = __.immut.Dictionary( obj_data )
+        groups[ str_value ].append( obj )
+    return __.immut.Dictionary(
+        ( key, tuple( items ) ) for key, items in groups.items( ) )
 
 
 def _serialize_dataclass( obj: __.typx.Any ) -> __.typx.Any:

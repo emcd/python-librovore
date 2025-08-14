@@ -236,7 +236,7 @@ def _produce_summarize_inventory_function( auxdata: _state.Globals ):
         ] = _filters_default,
         group_by: GroupByArgument = None,
         term: TermArgument = '',
-    ) -> str:
+    ) -> dict[ str, __.typx.Any ]:
         immutable_search_behaviors = (
             _to_immutable_search_behaviors( search_behaviors ) )
         immutable_filters = _to_immutable_filters( filters )

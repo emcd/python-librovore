@@ -31,7 +31,7 @@ import librovore.cli as module
 from .fixtures import get_test_inventory_path
 
 
-class MockConsoleDisplay:
+class MockDisplayTarget:
     ''' Mock console display for testing CLI commands. '''
 
     def __init__( self ):
@@ -49,7 +49,7 @@ def create_test_auxdata( ):
 @pytest.mark.asyncio
 async def test_030_summarize_inventory_command_unit( ):
     ''' SummarizeInventoryCommand processes arguments correctly. '''
-    display = MockConsoleDisplay( )
+    display = MockDisplayTarget( )
     auxdata = create_test_auxdata( )
     test_inventory_path = get_test_inventory_path( 'librovore' )
     search_behaviors = module._interfaces.SearchBehaviors( )
@@ -58,28 +58,28 @@ async def test_030_summarize_inventory_command_unit( ):
         location = test_inventory_path,
         search_behaviors = search_behaviors,
         filters = filters )
-    await cmd( auxdata, display )
+    await cmd( auxdata, display, module._interfaces.DisplayFormat.JSON )
     output = display.stream.getvalue( )
-    assert 'Project:' in output
-    assert 'py' in output
+    assert '"project":' in output
+    assert '"domain": "py"' in output
 
 
 @pytest.mark.asyncio
 async def test_040_summarize_inventory_command_no_filters( ):
     ''' SummarizeInventoryCommand works without filters. '''
-    display = MockConsoleDisplay( )
+    display = MockDisplayTarget( )
     auxdata = create_test_auxdata( )
     test_inventory_path = get_test_inventory_path( 'librovore' )
     cmd = module.SummarizeInventoryCommand( location = test_inventory_path )
-    await cmd( auxdata, display )
+    await cmd( auxdata, display, module._interfaces.DisplayFormat.JSON )
     output = display.stream.getvalue( )
-    assert 'Project:' in output
+    assert '"project":' in output
 
 
 @pytest.mark.asyncio
 async def test_060_use_command_summarize_delegation( ):
     ''' UseCommand delegates to SummarizeInventoryCommand correctly. '''
-    display = MockConsoleDisplay( )
+    display = MockDisplayTarget( )
     auxdata = create_test_auxdata( )
     test_inventory_path = get_test_inventory_path( 'librovore' )
     search_behaviors = module._interfaces.SearchBehaviors( )
@@ -88,22 +88,23 @@ async def test_060_use_command_summarize_delegation( ):
         location = test_inventory_path,
         search_behaviors = search_behaviors,
         filters = filters )
-    await summarize_cmd( auxdata, display )
+    await summarize_cmd(
+        auxdata, display, module._interfaces.DisplayFormat.JSON )
     output = display.stream.getvalue( )
-    assert 'Project:' in output
+    assert '"project":' in output
     assert 'py' in output
 
 
 @pytest.mark.asyncio
 async def test_070_serve_command_unit( ):
     ''' ServeCommand processes arguments correctly. '''
-    display = MockConsoleDisplay( )
+    display = MockDisplayTarget( )
     auxdata = create_test_auxdata( )
     mock_serve = AsyncMock( )
     cmd = module.ServeCommand(
         port = 8080, transport = 'stdio', serve_function = mock_serve
     )
-    await cmd( auxdata, display )
+    await cmd( auxdata, display, module._interfaces.DisplayFormat.JSON )
     mock_serve.assert_called_once_with(
         auxdata, port = 8080, transport = 'stdio', extra_functions = False )
 
@@ -111,23 +112,23 @@ async def test_070_serve_command_unit( ):
 @pytest.mark.asyncio
 async def test_080_serve_command_defaults( ):
     ''' ServeCommand works with default arguments. '''
-    display = MockConsoleDisplay( )
+    display = MockDisplayTarget( )
     auxdata = create_test_auxdata( )
     mock_serve = AsyncMock( )
     cmd = module.ServeCommand( serve_function = mock_serve )
-    await cmd( auxdata, display )
+    await cmd( auxdata, display, module._interfaces.DisplayFormat.JSON )
     mock_serve.assert_called_once_with( auxdata, extra_functions = False )
 
 
 @pytest.mark.asyncio
 async def test_085_serve_command_extra_functions( ):
     ''' ServeCommand passes extra_functions flag correctly. '''
-    display = MockConsoleDisplay( )
+    display = MockDisplayTarget( )
     auxdata = create_test_auxdata( )
     mock_serve = AsyncMock( )
     cmd = module.ServeCommand(
         extra_functions = True, serve_function = mock_serve )
-    await cmd( auxdata, display )
+    await cmd( auxdata, display, module._interfaces.DisplayFormat.JSON )
     mock_serve.assert_called_once_with( auxdata, extra_functions = True )
 
 

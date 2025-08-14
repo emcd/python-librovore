@@ -66,6 +66,10 @@ TransportArgument: __.typx.TypeAlias = __.typx.Annotated[
 _search_behaviors_default = _interfaces.SearchBehaviors( )
 _filters_default = __.immut.Dictionary[ str, __.typx.Any ]( )
 
+_MARKDOWN_OBJECT_LIMIT = 10
+_MARKDOWN_CONTENT_LIMIT = 200
+
+
 
 class _CliCommand(
     __.immut.DataclassProtocol, __.typx.Protocol,
@@ -75,7 +79,10 @@ class _CliCommand(
 
     @__.abc.abstractmethod
     async def __call__(
-        self, auxdata: _state.Globals, display: __.ConsoleDisplay
+        self,
+        auxdata: _state.Globals,
+        display: __.DisplayTarget,
+        display_format: _interfaces.DisplayFormat,
     ) -> None:
         ''' Executes command with global state. '''
         raise NotImplementedError
@@ -97,21 +104,25 @@ class DetectCommand(
     ] = None
 
     async def __call__(
-        self, auxdata: _state.Globals, display: __.ConsoleDisplay
+        self,
+        auxdata: _state.Globals,
+        display: __.DisplayTarget,
+        display_format: _interfaces.DisplayFormat,
     ) -> None:
         stream = await display.provide_stream( )
+        processor_name = (
+            self.processor_name if self.processor_name is not None
+            else __.absent )
         try:
-            processor_name = (
-                self.processor_name if self.processor_name is not None
-                else __.absent )
             result = await _functions.detect(
                 auxdata, self.location, self.genus,
                 processor_name = processor_name )
-            print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
             _scribe.error( "detect failed: %s", exc )
             print( _format_cli_exception( exc ), file = stream )
             raise SystemExit( 1 ) from None
+        output = _format_output( result, display_format )
+        print( output, file = stream )
 
 
 class QueryInventoryCommand(
@@ -127,7 +138,7 @@ class QueryInventoryCommand(
             help = __.access_doctab( 'query details argument' ) ),
     ] = _interfaces.InventoryQueryDetails.Documentation
     filters: __.typx.Annotated[
-        dict[ str, __.typx.Any ],
+        __.cabc.Mapping[ str, __.typx.Any ],
         __.tyro.conf.arg( prefix_name = False ),
     ] = __.dcls.field( default_factory = lambda: dict( _filters_default ) )
     search_behaviors: __.typx.Annotated[
@@ -140,7 +151,10 @@ class QueryInventoryCommand(
     ] = 5
 
     async def __call__(
-        self, auxdata: _state.Globals, display: __.ConsoleDisplay
+        self,
+        auxdata: _state.Globals,
+        display: __.DisplayTarget,
+        display_format: _interfaces.DisplayFormat,
     ) -> None:
         stream = await display.provide_stream( )
         try:
@@ -152,11 +166,12 @@ class QueryInventoryCommand(
                 filters = self.filters,
                 results_max = self.results_max,
                 details = self.details )
-            print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
             _scribe.error( "query-inventory failed: %s", exc )
             print( _format_cli_exception( exc ), file = stream )
             raise SystemExit( 1 ) from None
+        output = _format_output( result, display_format )
+        print( output, file = stream )
 
 
 class QueryContentCommand(
@@ -171,14 +186,17 @@ class QueryContentCommand(
         __.tyro.conf.arg( prefix_name = False ),
     ] = _search_behaviors_default
     filters: __.typx.Annotated[
-        dict[ str, __.typx.Any ],
+        __.cabc.Mapping[ str, __.typx.Any ],
         __.tyro.conf.arg( prefix_name = False ),
     ] = __.dcls.field( default_factory = lambda: dict( _filters_default ) )
     include_snippets: IncludeSnippets = True
     results_max: ResultsMax = 10
 
     async def __call__(
-        self, auxdata: _state.Globals, display: __.ConsoleDisplay
+        self,
+        auxdata: _state.Globals,
+        display: __.DisplayTarget,
+        display_format: _interfaces.DisplayFormat,
     ) -> None:
         stream = await display.provide_stream( )
         try:
@@ -188,11 +206,12 @@ class QueryContentCommand(
                 filters = self.filters,
                 results_max = self.results_max,
                 include_snippets = self.include_snippets )
-            print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
             _scribe.error( "query-content failed: %s", exc )
             print( _format_cli_exception( exc ), file = stream )
             raise SystemExit( 1 ) from None
+        output = _format_output( result, display_format )
+        print( output, file = stream )
 
 
 class SummarizeInventoryCommand(
@@ -203,7 +222,7 @@ class SummarizeInventoryCommand(
     location: LocationArgument
     term: TermArgument = ''
     filters: __.typx.Annotated[
-        dict[ str, __.typx.Any ],
+        __.cabc.Mapping[ str, __.typx.Any ],
         __.tyro.conf.arg( prefix_name = False ),
     ] = __.dcls.field( default_factory = lambda: dict( _filters_default ) )
     group_by: GroupByArgument = None
@@ -213,7 +232,10 @@ class SummarizeInventoryCommand(
     ] = _search_behaviors_default
 
     async def __call__(
-        self, auxdata: _state.Globals, display: __.ConsoleDisplay
+        self,
+        auxdata: _state.Globals,
+        display: __.DisplayTarget,
+        display_format: _interfaces.DisplayFormat,
     ) -> None:
         stream = await display.provide_stream( )
         result = await _functions.summarize_inventory(
@@ -221,7 +243,8 @@ class SummarizeInventoryCommand(
             search_behaviors = self.search_behaviors,
             filters = self.filters,
             group_by = self.group_by )
-        print( result, file = stream )
+        output = _format_output( result, display_format )
+        print( output, file = stream )
 
 
 class SurveyProcessorsCommand(
@@ -239,18 +262,22 @@ class SurveyProcessorsCommand(
     ] = None
 
     async def __call__(
-        self, auxdata: _state.Globals, display: __.ConsoleDisplay
+        self,
+        auxdata: _state.Globals,
+        display: __.DisplayTarget,
+        display_format: _interfaces.DisplayFormat,
     ) -> None:
         stream = await display.provide_stream( )
         nomargs: __.NominativeArguments = { 'genus': self.genus }
         if self.name is not None: nomargs[ 'name' ] = self.name
         try:
             result = await _functions.survey_processors( auxdata, **nomargs )
-            print( __.json.dumps( result, indent = 2 ), file = stream )
         except Exception as exc:
             _scribe.error( "survey-processors failed: %s", exc )
             print( _format_cli_exception( exc ), file = stream )
             raise SystemExit( 1 ) from None
+        output = _format_output( result, display_format )
+        print( output, file = stream )
 
 
 
@@ -270,13 +297,14 @@ class ServeCommand(
         [ _state.Globals ], __.cabc.Awaitable[ None ]
     ] = _server.serve
     async def __call__(
-        self, auxdata: _state.Globals, display: __.ConsoleDisplay
+        self,
+        auxdata: _state.Globals,
+        display: __.DisplayTarget,
+        display_format: _interfaces.DisplayFormat,
     ) -> None:
         nomargs: __.NominativeArguments = { }
-        if self.port is not None:
-            nomargs[ 'port' ] = self.port
-        if self.transport is not None:
-            nomargs[ 'transport' ] = self.transport
+        if self.port is not None: nomargs[ 'port' ] = self.port
+        if self.transport is not None: nomargs[ 'transport' ] = self.transport
         nomargs[ 'extra_functions' ] = self.extra_functions
         await self.serve_function( auxdata, **nomargs )
 
@@ -284,7 +312,11 @@ class ServeCommand(
 class Cli( __.immut.DataclassObject, decorators = ( __.simple_tyro_class, ) ):
     ''' MCP server CLI. '''
 
-    display: __.ConsoleDisplay
+    display: __.DisplayTarget
+    display_format: __.typx.Annotated[
+        _interfaces.DisplayFormat,
+        __.tyro.conf.arg( help = "Output format for command results." ),
+    ] = _interfaces.DisplayFormat.Markdown
     command: __.typx.Union[
         __.typx.Annotated[
             DetectCommand,
@@ -323,10 +355,12 @@ class Cli( __.immut.DataclassObject, decorators = ( __.simple_tyro_class, ) ):
         nomargs = self.prepare_invocation_args( )
         async with __.ctxl.AsyncExitStack( ) as exits:
             auxdata = await _prepare( exits = exits, **nomargs )
-            # Load processors for CLI operations
             from . import xtnsmgr
             await xtnsmgr.register_processors( auxdata )
-            await self.command( auxdata = auxdata, display = self.display )
+            await self.command(
+                auxdata = auxdata,
+                display = self.display,
+                display_format = self.display_format )
 
     def prepare_invocation_args(
         self,
@@ -355,6 +389,158 @@ def execute( ) -> None:
         except BaseException as exc:
             __.report_exceptions( exc, _scribe )
             raise SystemExit( 1 ) from None
+
+
+def _extract_object_name_and_role( obj: __.typx.Any ) -> tuple[ str, str ]:
+    ''' Extracts name and role from object, with safe fallbacks. '''
+    if not hasattr( obj, 'get' ):
+        return 'Unknown', 'unknown'
+    try:
+        name = getattr( obj, 'get' )( 'name', 'Unknown' )
+    except ( AttributeError, TypeError ):
+        name = 'Unknown'
+    try:
+        role = getattr( obj, 'get' )( 'role', 'unknown' )
+    except ( AttributeError, TypeError ):
+        role = 'unknown'
+    if not isinstance( name, str ):
+        name = str( name ) if name is not None else 'Unknown'
+    if not isinstance( role, str ):
+        role = str( role ) if role is not None else 'unknown'
+    return name, role
+
+
+def _format_as_markdown( result: __.cabc.Mapping[ str, __.typx.Any ] ) -> str:
+    ''' Converts structured data to Markdown format. '''
+    if 'project' in result and 'version' in result and 'objects' in result:
+        return _format_inventory_summary_markdown( result )
+    if 'documents' in result and 'search_metadata' in result:
+        return _format_query_result_markdown( result )
+    if 'source' in result and 'detections' in result:
+        return _format_detect_result_markdown( result )
+    return __.json.dumps( result, indent = 2 )
+
+
+def _format_detect_result_markdown(
+    result: __.cabc.Mapping[ str, __.typx.Any ]
+) -> str:
+    ''' Formats detection results as Markdown. '''
+    source = result.get( 'source', 'Unknown' )
+    optimal = result.get( 'detection_optimal' )
+    time_ms = result.get( 'time_detection_ms', 0 )
+    lines = [
+        "# Detection Results",
+        f"**Source:** {source}",
+        f"**Detection Time:** {time_ms}ms",
+    ]
+    if optimal:
+        processor = optimal.get( 'processor', {} )
+        confidence = optimal.get( 'confidence', 0 )
+        lines.extend([
+            "\n## Optimal Processor",
+            f"- **Name:** {processor.get('name', 'Unknown')}",
+            f"- **Confidence:** {confidence:.1%}",
+        ])
+    return '\n'.join( lines )
+
+
+def _format_grouped_objects( 
+    objects_value: __.cabc.Mapping[ str, __.typx.Any ] 
+) -> list[ str ]:
+    ''' Formats objects grouped by categories. '''
+    lines: list[ str ] = [ "\n## Breakdown by Groups" ]
+    for group_name, group_objects in objects_value.items( ):
+        if hasattr( group_objects, '__len__' ):
+            object_count = len( group_objects )
+            lines.append( f"- **{group_name}:** {object_count} objects" )
+    return lines
+
+
+def _format_inventory_summary_markdown(
+    result: __.cabc.Mapping[ str, __.typx.Any ]
+) -> str:
+    ''' Formats inventory summary as Markdown. '''
+    lines = [
+        f"# {result[ 'project' ]}",
+        f"**Version:** {result[ 'version' ]}",
+        f"**Objects:** {result[ 'objects_count' ]}",
+    ]
+    objects_value = result.get( 'objects' )
+    if objects_value:
+        if isinstance( objects_value, dict ):
+            grouped_objects = __.typx.cast(
+                __.cabc.Mapping[ str, __.typx.Any ], objects_value )
+            lines.extend( _format_grouped_objects( grouped_objects ) )
+        else:
+            lines.extend( _format_object_list( objects_value ) )
+    return '\n'.join( lines )
+
+
+def _format_object_list( objects_value: __.typx.Any ) -> list[ str ]:
+    ''' Formats a flat list of objects. '''
+    lines: list[ str ] = [ ]
+    if not hasattr( objects_value, '__len__' ): return lines
+    objects_count = len( objects_value )
+    lines.append( f"\n## Objects ({objects_count})" )
+    if ( hasattr( objects_value, '__getitem__' )
+         and hasattr( objects_value, '__iter__' ) ):
+        subset_limit = _MARKDOWN_OBJECT_LIMIT
+        objects_subset = (
+            objects_value[ :subset_limit ]
+            if objects_count > subset_limit else objects_value )
+        for obj in objects_subset:
+            name, role = _extract_object_name_and_role( obj )
+            lines.append( f"- `{name}` ({role})" )
+        if objects_count > _MARKDOWN_OBJECT_LIMIT:
+            remaining = objects_count - _MARKDOWN_OBJECT_LIMIT
+            lines.append( f"- ... and {remaining} more" )
+    return lines
+
+
+def _format_output(
+    result: __.cabc.Mapping[ str, __.typx.Any ],
+    display_format: _interfaces.DisplayFormat,
+) -> str:
+    ''' Formats command output according to display format. '''
+    if display_format == _interfaces.DisplayFormat.JSON:
+        return __.json.dumps( result, indent = 2 )
+    if display_format == _interfaces.DisplayFormat.Markdown:
+        return _format_as_markdown( result )
+    raise ValueError
+
+
+def _format_query_result_markdown(
+    result: __.cabc.Mapping[ str, __.typx.Any ]
+) -> str:
+    ''' Formats query results as Markdown. '''
+    project = result.get( 'project', 'Unknown' )
+    query = result.get( 'query', 'Unknown' )
+    documents = result.get( 'documents', [] )
+    metadata = result.get( 'search_metadata', {} )
+    lines = [
+        f"# Query Results: {query}",
+        f"**Project:** {project}",
+        f"**Results:** {metadata.get('results_count', 0)}/"
+        f"{metadata.get('matches_total', 0)}",
+    ]
+    if documents:
+        lines.append( "\n## Documents" )
+        for doc in documents:
+            name = doc.get( 'name', 'Unknown' )
+            role = doc.get( 'role', 'unknown' )
+            lines.append( f"### `{name}`" )
+            lines.append( f"- **Type:** {role}" )
+            if 'domain' in doc:
+                lines.append( f"- **Domain:** {doc['domain']}" )
+            if 'summary' in doc:
+                lines.append( f"- **Summary:** {doc['summary']}" )
+            if 'content' in doc:
+                content = doc[ 'content' ][ :_MARKDOWN_CONTENT_LIMIT ]
+                if len( doc[ 'content' ] ) > _MARKDOWN_CONTENT_LIMIT:
+                    content += "..."
+                lines.append( f"- **Content:** {content}" )
+            lines.append( "" )
+    return '\n'.join( lines )
 
 
 def _format_cli_exception( exc: Exception ) -> str:  # noqa: PLR0911
