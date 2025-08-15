@@ -168,40 +168,53 @@ def get_test_inventory_path( site_name: str = 'librovore' ) -> str:
     return str( inventory_path )
 
 
+# Session-scoped cache for extracted test sites
+_extracted_sites_cache = {}
+
 def get_test_site_path( site_name: str = 'librovore' ) -> str:
     ''' Gets path to test site directory for structure detection. 
     
-        Extracts site from tar.xz archive to temporary directory.
+        Extracts archive to temporary directory once per session.
     '''
+    if site_name in _extracted_sites_cache:
+        return _extracted_sites_cache[site_name]
     import tempfile
     import tarfile
     import atexit
-    
     test_dir = Path( __file__ ).parent.parent
     archive_path = test_dir / 'data' / 'sites' / f'{site_name}.tar.xz'
     if not archive_path.exists( ):
         raise FileNotFoundError(
             f"Test site archive not found: {archive_path}" )
-    
-    # Create temporary directory and extract archive
     temp_dir = Path( tempfile.mkdtemp( 
         prefix = f'librovore_test_{site_name}_' ) )
-    
-    # Register cleanup to remove temp directory on exit
     def cleanup_temp_site():
         import shutil
         if temp_dir.exists( ):
             shutil.rmtree( temp_dir )
+        _extracted_sites_cache.pop( site_name, None )
     atexit.register( cleanup_temp_site )
-    
-    # Extract archive to temp directory
     with tarfile.open( archive_path, 'r:xz' ) as archive:
         archive.extractall( path = temp_dir )  # noqa: S202
-    
     site_path = temp_dir / site_name
     if not site_path.exists( ):
         raise FileNotFoundError(
             f"Extracted site directory not found: {site_path}" )
+    file_url = f"file://{site_path}"
+    _extracted_sites_cache[site_name] = file_url
+    return file_url
+
+
+def get_test_site_path_from_cache( 
+    cached_test_sites, site_name: str = 'librovore' ) -> str:
+    ''' Gets path to test site from session-scoped cache.
+    
+        Uses pre-extracted site from cached_test_sites fixture.
+    '''
+    site_path = cached_test_sites / site_name / site_name
+    if not site_path.exists( ):
+        raise FileNotFoundError(
+            f"Cached test site not found: {site_path}" )
     
     return f"file://{site_path}"
 

@@ -17,6 +17,21 @@ def cached_inventories( tmp_path_factory ):
     return cache_dir
 
 
+@pytest.fixture( scope = 'session' )
+def cached_test_sites( tmp_path_factory ):
+    ''' Extracts test site archives to temp directory once per session. '''
+    import tarfile
+    cache_dir = tmp_path_factory.mktemp( 'site_cache' )
+    test_data_dir = Path( __file__ ).parent.parent / 'data' / 'sites'
+    if test_data_dir.exists( ):
+        for archive_path in test_data_dir.glob( '*.tar.xz' ):
+            site_name = archive_path.name.replace( '.tar.xz', '' )
+            dest_dir = cache_dir / site_name
+            with tarfile.open( archive_path, 'r:xz' ) as archive:
+                archive.extractall( path = dest_dir )  # noqa: S202
+    return cache_dir
+
+
 @pytest.fixture
 def fake_fs_with_inventories( fs, cached_inventories ):
     ''' Sets up pyfakefs with cached inventory files.
