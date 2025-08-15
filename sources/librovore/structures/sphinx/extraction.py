@@ -351,7 +351,7 @@ def _generic_extraction( element: __.typx.Any ) -> tuple[ str, str ]:
     if element.parent:
         next_p = element.parent.find( 'p' )
         if next_p:
-            description = _clean_extracted_text( next_p.get_text( ) )
+            description = str( next_p )
     return signature, description
 
 
@@ -376,40 +376,36 @@ def _get_description_by_source_type(
 
 
 def _get_first_paragraph_text( element: __.typx.Any ) -> str:
-    ''' Gets text from first paragraph within element. '''
+    ''' Gets HTML content from first paragraph within element. '''
     paragraph = element.find( 'p' )
-    return _clean_extracted_text( paragraph.get_text( ) ) if paragraph else ''
+    return str( paragraph ) if paragraph else ''
 
 
 def _get_parent_content_text( element: __.typx.Any, element_type: str ) -> str:
-    ''' Gets text from content element within parent. '''
+    ''' Gets HTML content from content element within parent. '''
     if element.parent:
         content_elem = element.parent.find( element_type )
-        return (
-            _clean_extracted_text( content_elem.get_text( ) )
-            if content_elem else '' )
+        return content_elem.decode_contents( ) if content_elem else ''
     return ''
 
 
 def _get_parent_element_text( element: __.typx.Any, element_type: str ) -> str:
-    ''' Gets text from element within parent. '''
+    ''' Gets HTML content from element within parent. '''
     if element.parent:
         next_elem = element.parent.find( element_type )
-        return (
-            _clean_extracted_text( next_elem.get_text( ) )
-            if next_elem else '' )
+        return next_elem.decode_contents( ) if next_elem else ''
     return ''
 
 
 def _get_parent_sibling_text( element: __.typx.Any, element_type: str ) -> str:
-    ''' Gets text from parent's next sibling element. '''
+    ''' Gets HTML content from parent's next sibling element. '''
     if element.parent:
         sibling = element.parent.find_next_sibling( element_type )
-        return _clean_extracted_text( sibling.get_text( ) ) if sibling else ''
+        return sibling.decode_contents( ) if sibling else ''
     return ''
 
 
 def _get_sibling_text( element: __.typx.Any, element_type: str ) -> str:
-    ''' Gets text from next sibling element. '''
+    ''' Gets HTML content from next sibling element. '''
     sibling = element.find_next_sibling( element_type )
-    return _clean_extracted_text( sibling.get_text( ) ) if sibling else ''
+    return sibling.decode_contents( ) if sibling else ''
