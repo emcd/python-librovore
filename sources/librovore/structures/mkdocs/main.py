@@ -48,13 +48,21 @@ class MkDocsProcessor( __.Processor ):
         ''' Detects MkDocs documentation structure from source. '''
         base_url = __.normalize_base_url( source )
         normalized_source = base_url.geturl( )
+        confidence = 0.0
         has_mkdocs_yml = (
             await _detection.check_mkdocs_yml( auxdata, base_url ) )
-        confidence = 0.0
-        if has_mkdocs_yml: confidence += 1.0
+        if has_mkdocs_yml:
+            confidence += 0.6
         theme_metadata = (
             await _detection.detect_theme( auxdata, base_url ) )
         theme = theme_metadata.get( 'theme' )
+        if theme is not None:
+            confidence += 0.3
+        mkdocs_html_confidence = (
+            await _detection.check_mkdocs_html_markers( auxdata, base_url ) )
+        confidence += mkdocs_html_confidence
+        confidence = min( confidence, 1.0 )
+        
         return _detection.MkDocsDetection(
             processor = self,
             confidence = confidence,

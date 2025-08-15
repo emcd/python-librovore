@@ -72,6 +72,38 @@ async def check_mkdocs_yml(
     return await __.probe_url( auxdata.probe_cache, url )
 
 
+async def check_mkdocs_html_markers(
+    auxdata: __.ApplicationGlobals, source: _Url
+) -> float:
+    ''' Checks HTML content for MkDocs-specific markers. '''
+    html_candidates = [
+        source._replace( path = f"{source.path}/" ),
+        source._replace( path = f"{source.path}/index.html" ),
+    ]
+    html_content = None
+    for html_url in html_candidates:
+        try:
+            html_content = await __.retrieve_url_as_text(
+                auxdata.content_cache,
+                html_url, duration_max = 10.0 )
+        except __.DocumentationInaccessibility: continue # noqa: PERF203
+        else: break
+    if not html_content: return 0.0
+    confidence = 0.0
+    html_content_lower = html_content.lower( )
+    if 'mkdocs' in html_content_lower:
+        confidence += 0.3
+    if 'mkdocs-material' in html_content_lower:
+        confidence += 0.2
+    if '_mkdocstrings' in html_content_lower:
+        confidence += 0.2
+    if ( 'name="generator"' in html_content_lower
+         and 'mkdocs' in html_content_lower
+    ):
+        confidence += 0.3
+    return min( confidence, 0.5 )
+
+
 async def detect_theme(
     auxdata: __.ApplicationGlobals, source: _Url
 ) -> dict[ str, __.typx.Any ]:

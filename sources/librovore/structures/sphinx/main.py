@@ -75,17 +75,22 @@ class SphinxProcessor( __.Processor ):
         except Exception:
             return _detection.SphinxDetection(
                 processor = self, confidence = 0.0, source = source )
+        confidence = 0.0
         has_searchindex = (
             await _detection.check_searchindex( auxdata, base_url ) )
-        confidence = 0.95 if has_searchindex else 0.7
-        theme = None
         if has_searchindex:
-            try:
-                theme_metadata = (
-                    await _detection.detect_theme( auxdata, base_url ) )
-            except Exception as exc:
-                _scribe.debug( f"Theme detection failed for {source}: {exc}" )
-            else: theme = theme_metadata.get( 'theme' )
+            confidence += 0.8
+        theme = None
+        try:
+            theme_metadata = (
+                await _detection.detect_theme( auxdata, base_url ) )
+            theme = theme_metadata.get( 'theme' )
+            if theme is not None:
+                confidence += 0.2
+        except Exception as exc:
+            _scribe.debug( f"Theme detection failed for {source}: {exc}" )
+        confidence = min( confidence, 1.0 )
+        
         return _detection.SphinxDetection(
             processor = self,
             confidence = confidence,

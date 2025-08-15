@@ -28,6 +28,11 @@
 - [x] Fix blank line preservation in markdownify pipeline for proper paragraph structure
 - [ ] Consider future `--compact` flag for condensed display mode
 
+## Processor Detection and Robustness Issues
+- [x] Improve MkDocs detection to check HTML meta tags (`mkdocs-material`, `mkdocs` generator) for better hybrid site support
+- [ ] Add processor robustness checks to refuse processing sites with incompatible structure (prevent Sphinx processing MkDocs sites)
+- [ ] Consider detection confidence thresholds to prevent false positives
+
 ## Ideas for Future
 - Look for `llms.txt`? Separate processor or builtin to other processors?
 - Convert MkDocs processor to use markdownify for consistency and better output quality
