@@ -64,6 +64,7 @@ class MkDocsDetection( __.StructureDetection ):
             include_snippets = include_snippets )
 
 
+
 async def check_mkdocs_yml(
     auxdata: __.ApplicationGlobals, source: _Url
 ) -> bool:

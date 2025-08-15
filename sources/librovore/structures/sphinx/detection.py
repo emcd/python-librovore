@@ -64,6 +64,7 @@ class SphinxDetection( __.StructureDetection ):
             theme = theme, include_snippets = include_snippets )
 
 
+
 async def check_searchindex(
     auxdata: __.ApplicationGlobals, source: _Url
 ) -> bool:

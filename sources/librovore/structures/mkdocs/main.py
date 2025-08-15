@@ -70,3 +70,4 @@ class MkDocsProcessor( __.Processor ):
             has_mkdocs_yml = has_mkdocs_yml,
             normalized_source = normalized_source,
             theme = theme )
+

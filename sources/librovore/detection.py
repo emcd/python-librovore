@@ -28,6 +28,9 @@ from . import processors as _processors
 from . import state as _state
 
 
+CONFIDENCE_THRESHOLD_MINIMUM = 0.5
+
+
 class DetectionsCacheEntry( __.immut.DataclassObject ):
     ''' Cache entry for source detection results. '''
 
@@ -43,7 +46,9 @@ class DetectionsCacheEntry( __.immut.DataclassObject ):
             self.detections.values( ),
             key=lambda x: x.confidence )
         return (
-            best_result if best_result.confidence > 0.0 else __.absent )
+            best_result
+            if best_result.confidence >= CONFIDENCE_THRESHOLD_MINIMUM
+            else __.absent )
 
     def invalid( self, current_time: float ) -> bool:
         ''' Checks if cache entry has expired. '''
@@ -269,7 +274,7 @@ def _select_detection_optimal(
     if not detections: return __.absent
     detections_ = [
         result for result in detections.values( )
-        if result.confidence > 0.0 ]
+        if result.confidence >= CONFIDENCE_THRESHOLD_MINIMUM ]
     if not detections_: return __.absent
     processor_names = list( processors.keys( ) )
     def sort_key( result: _processors.Detection ) -> tuple[ float, int ]:

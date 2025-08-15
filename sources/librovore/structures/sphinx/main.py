@@ -98,3 +98,4 @@ class SphinxProcessor( __.Processor ):
             has_searchindex = has_searchindex,
             normalized_source = base_url.geturl( ),
             theme = theme )
+
