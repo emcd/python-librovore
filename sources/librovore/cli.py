@@ -554,6 +554,9 @@ def _format_query_result_markdown(
     if documents:
         lines.append( "\n## Documents" )
         for index, doc in enumerate( documents, 1 ):
+            # Add separator before each result
+            separator = "\n\n🔍 ── Result {} ─────────────────────── 🔍\n"
+            lines.append( separator.format( index ) )
             name = doc.get( 'name', 'Unknown' )
             role = doc.get( 'role', 'unknown' )
             lines.append( f"### `{name}`" )
@@ -563,10 +566,6 @@ def _format_query_result_markdown(
             if 'description' in doc:
                 lines.append( f"- **Content:** {doc['description']}" )
             lines.append( "" )
-            # Add separator between results (except after the last one)
-            if index < len( documents ):
-                separator = "\n\n🔍 ── Result {} ─────────────────────── 🔍\n"
-                lines.append( separator.format( index + 1 ) )
     return '\n'.join( lines )
 
 

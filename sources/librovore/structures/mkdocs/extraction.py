@@ -206,9 +206,9 @@ def _cleanup_content(
 
 
 def _convert_to_markdown( html_content: str ) -> str:
-    ''' Converts HTML content to markdown format. '''
-    from . import conversion as _conversion
-    return _conversion.html_to_markdown( html_content )
+    ''' Converts HTML content to markdown format using markdownify. '''
+    import markdownify
+    return markdownify.markdownify( html_content, heading_style = 'ATX' )
 
 
 def _derive_documentation_url(
@@ -249,12 +249,10 @@ def _extract_description(
     patterns: __.cabc.Mapping[ str, __.typx.Any ]
 ) -> str:
     ''' Extracts description content from element. '''
-    descriptions: list[ str ] = [ ]
     doc_contents = _find_doc_contents_container( element )
     if doc_contents:
-        descriptions = _extract_paragraphs_from_doc_contents( doc_contents )
-    if not descriptions:
-        descriptions = _extract_using_fallback_selectors( element, patterns )
+        return doc_contents.decode_contents( )
+    descriptions = _extract_using_fallback_selectors( element, patterns )
     return '\n\n'.join( descriptions ) if descriptions else ''
 
 
@@ -306,7 +304,9 @@ async def _extract_object_documentation(
 def _extract_paragraphs_from_doc_contents(
     doc_contents: __.typx.Any
 ) -> list[ str ]:
-    ''' Extracts paragraph text from doc-contents, skipping admonitions. '''
+    ''' Legacy function - now unused after markdownify migration. '''
+    # This function is kept for backward compatibility but is no longer used
+    # since we now extract the full doc-contents HTML in _extract_description
     descriptions: list[ str ] = [ ]
     for child in doc_contents.children:
         if hasattr( child, 'name' ):
@@ -315,9 +315,9 @@ def _extract_paragraphs_from_doc_contents(
                 'admonition' in child.get( 'class', [ ] )
             ): continue
             if child.name == 'p':
-                text = _clean_extracted_text( child.get_text( ) )
-                if text and text not in descriptions:
-                    descriptions.append( text )
+                html_content = str( child )
+                if html_content and html_content not in descriptions:
+                    descriptions.append( html_content )
     return descriptions
 
 
@@ -350,9 +350,9 @@ def _extract_using_fallback_selectors(
                 desc_elem.get( 'class' ) and
                 'admonition-title' in desc_elem.get( 'class', [ ] )
             ): continue
-            text = _clean_extracted_text( desc_elem.get_text( ) )
-            if text and text not in descriptions:
-                descriptions.append( text )
+            html_content = str( desc_elem )
+            if html_content and html_content not in descriptions:
+                descriptions.append( html_content )
     return descriptions
 
 
