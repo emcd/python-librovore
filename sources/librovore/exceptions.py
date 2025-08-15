@@ -219,6 +219,60 @@ class ProcessorInvalidity( Omnierror, TypeError ):
         super( ).__init__( message )
 
 
+class StructureIncompatibility( Omnierror, ValueError ):
+    ''' Documentation structure incompatible with processor. '''
+
+    def __init__( self, processor_name: str, source: str ):
+        self.processor_name = processor_name
+        self.source = source
+        super( ).__init__(
+            f"No content extracted by {processor_name} from {source}. "
+            f"The documentation structure may be incompatible with "
+            f"this processor." )
+
+
+class StructureProcessFailure( Omnierror, RuntimeError ):
+    ''' Structure processor failed to complete processing. '''
+
+    def __init__( self, processor_name: str, source: str, cause: str ):
+        self.processor_name = processor_name
+        self.source = source
+        super( ).__init__(
+            f"Processor {processor_name} failed processing {source}. "
+            f"Cause: {cause}" )
+
+
+class ContentExtractFailure( StructureProcessFailure ):
+    ''' Failed to extract meaningful content from documentation. '''
+
+    def __init__(
+        self,
+        processor_name: str,
+        source: str,
+        meaningful_results: int,
+        requested_objects: int,
+    ):
+        self.processor_name = processor_name
+        self.source = source
+        self.meaningful_results = meaningful_results
+        self.requested_objects = requested_objects
+        cause = (
+            f"Got {meaningful_results} meaningful results from "
+            f"{requested_objects} requested objects. "
+            f"This may indicate incompatible theme or documentation "
+            f"structure." )
+        super( ).__init__( processor_name, source, cause )
+
+
+class ThemeDetectFailure( StructureProcessFailure ):
+    ''' Theme detection failed during processing. '''
+
+    def __init__( self, processor_name: str, source: str, theme_error: str ):
+        self.theme_error = theme_error
+        super( ).__init__(
+            processor_name, source, f"Theme detection failed: {theme_error}" )
+
+
 class UrlImpermissibility( Omnierror, PermissionError ):
     ''' URL access blocked by robots.txt directive. '''
 

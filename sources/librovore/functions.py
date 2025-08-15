@@ -38,6 +38,7 @@ LocationArgument: __.typx.TypeAlias = __.typx.Annotated[
 
 _search_behaviors_default = _interfaces.SearchBehaviors( )
 _filters_default = __.immut.Dictionary[ str, __.typx.Any ]( )
+_SUCCESS_RATE_MINIMUM = 0.1
 
 
 async def detect(
@@ -100,6 +101,8 @@ async def query_content(  # noqa: PLR0913
         auxdata, location, processor_name = processor_name )
     contents = await sdetection.extract_contents(
         auxdata, location, candidates, include_snippets = include_snippets )
+    _validate_extraction_results(
+        contents, candidates, sdetection.processor.name, location )
     contents_by_relevance = sorted(
         contents,
         key = lambda x: x.get( 'relevance_score', 0.0 ),
@@ -426,3 +429,25 @@ def _select_top_objects(
         key = lambda obj: obj.get( 'fuzzy_score', 0 ),
         reverse = True )
     return all_objects[ : results_max ]
+
+
+def _validate_extraction_results(
+    results: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ],
+    requested_objects: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ],
+    processor_name: str,
+    source: str
+) -> None:
+    ''' Validates that extraction results contain meaningful content. '''
+    if not requested_objects: return
+    if not results:
+        raise _exceptions.StructureIncompatibility( processor_name, source )
+    meaningful_results = 0
+    for result in results:
+        signature = result.get( 'signature', '' ).strip( )
+        description = result.get( 'description', '' ).strip( )
+        if signature or description: meaningful_results += 1
+    success_rate = meaningful_results / len( requested_objects )
+    if success_rate < _SUCCESS_RATE_MINIMUM:
+        raise _exceptions.ContentExtractFailure(
+            processor_name, source, meaningful_results,
+            len( requested_objects ) )

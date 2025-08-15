@@ -246,3 +246,89 @@ async def test_700_explore_with_object_not_found( mock_auxdata ):
     assert len( result[ 'documents' ] ) == 0
     assert result[ 'search_metadata' ][ 'objects_count' ] == 0
 
+
+def test_800_validate_extraction_results_no_objects( ):
+    ''' Validation passes when no objects are requested. '''
+    results = [ ]
+    requested_objects = [ ]
+    # Should not raise any exception
+    module._validate_extraction_results(
+        results, requested_objects, 'test_processor', 'test_source' )
+
+
+def test_801_validate_extraction_results_no_content( ):
+    ''' Validation raises StructureIncompatibility when no content. '''
+    results = [ ]
+    requested_objects = [ { 'name': 'test_obj' } ]
+    with pytest.raises( _exceptions.StructureIncompatibility ) as exc_info:
+        module._validate_extraction_results(
+            results, requested_objects, 'test_processor', 'test_source' )
+    assert exc_info.value.processor_name == 'test_processor'
+    assert exc_info.value.source == 'test_source'
+
+
+def test_802_validate_extraction_results_meaningful_content( ):
+    ''' Validation passes when meaningful content is extracted. '''
+    results = [
+        { 'signature': 'def example()', 'description': 'Example function' },
+        { 'signature': 'class TestClass', 'description': 'Test class' },
+    ]
+    requested_objects = [
+        { 'name': 'example' },
+        { 'name': 'TestClass' },
+    ]
+    # Should not raise any exception
+    module._validate_extraction_results(
+        results, requested_objects, 'test_processor', 'test_source' )
+
+
+def test_803_validate_extraction_results_low_success_rate( ):
+    ''' Validation raises ContentExtractFailure when success rate too low. '''
+    results = [
+        { 'signature': '', 'description': '' },  # Empty content
+        { 'signature': '', 'description': '' },  # Empty content
+        { 'signature': 'def good()', 'description': 'Good function' },
+    ]
+    requested_objects = [
+        { 'name': 'bad1' },
+        { 'name': 'bad2' },
+        { 'name': 'good' },
+        { 'name': 'bad3' },
+        { 'name': 'bad4' },
+        { 'name': 'bad5' },
+        { 'name': 'bad6' },
+        { 'name': 'bad7' },
+        { 'name': 'bad8' },
+        { 'name': 'bad9' },
+        { 'name': 'bad10' },  # 11 total objects, 1 meaningful = 9% < 10%
+    ]
+    with pytest.raises( _exceptions.ContentExtractFailure ) as exc_info:
+        module._validate_extraction_results(
+            results, requested_objects, 'test_processor', 'test_source' )
+    assert exc_info.value.processor_name == 'test_processor'
+    assert exc_info.value.source == 'test_source'
+    assert exc_info.value.meaningful_results == 1
+    assert exc_info.value.requested_objects == 11
+
+
+def test_804_validate_extraction_results_edge_case_success_rate( ):
+    ''' Validation passes when success rate exactly meets threshold. '''
+    results = [
+        { 'signature': 'def good()', 'description': '' },  # Meaningful
+    ]
+    requested_objects = [
+        { 'name': 'good' },
+        { 'name': 'bad1' },
+        { 'name': 'bad2' },
+        { 'name': 'bad3' },
+        { 'name': 'bad4' },
+        { 'name': 'bad5' },
+        { 'name': 'bad6' },
+        { 'name': 'bad7' },
+        { 'name': 'bad8' },
+        { 'name': 'bad9' },  # 10 total objects, 1 meaningful = 10% = threshold
+    ]
+    # Should not raise any exception
+    module._validate_extraction_results(
+        results, requested_objects, 'test_processor', 'test_source' )
+

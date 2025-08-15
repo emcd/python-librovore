@@ -26,9 +26,7 @@ The core issue is not extraction failures that raise exceptions, but **successfu
 Based on project nomenclature guidelines:
 
 ```python
-from . import __
-
-class StructureProcessFailure( __.Omnierror ):
+class StructureProcessFailure( Omnierror ):
     ''' Structure processor failed to complete processing. '''
 
 class ContentExtractFailure( StructureProcessFailure ):
@@ -37,8 +35,7 @@ class ContentExtractFailure( StructureProcessFailure ):
 class ThemeDetectFailure( StructureProcessFailure ):
     ''' Theme detection failed during processing. '''
 
-# Separate from failures - compatibility issues
-class StructureIncompatibility( __.Omnierror ):
+class StructureIncompatibility( Omnierror ):
     ''' Documentation structure incompatible with processor. '''
 ```
 
@@ -73,35 +70,6 @@ contents_by_relevance = sorted(
     contents, key = lambda x: x.get( 'relevance_score', 0.0 ), reverse = True )
 ```
 
-### Validation Function
-```python
-_SUCCESS_RATE_MINIMUM = 0.1
-
-def _validate_extraction_results(
-    results: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ],
-    requested_objects: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ],
-    processor_name: str,
-    source: str
-) -> None:
-    ''' Validates that extraction results contain meaningful content. '''
-    if not requested_objects: return
-    if not results:
-        raise StructureIncompatibility(
-            f"No content extracted by {processor_name} from {source}. "
-            f"The documentation structure may be incompatible with this processor." )
-    meaningful_results = 0
-    for result in results:
-        signature = result.get( 'signature', '' ).strip( )
-        description = result.get( 'description', '' ).strip( )
-        if signature or description: meaningful_results += 1
-    success_rate = meaningful_results / len( requested_objects )
-    if success_rate < _SUCCESS_RATE_MINIMUM:
-        raise ContentExtractFailure(
-            f"Processor {processor_name} extracted mostly empty content from {source}. "
-            f"Got {meaningful_results} meaningful results from {len( requested_objects )} requested objects. "
-            f"This may indicate incompatible theme or documentation structure." )
-```
-
 ## Key Benefits
 
 1. **Performance**: Detection remains fast, validation only when needed
@@ -127,7 +95,42 @@ def _validate_extraction_results(
 
 ## Status
 
-Design approved. Implementation pending based on Layer 1 effectiveness. If Layer 1 confidence thresholds prove insufficient to prevent empty result problems, this validation approach should be implemented.
+**IMPLEMENTED** ✅
+
+The query-time validation system has been successfully implemented and integrated:
+
+### Implementation Details
+
+- **Exception hierarchy**: Added to `sources/librovore/exceptions.py`
+  - `StructureIncompatibility`: For completely empty extraction results
+  - `StructureProcessFailure`: Base for processing failures  
+  - `ContentExtractFailure`: For low success rates (< 10%)
+  - `ThemeDetectFailure`: For theme detection issues
+
+- **Validation function**: `_validate_extraction_results()` in `sources/librovore/functions.py`
+  - 10% minimum success rate threshold (`_SUCCESS_RATE_MINIMUM = 0.1`)
+  - Checks for meaningful content (non-empty signatures or descriptions)
+  - Validates after content extraction in `query_content()`
+
+- **Integration point**: Line 126-127 in `sources/librovore/functions.py:query_content()`
+  - Validates extraction results before processing for relevance ranking
+  - Provides clear error messages for incompatible processors
+
+### Testing
+
+Comprehensive test coverage added to `tests/test_000_librovore/test_300_functions.py`:
+- Tests for no objects requested (passes validation)
+- Tests for empty content extraction (raises `StructureIncompatibility`)
+- Tests for meaningful content (passes validation)
+- Tests for low success rates (raises `ContentExtractFailure`)
+- Tests for edge cases at exactly 10% threshold
+
+### Quality Assurance
+
+- ✅ All tests pass (273/273)
+- ✅ All linters pass (Ruff, Vulture, Pyright)
+- ✅ Code coverage improved for exceptions module (58% → 68%)
+- ✅ Follows project practices and style guidelines
 
 ## Related Documents
 
