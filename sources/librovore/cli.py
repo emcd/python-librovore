@@ -217,19 +217,7 @@ class QueryContentCommand(
             raise SystemExit( 1 ) from None
         # Apply lines_max truncation to content
         if 'documents' in result and self.lines_max > 0:
-            truncated_docs: list[ __.cabc.Mapping[ str, __.typx.Any ] ] = []
-            for doc in result[ 'documents' ]:
-                truncated_doc = dict( doc )
-                if 'description' in truncated_doc:
-                    lines = truncated_doc[ 'description' ].split( '\n' )
-                    if len( lines ) > self.lines_max:
-                        truncated_lines = lines[ :self.lines_max ]
-                        truncated_lines.append( '...' )
-                        truncated_doc[ 'description' ] = '\n'.join(
-                            truncated_lines )
-                truncated_docs.append( truncated_doc )
-            result = dict( result )
-            result[ 'documents' ] = truncated_docs
+            result = _truncate_query_content( result, self.lines_max )
         output = _format_output( result, display_format )
         print( output, file = stream )
 
@@ -517,6 +505,26 @@ def _format_object_list( objects_value: __.typx.Any ) -> list[ str ]:
     return lines
 
 
+def _truncate_query_content(
+    result: __.cabc.Mapping[ str, __.typx.Any ],
+    lines_max: int,
+) -> __.cabc.Mapping[ str, __.typx.Any ]:
+    ''' Truncates content in query results to specified line limit. '''
+    truncated_docs: list[ __.cabc.Mapping[ str, __.typx.Any ] ] = []
+    for doc in result[ 'documents' ]:
+        truncated_doc = dict( doc )
+        if 'description' in truncated_doc:
+            lines = truncated_doc[ 'description' ].split( '\n' )
+            if len( lines ) > lines_max:
+                truncated_lines = lines[ :lines_max ]
+                truncated_lines.append( '...' )
+                truncated_doc[ 'description' ] = '\n'.join( truncated_lines )
+        truncated_docs.append( truncated_doc )
+    result = dict( result )
+    result[ 'documents' ] = truncated_docs
+    return result
+
+
 def _format_output(
     result: __.cabc.Mapping[ str, __.typx.Any ],
     display_format: _interfaces.DisplayFormat,
@@ -557,11 +565,8 @@ def _format_query_result_markdown(
             lines.append( "" )
             # Add separator between results (except after the last one)
             if index < len( documents ):
-                lines.extend( [
-                    "",
-                    f"🔍 ── Result {index + 1} ─────────────────────── 🔍",
-                    "",
-                ] )
+                separator = "\n\n🔍 ── Result {} ─────────────────────── 🔍\n"
+                lines.append( separator.format( index + 1 ) )
     return '\n'.join( lines )
 
 

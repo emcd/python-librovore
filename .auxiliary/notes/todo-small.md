@@ -21,5 +21,12 @@
 - [ ] Improve CLI help text and examples
 - [ ] Add validation for source URLs before processing
 
+## Query Content Display Improvements
+- [ ] Add `--lines-max` argument to `query-content` (default: 40) for content length control
+- [ ] Remove redundant "Summary/Preview" field - users can use small `--lines-max` for previews
+- [ ] Add visual separators between results: `🔍 ── Result N ──────────────────────────── 🔍` with triple blank lines
+- [ ] Fix blank line preservation in markdownify pipeline for proper paragraph structure
+- [ ] Consider future `--compact` flag for condensed display mode
+
 ## Ideas for Future
 - Look for `llms.txt`? Separate processor or builtin to other processors?
