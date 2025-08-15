@@ -168,6 +168,44 @@ def get_test_inventory_path( site_name: str = 'librovore' ) -> str:
     return str( inventory_path )
 
 
+def get_test_site_path( site_name: str = 'librovore' ) -> str:
+    ''' Gets path to test site directory for structure detection. 
+    
+        Extracts site from tar.xz archive to temporary directory.
+    '''
+    import tempfile
+    import tarfile
+    import atexit
+    
+    test_dir = Path( __file__ ).parent.parent
+    archive_path = test_dir / 'data' / 'sites' / f'{site_name}.tar.xz'
+    if not archive_path.exists( ):
+        raise FileNotFoundError(
+            f"Test site archive not found: {archive_path}" )
+    
+    # Create temporary directory and extract archive
+    temp_dir = Path( tempfile.mkdtemp( 
+        prefix = f'librovore_test_{site_name}_' ) )
+    
+    # Register cleanup to remove temp directory on exit
+    def cleanup_temp_site():
+        import shutil
+        if temp_dir.exists( ):
+            shutil.rmtree( temp_dir )
+    atexit.register( cleanup_temp_site )
+    
+    # Extract archive to temp directory
+    with tarfile.open( archive_path, 'r:xz' ) as archive:
+        archive.extractall( path = temp_dir )  # noqa: S202
+    
+    site_path = temp_dir / site_name
+    if not site_path.exists( ):
+        raise FileNotFoundError(
+            f"Extracted site directory not found: {site_path}" )
+    
+    return f"file://{site_path}"
+
+
 class MockCompletedProcess:
     ''' Mock subprocess.CompletedProcess for testing CLI commands. '''
 

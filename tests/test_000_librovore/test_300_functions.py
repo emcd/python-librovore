@@ -29,7 +29,7 @@ import librovore.functions as module
 import librovore.exceptions as _exceptions
 import librovore.interfaces as _interfaces
 
-from .fixtures import get_test_inventory_path
+from .fixtures import get_test_inventory_path, get_test_site_path
 
 
 @pytest.fixture
@@ -208,9 +208,9 @@ async def test_430_summarize_inventory_with_priority( mock_auxdata ):
 @pytest.mark.asyncio
 async def test_500_query_documentation_basic( mock_auxdata ):
     ''' Query documentation returns relevant results for basic queries. '''
-    inventory_path = get_test_inventory_path( 'sphobjinv' )
+    site_url = get_test_site_path( 'librovore' )
     result = await module.query_content(
-        mock_auxdata, inventory_path, 'inventory' )
+        mock_auxdata, site_url, 'inventory' )
     assert isinstance( result, dict )
     assert 'documents' in result
     assert 'search_metadata' in result
