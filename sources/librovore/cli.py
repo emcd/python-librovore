@@ -191,6 +191,11 @@ class QueryContentCommand(
     ] = __.dcls.field( default_factory = lambda: dict( _filters_default ) )
     include_snippets: IncludeSnippets = True
     results_max: ResultsMax = 10
+    lines_max: __.typx.Annotated[
+        int,
+        __.tyro.conf.arg(
+            help = "Maximum number of lines to display per result." ),
+    ] = 40
 
     async def __call__(
         self,
@@ -210,6 +215,21 @@ class QueryContentCommand(
             _scribe.error( "query-content failed: %s", exc )
             print( _format_cli_exception( exc ), file = stream )
             raise SystemExit( 1 ) from None
+        # Apply lines_max truncation to content
+        if 'documents' in result and self.lines_max > 0:
+            truncated_docs: list[ __.cabc.Mapping[ str, __.typx.Any ] ] = []
+            for doc in result[ 'documents' ]:
+                truncated_doc = dict( doc )
+                if 'description' in truncated_doc:
+                    lines = truncated_doc[ 'description' ].split( '\n' )
+                    if len( lines ) > self.lines_max:
+                        truncated_lines = lines[ :self.lines_max ]
+                        truncated_lines.append( '...' )
+                        truncated_doc[ 'description' ] = '\n'.join(
+                            truncated_lines )
+                truncated_docs.append( truncated_doc )
+            result = dict( result )
+            result[ 'documents' ] = truncated_docs
         output = _format_output( result, display_format )
         print( output, file = stream )
 
@@ -525,18 +545,23 @@ def _format_query_result_markdown(
     ]
     if documents:
         lines.append( "\n## Documents" )
-        for doc in documents:
+        for index, doc in enumerate( documents, 1 ):
             name = doc.get( 'name', 'Unknown' )
             role = doc.get( 'role', 'unknown' )
             lines.append( f"### `{name}`" )
             lines.append( f"- **Type:** {role}" )
             if 'domain' in doc:
                 lines.append( f"- **Domain:** {doc['domain']}" )
-            if 'content_snippet' in doc:
-                lines.append( f"- **Summary:** {doc['content_snippet']}" )
             if 'description' in doc:
                 lines.append( f"- **Content:** {doc['description']}" )
             lines.append( "" )
+            # Add separator between results (except after the last one)
+            if index < len( documents ):
+                lines.extend( [
+                    "",
+                    f"🔍 ── Result {index + 1} ─────────────────────── 🔍",
+                    "",
+                ] )
     return '\n'.join( lines )
 
 
