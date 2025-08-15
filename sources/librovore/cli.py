@@ -532,13 +532,10 @@ def _format_query_result_markdown(
             lines.append( f"- **Type:** {role}" )
             if 'domain' in doc:
                 lines.append( f"- **Domain:** {doc['domain']}" )
-            if 'description' in doc:
-                description = doc[ 'description' ][ :_MARKDOWN_CONTENT_LIMIT ]
-                if len( doc[ 'description' ] ) > _MARKDOWN_CONTENT_LIMIT:
-                    description += "..."
-                lines.append( f"- **Description:** {description}" )
             if 'content_snippet' in doc:
-                lines.append( f"- **Content:** {doc['content_snippet']}" )
+                lines.append( f"- **Summary:** {doc['content_snippet']}" )
+            if 'description' in doc:
+                lines.append( f"- **Content:** {doc['description']}" )
             lines.append( "" )
     return '\n'.join( lines )
 
