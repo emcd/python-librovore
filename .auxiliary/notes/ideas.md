@@ -9,12 +9,6 @@
 
 ### Immediate Priority Processors (Phase 2)
 
-#### 1. MkDocs Processor 🎯 **HIGH PRIORITY**
-- **Rationale**: Extremely popular in Python ecosystem, fast-growing
-- **Technical feasibility**: Supports `objects.inv` via `mkdocstrings` plugin
-- **User impact**: Demonstrates cross-tool capability immediately
-- **Implementation**: Similar to Sphinx but with MkDocs-specific parsing
-
 #### 2. OpenAPI/Swagger Processor 🎯 **HIGH IMPACT**
 - **Rationale**: REST API documentation is massive use case for LLMs
 - **Technical feasibility**: Well-structured JSON/YAML input format
@@ -68,16 +62,6 @@
 - **Plugin dependencies**: Allow plugins to depend on other plugins or services
 - **Plugin metadata**: Version compatibility, capabilities, configuration schema
 
-### Built-in Plugins Implementation Priority
-- **Sphinx plugin**: ✅ **Current reference implementation** (Phase 1)
-- **MkDocs plugin**: 🎯 **Next priority** - Popular Python ecosystem tool (Phase 2)
-- **OpenAPI plugin**: 🎯 **High impact** - API documentation for LLMs (Phase 2)
-- **GraphQL plugin**: 🎯 **Innovative** - Schema introspection capabilities (Phase 3)
-- **JSDoc plugin**: JavaScript/TypeScript ecosystem support (Phase 3)
-- **rustdoc plugin**: Growing Rust ecosystem (Phase 3)
-- **GitHub plugin**: Repository documentation extraction (Phase 3)
-- **ReadTheDocs API plugin**: Enhanced API integration (Phase 3)
-
 ### Plugin Configuration System
 - **Plugin-specific parameters**: Each plugin defines its own parameter schema
 - **Configuration inheritance**: Global settings with plugin-specific overrides
@@ -124,6 +108,14 @@
 - **Faceted search**: Filter by object type, module, topic, etc.
 - **Search suggestions**: Auto-complete and query suggestions
 - **Search analytics**: Track popular queries and improve results
+
+### Vector-Based Semantic Search
+- **Embedding generation**: Create vector embeddings for documentation content using models like sentence-transformers
+- **Vector database integration**: Store and query embeddings using Chroma, Pinecone, or similar vector databases
+- **Semantic similarity**: Find conceptually related content beyond keyword matching
+- **Cross-language understanding**: Handle synonyms and related concepts automatically
+- **Context-aware results**: Rank results based on semantic relevance to query intent
+- **Hybrid search**: Combine traditional keyword search with vector similarity for optimal results
 
 ## Immediate Enhancements
 
