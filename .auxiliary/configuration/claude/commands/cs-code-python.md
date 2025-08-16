@@ -1,5 +1,5 @@
 ---
-allowed-tools: [Read, Write, Edit, MultiEdit, LS, Glob, Grep, Bash, TodoWrite, mcp__text-editor__get_text_file_contents, mcp__text-editor__edit_text_file_contents, mcp__ruff__diagnostics, mcp__ruff__edit_file, mcp__ruff__hover, mcp__ruff__references, mcp__ruff__rename_symbol, mcp__ruff__definition, mcp__pyright__diagnostics, mcp__pyright__edit_file, mcp__pyright__hover, mcp__pyright__references, mcp__pyright__rename_symbol, mcp__pyright__definition, mcp__context7__resolve-library-id, mcp__context7__get-library-docs]
+allowed-tools: [Read, Write, Edit, MultiEdit, LS, Glob, Grep, Bash, TodoWrite, mcp__ruff__diagnostics, mcp__ruff__edit_file, mcp__ruff__hover, mcp__ruff__references, mcp__ruff__rename_symbol, mcp__ruff__definition, mcp__pyright__diagnostics, mcp__pyright__edit_file, mcp__pyright__hover, mcp__pyright__references, mcp__pyright__rename_symbol, mcp__pyright__definition, mcp__context7__resolve-library-id, mcp__context7__get-library-docs]
 description: Python implementation following established patterns and practices
 ---
 
@@ -83,6 +83,8 @@ Write Python code following established patterns:
 - Apply nomenclature patterns for consistent naming
 - Ensure functions are ≤30 lines and modules are ≤600 lines
 
+For complex type annotation issues or when adding comprehensive type annotations to existing code, consider using the `python-annotator` agent.
+
 ### 4. Implementation Tracking Checklist
 Track progress against requirements:
 - [ ] All specified functions/classes have been implemented
@@ -114,6 +116,7 @@ Type Error Resolution Process:
    - Generate stubs: `hatch --env develop run pyright --createsub <package>`
    - Complete necessary stub definitions
    - Re-run type checker to verify resolution
+3. Complex Type Issues: For comprehensive type annotation work, systematic suppression resolution, or complex dependency management, consider using the `python-annotator` agent.
 
 Stop and consult user if:
 - Type errors cannot be categorized as code issues or third-party stub gaps

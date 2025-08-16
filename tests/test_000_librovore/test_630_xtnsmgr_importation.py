@@ -21,10 +21,12 @@
 ''' Import path management and .pth file processing tests. '''
 
 
-import pytest
-from pathlib import Path
 import sys
 import tempfile
+
+from pathlib import Path
+
+import pytest
 
 import librovore.xtnsmgr.importation as module
 

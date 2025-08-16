@@ -1,5 +1,7 @@
 import shutil
+
 from pathlib import Path
+
 import pytest
 import pytest_asyncio
 
@@ -62,9 +64,9 @@ def fake_fs_with_inventories( fs, cached_inventories ):
 @pytest_asyncio.fixture( scope = 'session', autouse = True )
 async def load_processors( ):
     ''' Auto-load builtin processors for tests. '''
-    import librovore.structures.sphinx as _sphinx_processor
-    import librovore.structures.mkdocs as _mkdocs_processor
     import librovore.inventories.sphinx as _sphinx_inventory
+    import librovore.structures.mkdocs as _mkdocs_processor
+    import librovore.structures.sphinx as _sphinx_processor
     _sphinx_processor.register( { } )
     _mkdocs_processor.register( { } )
     _sphinx_inventory.register( { } )

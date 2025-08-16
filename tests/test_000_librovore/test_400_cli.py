@@ -21,9 +21,10 @@
 ''' CLI command tests using subprocess injection. '''
 
 
-import pytest
-from unittest.mock import Mock, AsyncMock
 from io import StringIO
+from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 import librovore.cli as module
 

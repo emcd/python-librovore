@@ -21,12 +21,13 @@
 ''' Core business logic functions tests using dependency injection. '''
 
 
-import pytest
 from pathlib import Path
 from unittest.mock import Mock
 
-import librovore.functions as module
+import pytest
+
 import librovore.exceptions as _exceptions
+import librovore.functions as module
 import librovore.interfaces as _interfaces
 
 from .fixtures import get_test_inventory_path, get_test_site_path

@@ -1,6 +1,6 @@
 """Minimal type stubs for BeautifulSoup elements focusing on our usage."""
 
-from typing import Any, Dict, Optional, Union, List
+from typing import Any, Dict, List, Optional, Union
 
 class PageElement:
     """Base class for all elements in the parse tree."""

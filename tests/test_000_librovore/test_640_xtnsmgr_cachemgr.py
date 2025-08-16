@@ -21,12 +21,14 @@
 ''' Cache manager tests for extension packages. '''
 
 
-from pathlib import Path
 import datetime
 import json
 import tempfile
 
+from pathlib import Path
+
 import librovore.xtnsmgr.cachemgr as module
+
 from .fixtures import get_fake_extension_url
 
 

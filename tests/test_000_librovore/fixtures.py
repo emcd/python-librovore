@@ -178,9 +178,9 @@ def get_test_site_path( site_name: str = 'librovore' ) -> str:
     '''
     if site_name in _extracted_sites_cache:
         return _extracted_sites_cache[site_name]
-    import tempfile
-    import tarfile
     import atexit
+    import tarfile
+    import tempfile
     test_dir = Path( __file__ ).parent.parent
     archive_path = test_dir / 'data' / 'sites' / f'{site_name}.tar.xz'
     if not archive_path.exists( ):

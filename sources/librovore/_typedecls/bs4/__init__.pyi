@@ -1,7 +1,7 @@
 """Minimal type stubs for BeautifulSoup focusing on our usage."""
 
-from typing import Any, Dict, Optional, Union, List
-from .element import Tag, NavigableString, PageElement
+from typing import Any, Dict, List, Optional, Union
+
 from ._warnings import (
     AttributeResemblesVariableWarning,
     GuessedAtParserWarning,
@@ -9,6 +9,7 @@ from ._warnings import (
     UnusualUsageWarning,
     XMLParsedAsHTMLWarning,
 )
+from .element import NavigableString, PageElement, Tag
 
 __all__ = [
     "BeautifulSoup",

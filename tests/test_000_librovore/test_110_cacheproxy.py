@@ -25,17 +25,19 @@
 
 import asyncio
 
-from unittest.mock import patch, Mock #, AsyncMock
+from unittest.mock import Mock, patch  # , AsyncMock
 from urllib.parse import ParseResult as Url
-# import urllib.robotparser as _urllib_robotparser
 
 import appcore.generics as _generics
 import httpx as _httpx
 import pytest
 
 import librovore.cacheproxy as module
+
 from librovore import __
 from librovore import exceptions as _exceptions
+
+# import urllib.robotparser as _urllib_robotparser
 
 
 _URL_HTTP_TEST = Url(

@@ -21,13 +21,14 @@
 ''' Detection module tests for processor selection and caching system. '''
 
 
-import pytest
-from unittest.mock import patch
 from dataclasses import dataclass
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
+
+import pytest
 
 import librovore.detection as module
 import librovore.processors as _processors
+
 from librovore import __
 
 

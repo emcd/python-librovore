@@ -21,11 +21,12 @@
 ''' Extension configuration parsing and validation tests. '''
 
 
-import pytest
 from unittest.mock import Mock
 
-import librovore.xtnsmgr.configuration as module
+import pytest
+
 import librovore.exceptions as _exceptions
+import librovore.xtnsmgr.configuration as module
 
 
 def test_000_validate_extension_valid_intrinsic( ):

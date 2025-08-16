@@ -25,7 +25,7 @@ import pytest
 
 import librovore.xtnsmgr.processors as module
 
-from .fixtures import get_fake_extension_url, get_broken_extension_url
+from .fixtures import get_broken_extension_url, get_fake_extension_url
 
 
 def test_000_module_imports_correctly( ):

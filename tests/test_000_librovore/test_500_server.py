@@ -21,11 +21,12 @@
 ''' Unit tests for server module without MCP protocol dependencies. '''
 
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
-import librovore.server as module
+import pytest
+
 import librovore.interfaces as _interfaces
+import librovore.server as module
 import librovore.state as _state
 
 from .fixtures import get_test_inventory_path
