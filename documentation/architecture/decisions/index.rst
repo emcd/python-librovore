@@ -21,11 +21,26 @@
 Architectural Decision Records
 *******************************************************************************
 
+This section documents the significant architectural decisions made during the development of the project. Each ADR captures the context, reasoning, alternatives considered, and consequences of important design choices.
+
 .. toctree::
    :maxdepth: 2
 
+   001-extension-management-system
+   002-search-architecture-separation
+   003-dual-interface-architecture
 
-.. todo:: Add architectural decision records to toctree.
+Decision Summary
+===============================================================================
+
+**ADR-001: Extension Management System**
+  Decision to implement a three-layer extension architecture (API, management, configuration) with clear separation of concerns and dependency isolation.
+
+**ADR-002: Search Architecture Separation**  
+  Decision to separate universal search logic from processor-specific data extraction, enabling consistent search behavior across all documentation formats.
+
+**ADR-003: Dual Interface Architecture**
+  Decision to provide both CLI and MCP server interfaces sharing common business logic, optimized for human users and AI agents respectively.
 
 For ADR format and guidance, see the `architecture documentation guide
 <https://emcd.github.io/python-project-common/stable/sphinx-html/common/architecture.html>`_.

@@ -54,26 +54,114 @@ Source Code Organization
 Package Structure
 -------------------------------------------------------------------------------
 
-The main Python package follows the standard ``sources/`` directory pattern:
+The main Python package follows the standard ``sources/`` directory pattern with a layered architecture:
 
 .. code-block::
 
     sources/
-    ├── librovore/          # Main Python package
+    ├── librovore/                   # Main Python package
     │   ├── __/                      # Centralized import hub
     │   │   ├── __init__.py          # Re-exports core utilities
     │   │   ├── imports.py           # External library imports
-    │   │   └── nomina.py            # python-librovore-specific naming constants
+    │   │   ├── doctab.py            # Documentation table utilities
+    │   │   ├── inscription.py       # Logging and instrumentation utilities
+    │   │   ├── interfaces.py        # Common interface definitions
+    │   │   └── nomina.py            # Project-specific naming constants
     │   ├── __init__.py              # Package entry point
     │   ├── py.typed                 # Type checking marker
     │   ├── __main__.py              # CLI entry point for `python -m librovore`
+    │   │
+    │   │   # Interface Layer
     │   ├── cli.py                   # Command-line interface implementation
+    │   ├── server.py                # MCP server implementation
+    │   │
+    │   │   # Business Logic Layer  
+    │   ├── functions.py             # Core business logic shared between interfaces
+    │   ├── search.py                # Universal search engine with fuzzy/exact/regex
+    │   ├── detection.py             # Processor detection and selection system
+    │   │
+    │   │   # Processor Layer
+    │   ├── processors.py            # Abstract processor base classes and protocols
+    │   ├── inventories/             # Inventory extraction processors
+    │   │   ├── __/                  # Subpackage import hub
+    │   │   ├── __init__.py
+    │   │   └── sphinx/              # Sphinx objects.inv processing
+    │   │       ├── __init__.py
+    │   │       ├── detection.py     # Sphinx inventory detection logic
+    │   │       └── main.py          # Sphinx inventory processor implementation
+    │   ├── structures/              # Content extraction processors  
+    │   │   ├── __/                  # Subpackage import hub
+    │   │   ├── __init__.py
+    │   │   ├── sphinx/              # Sphinx HTML content processing
+    │   │   │   ├── __init__.py
+    │   │   │   ├── detection.py     # Sphinx structure detection
+    │   │   │   ├── main.py          # Core Sphinx structure processor
+    │   │   │   ├── conversion.py    # HTML to Markdown conversion
+    │   │   │   ├── extraction.py    # Content extraction logic
+    │   │   │   └── urls.py          # URL construction and resolution
+    │   │   └── mkdocs/              # MkDocs content processing
+    │   │       ├── __init__.py
+    │   │       ├── detection.py     # MkDocs structure detection  
+    │   │       ├── main.py          # Core MkDocs structure processor
+    │   │       ├── conversion.py    # MkDocs-specific conversion logic
+    │   │       └── extraction.py    # MkDocs content extraction
+    │   │
+    │   │   # Extension Management Layer
+    │   ├── xtnsapi.py               # Extension developer API interface
+    │   ├── xtnsmgr/                 # Extension manager subsystem
+    │   │   ├── __/                  # Subpackage import hub
+    │   │   ├── __init__.py          # Manager public interface
+    │   │   ├── configuration.py     # Extension configuration management
+    │   │   ├── installation.py      # Package installation via uv
+    │   │   ├── importation.py       # Dynamic import management
+    │   │   ├── cachemgr.py          # Extension package caching
+    │   │   └── processors.py        # Processor lifecycle management
+    │   │
+    │   │   # Infrastructure Layer
+    │   ├── interfaces.py            # Common enumerations and data structures
     │   ├── exceptions.py            # Package exception hierarchy
-    │   └── [modules].py             # Feature-specific modules
-    
+    │   ├── state.py                 # Global state and configuration management
+    │   ├── cacheproxy.py            # HTTP caching and URL handling
+    │   ├── urls.py                  # URL manipulation utilities
+    │   │
+    │   │   # Type Definitions
+    │   └── _typedecls/              # External library type stubs
+
+Architectural Layer Mapping
+-------------------------------------------------------------------------------
+
+The filesystem organization directly maps to the architectural layers:
+
+**Interface Layer (Entry Points)**
+  - ``cli.py``: Human-accessible command-line interface
+  - ``server.py``: AI agent MCP server interface
+  - ``__main__.py``: Python module execution entry point
+
+**Business Logic Layer (Core Operations)**
+  - ``functions.py``: Shared business logic and orchestration
+  - ``search.py``: Universal search algorithms and ranking
+  - ``detection.py``: Processor selection and confidence scoring
+
+**Processor Layer (Format-Specific Logic)**
+  - ``processors.py``: Abstract base classes and protocols
+  - ``inventories/``: Documentation inventory extraction (objects.inv parsing)
+  - ``structures/``: Documentation content extraction and conversion
+
+**Extension Management Layer (Plugin System)**
+  - ``xtnsapi.py``: Clean API for extension developers
+  - ``xtnsmgr/``: Extension lifecycle, installation, and configuration
+
+**Infrastructure Layer (Supporting Utilities)**
+  - ``interfaces.py``: Common data structures and enumerations
+  - ``exceptions.py``: Error handling hierarchy
+  - ``state.py``: Application state and globals management
+  - ``cacheproxy.py``: HTTP caching and network operations
+  - ``urls.py``: URL manipulation and validation
 
 All package modules use the standard ``__`` import pattern as documented
-in the common architecture guide.
+in the common architecture guide. Subpackages (``inventories/``, ``structures/``, ``xtnsmgr/``) 
+implement the cascading import hierarchy where each level inherits parent imports 
+and adds specialized functionality.
 
 Component Integration
 ===============================================================================

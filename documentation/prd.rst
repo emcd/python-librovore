@@ -24,7 +24,7 @@ Product Requirements Document
 Executive Summary
 ===============================================================================
 
-Librovore is a dual-purpose tool that provides both an MCP (Model Context Protocol) server and CLI interface for searching and extracting content from static documentation sites. The name "librovore" (book-devourer) reflects its ability to consume and index documentation from multiple formats including Sphinx and MkDocs sites. It enables AI agents and human users to efficiently discover, search, and extract relevant information from documentation inventories and full-text content.
+The project is a dual-purpose tool that provides both an MCP (Model Context Protocol) server and CLI interface for searching and extracting content from static documentation sites. It enables AI agents and human users to efficiently discover, search, and extract relevant information from documentation inventories and full-text content.
 
 The product targets AI agents needing to access technical documentation during development workflows, as well as human developers seeking efficient documentation search capabilities outside of LLM environments.
 
@@ -103,7 +103,7 @@ Functional Requirements
 **REQ-001: MCP Server Implementation (Critical)**
 - **Priority**: Critical
 - **Description**: Implement complete MCP server with FastMCP framework
-- **User Story**: As an AI agent, I want to connect to librovore via MCP so that I can programmatically access documentation
+- **User Story**: As an AI agent, I want to connect to the system via MCP so that I can programmatically access documentation
 - **Acceptance Criteria**:
   - Server responds to MCP client connections
   - Implements query_inventory_with_context tool
@@ -171,7 +171,7 @@ Functional Requirements
 **REQ-007: Processor Detection (High)**
 - **Priority**: High
 - **Description**: Automatic detection of appropriate processor for given documentation site
-- **User Story**: As a user, I want librovore to automatically determine the correct processor so that I don't need to specify the documentation type
+- **User Story**: As a user, I want the system to automatically determine the correct processor so that I don't need to specify the documentation type
 - **Acceptance Criteria**:
   - Detect Sphinx sites by robots.txt and objects.inv presence
   - Detect MkDocs sites with mkdocstrings by objects.inv and site structure
@@ -204,7 +204,7 @@ Functional Requirements
 **REQ-010: Plugin Architecture Foundation (Low)**
 - **Priority**: Low
 - **Description**: Extensible architecture for additional documentation processors
-- **User Story**: As a tool developer, I want to extend librovore with custom processors so that I can support additional documentation formats
+- **User Story**: As a tool developer, I want to extend the system with custom processors so that I can support additional documentation formats
 - **Acceptance Criteria**:
   - Abstract base classes for processors
   - Plugin discovery mechanism
