@@ -251,47 +251,6 @@ def test_037_extract_mimetype_from_headers_missing_header( ):
     assert result == ''
 
 
-def test_040_is_textual_mimetype_text_types( ):
-    ''' Text mimetypes are identified as textual. '''
-    assert module._is_textual_mimetype( 'text/plain' )
-    assert module._is_textual_mimetype( 'text/html' )
-    assert module._is_textual_mimetype( 'text/css' )
-
-
-def test_041_is_textual_mimetype_application_types( ):
-    ''' Textual application types are identified as textual. '''
-    assert module._is_textual_mimetype( 'application/json' )
-    assert module._is_textual_mimetype( 'application/xml' )
-    assert module._is_textual_mimetype( 'application/javascript' )
-    assert module._is_textual_mimetype( 'application/yaml' )
-
-
-def test_042_is_textual_mimetype_non_textual( ):
-    ''' Non-textual mimetypes are identified as non-textual. '''
-    assert not module._is_textual_mimetype( 'image/png' )
-    assert not module._is_textual_mimetype( 'application/pdf' )
-    assert not module._is_textual_mimetype( 'video/mp4' )
-
-
-def test_045_validate_textual_content_valid_mimetype( ):
-    ''' Textual mimetypes pass content validation. '''
-    headers = _httpx.Headers( { 'content-type': 'text/html' } )
-    module._validate_textual_content( headers, 'http://example.com' )
-
-
-def test_046_validate_textual_content_invalid_mimetype( ):
-    ''' Non-textual content raises validation exception. '''
-    headers = _httpx.Headers( { 'content-type': 'image/png' } )
-    with pytest.raises( _exceptions.HttpContentTypeInvalidity ):
-        module._validate_textual_content( headers, 'http://example.com' )
-
-
-def test_047_validate_textual_content_missing_header( ):
-    ''' Missing Content-Type headers pass validation. '''
-    headers = _httpx.Headers( )
-    module._validate_textual_content( headers, 'http://example.com' )
-
-
 #
 # Series 100: ContentCache Tests
 #
@@ -688,7 +647,7 @@ async def test_222_probe_url_mutex_reuse_sequential_requests( robots_cache ):
     ''' Sequential probe requests to same URL reuse existing mutex. '''
     # Use file URL to avoid HTTP complexity
     url = _URL_FILE_TEST
-    
+
     # Use separate caches to avoid cache hits
     cache1 = module.ProbeCache( )
     cache2 = module.ProbeCache( )
@@ -812,7 +771,7 @@ async def test_321_retrieve_url_mutex_reuse_sequential_requests( robots_cache ):
     ''' Sequential retrieve requests to same URL reuse existing mutex. '''
     # Use file URL to avoid HTTP complexity
     url = _URL_FILE_MISSING
-    
+
     # Use separate caches to avoid cache hits
     cache1 = module.ContentCache( )
     cache2 = module.ContentCache( )

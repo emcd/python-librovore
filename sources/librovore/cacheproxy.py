@@ -538,18 +538,25 @@ async def retrieve_url_as_text(
     match url.scheme:
         case '' | 'file':
             location = __.Path( url.path )
-            # TODO? Use preferred fs encoding instead of default charset.
-            try: return location.read_text( encoding = charset_default )
+            try: content_bytes = location.read_bytes( )
             except Exception as exc:
                 raise _exceptions.DocumentationInaccessibility(
                     url_s, exc ) from exc
+            mimetype, charset = __.detext.detect_mimetype_and_charset(
+                content_bytes, location )
+            if not __.detext.is_textual_content( content_bytes ):
+                raise _exceptions.DocumentationInaccessibility(
+                    url_s, "Content analysis indicates non-textual data" )
+            encoding = charset or charset_default
+            return content_bytes.decode( encoding )
         case 'http' | 'https':
             result = await cache.access( url_s )
             if not __.is_absent( result ):
                 content_bytes, headers = result
-                _validate_textual_content( headers, url_s )
-                charset = _extract_charset_from_headers(
-                    headers, charset_default )
+                _validate_textual_content(
+                    content_bytes, headers, url_s )
+                charset = _detect_charset_with_fallback(
+                    content_bytes, headers, charset_default )
                 return content_bytes.decode( charset )
             async with client_factory( ) as client:
                 result, headers = await _retrieve_url(
@@ -560,8 +567,10 @@ async def retrieve_url_as_text(
             ttl = cache.determine_ttl( result )
             await cache.store( url_s, result, headers, ttl )
             content_bytes = result.extract( )
-            _validate_textual_content( headers, url_s )
-            charset = _extract_charset_from_headers( headers, charset_default )
+            _validate_textual_content(
+                content_bytes, headers, url_s )
+            charset = _detect_charset_with_fallback(
+                content_bytes, headers, charset_default )
             return content_bytes.decode( charset )
         case _:
             raise _exceptions.DocumentationInaccessibility(
@@ -624,6 +633,27 @@ async def _check_robots_txt(
         return True # if no robots.txt, then assume URL allowed
 
 
+def _detect_charset_with_fallback(
+    content: bytes, headers: _httpx.Headers, default: str
+) -> str:
+    ''' Detects charset from headers with content-based fallback. '''
+    header_charset = _extract_charset_from_headers( headers, '' )
+    if header_charset:
+        return header_charset
+    detected_charset = __.detext.detect_charset( content )
+    return detected_charset or default
+
+
+def _detect_mimetype_with_fallback(
+    content: bytes, headers: _httpx.Headers, url: str
+) -> str:
+    ''' Detects MIME type from headers with content-based fallback. '''
+    header_mimetype = _extract_mimetype_from_headers( headers )
+    if header_mimetype:
+        return header_mimetype
+    return __.detext.detect_mimetype( content, url ) or ''
+
+
 def _extract_charset_from_headers(
     headers: _httpx.Headers, default: str
 ) -> str:
@@ -651,20 +681,17 @@ def _extract_mimetype_from_headers( headers: _httpx.Headers ) -> str:
     return content_type
 
 
-def _is_textual_mimetype( mimetype: str ) -> bool:
-    ''' Checks if mimetype represents textual content. '''
-    return (
-        mimetype.startswith( 'text/' ) or mimetype in (
-            'application/ecmascript',
-            'application/javascript',
-            'application/json',
-            'application/ld+json',
-            'application/xml',
-            'application/yaml',
-            'application/x-yaml',
-            'image/svg+xml',
-        )
-    )
+def _raise_non_textual_content( url: str ) -> None:
+    ''' Raises exception for non-textual content. '''
+    raise _exceptions.DocumentationInaccessibility(
+        url, "Content analysis indicates non-textual data" )
+
+
+def _raise_non_textual_mimetype( url: str, mimetype: str ) -> None:
+    ''' Raises exception for non-textual MIME type. '''
+    raise _exceptions.DocumentationInaccessibility(
+        url, f"Non-textual content detected: {mimetype}" )
+
 
 
 async def _probe_url(
@@ -751,9 +778,14 @@ async def _retrieve_url(
         else: return _generics.Value( response.content ), response.headers
 
 
-def _validate_textual_content( headers: _httpx.Headers, url: str ) -> None:
-    ''' Validates that content is textual based on mimetype. '''
-    mimetype = _extract_mimetype_from_headers( headers )
-    if mimetype and not _is_textual_mimetype( mimetype ):
+def _validate_textual_content(
+    content: bytes, headers: _httpx.Headers, url: str
+) -> None:
+    ''' Validates that content is textual via headers and content analysis. '''
+    mimetype = _detect_mimetype_with_fallback( content, headers, url )
+    if mimetype and not __.detext.is_textual_mimetype( mimetype ):
         raise _exceptions.HttpContentTypeInvalidity(
             url, mimetype, "text decoding" )
+    if not __.detext.is_textual_content( content ):
+        raise _exceptions.HttpContentTypeInvalidity(
+            url, mimetype or 'unknown', "content analysis" )

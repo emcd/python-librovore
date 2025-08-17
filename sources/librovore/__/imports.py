@@ -51,6 +51,7 @@ from pathlib import Path
 import accretive as         accret
 import                      appcore
 import dynadoc as           ddoc
+import detextive as         detext
 import exceptiongroup as    excg
 import frigid as            immut
 import typing_extensions as typx
