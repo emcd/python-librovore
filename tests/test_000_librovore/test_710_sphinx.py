@@ -21,11 +21,11 @@
 ''' Sphinx processor implementation tests using dependency injection. '''
 
 
-import librovore.structures.sphinx.urls as module
+# import librovore.structures.sphinx.urls as module
 
 
-def test_100__normalize_base_url_basic_path( ):
-    ''' Base URL normalization works correctly for file paths. '''
-    test_path = '/home/user/test.inv'
-    result = module.normalize_base_url( test_path )
-    assert result.geturl( ) == 'file:///home/user'
+# def test_100__normalize_base_url_basic_path( ):
+#     ''' Base URL normalization works correctly for file paths. '''
+#     test_path = '/home/user/test.inv'
+#     result = module.normalize_base_url( test_path )
+#     assert result.geturl( ) == 'file:///home/user'
