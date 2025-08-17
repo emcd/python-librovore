@@ -145,7 +145,7 @@ def _exception_to_error_response( exc: Exception ) -> dict[ str, str ]:  # noqa:
 
 
 def _produce_detect_function( auxdata: _state.Globals ):
-    async def detect_with_context(
+    async def detect(
         location: LocationArgument,
         genus: __.typx.Annotated[
             _interfaces.ProcessorGenera,
@@ -161,11 +161,11 @@ def _produce_detect_function( auxdata: _state.Globals ):
             nomargs[ 'processor_name' ] = processor_name
         return await _functions.detect( auxdata, location, genus, **nomargs )
 
-    return detect_with_context
+    return detect
 
 
 def _produce_query_content_function( auxdata: _state.Globals ):
-    async def query_content_with_context(  # noqa: PLR0913
+    async def query_content(  # noqa: PLR0913
         location: LocationArgument,
         term: TermArgument,
         search_behaviors: __.typx.Annotated[
@@ -189,11 +189,11 @@ def _produce_query_content_function( auxdata: _state.Globals ):
             include_snippets = include_snippets,
             results_max = results_max )
 
-    return query_content_with_context
+    return query_content
 
 
 def _produce_query_inventory_function( auxdata: _state.Globals ):
-    async def query_inventory_with_context(  # noqa: PLR0913
+    async def query_inventory(  # noqa: PLR0913
         location: LocationArgument,
         term: TermArgument,
         search_behaviors: __.typx.Annotated[
@@ -220,11 +220,11 @@ def _produce_query_inventory_function( auxdata: _state.Globals ):
             details = details,
             results_max = results_max )
 
-    return query_inventory_with_context
+    return query_inventory
 
 
 def _produce_summarize_inventory_function( auxdata: _state.Globals ):
-    async def summarize_inventory_with_context(
+    async def summarize_inventory(
         location: LocationArgument,
         search_behaviors: __.typx.Annotated[
             SearchBehaviorsMutable,
@@ -246,11 +246,11 @@ def _produce_summarize_inventory_function( auxdata: _state.Globals ):
             filters = immutable_filters,
             group_by = group_by )
 
-    return summarize_inventory_with_context
+    return summarize_inventory
 
 
 def _produce_survey_processors_function( auxdata: _state.Globals ):
-    async def survey_processors_with_context(
+    async def survey_processors(
         genus: __.typx.Annotated[
             _interfaces.ProcessorGenera,
             _Field( description = "Processor genus (inventory or structure)" ),
@@ -262,7 +262,7 @@ def _produce_survey_processors_function( auxdata: _state.Globals ):
     ) -> dict[ str, __.typx.Any ]:
         return await _functions.survey_processors( auxdata, genus, name )
 
-    return survey_processors_with_context
+    return survey_processors
 
 
 def _register_server_functions(

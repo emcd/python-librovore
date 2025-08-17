@@ -106,9 +106,9 @@ Functional Requirements
 - **User Story**: As an AI agent, I want to connect to the system via MCP so that I can programmatically access documentation
 - **Acceptance Criteria**:
   - Server responds to MCP client connections
-  - Implements query_inventory_with_context tool
-  - Implements query_content_with_context tool
-  - Implements summarize_inventory_with_context tool
+  - Implements query_inventory tool
+  - Implements query_content tool
+  - Implements summarize_inventory tool
   - Supports restart functionality for development
   - JSON schema generation for all tool parameters
 

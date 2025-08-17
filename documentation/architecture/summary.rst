@@ -128,7 +128,7 @@ Interface Layer
 **MCP Server (server.py)**
   - Implements Model Context Protocol for AI agent integration
   - Uses FastMCP framework for JSON schema generation
-  - Provides tools: query_inventory_with_context, query_content_with_context, summarize_inventory_with_context
+  - Provides tools: query_inventory, query_content, summarize_inventory
   - Supports server restart functionality for development workflows
 
 Business Logic Layer
