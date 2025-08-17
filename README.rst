@@ -45,11 +45,47 @@
    :target: https://pypi.org/project/librovore/
 
 
-.. todo:: Provide project description and key features.
+🐲📚 **Documentation Search Engine** - An intelligent documentation search and
+extraction tool that provides both a command-line interface for humans and an
+MCP (Model Context Protocol) server for AI agents. Search across Sphinx and
+MkDocs sites with fuzzy matching, extract clean markdown content, and integrate
+seamlessly with AI development workflows.
+
+
+Key Features ⭐
+===============================================================================
+
+* 🔍 **Universal Search**: Fuzzy, exact, and regex search across documentation inventories and full content
+* 🤖 **AI Agent Ready**: Built-in MCP server for seamless integration with Claude Code and other AI tools
+* 📖 **Multi-Format Support**: Works with Sphinx (Furo, ReadTheDocs themes) and MkDocs (Material theme) sites
+* 🚀 **High Performance**: In-memory caching with sub-second response times for repeated queries
+* 🧹 **Clean Output**: High-quality HTML-to-Markdown conversion preserving code blocks and formatting
+* 🎯 **Auto-Detection**: Automatically identifies documentation type without manual configuration
+* 🔌 **Extensible**: Plugin architecture supports additional documentation formats via extension manager
 
 
 Installation 📦
 ===============================================================================
+
+Method: MCP Server Configuration
+-------------------------------------------------------------------------------
+
+Add as an MCP server in your AI client configuration. For example, in Claude
+Code's MCP configuration:
+
+::
+
+    {
+      "mcpServers": {
+        "librovore": {
+          "command": "uvx",
+          "args": [
+            "librovore",
+            "serve"
+          ]
+        }
+      }
+    }
 
 Method: Download Standalone Executable
 -------------------------------------------------------------------------------
@@ -98,7 +134,62 @@ Or, install via ``pip``:
     pip install librovore
 
 
-.. todo:: Provide usage examples and additional content.
+Examples 💡
+===============================================================================
+
+Command-Line Interface
+-------------------------------------------------------------------------------
+
+Search Python documentation for 'pathlib':
+
+::
+
+    librovore query-inventory https://docs.python.org/3 pathlib
+
+Search content with fuzzy matching:
+
+::
+
+    librovore query-content https://fastapi.tiangolo.com "dependency injection"
+
+Get inventory summary:
+
+::
+
+    librovore summarize-inventory https://docs.pydantic.dev
+
+MCP Server for AI Agents
+-------------------------------------------------------------------------------
+
+Start the MCP server for AI agent integration:
+
+::
+
+    librovore serve
+
+The server provides tools for AI agents to search documentation object
+inventories, search full documentation content with snippets, and get overviews
+of available documentation.
+
+Use Cases
+===============================================================================
+
+* **AI Development**: Enable Claude Code and other AI agents to search technical documentation
+* **Documentation Research**: Quickly find API references and usage examples across multiple sites
+* **Development Workflows**: Access documentation programmatically during development
+* **Cross-Reference Search**: Find related concepts across different documentation sources
+
+
+About the Name 📝
+===============================================================================
+
+The name "librovore" draws from Latin roots meaning **"book-devourer"** - a
+fitting metaphor for a tool that consumes and digests documentation across
+multiple formats:
+
+* 📚 Anglicized Latin `libro- <https://en.wiktionary.org/wiki/libro->`_ ("book") + `-vore <https://en.wiktionary.org/wiki/-vore>`_ ("devouring")
+* 🐲 The "Book Wyrm" - traditionally "librovore" is a synonym for "bookworm", but Claude's choice of the dragon emoji 🐲 rather than a worm emoji transformed our humble bookworm into a legendary wyrm that devours knowledge and makes it accessible
+* 📖 Both "worm" and "wyrm" share the same Old English origins, so the linguistic evolution fits perfectly
 
 
 Contribution 🤝
