@@ -34,4 +34,3 @@
 
 ## Ideas for Future
 - Look for `llms.txt`? Separate processor or builtin to other processors?
-- Convert MkDocs processor to use markdownify for consistency and better output quality
