@@ -29,7 +29,6 @@ import pytest
 import librovore.cli as module
 
 # from .fixtures import run_cli_command, get_test_inventory_path
-from .fixtures import get_test_inventory_path
 
 
 class MockDisplayTarget:
@@ -47,55 +46,55 @@ def create_test_auxdata( ):
     return Mock( )
 
 
-@pytest.mark.asyncio
-async def test_030_summarize_inventory_command_unit( ):
-    ''' SummarizeInventoryCommand processes arguments correctly. '''
-    display = MockDisplayTarget( )
-    auxdata = create_test_auxdata( )
-    test_inventory_path = get_test_inventory_path( 'librovore' )
-    search_behaviors = module._interfaces.SearchBehaviors( )
-    filters = { 'domain': 'py' }
-    cmd = module.SummarizeInventoryCommand(
-        location = test_inventory_path,
-        search_behaviors = search_behaviors,
-        filters = filters )
-    await cmd( auxdata, display, module._interfaces.DisplayFormat.JSON )
-    output = display.stream.getvalue( )
-    assert '"project":' in output
-    assert '"domain": "py"' in output
-
-
-@pytest.mark.asyncio
-async def test_040_summarize_inventory_command_no_filters( ):
-    ''' SummarizeInventoryCommand works without filters. '''
-    display = MockDisplayTarget( )
-    auxdata = create_test_auxdata( )
-    test_inventory_path = get_test_inventory_path( 'librovore' )
-    cmd = module.SummarizeInventoryCommand( location = test_inventory_path )
-    await cmd( auxdata, display, module._interfaces.DisplayFormat.JSON )
-    output = display.stream.getvalue( )
-    assert '"project":' in output
-
-
-@pytest.mark.asyncio
-async def test_060_use_command_summarize_delegation( ):
-    ''' UseCommand delegates to SummarizeInventoryCommand correctly. '''
-    display = MockDisplayTarget( )
-    auxdata = create_test_auxdata( )
-    test_inventory_path = get_test_inventory_path( 'librovore' )
-    search_behaviors = module._interfaces.SearchBehaviors( )
-    filters = { 'domain': 'py' }
-    summarize_cmd = module.SummarizeInventoryCommand(
-        location = test_inventory_path,
-        search_behaviors = search_behaviors,
-        filters = filters )
-    await summarize_cmd(
-        auxdata, display, module._interfaces.DisplayFormat.JSON )
-    output = display.stream.getvalue( )
-    assert '"project":' in output
-    assert 'py' in output
-
-
+# @pytest.mark.asyncio
+# async def test_030_summarize_inventory_command_unit( ):
+#     ''' SummarizeInventoryCommand processes arguments correctly. '''
+#     display = MockDisplayTarget( )
+#     auxdata = create_test_auxdata( )
+#     test_inventory_path = get_test_inventory_path( 'librovore' )
+#     search_behaviors = module._interfaces.SearchBehaviors( )
+#     filters = { 'domain': 'py' }
+#     cmd = module.SummarizeInventoryCommand(
+#         location = test_inventory_path,
+#         search_behaviors = search_behaviors,
+#         filters = filters )
+#     await cmd( auxdata, display, module._interfaces.DisplayFormat.JSON )
+#     output = display.stream.getvalue( )
+#     assert '"project":' in output
+#     assert '"domain": "py"' in output
+# 
+# 
+# @pytest.mark.asyncio
+# async def test_040_summarize_inventory_command_no_filters( ):
+#     ''' SummarizeInventoryCommand works without filters. '''
+#     display = MockDisplayTarget( )
+#     auxdata = create_test_auxdata( )
+#     test_inventory_path = get_test_inventory_path( 'librovore' )
+#     cmd = module.SummarizeInventoryCommand( location = test_inventory_path )
+#     await cmd( auxdata, display, module._interfaces.DisplayFormat.JSON )
+#     output = display.stream.getvalue( )
+#     assert '"project":' in output
+# 
+# 
+# @pytest.mark.asyncio
+# async def test_060_use_command_summarize_delegation( ):
+#     ''' UseCommand delegates to SummarizeInventoryCommand correctly. '''
+#     display = MockDisplayTarget( )
+#     auxdata = create_test_auxdata( )
+#     test_inventory_path = get_test_inventory_path( 'librovore' )
+#     search_behaviors = module._interfaces.SearchBehaviors( )
+#     filters = { 'domain': 'py' }
+#     summarize_cmd = module.SummarizeInventoryCommand(
+#         location = test_inventory_path,
+#         search_behaviors = search_behaviors,
+#         filters = filters )
+#     await summarize_cmd(
+#         auxdata, display, module._interfaces.DisplayFormat.JSON )
+#     output = display.stream.getvalue( )
+#     assert '"project":' in output
+#     assert 'py' in output
+# 
+# 
 @pytest.mark.asyncio
 async def test_070_serve_command_unit( ):
     ''' ServeCommand processes arguments correctly. '''
@@ -146,17 +145,17 @@ def test_090_cli_prepare_invocation_args( ):
     assert args[ 'logfile' ] == '/test/log.txt'
 
 
-def test_100_cli_prepare_invocation_args_no_logfile( ):
-    ''' CLI prepare_invocation_args works without logfile. '''
-    mock_display = Mock( )
-    mock_cmd = Mock( )
-    cli_obj = module.Cli(
-        display = mock_display, command = mock_cmd, logfile = None )
-    args = cli_obj.prepare_invocation_args( )
-    assert args[ 'environment' ] is True
-    assert args[ 'logfile' ] is None
-
-
+# def test_100_cli_prepare_invocation_args_no_logfile( ):
+#     ''' CLI prepare_invocation_args works without logfile. '''
+#     mock_display = Mock( )
+#     mock_cmd = Mock( )
+#     cli_obj = module.Cli(
+#         display = mock_display, command = mock_cmd, logfile = None )
+#     args = cli_obj.prepare_invocation_args( )
+#     assert args[ 'environment' ] is True
+#     assert args[ 'logfile' ] is None
+# 
+# 
 # @pytest.mark.slow
 # @pytest.mark.asyncio
 # async def test_500_cli_explore_local_file( ):

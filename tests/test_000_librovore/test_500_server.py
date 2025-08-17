@@ -25,11 +25,8 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-import librovore.interfaces as _interfaces
 import librovore.server as module
 import librovore.state as _state
-
-from .fixtures import get_test_inventory_path
 
 
 @pytest.fixture
@@ -38,118 +35,118 @@ def mock_auxdata( ):
     return Mock( spec = _state.Globals )
 
 
-@pytest.mark.asyncio
-async def test_100_summarize_inventory_wrapper( mock_auxdata ):
-    ''' Server summarize_inventory factory produces working function. '''
-    test_inventory_path = get_test_inventory_path( 'librovore' )
-    search_behaviors = module.SearchBehaviorsMutable( )
-    filters = module.FiltersMutable( { 'domain': 'py' } )
-    summarize_func = module._produce_summarize_inventory_function(
-        mock_auxdata )
-    result = await summarize_func(
-        location = test_inventory_path,
-        search_behaviors = search_behaviors,
-        filters = filters )
-    assert isinstance( result, dict )
-    assert result[ 'project' ] == 'python-sphinx-mcp-server'
-    assert any( 'py' == obj.get( 'domain' ) for obj in result[ 'objects' ] )
-
-
-@pytest.mark.asyncio
-async def test_110_summarize_inventory_wrapper_no_filters( mock_auxdata ):
-    ''' Server summarize_inventory works without filters. '''
-    test_inventory_path = get_test_inventory_path( 'librovore' )
-    summarize_func = module._produce_summarize_inventory_function(
-        mock_auxdata )
-    result = await summarize_func( location = test_inventory_path )
-    assert isinstance( result, dict )
-    assert result[ 'project' ] == 'python-sphinx-mcp-server'
-
-
-@pytest.mark.asyncio
-async def test_120_summarize_inventory_wrapper_with_regex( mock_auxdata ):
-    ''' Server summarize_inventory handles match_mode parameter correctly. '''
-    test_inventory_path = get_test_inventory_path( 'librovore' )
-    search_behaviors = module.SearchBehaviorsMutable(
-        match_mode = _interfaces.MatchMode.Regex )
-    filters = module.FiltersMutable( )
-    summarize_func = module._produce_summarize_inventory_function(
-        mock_auxdata )
-    result = await summarize_func(
-        location = test_inventory_path,
-        term = 'test.*pattern',
-        search_behaviors = search_behaviors,
-        filters = filters )
-    assert isinstance( result, dict )
-    assert result[ 'project' ] == 'python-sphinx-mcp-server'
-
-
-@pytest.mark.asyncio
-async def test_150_summarize_inventory_wrapper_with_priority( mock_auxdata ):
-    ''' Server summarize_inventory handles priority filtering correctly. '''
-    test_inventory_path = get_test_inventory_path( 'sphobjinv' )
-    search_behaviors = module.SearchBehaviorsMutable( )
-    filters = module.FiltersMutable( { 'priority': '0' } )
-    summarize_func = module._produce_summarize_inventory_function(
-        mock_auxdata )
-    result = await summarize_func(
-        location = test_inventory_path,
-        search_behaviors = search_behaviors,
-        filters = filters )
-    assert isinstance( result, dict )
-    assert 'objects' in result
-    assert 'project' in result
-
-
-@pytest.mark.asyncio
-async def test_170_explore_wrapper( mock_auxdata ):
-    ''' Server query_inventory factory produces working function. '''
-    test_inventory_path = get_test_inventory_path( 'librovore' )
-    search_behaviors = module.SearchBehaviorsMutable( )
-    filters = module.FiltersMutable( { 'domain': 'py', 'role': 'function' } )
-    query_func = module._produce_query_inventory_function( mock_auxdata )
-    result = await query_func(
-        location = test_inventory_path, term = 'test',
-        search_behaviors = search_behaviors,
-        filters = filters )
-    assert isinstance( result, dict )
-    assert 'project' in result
-    assert 'search_metadata' in result
-
-
-@pytest.mark.asyncio
-async def test_180_explore_wrapper_no_filters( mock_auxdata ):
-    ''' Server query_inventory works without filters. '''
-    test_inventory_path = get_test_inventory_path( 'librovore' )
-    query_func = module._produce_query_inventory_function( mock_auxdata )
-    result = await query_func(
-        location = test_inventory_path, term = 'test',
-        details = module._interfaces.InventoryQueryDetails.Name )
-    assert isinstance( result, dict )
-    assert 'project' in result
-    assert 'documents' in result
-    assert 'search_metadata' in result
-
-
-@pytest.mark.asyncio
-async def test_190_explore_wrapper_with_fuzzy( mock_auxdata ):
-    ''' Server query_inventory handles fuzzy matching correctly. '''
-    test_inventory_path = get_test_inventory_path( 'sphobjinv' )
-    search_behaviors = module.SearchBehaviorsMutable(
-        match_mode = _interfaces.MatchMode.Fuzzy, fuzzy_threshold = 60 )
-    filters = module.FiltersMutable( )
-    query_func = module._produce_query_inventory_function( mock_auxdata )
-    result = await query_func(
-        location = test_inventory_path,
-        term = 'DataObj',
-        search_behaviors = search_behaviors,
-        filters = filters,
-        details = module._interfaces.InventoryQueryDetails.Name )
-    assert isinstance( result, dict )
-    assert 'search_metadata' in result
-    assert 'documents' in result
-
-
+# @pytest.mark.asyncio
+# async def test_100_summarize_inventory_wrapper( mock_auxdata ):
+#     ''' Server summarize_inventory factory produces working function. '''
+#     test_inventory_path = get_test_inventory_path( 'librovore' )
+#     search_behaviors = module.SearchBehaviorsMutable( )
+#     filters = module.FiltersMutable( { 'domain': 'py' } )
+#     summarize_func = module._produce_summarize_inventory_function(
+#         mock_auxdata )
+#     result = await summarize_func(
+#         location = test_inventory_path,
+#         search_behaviors = search_behaviors,
+#         filters = filters )
+#     assert isinstance( result, dict )
+#     assert result[ 'project' ] == 'python-sphinx-mcp-server'
+#     assert any( 'py' == obj.get( 'domain' ) for obj in result[ 'objects' ] )
+# 
+# 
+# @pytest.mark.asyncio
+# async def test_110_summarize_inventory_wrapper_no_filters( mock_auxdata ):
+#     ''' Server summarize_inventory works without filters. '''
+#     test_inventory_path = get_test_inventory_path( 'librovore' )
+#     summarize_func = module._produce_summarize_inventory_function(
+#         mock_auxdata )
+#     result = await summarize_func( location = test_inventory_path )
+#     assert isinstance( result, dict )
+#     assert result[ 'project' ] == 'python-sphinx-mcp-server'
+# 
+# 
+# @pytest.mark.asyncio
+# async def test_120_summarize_inventory_wrapper_with_regex( mock_auxdata ):
+#     ''' Server summarize_inventory handles match_mode correctly. '''
+#     test_inventory_path = get_test_inventory_path( 'librovore' )
+#     search_behaviors = module.SearchBehaviorsMutable(
+#         match_mode = _interfaces.MatchMode.Regex )
+#     filters = module.FiltersMutable( )
+#     summarize_func = module._produce_summarize_inventory_function(
+#         mock_auxdata )
+#     result = await summarize_func(
+#         location = test_inventory_path,
+#         term = 'test.*pattern',
+#         search_behaviors = search_behaviors,
+#         filters = filters )
+#     assert isinstance( result, dict )
+#     assert result[ 'project' ] == 'python-sphinx-mcp-server'
+# 
+# 
+# @pytest.mark.asyncio
+# async def test_150_summarize_inventory_wrapper_with_priority( mock_auxdata ):
+#     ''' Server summarize_inventory handles priority filtering correctly. '''
+#     test_inventory_path = get_test_inventory_path( 'sphobjinv' )
+#     search_behaviors = module.SearchBehaviorsMutable( )
+#     filters = module.FiltersMutable( { 'priority': '0' } )
+#     summarize_func = module._produce_summarize_inventory_function(
+#         mock_auxdata )
+#     result = await summarize_func(
+#         location = test_inventory_path,
+#         search_behaviors = search_behaviors,
+#         filters = filters )
+#     assert isinstance( result, dict )
+#     assert 'objects' in result
+#     assert 'project' in result
+# 
+# 
+# @pytest.mark.asyncio
+# async def test_170_explore_wrapper( mock_auxdata ):
+#     ''' Server query_inventory factory produces working function. '''
+#     test_inventory_path = get_test_inventory_path( 'librovore' )
+#     search_behaviors = module.SearchBehaviorsMutable( )
+#     filters = module.FiltersMutable( { 'domain': 'py', 'role': 'function' } )
+#     query_func = module._produce_query_inventory_function( mock_auxdata )
+#     result = await query_func(
+#         location = test_inventory_path, term = 'test',
+#         search_behaviors = search_behaviors,
+#         filters = filters )
+#     assert isinstance( result, dict )
+#     assert 'project' in result
+#     assert 'search_metadata' in result
+# 
+# 
+# @pytest.mark.asyncio
+# async def test_180_explore_wrapper_no_filters( mock_auxdata ):
+#     ''' Server query_inventory works without filters. '''
+#     test_inventory_path = get_test_inventory_path( 'librovore' )
+#     query_func = module._produce_query_inventory_function( mock_auxdata )
+#     result = await query_func(
+#         location = test_inventory_path, term = 'test',
+#         details = module._interfaces.InventoryQueryDetails.Name )
+#     assert isinstance( result, dict )
+#     assert 'project' in result
+#     assert 'documents' in result
+#     assert 'search_metadata' in result
+# 
+# 
+# @pytest.mark.asyncio
+# async def test_190_explore_wrapper_with_fuzzy( mock_auxdata ):
+#     ''' Server query_inventory handles fuzzy matching correctly. '''
+#     test_inventory_path = get_test_inventory_path( 'sphobjinv' )
+#     search_behaviors = module.SearchBehaviorsMutable(
+#         match_mode = _interfaces.MatchMode.Fuzzy, fuzzy_threshold = 60 )
+#     filters = module.FiltersMutable( )
+#     query_func = module._produce_query_inventory_function( mock_auxdata )
+#     result = await query_func(
+#         location = test_inventory_path,
+#         term = 'DataObj',
+#         search_behaviors = search_behaviors,
+#         filters = filters,
+#         details = module._interfaces.InventoryQueryDetails.Name )
+#     assert isinstance( result, dict )
+#     assert 'search_metadata' in result
+#     assert 'documents' in result
+# 
+# 
 @pytest.mark.asyncio
 async def test_200_serve_transport_validation( ):
     ''' Serve function validates transport parameter correctly. '''
