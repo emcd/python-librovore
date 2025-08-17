@@ -21,5 +21,9 @@
 Release Notes
 *******************************************************************************
 
-
 .. towncrier release notes start
+
+Librovore 1.0a0 (2025-08-17)
+============================
+
+No significant changes.
