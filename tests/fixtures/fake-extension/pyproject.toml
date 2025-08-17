@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fake-extension"
+version = "1.0.0"
+description = "Test package for extension manager testing"
+authors = [{name = "Test", email = "test@example.com"}]
+requires-python = ">=3.10"
+dependencies = []
+
+[project.entry-points."sphinx_processors"]
+fake_processor = "fake_extension:register"

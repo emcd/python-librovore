@@ -1,0 +1,39 @@
+{
+  "mcpServers": {
+    "pyright": {
+      "command": "mcp-language-server",
+      "args": [
+        "--lsp",
+        "pyright-langserver",
+        "--workspace",
+        ".",
+        "--",
+        "--stdio"
+      ]
+    },
+    "ruff": {
+       "command": "mcp-language-server",
+       "args": [
+         "--lsp",
+         "ruff",
+         "--workspace",
+         ".",
+         "--",
+         "server",
+         "--preview"
+      ]
+    },
+    "librovore": {
+      "command": "reloaderoo",
+      "args": [
+        "--",
+        "hatch",
+        "run",
+        "librovore",
+        "--logfile",
+        ".auxiliary/inscriptions/server.txt",
+        "serve"
+      ]
+    }
+  }
+}
