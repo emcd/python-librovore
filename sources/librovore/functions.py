@@ -38,6 +38,13 @@ LocationArgument: __.typx.TypeAlias = __.typx.Annotated[
 
 _search_behaviors_default = _interfaces.SearchBehaviors( )
 _filters_default = __.immut.Dictionary[ str, __.typx.Any ]( )
+
+
+def normalize_location( location: str ) -> str:
+    ''' Normalizes location URL by stripping index.html. '''
+    if location.endswith( '/index.html' ):
+        location = location[ : -11 ]
+    return location
 _SUCCESS_RATE_MINIMUM = 0.1
 
 
@@ -48,6 +55,7 @@ async def detect(
     processor_name: __.Absential[ str ] = __.absent,
 ) -> dict[ str, __.typx.Any ]:
     ''' Detects relevant processors of particular genus for location. '''
+    location = normalize_location( location )
     start_time = __.time.perf_counter( )
     detections, detection_optimal = (
         await _detection.access_detections(
@@ -76,6 +84,7 @@ async def query_content(  # noqa: PLR0913
     dict[ str, __.typx.Any ],
     __.ddoc.Fname( 'content query return' ) ]:
     ''' Searches documentation content with relevance ranking. '''
+    location = normalize_location( location )
     idetection = await _detection.detect_inventory(
         auxdata, location, processor_name = processor_name )
     objects = await idetection.filter_inventory(
@@ -151,6 +160,7 @@ async def query_inventory(  # noqa: PLR0913
         Returns configurable detail levels. Always includes object names
         plus requested detail flags (signatures, summaries, documentation).
     '''
+    location = normalize_location( location )
     detection = await _detection.detect_inventory(
         auxdata, location, processor_name = processor_name )
     objects = await detection.filter_inventory(

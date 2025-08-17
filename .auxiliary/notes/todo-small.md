@@ -7,6 +7,8 @@
 - [x] Rename `source` argument to `location`
 - [x] Rename `query` argument to `term`
 - [x] Add option for non-JSON output from CLI subcommands
+- [x] Convert `--term` to positional argument (positioned after location)
+- [x] Strip `index.html` from locations before passing to processors
 - [ ] Add `--no-cache` or `--cache-bust` option to bypass HTTP caching
 
 ## Content Extraction Quality Issues
@@ -17,7 +19,6 @@
 
 ## Additional UX Issues
 - [ ] Evaluate error messages and make them more user-friendly
-- [ ] Consider adding progress indicators for long-running operations
 - [ ] Improve CLI help text and examples
 - [ ] Add validation for source URLs before processing
 
@@ -30,8 +31,6 @@
 
 ## Processor Detection and Robustness Issues
 - [x] Improve MkDocs detection to check HTML meta tags (`mkdocs-material`, `mkdocs` generator) for better hybrid site support
-- [ ] Add processor robustness checks to refuse processing sites with incompatible structure (prevent Sphinx processing MkDocs sites)
-- [ ] Consider detection confidence thresholds to prevent false positives
 
 ## Ideas for Future
 - Look for `llms.txt`? Separate processor or builtin to other processors?

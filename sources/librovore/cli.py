@@ -46,7 +46,7 @@ PortArgument: __.typx.TypeAlias = __.typx.Annotated[
     __.tyro.conf.arg( help = __.access_doctab( 'server port argument' ) ),
 ]
 TermArgument: __.typx.TypeAlias = __.typx.Annotated[
-    str,
+    __.tyro.conf.Positional[ str ],
     __.tyro.conf.arg( help = __.access_doctab( 'term argument' ) ),
 ]
 ResultsMax: __.typx.TypeAlias = __.typx.Annotated[
