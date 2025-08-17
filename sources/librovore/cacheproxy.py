@@ -107,6 +107,100 @@ class Cache( __.immut.Object ):
             finally: self._request_mutexes.pop( url, None )
 
 
+class RobotsCache( Cache ):
+    ''' Cache manager for robots.txt files with crawl delay tracking. '''
+
+    entries_max: int = 500
+    request_timeout: float = 5.0
+    ttl: float = 3600.0
+    user_agent: str = '*'
+
+    def __init__(
+        self, *,
+        entries_max: __.Absential[ int ] = __.absent,
+        ttl: __.Absential[ float ] = __.absent,
+        request_timeout: __.Absential[ float ] = __.absent,
+        user_agent: __.Absential[ str ] = __.absent,
+        **base_initargs: __.typx.Any
+    ) -> None:
+        super( ).__init__( **base_initargs )
+        if not __.is_absent( entries_max ): self.entries_max = entries_max
+        if not __.is_absent( ttl ): self.ttl = ttl
+        if not __.is_absent( request_timeout ):
+            self.request_timeout = request_timeout
+        if not __.is_absent( user_agent ): self.user_agent = user_agent
+        self._cache: dict[ str, RobotsCacheEntry ] = { }
+        self._recency: __.collections.deque[ str ] = __.collections.deque( )
+        self._request_delays: dict[ str, float ] = { }
+
+    @classmethod
+    def from_configuration(
+        cls, configuration: __.cabc.Mapping[ str, __.typx.Any ]
+    ) -> __.typx.Self:
+        ''' Creates RobotsCache instance from application configuration. '''
+        cache_config = configuration.get( 'cache', { } )
+        robots_ttl = cache_config.get( 'robots-ttl', 3600.0 )
+        return cls( ttl = robots_ttl )
+
+    async def access( self, domain: str ) -> __.Absential[ _RobotFileParser ]:
+        ''' Retrieves cached robots.txt parser if valid. '''
+        if domain not in self._cache: return __.absent
+        entry = self._cache[ domain ]
+        if entry.invalid:
+            self._remove( domain )
+            return __.absent
+        self._record_access( domain )
+        return entry.response.extract( )
+
+    def assign_delay( self, domain: str, delay_seconds: float ) -> None:
+        ''' Sets next allowed request time for domain. '''
+        self._request_delays[ domain ] = __.time.time( ) + delay_seconds
+
+    def calculate_delay_remainder( self, domain: str ) -> float:
+        ''' Returns remaining crawl delay time for domain. '''
+        allow_at = self._request_delays.get( domain, 0.0 )
+        if not allow_at: return 0.0
+        remainder = allow_at - __.time.time( )
+        return max( 0.0, remainder )
+
+    def determine_ttl( self, response: RobotsResponse ) -> float:
+        ''' Determines appropriate TTL based on response type. '''
+        if response.is_value( ): return self.ttl
+        return self.error_ttl
+
+    async def store(
+        self, domain: str, response: RobotsResponse, ttl: float
+    ) -> None:
+        ''' Stores robots.txt parser in cache. '''
+        entry = RobotsCacheEntry(
+            response = response, timestamp = __.time.time( ), ttl = ttl )
+        self._cache[ domain ] = entry
+        self._record_access( domain )
+        self._evict_by_count( )
+
+    def _evict_by_count( self ) -> None:
+        ''' Evicts oldest entries when cache exceeds max size. '''
+        while (
+            len( self._cache ) > self.entries_max
+            and self._recency
+        ):
+            lru_domain = self._recency.popleft( )
+            if lru_domain in self._cache: # pragma: no branch
+                del self._cache[ lru_domain ]
+
+    def _record_access( self, domain: str ) -> None:
+        ''' Updates LRU access order for given domain. '''
+        with __.ctxl.suppress( ValueError ):
+            self._recency.remove( domain )
+        self._recency.append( domain )
+
+    def _remove( self, domain: str ) -> None:
+        ''' Removes entry from cache. '''
+        self._cache.pop( domain, None )
+        with __.ctxl.suppress( ValueError ):
+            self._recency.remove( domain )
+
+
 class ContentCache( Cache, instances_mutables = ( '_memory_total', ) ):
     ''' Cache manager for URL content (GET requests) with memory tracking. '''
 
@@ -114,7 +208,7 @@ class ContentCache( Cache, instances_mutables = ( '_memory_total', ) ):
 
     def __init__(
         self, *,
-        robots_cache: __.Absential[ 'RobotsCache' ] = __.absent,
+        robots_cache: __.Absential[ RobotsCache ] = __.absent,
         memory_max: __.Absential[ int ] = __.absent,
         **base_initargs: __.typx.Any
     ) -> None:
@@ -131,8 +225,8 @@ class ContentCache( Cache, instances_mutables = ( '_memory_total', ) ):
     def from_configuration(
         cls,
         configuration: __.cabc.Mapping[ str, __.typx.Any ],
-        robots_cache: __.Absential[ 'RobotsCache' ] = __.absent
-    ) -> 'ContentCache':
+        robots_cache: __.Absential[ RobotsCache ] = __.absent
+    ) -> __.typx.Self:
         ''' Creates ContentCache instance from application configuration. '''
         cache_config = configuration.get( 'cache', { } )
         content_ttl = cache_config.get( 'content-ttl', 300.0 )
@@ -236,7 +330,7 @@ class ProbeCache( Cache ):
 
     def __init__(
         self, *,
-        robots_cache: __.Absential[ 'RobotsCache' ] = __.absent,
+        robots_cache: __.Absential[ RobotsCache ] = __.absent,
         entries_max: __.Absential[ int ] = __.absent,
         **base_initargs: __.typx.Any
     ) -> None:
@@ -252,8 +346,8 @@ class ProbeCache( Cache ):
     def from_configuration(
         cls,
         configuration: __.cabc.Mapping[ str, __.typx.Any ],
-        robots_cache: __.Absential[ 'RobotsCache' ] = __.absent
-    ) -> 'ProbeCache':
+        robots_cache: __.Absential[ RobotsCache ] = __.absent
+    ) -> __.typx.Self:
         ''' Creates ProbeCache instance from application configuration. '''
         cache_config = configuration.get( 'cache', { } )
         probe_ttl = cache_config.get( 'probe-ttl', 300.0 )
@@ -326,100 +420,6 @@ class ProbeCache( Cache ):
             self._recency.remove( url )
 
 
-class RobotsCache( Cache ):
-    ''' Cache manager for robots.txt files with crawl delay tracking. '''
-
-    entries_max: int = 500
-    request_timeout: float = 5.0
-    ttl: float = 3600.0
-    user_agent: str = '*'
-
-    def __init__(
-        self, *,
-        entries_max: __.Absential[ int ] = __.absent,
-        ttl: __.Absential[ float ] = __.absent,
-        request_timeout: __.Absential[ float ] = __.absent,
-        user_agent: __.Absential[ str ] = __.absent,
-        **base_initargs: __.typx.Any
-    ) -> None:
-        super( ).__init__( **base_initargs )
-        if not __.is_absent( entries_max ): self.entries_max = entries_max
-        if not __.is_absent( ttl ): self.ttl = ttl
-        if not __.is_absent( request_timeout ):
-            self.request_timeout = request_timeout
-        if not __.is_absent( user_agent ): self.user_agent = user_agent
-        self._cache: dict[ str, RobotsCacheEntry ] = { }
-        self._recency: __.collections.deque[ str ] = __.collections.deque( )
-        self._request_delays: dict[ str, float ] = { }
-
-    @classmethod
-    def from_configuration(
-        cls, configuration: __.cabc.Mapping[ str, __.typx.Any ]
-    ) -> 'RobotsCache':
-        ''' Creates RobotsCache instance from application configuration. '''
-        cache_config = configuration.get( 'cache', { } )
-        robots_ttl = cache_config.get( 'robots-ttl', 3600.0 )
-        return cls( ttl = robots_ttl )
-
-    async def access( self, domain: str ) -> __.Absential[ _RobotFileParser ]:
-        ''' Retrieves cached robots.txt parser if valid. '''
-        if domain not in self._cache: return __.absent
-        entry = self._cache[ domain ]
-        if entry.invalid:
-            self._remove( domain )
-            return __.absent
-        self._record_access( domain )
-        return entry.response.extract( )
-
-    def assign_delay( self, domain: str, delay_seconds: float ) -> None:
-        ''' Sets next allowed request time for domain. '''
-        self._request_delays[ domain ] = __.time.time( ) + delay_seconds
-
-    def calculate_delay_remainder( self, domain: str ) -> float:
-        ''' Returns remaining crawl delay time for domain. '''
-        allow_at = self._request_delays.get( domain, 0.0 )
-        if not allow_at: return 0.0
-        remainder = allow_at - __.time.time( )
-        return max( 0.0, remainder )
-
-    def determine_ttl( self, response: RobotsResponse ) -> float:
-        ''' Determines appropriate TTL based on response type. '''
-        if response.is_value( ): return self.ttl
-        return self.error_ttl
-
-    async def store(
-        self, domain: str, response: RobotsResponse, ttl: float
-    ) -> None:
-        ''' Stores robots.txt parser in cache. '''
-        entry = RobotsCacheEntry(
-            response = response, timestamp = __.time.time( ), ttl = ttl )
-        self._cache[ domain ] = entry
-        self._record_access( domain )
-        self._evict_by_count( )
-
-    def _evict_by_count( self ) -> None:
-        ''' Evicts oldest entries when cache exceeds max size. '''
-        while (
-            len( self._cache ) > self.entries_max
-            and self._recency
-        ):
-            lru_domain = self._recency.popleft( )
-            if lru_domain in self._cache: # pragma: no branch
-                del self._cache[ lru_domain ]
-
-    def _record_access( self, domain: str ) -> None:
-        ''' Updates LRU access order for given domain. '''
-        with __.ctxl.suppress( ValueError ):
-            self._recency.remove( domain )
-        self._recency.append( domain )
-
-    def _remove( self, domain: str ) -> None:
-        ''' Removes entry from cache. '''
-        self._cache.pop( domain, None )
-        with __.ctxl.suppress( ValueError ):
-            self._recency.remove( domain )
-
-
 _http_success_threshold = 400
 
 
@@ -434,7 +434,7 @@ class CacheContext( __.immut.DataclassObject ):
     def from_configuration(
         cls,
         configuration: __.cabc.Mapping[ str, __.typx.Any ]
-    ) -> 'CacheContext':
+    ) -> __.typx.Self:
         ''' Creates cache context from application configuration. '''
         robots_cache = RobotsCache.from_configuration( configuration )
         return cls(
