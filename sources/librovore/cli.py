@@ -144,7 +144,8 @@ class QueryInventoryCommand(
     search_behaviors: __.typx.Annotated[
         _interfaces.SearchBehaviors,
         __.tyro.conf.arg( prefix_name = False ),
-    ] = _search_behaviors_default
+    ] = __.dcls.field(
+        default_factory = lambda: _interfaces.SearchBehaviors( ) )
     results_max: __.typx.Annotated[
         int,
         __.tyro.conf.arg( help = __.access_doctab( 'results max argument' ) ),
@@ -184,7 +185,8 @@ class QueryContentCommand(
     search_behaviors: __.typx.Annotated[
         _interfaces.SearchBehaviors,
         __.tyro.conf.arg( prefix_name = False ),
-    ] = _search_behaviors_default
+    ] = __.dcls.field(
+        default_factory = lambda: _interfaces.SearchBehaviors( ) )
     filters: __.typx.Annotated[
         __.cabc.Mapping[ str, __.typx.Any ],
         __.tyro.conf.arg( prefix_name = False ),
@@ -237,7 +239,8 @@ class SummarizeInventoryCommand(
     search_behaviors: __.typx.Annotated[
         _interfaces.SearchBehaviors,
         __.tyro.conf.arg( prefix_name = False ),
-    ] = _search_behaviors_default
+    ] = __.dcls.field(
+        default_factory = lambda: _interfaces.SearchBehaviors( ) )
 
     async def __call__(
         self,
