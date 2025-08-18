@@ -534,7 +534,9 @@ def _format_output(
 ) -> str:
     ''' Formats command output according to display format. '''
     if display_format == _interfaces.DisplayFormat.JSON:
-        return __.json.dumps( result, indent = 2 )
+        # Serialize frigid objects to JSON-compatible format
+        serialized_result = _functions.serialize_for_json( result )
+        return __.json.dumps( serialized_result, indent = 2 )
     if display_format == _interfaces.DisplayFormat.Markdown:
         return _format_as_markdown( result )
     raise ValueError

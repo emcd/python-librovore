@@ -68,7 +68,7 @@ async def detect(
         detection_optimal = (
             None if __.is_absent( detection_optimal ) else detection_optimal ),
         time_detection_ms = detection_time_ms )
-    return _serialize_dataclass( response )
+    return serialize_for_json( response )
 
 
 async def query_content(  # noqa: PLR0913
@@ -244,7 +244,7 @@ async def survey_processors(
     if name is not None and name not in processors:
         raise _exceptions.ProcessorInavailability( name )
     processors_capabilities = {
-        name_: _serialize_dataclass( processor.capabilities )
+        name_: serialize_for_json( processor.capabilities )
         for name_, processor in processors.items( )
         if name is None or name_ == name }
     return { 'processors': processors_capabilities }
@@ -407,7 +407,7 @@ def _group_documents_by_field(
         ( key, tuple( items ) ) for key, items in groups.items( ) )
 
 
-def _serialize_dataclass( obj: __.typx.Any ) -> __.typx.Any:
+def serialize_for_json( obj: __.typx.Any ) -> __.typx.Any:
     ''' Recursively serializes dataclass objects to JSON-compatible format. '''
     if __.dcls.is_dataclass( obj ):
         result = { }  # type: ignore[var-annotated]
@@ -415,12 +415,14 @@ def _serialize_dataclass( obj: __.typx.Any ) -> __.typx.Any:
             if field.name.startswith( '_' ):
                 continue  # Skip private/internal fields
             value = getattr( obj, field.name )
-            result[ field.name ] = _serialize_dataclass( value )
+            result[ field.name ] = serialize_for_json( value )
         return result  # type: ignore[return-value]
-    if isinstance( obj, list ):
-        return [ _serialize_dataclass( item ) for item in obj ]  # type: ignore[misc]
+    if isinstance( obj, ( list, tuple ) ):
+        return [ serialize_for_json( item ) for item in obj ]  # type: ignore[misc]
     if isinstance( obj, ( frozenset, set ) ):
         return list( obj )  # type: ignore[arg-type]
+    if hasattr( obj, 'items' ):  # Handle mappings (dict, frigid.Dictionary)
+        return { k: serialize_for_json( v ) for k, v in obj.items( ) }
     if obj is None or isinstance( obj, ( str, int, float, bool ) ):
         return obj
     # For other objects, try to convert to string
