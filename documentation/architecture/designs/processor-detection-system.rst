@@ -360,19 +360,11 @@ Desired Error Handling State
 -------------------------------------------------------------------------------
 
 **Enhanced Exception Design:**
-
-.. code-block:: python
-
-    class ProcessorInavailability( Omnierror, RuntimeError ):
-        ''' No processor found to handle source with enhanced context. '''
-        
-        def __init__(
-            self,
-            source: str,
-            genus: __.Absential[ str ] = __.absent,
-            url_patterns_attempted: bool = False,
-            final_error_type: __.Absential[ str ] = __.absent,
-        )
+The ``ProcessorInavailability`` exception must be enhanced to provide additional 
+context for better error messaging. The exception should indicate the processor 
+genus (inventory vs structure), categorize the type of error encountered, and 
+track whether URL pattern extension was attempted. These enhancements must 
+maintain backward compatibility with existing exception handling code.
 
 **Enhanced Error Messages:**
 - **Inventory Detection**: ``"No compatible inventory format detected at this documentation source"``
@@ -381,54 +373,35 @@ Desired Error Handling State
 - **Genus Clarity**: Clear distinction between inventory and structure failures
 
 **Automatic URL Pattern Extension:**
-Detection system automatically attempts common documentation URL patterns 
-when base URL detection fails:
+Detection system must automatically attempt common documentation URL patterns 
+when base URL detection fails. The system should try standard documentation 
+site patterns (such as `/en/latest/`, `/latest/`, `/main/`) before reporting 
+failure. This capability should be primarily applied to inventory detection 
+where URL patterns are more standardized.
 
-.. code-block:: python
-
-    async def detect_with_url_patterns(
-        auxdata: _state.Globals,
-        source: str, /,
-        genus: _interfaces.ProcessorGenera,
-    ) -> _processors.Detection:
-        # Try base URL first (current behavior)
-        try: return await detect( auxdata, source, genus )
-        except ProcessorInavailability:
-            # Attempt common patterns for inventory detection
-            if genus == _interfaces.ProcessorGenera.Inventory:
-                patterns = [ '/en/latest/', '/latest/', '/main/' ]
-                for pattern in patterns:
-                    extended_url = urljoin( source, pattern )
-                    try: return await detect( auxdata, extended_url, genus )
-                    except ProcessorInavailability: continue
-            # Re-raise with pattern attempt context
-            raise ProcessorInavailability(
-                source, genus = genus.name.lower( ), 
-                url_patterns_attempted = True )
-
-**Centralized Error Formatting:**
-Functions layer provides consistent error formatting for both CLI and MCP:
-
-.. code-block:: python
-
-    def format_processor_inavailability(
-        exc: ProcessorInavailability
-    ) -> __.immut.Dictionary[ str, str ]:
-        if exc.genus == 'inventory':
-            return format_inventory_inavailability( exc )
-        elif exc.genus == 'structure':  
-            return format_structure_inavailability( exc )
-        return format_generic_inavailability( exc )
+**Functions Layer Error Response Design:**
+Functions layer must catch processor detection exceptions and return structured 
+error responses that contain pre-formatted, user-friendly error information. 
+This eliminates the need for interface layers to interpret raw exceptions or 
+format error messages. The structured responses should include error type, 
+user-friendly titles, detailed messages, and actionable suggestions.
 
 **Cache Integration:**
 When URL pattern extension discovers working URLs, detection cache entries 
 are updated to use the successful URL for future requests, improving 
 performance and user experience.
 
+**Interface Layer Simplification:**
+CLI and MCP layers must be simplified to become response formatters that extract 
+pre-formatted error information from functions layer responses. Interface layers 
+should not interpret raw exceptions or generate error messages. Instead, they 
+extract structured error information and apply appropriate display formatting 
+for their respective interfaces.
+
 **Implementation Phases:**
-1. **Enhanced Exception Context**: Add contextual fields to ``ProcessorInavailability``
+1. **Functions Layer Error Response Design**: Implement structured error responses in functions layer
 2. **Automatic URL Patterns**: Implement intelligent URL extension for inventory detection  
-3. **Centralized Error Formatting**: Create functions layer error message generation
+3. **Enhanced Exception Context**: Add contextual fields to ``ProcessorInavailability``
 4. **URL Pattern Detection**: Add utilities for documentation site pattern recognition
 
 This detection system design provides robust, extensible automated processor 
