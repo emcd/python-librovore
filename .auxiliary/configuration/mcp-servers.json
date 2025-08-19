@@ -1,5 +1,17 @@
 {
   "mcpServers": {
+    "librovore": {
+      "command": "reloaderoo",
+      "args": [
+        "--",
+        "hatch",
+        "run",
+        "librovore",
+        "--logfile",
+        ".auxiliary/inscriptions/server.txt",
+        "serve"
+      ]
+    },
     "pyright": {
       "command": "mcp-language-server",
       "args": [
@@ -21,18 +33,6 @@
          "--",
          "server",
          "--preview"
-      ]
-    },
-    "librovore": {
-      "command": "reloaderoo",
-      "args": [
-        "--",
-        "hatch",
-        "run",
-        "librovore",
-        "--logfile",
-        ".auxiliary/inscriptions/server.txt",
-        "serve"
       ]
     }
   }
