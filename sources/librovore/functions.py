@@ -40,6 +40,8 @@ _search_behaviors_default = _interfaces.SearchBehaviors( )
 _filters_default = __.immut.Dictionary[ str, __.typx.Any ]( )
 
 
+
+
 def normalize_location( location: str ) -> str:
     ''' Normalizes location URL by stripping index.html. '''
     if location.endswith( '/index.html' ):
@@ -62,13 +64,21 @@ async def detect(
             auxdata, location, genus = genus ) )
     end_time = __.time.perf_counter( )
     detection_time_ms = int( ( end_time - start_time ) * 1000 )
+    if __.is_absent( detection_optimal ):
+        # Create a synthetic exception to get proper error formatting
+        genus_name = (
+            genus.name.lower( ) if hasattr( genus, 'name' ) else str( genus ) )
+        exc = _exceptions.ProcessorInavailability( genus_name )
+        return _produce_processor_error_response( exc, genus = genus )
     response = _processors.DetectionsForLocation(
         source = location,
         detections = detections,
-        detection_optimal = (
-            None if __.is_absent( detection_optimal ) else detection_optimal ),
+        detection_optimal = detection_optimal,
         time_detection_ms = detection_time_ms )
-    return serialize_for_json( response )
+    return {
+        'success': True,
+        'data': serialize_for_json( response ),
+    }
 
 
 async def query_content(  # noqa: PLR0913
@@ -85,8 +95,12 @@ async def query_content(  # noqa: PLR0913
     __.ddoc.Fname( 'content query return' ) ]:
     ''' Searches documentation content with relevance ranking. '''
     location = normalize_location( location )
-    idetection = await _detection.detect_inventory(
-        auxdata, location, processor_name = processor_name )
+    try:
+        idetection = await _detection.detect_inventory(
+            auxdata, location, processor_name = processor_name )
+    except _exceptions.ProcessorInavailability as exc:
+        return _produce_processor_error_response(
+            exc, genus = _interfaces.ProcessorGenera.Inventory )
     objects = await idetection.filter_inventory(
         auxdata, location,
         filters = filters,
@@ -98,16 +112,23 @@ async def query_content(  # noqa: PLR0913
     candidates = [ result.object for result in results[ : results_max * 3 ] ]
     if not candidates:
         return {
-            'source': location,
-            'query': term,
-            'search_metadata': {
-                'results_count': 0,
-                'results_max': results_max,
+            'success': True,
+            'data': {
+                'source': location,
+                'query': term,
+                'search_metadata': {
+                    'results_count': 0,
+                    'results_max': results_max,
+                },
+                'documents': [ ],
             },
-            'documents': [ ],
         }
-    sdetection = await _detection.detect_structure(
-        auxdata, location, processor_name = processor_name )
+    try:
+        sdetection = await _detection.detect_structure(
+            auxdata, location, processor_name = processor_name )
+    except _exceptions.ProcessorInavailability as exc:
+        return _produce_processor_error_response(
+            exc, genus = _interfaces.ProcessorGenera.Structure )
     contents = await sdetection.extract_contents(
         auxdata, location, candidates, include_snippets = include_snippets )
     _validate_extraction_results(
@@ -136,10 +157,13 @@ async def query_content(  # noqa: PLR0913
         }
         for result in contents_ ]
     return {
-        'source': location,
-        'query': term,
-        'search_metadata': search_metadata,
-        'documents': documents,
+        'success': True,
+        'data': {
+            'source': location,
+            'query': term,
+            'search_metadata': search_metadata,
+            'documents': documents,
+        },
     }
 
 
@@ -161,8 +185,12 @@ async def query_inventory(  # noqa: PLR0913
         plus requested detail flags (signatures, summaries, documentation).
     '''
     location = normalize_location( location )
-    detection = await _detection.detect_inventory(
-        auxdata, location, processor_name = processor_name )
+    try:
+        detection = await _detection.detect_inventory(
+            auxdata, location, processor_name = processor_name )
+    except _exceptions.ProcessorInavailability as exc:
+        return _produce_processor_error_response(
+            exc, genus = _interfaces.ProcessorGenera.Inventory )
     objects = await detection.filter_inventory(
         auxdata, location, filters = filters, details = details )
     results = _search.filter_by_name(
@@ -185,17 +213,20 @@ async def query_inventory(  # noqa: PLR0913
         'matches_total': len( objects ),
     }
     return {
-        'project': (
-            objects[ 0 ].get( '_inventory_project', 'Unknown' )
-            if objects else 'Unknown' ),
-        'version': (
-            objects[ 0 ].get( '_inventory_version', 'Unknown' )
-            if objects else 'Unknown' ),
-        'query': term,
-        'documents': documents,
-        'search_metadata': search_metadata,
-        'objects_count': len( selections ),
-        'source': location,
+        'success': True,
+        'data': {
+            'project': (
+                objects[ 0 ].get( '_inventory_project', 'Unknown' )
+                if objects else 'Unknown' ),
+            'version': (
+                objects[ 0 ].get( '_inventory_version', 'Unknown' )
+                if objects else 'Unknown' ),
+            'query': term,
+            'documents': documents,
+            'search_metadata': search_metadata,
+            'objects_count': len( selections ),
+            'source': location,
+        },
     }
 
 
@@ -216,18 +247,24 @@ async def summarize_inventory(  # noqa: PLR0913
         search_behaviors = search_behaviors, filters = filters,
         results_max = 1000,  # Large number to get all matches
         details = details )
+    if not inventory_result[ 'success' ]:
+        return inventory_result  # Forward error response
+    result_data = inventory_result[ 'data' ]
     if group_by is not None:
         objects_data = _group_documents_by_field(
-            inventory_result[ 'documents' ], group_by )
-    else: objects_data = inventory_result[ 'documents' ]
+            result_data[ 'documents' ], group_by )
+    else: objects_data = result_data[ 'documents' ]
     inventory_data: dict[ str, __.typx.Any ] = {
-        'project': inventory_result[ 'project' ],
-        'version': inventory_result[ 'version' ],
+        'project': result_data[ 'project' ],
+        'version': result_data[ 'version' ],
         'objects_count':
-            inventory_result[ 'search_metadata' ][ 'matches_total' ],
+            result_data[ 'search_metadata' ][ 'matches_total' ],
         'objects': objects_data,
     }
-    return inventory_data
+    return {
+        'success': True,
+        'data': serialize_for_json( inventory_data ),
+    }
 
 
 async def survey_processors(
@@ -258,6 +295,79 @@ def _add_object_metadata_to_results(
     for obj in selected_objects:
         document = _create_document_metadata( obj )
         result[ 'documents' ].append( document )
+
+
+def _produce_generic_error_response(
+    exc: _exceptions.ProcessorInavailability
+) -> dict[ str, __.typx.Any ]:
+    ''' Produces structured error response for generic processor failures. '''
+    return {
+        'success': False,
+        'error': {
+            'type': 'processor_unavailable',
+            'title': 'No Compatible Processor Found',
+            'message': (
+                'No compatible processor found to handle this '
+                'documentation source.' ),
+            'suggestion': (
+                'Verify the URL points to a supported documentation '
+                'format.' ),
+        },
+    }
+
+
+def _produce_inventory_error_response(
+    exc: _exceptions.ProcessorInavailability
+) -> dict[ str, __.typx.Any ]:
+    ''' Produces structured error response for inventory failures. '''
+    return {
+        'success': False,
+        'error': {
+            'type': 'processor_unavailable',
+            'title': 'No Compatible Format Detected',
+            'message': (
+                'No compatible inventory format detected at this '
+                'documentation source.' ),
+            'suggestion': (
+                'Verify the URL points to a Sphinx documentation site '
+                'with objects.inv file.' ),
+        },
+    }
+
+
+def _produce_processor_error_response(
+    exc: _exceptions.ProcessorInavailability,
+    genus: __.Absential[ _interfaces.ProcessorGenera ] = __.absent,
+) -> dict[ str, __.typx.Any ]:
+    ''' Produces appropriate structured error response based on genus. '''
+    if __.is_absent( genus ):
+        return _produce_generic_error_response( exc )
+    match genus:
+        case _interfaces.ProcessorGenera.Inventory:
+            return _produce_inventory_error_response( exc )
+        case _interfaces.ProcessorGenera.Structure:
+            return _produce_structure_error_response( exc )
+        case _:
+            return _produce_generic_error_response( exc )
+
+
+def _produce_structure_error_response(
+    exc: _exceptions.ProcessorInavailability
+) -> dict[ str, __.typx.Any ]:
+    ''' Produces structured error response for structure failures. '''
+    return {
+        'success': False,
+        'error': {
+            'type': 'processor_unavailable',
+            'title': 'No Compatible Structure Processor',
+            'message': (
+                'No compatible structure processor found for this '
+                'documentation source.' ),
+            'suggestion': (
+                'Ensure the site uses a supported documentation format '
+                'like Sphinx or MkDocs.' ),
+        },
+    }
 
 
 def _construct_explore_result_structure(  # noqa: PLR0913
