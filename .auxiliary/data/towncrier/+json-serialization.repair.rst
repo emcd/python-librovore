@@ -1,0 +1,1 @@
+Fix JSON serialization error for frigid.Dictionary objects in CLI and MCP server responses. Previously, commands like ``summarize-inventory`` with ``--group-by`` parameter would fail with "Unable to serialize unknown type" errors. Enhanced serialization now properly handles all internal data structures for consistent JSON output.
