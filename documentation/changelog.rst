@@ -23,6 +23,22 @@ Release Notes
 
 .. towncrier release notes start
 
+Librovore 1.0a1 (2025-08-20)
+============================
+
+Enhancements
+------------
+
+- Add automatic URL pattern extension for documentation sites. The system now automatically discovers working documentation URLs when the base URL fails, significantly improving compatibility with ReadTheDocs, GitHub Pages, and other hosting platforms that use versioned paths like ``/en/latest/`` or ``/latest/``. Previously failing sites like ``requests.readthedocs.io`` and ``docs.pydantic.dev`` now work seamlessly with transparent URL resolution.
+- Improve error messages with structured, user-friendly responses. Replace generic "No processor found" errors with clear, actionable messages that distinguish between inventory and structure detection failures. Error responses now include specific titles, detailed explanations, and practical suggestions for resolving issues with unsupported documentation sites.
+
+
+Repairs
+-------
+
+- Fix JSON serialization error for frigid.Dictionary objects in CLI and MCP server responses. Previously, commands like ``summarize-inventory`` with ``--group-by`` parameter would fail with "Unable to serialize unknown type" errors. Enhanced serialization now properly handles all internal data structures for consistent JSON output.
+
+
 Librovore 1.0a0 (2025-08-17)
 ============================
 
