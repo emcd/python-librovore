@@ -69,29 +69,33 @@
 - **Testing**: ✅ Validated with working sites (docs.python.org, flask.palletsprojects.com)
 - **Validation**: ✅ Both CLI and MCP server interfaces return identical structured responses
 
-### **Phase 2: Automatic URL Pattern Extension and Detection Utilities**
+### **Phase 2: Universal URL Pattern Extension and Redirects Cache** ✅ **COMPLETED**
 
-**2.1 Inventory Detection Enhancement Requirements**
-- **Objective**: Automatically attempt common documentation URL patterns when base URL detection fails
-- **Scope**: Inventory detection processes that encounter HTTP 404 or connection failures
-- **Behavior**: System must try common documentation site patterns (e.g., `/en/latest/`, `/latest/`, `/main/`) before reporting failure
-- **Cache Integration**: Successful URL discoveries must update detection cache to use working URLs for future requests
+**Status**: ✅ **IMPLEMENTED AND VALIDATED** 
 
-**2.2 HTTP Redirect Handling Requirements**
-- **Objective**: Follow HTTP redirects to identify final working URLs for documentation sources
-- **Integration**: Must work with existing HTTP client redirect following capabilities
-- **Cache Update**: Detection cache must reflect redirected URLs to avoid unnecessary redirects on subsequent requests
+**2.1 Universal Pattern Extension Requirements** ✅ **COMPLETE**
+- ✅ **Objective**: Automatically attempt common documentation URL patterns when base URL detection fails
+- ✅ **Scope**: **ALL processor types** - both inventory and structure processors benefit from URL correction
+- ✅ **Rationale**: If documentation content is at `/en/latest/` instead of `/`, then both objects.inv AND HTML pages will be at that path
+- ✅ **Behavior**: System tries common documentation site patterns (e.g., `/en/latest/`, `/latest/`, `/main/`) before reporting failure
+- ✅ **Redirects Cache**: Implemented universal URL redirection mapping original_url → working_url for all future operations
 
-**2.3 URL Analysis Capabilities**
-- **Requirement**: System must identify documentation site patterns to enable intelligent URL extension
-- **Capability**: Detect common documentation hosting patterns (ReadTheDocs, GitHub Pages, etc.)
-- **Capability**: Generate appropriate URL variants based on detected site patterns
-- **Capability**: Normalize URLs for consistent pattern generation and caching
+**2.2 HTTP Redirect Handling Requirements** ✅ **COMPLETE**
+- ✅ **Objective**: Follow HTTP redirects to identify final working URLs for documentation sources
+- ✅ **Integration**: Works with existing HTTP client redirect following capabilities via aiohttp
+- ✅ **Cache Update**: Detection cache reflects redirected URLs, avoiding unnecessary redirects on subsequent requests
 
-**2.4 Detection Context Enhancement**
-- **Objective**: Provide error context about URL pattern attempts without exposing internal implementation details
-- **Integration**: Must work with existing detection cache system
-- **Context Data**: Track success/failure indicators, error categories, and working URL discoveries for error reporting
+**2.3 URL Analysis Capabilities** ✅ **COMPLETE**
+- ✅ **Requirement**: System identifies documentation site patterns to enable intelligent URL extension
+- ✅ **Capability**: Detects common documentation hosting patterns (ReadTheDocs, GitHub Pages, etc.)
+- ✅ **Capability**: Generates appropriate URL variants based on detected site patterns
+- ✅ **Capability**: Normalizes URLs for consistent pattern generation and caching
+
+**2.4 Transparent URL Resolution** ✅ **COMPLETE**
+- ✅ **Objective**: Return working URLs as canonical source in all responses
+- ✅ **Integration**: All operations automatically use working URLs from redirects cache
+- ✅ **User Benefits**: Users see actual working URLs, subsequent operations work consistently
+- ✅ **Architecture**: Simple redirects cache provides clean abstraction layer
 
 ### **Phase 3: Enhanced ProcessorInavailability Exception**
 
@@ -131,9 +135,40 @@
 - Automatic handling of common URL pattern issues
 
 ### **System Behavior Improvements**
-- Automatic URL pattern fallback for common documentation site patterns
-- Cache optimization through discovered working URLs
+- Universal URL pattern fallback for all processor types
+- Transparent URL redirection ensures consistency across all operations
 - Centralized error handling reduces code duplication
-- Enhanced diagnostic context for future debugging needs
+- Users receive working URLs for reliable subsequent operations
+
+## Phase 2 Architectural Design Decisions
+
+### **Universal Pattern Extension Architecture**
+
+**Core Principle**: URL pattern extension must apply to ALL processor types because documentation content location affects both inventory files and structure content uniformly.
+
+**Redirects Cache Design**:
+```python
+# Simple global cache mapping original URLs to working URLs
+_url_redirects_cache: dict[str, str] = {}  # original_url → working_url
+```
+
+**Modified Detection Flow**:
+1. **URL Resolution**: Check redirects cache first - if redirect exists, use working URL immediately
+2. **Original Attempt**: Try original URL with all processors of requested genus  
+3. **Pattern Extension**: If original fails, try pattern extension to find working URL
+4. **Cache Update**: Store successful redirect mapping for future operations
+5. **Transparent Results**: Return working URL as canonical source in all responses
+
+**Benefits**:
+- **Architectural Consistency**: All processor types benefit equally from URL correction
+- **User Transparency**: Results show actual working URLs, enabling reliable subsequent operations  
+- **Operational Consistency**: All future operations automatically use correct URLs
+- **Performance**: Redirects cache eliminates repeated pattern probing
+
+**Integration Points**:
+- `_execute_processors_with_patterns()`: Remove genus restrictions, apply universally
+- `normalize_location()`: Check redirects cache before processing
+- Response formatting: Use working URLs as canonical source
+- Cache management: Simple key-value mapping with appropriate TTL
 
 This implementation plan provides structural guidance while maintaining clean separation of concerns and following established codebase patterns.

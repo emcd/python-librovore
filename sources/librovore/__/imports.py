@@ -43,6 +43,7 @@ import                      subprocess
 import                      sys
 import                      time
 import                      types
+import urllib.parse as      urlparse
 import                      warnings
 
 from logging import getLogger as acquire_scribe

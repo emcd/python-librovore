@@ -101,8 +101,10 @@ async def query_content(  # noqa: PLR0913
     except _exceptions.ProcessorInavailability as exc:
         return _produce_processor_error_response(
             exc, genus = _interfaces.ProcessorGenera.Inventory )
+    # Resolve URL after detection to get working URL if redirect exists
+    resolved_location = _detection.resolve_source_url( location )
     objects = await idetection.filter_inventory(
-        auxdata, location,
+        auxdata, resolved_location,
         filters = filters,
         details = _interfaces.InventoryQueryDetails.Name )
     results = _search.filter_by_name(
@@ -159,7 +161,7 @@ async def query_content(  # noqa: PLR0913
     return {
         'success': True,
         'data': {
-            'source': location,
+            'source': resolved_location,
             'query': term,
             'search_metadata': search_metadata,
             'documents': documents,
@@ -191,8 +193,10 @@ async def query_inventory(  # noqa: PLR0913
     except _exceptions.ProcessorInavailability as exc:
         return _produce_processor_error_response(
             exc, genus = _interfaces.ProcessorGenera.Inventory )
+    # Resolve URL after detection to get working URL if redirect exists
+    resolved_location = _detection.resolve_source_url( location )
     objects = await detection.filter_inventory(
-        auxdata, location, filters = filters, details = details )
+        auxdata, resolved_location, filters = filters, details = details )
     results = _search.filter_by_name(
         objects, term,
         match_mode = search_behaviors.match_mode,
@@ -225,7 +229,7 @@ async def query_inventory(  # noqa: PLR0913
             'documents': documents,
             'search_metadata': search_metadata,
             'objects_count': len( selections ),
-            'source': location,
+            'source': resolved_location,
         },
     }
 
