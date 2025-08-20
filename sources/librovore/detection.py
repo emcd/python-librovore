@@ -26,6 +26,8 @@ from . import exceptions as _exceptions
 from . import interfaces as _interfaces
 from . import processors as _processors
 from . import state as _state
+from . import urlpatterns as _urlpatterns
+from . import urls as _urls
 
 
 CONFIDENCE_THRESHOLD_MINIMUM = 0.5
@@ -111,8 +113,17 @@ class DetectionsCache( __.immut.DataclassObject ):
         return __.absent
 
 
+
 _inventory_detections_cache = DetectionsCache( )
 _structure_detections_cache = DetectionsCache( )
+
+# Universal URL redirects cache: original_url → working_url
+_url_redirects_cache: dict[ str, str ] = { }
+
+
+def resolve_source_url( url: str ) -> str:
+    ''' Resolves source URL through redirect cache, returns working URL. '''
+    return _url_redirects_cache.get( url, url )
 
 
 async def access_detections(
@@ -123,10 +134,8 @@ async def access_detections(
     _processors.DetectionsByProcessor,
     __.Absential[ _processors.Detection ]
 ]:
-    ''' Accesses detections via appropriate cache.
-
-        Detections are performed to fill cache, if necessary.
-    '''
+    ''' Accesses detections via appropriate cache. '''
+    resolved_source = _url_redirects_cache.get( source, source )
     match genus:
         case _interfaces.ProcessorGenera.Inventory:
             cache = _inventory_detections_cache
@@ -135,7 +144,7 @@ async def access_detections(
             cache = _structure_detections_cache
             processors = _processors.structure_processors
     return await access_detections_ll(
-        auxdata, source, cache = cache, processors = processors )
+        auxdata, resolved_source, cache = cache, processors = processors )
 
 
 async def access_detections_ll(
@@ -151,16 +160,14 @@ async def access_detections_ll(
 
         Detections are performed to fill cache, if necessary.
 
-        Low-level function which accepts arbitrary cache and processors list.
+        Low-level function accepting arbitrary cache and processors list.
     '''
     detections = cache.access_detections( source )
     if __.is_absent( detections ):
-        await _execute_processors_and_cache(
+        await _execute_processors_with_patterns_and_cache(
             auxdata, source, cache, processors )
         detections = cache.access_detections( source )
-        # After fresh execution, detections should never be absent
         if __.is_absent( detections ):
-            # Fallback: create empty detections mapping
             detections = __.immut.Dictionary[
                 str, _processors.Detection ]( )
     detection_optimal = cache.access_detection_optimal( source )
@@ -173,7 +180,8 @@ async def detect(
     genus: _interfaces.ProcessorGenera, *,
     processor_name: __.Absential[ str ] = __.absent,
 ) -> _processors.Detection:
-    ''' Detects inventory processors for source through cache system. '''
+    ''' Detects processors for source through cache system. '''
+    resolved_source = _url_redirects_cache.get( source, source )
     match genus:
         case _interfaces.ProcessorGenera.Inventory:
             cache = _inventory_detections_cache
@@ -187,9 +195,9 @@ async def detect(
         if processor_name not in processors:
             raise _exceptions.ProcessorInavailability( processor_name )
         processor = processors[ processor_name ]
-        return await processor.detect( auxdata, source )
+        return await processor.detect( auxdata, resolved_source )
     detection = await determine_detection_optimal_ll(
-        auxdata, source, cache = cache, processors = processors )
+        auxdata, resolved_source, cache = cache, processors = processors )
     if __.is_absent( detection ):
         raise _exceptions.ProcessorInavailability( class_name )
     return detection
@@ -229,11 +237,12 @@ async def determine_detection_optimal_ll(
 ) -> __.Absential[ _processors.Detection ]:
     ''' Determines which processor can best handle the source.
 
-        Low-level function which accepts arbitrary cache and processors list.
+        Low-level function accepting arbitrary cache and processors list.
     '''
     detection = cache.access_detection_optimal( source )
     if not __.is_absent( detection ): return detection
-    detections = await _execute_processors( auxdata, source, processors )
+    detections = await _execute_processors_with_patterns(
+        auxdata, source, processors )
     cache.add_entry( source, detections )
     return _select_detection_optimal( detections, processors )
 
@@ -255,6 +264,29 @@ async def _execute_processors(
     return results
 
 
+async def _execute_processors_with_patterns(
+    auxdata: _state.Globals,
+    source: str,
+    processors: __.cabc.Mapping[ str, _processors.Processor ],
+) -> dict[ str, _processors.Detection ]:
+    ''' Runs processors with URL pattern extension fallback. '''
+    results = await _execute_processors( auxdata, source, processors )
+    if any( detection.confidence >= CONFIDENCE_THRESHOLD_MINIMUM
+           for detection in results.values( ) ):
+        return results
+    base_url = _urls.normalize_base_url( source )
+    working_url = await _urlpatterns.probe_url_patterns( auxdata, base_url )
+    if not __.is_absent( working_url ):
+        working_source = working_url.geturl( )
+        pattern_results = await _execute_processors(
+            auxdata, working_source, processors )
+        if any( detection.confidence >= CONFIDENCE_THRESHOLD_MINIMUM
+               for detection in pattern_results.values( ) ):
+            _url_redirects_cache[ source ] = working_source
+            return pattern_results
+    return results
+
+
 async def _execute_processors_and_cache(
     auxdata: _state.Globals,
     source: str,
@@ -264,6 +296,30 @@ async def _execute_processors_and_cache(
     ''' Executes all processors and caches results. '''
     detections = await _execute_processors( auxdata, source, processors )
     cache.add_entry( source, detections )
+
+
+async def _execute_processors_with_patterns_and_cache(
+    auxdata: _state.Globals,
+    source: str,
+    cache: DetectionsCache,
+    processors: __.cabc.Mapping[ str, _processors.Processor ],
+) -> None:
+    ''' Executes processors with URL pattern extension and caches. '''
+    detections = await _execute_processors_with_patterns(
+        auxdata, source, processors )
+    cache.add_entry( source, detections )
+
+
+async def probe_source_with_patterns(
+    auxdata: _state.Globals,
+    source: str
+) -> __.Absential[ str ]:
+    ''' Probes source with URL pattern extension. '''
+    base_url = _urls.normalize_base_url( source )
+    working_url = await _urlpatterns.probe_url_patterns( auxdata, base_url )
+    if not __.is_absent( working_url ):
+        return working_url.geturl( )
+    return __.absent
 
 
 def _select_detection_optimal(

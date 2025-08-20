@@ -1,0 +1,1 @@
+Improve error messages with structured, user-friendly responses. Replace generic "No processor found" errors with clear, actionable messages that distinguish between inventory and structure detection failures. Error responses now include specific titles, detailed explanations, and practical suggestions for resolving issues with unsupported documentation sites.

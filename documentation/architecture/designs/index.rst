@@ -24,5 +24,4 @@ Designs
 .. toctree::
    :maxdepth: 2
 
-
-.. todo:: Add design documents to toctree.
+   processor-detection-system
