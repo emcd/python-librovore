@@ -2,11 +2,6 @@
 
 ## Builtin Processors Development Strategy
 
-### Release Strategy: Graduated Rollout
-**Phase 1 (Current)**: Ship with Sphinx processor to establish pattern and get community feedback
-**Phase 2**: Add high-impact processors that demonstrate cross-tool capability
-**Phase 3**: Expand to specialized/niche documentation systems
-
 ### Immediate Priority Processors (Phase 2)
 
 #### 2. OpenAPI/Swagger Processor 🎯 **HIGH IMPACT**
@@ -37,7 +32,6 @@
 #### Development Platform Integrations
 - **GitHub API**: Extract documentation from repository structures
 - **GitLab API**: Similar to GitHub but different ecosystem
-- **Confluence**: Enterprise documentation systems
 
 ### Technical Implementation Notes
 
@@ -52,21 +46,6 @@
 - Simple file serving that existing MCP servers handle well
 - Static content that doesn't benefit from structured exploration
 - Tools where existing MCP integration is already excellent
-
-## Plugin Architecture Concepts
-
-### Core Plugin System
-- **Abstract base classes**: `InventoryProvider`, `DocumentationExtractor`, `SearchProvider`
-- **Plugin discovery**: Auto-discovery from entry points or explicit registration
-- **Plugin lifecycle**: Initialize, configure, validate, execute, cleanup
-- **Plugin dependencies**: Allow plugins to depend on other plugins or services
-- **Plugin metadata**: Version compatibility, capabilities, configuration schema
-
-### Plugin Configuration System
-- **Plugin-specific parameters**: Each plugin defines its own parameter schema
-- **Configuration inheritance**: Global settings with plugin-specific overrides
-- **Dynamic configuration**: Runtime configuration changes without restart
-- **Configuration validation**: Schema-based validation with helpful error messages
 
 ## Advanced Caching Strategies
 
@@ -89,25 +68,6 @@
 - **Eviction reporting**: Understand what gets evicted and why
 
 ## Advanced Documentation Features
-
-### Content Relationship Mapping
-- **Inheritance hierarchies**: Track class inheritance trees
-- **Cross-references**: Map all internal and external links
-- **Usage examples**: Find and extract example code from documentation
-- **See-also networks**: Build graphs of related objects
-
-### Enhanced Content Extraction
-- **Multi-theme support**: Adapt parsing for different Sphinx themes (Alabaster, RTD, Book, etc.)
-- **Rich media handling**: Extract diagrams, charts, and embedded content
-- **Code example extraction**: Parse and validate code examples from documentation
-- **Version comparison**: Compare documentation across different versions
-
-### Full-Text Search Engine
-- **Search index building**: Build comprehensive search indices from documentation content
-- **Relevance scoring**: Advanced scoring algorithms beyond simple text matching
-- **Faceted search**: Filter by object type, module, topic, etc.
-- **Search suggestions**: Auto-complete and query suggestions
-- **Search analytics**: Track popular queries and improve results
 
 ### Vector-Based Semantic Search
 - **Embedding generation**: Create vector embeddings for documentation content using models like sentence-transformers
@@ -141,30 +101,12 @@
 - [ ] **Image handling**: Proper handling of images in documentation
 - [ ] **Table formatting**: Better markdown conversion for HTML tables
 
-## Technical Implementation Notes
-
-### HTML Processing Architecture (Reference)
-Current documentation extraction implementation:
-- **Multi-format parsing**: Handles section elements (modules) and dt/dd pairs (functions/classes)
-- **URL construction**: Supports $ placeholder replacement, file:// and http/https schemes
-- **BeautifulSoup integration**: Custom minimal type stubs for clean type checking
-- **Markdown conversion**: HTML to markdown with tag cleanup and formatting
-
-### Documentation Structure Analysis (Reference)
-Understanding of Sphinx search mechanisms:
-- **searchindex.js structure**: Document mapping, object locations, URL construction
-- **HTML patterns**: `<article role="main">`, `<dl class="py exception">`, `<dt class="sig">` elements
-- **Theme compatibility**: Designed for Furo but extensible to other themes
-
 ## Advanced Features
 
 ### Multi-Inventory Operations
 - **Cross-reference tool**: Find objects across multiple inventories
 - **Inventory comparison**: Compare versions or different projects
 - **Unified search**: Search across multiple documentation sites
-
-### Caching and Performance
-- [ ] **Inventory caching**: Cache downloaded inventories with TTL
 
 ### Discovery and Automation
 - **Sitemap parsing**: Extract inventory URLs from sitemaps
@@ -185,13 +127,6 @@ Understanding of Sphinx search mechanisms:
 - **Subscription updates**: Notify when inventories change
 - **Batch operations**: Process multiple inventories efficiently
 
-### Custom Data Sources
-- [ ] **Multiple Sphinx themes**: Support themes beyond Furo (alabaster, rtd, etc.)
-- [ ] **GitHub API integration**: Extract from repository documentation
-- [ ] **ReadTheDocs API**: Direct API access beyond objects.inv
-- [ ] **Custom inventory formats**: Support non-Sphinx documentation
-- [ ] **API specification parsing**: OpenAPI, AsyncAPI inventory extraction
-
 ## Next Phase Enhancements
 
 ### Sphinx Search Box Emulation
@@ -203,8 +138,6 @@ Understanding of Sphinx search mechanisms:
 
 ### Object Detail and Relationships
 - [x] **Object detail retrieval**: Get full documentation for specific objects by name/path ✅
-- [ ] **Relationship mapping**: Show inheritance hierarchies and cross-references between objects
-- [ ] **Cross-reference validation**: Verify that object links are valid and accessible
 
 ### Batch Operations and Advanced Search
 - [x] **Search result ranking**: Score and rank search results by relevance
@@ -215,11 +148,6 @@ Understanding of Sphinx search mechanisms:
 - [ ] **Shell completion**: Bash/zsh auto-completion for commands and parameters
 
 ## Technical Improvements
-
-### Error Handling and Robustness
-- **Better error messages**: More descriptive failure information
-- **Fallback strategies**: Alternative inventory sources
-- **Validation**: Comprehensive inventory format validation
 
 ### Performance Optimization
 - **Streaming processing**: Handle large inventories efficiently
@@ -232,43 +160,3 @@ Understanding of Sphinx search mechanisms:
 - **Rate limiting**: Respect server rate limits
 - **Privacy controls**: Option to disable external requests
 - **Security scanning**: Check for malicious inventory content
-
-## Testing Infrastructure Ideas
-
-### Filesystem-Independent Path Objects
-- **StringIO-backed PurePath subclass**: Path objects backed by in-memory content instead of filesystem
-- **Preloaded content caching**: Load real filesystem data into memory for fast test execution
-- **Directory simulation**: Support `.iterdir()` on fake directories with cached file contents
-- **No global patching**: Unlike pyfakefs, avoid global `open()` patching that interferes with aiofiles
-- **Test isolation**: Each test gets its own isolated filesystem view
-- **Performance benefits**: Eliminate I/O bottlenecks in test suites
-
-**Potential Implementation:**
-```python
-# String-backed paths
-fake_path = FakePath("/test/file.py", content="print('hello')")
-
-# Real file-backed (loads into StringIO cache)
-fake_path = FakePath("/real/file.py", source_path=Path("real_file.py"))
-
-# Directory-backed (loads all files in directory)
-fake_dir = FakePath("/test/dir", source_path=Path("real_dir/"))
-for child in fake_dir.iterdir():  # Returns FakePath objects
-    content = child.read_text()   # From StringIO, not filesystem
-```
-
-**Benefits over existing solutions:**
-- No interference with aiofiles or other async file operations
-- Faster test execution through memory-only operations
-- Easy preloading of real test data without filesystem dependency
-- Clear separation between test data and test logic
-- Potential for broader ecosystem adoption as standalone project
-
-## Community and Ecosystem
-
-### Integration Ecosystem
-- **Template system**: Customizable output formats
-
-### Documentation and Examples
-- **Recipe collection**: Common use case examples
-- **Best practices guide**: Optimal usage patterns

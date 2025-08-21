@@ -1,24 +1,28 @@
 # Librovore MCP Server Test Results & Issues
 
+> **📋 Status**: Major issues resolved in v1.0a1. See `development-status.md` for current status summary.
+
 ## Test Failures Summary
 
-### Incompatible Documentation Sites
+### URL Pattern Issues ✅ RESOLVED
 
-| Site | Tool | Parameters | Error | Analysis |
-|------|------|------------|-------|----------|
-| https://docs.pydantic.dev | query_inventory | term="BaseModel", results_max=3 | "No processor found to handle source: inventory" | ❌ No objects.inv (404) |
-| https://docs.pydantic.dev | query_content | term="validation", results_max=3 | "No processor found to handle source: inventory" | ❌ No objects.inv (404) |
-| https://docs.pydantic.dev | summarize_inventory | term="Field" | "No processor found to handle source: inventory" | ❌ No objects.inv (404) |
-| https://requests.readthedocs.io | query_content | term="authentication", results_max=3 | "No processor found to handle source: inventory" | ⚠️ URL issue - use `/en/latest/` |
-| https://starlette.readthedocs.io | query_inventory | term="request", results_max=3 | "No processor found to handle source: inventory" | ❌ No objects.inv (404) |
+| Site | Status | Resolution |
+|------|--------|------------|
+| https://requests.readthedocs.io | ✅ **WORKING** | Automatic URL pattern extension discovers `/en/latest/` path |
+| https://docs.pydantic.dev | ✅ **WORKING** | Automatic URL pattern extension discovers `/latest/` path |
 
-**URL Format Issue**: Requests documentation works correctly but requires the versioned URL:
-- ❌ `https://requests.readthedocs.io/objects.inv` → 404 (tested by other Claude)
-- ✅ `https://requests.readthedocs.io/en/latest/objects.inv` → 200 (confirmed working in previous tests)
+**Fix Applied**: Universal URL pattern extension system (v1.0a1) automatically discovers working documentation URLs:
+- Tries common patterns: `/en/latest/`, `/latest/`, `/en/stable/`, `/stable/`, etc.
+- Transparent URL resolution returns working URLs to users
+- Redirects cache eliminates repeated pattern probing
 
-**Root Cause Analysis**:
-- **Pydantic, Starlette**: Pure MkDocs without mkdocstrings - no Sphinx object inventories
-- **Requests**: ReadTheDocs site with proper inventory, but base URL redirects incorrectly
+### Remaining Incompatible Sites
+
+| Site | Analysis | Recommendation |
+|------|----------|----------------|
+| https://starlette.readthedocs.io | Pure MkDocs without mkdocstrings - no object inventory | Enable mkdocstrings plugin or use alternative documentation tools |
+
+**Root Cause**: Sites without Sphinx-compatible object inventories cannot be processed by librovore's structured approach.
 
 ### Serialization Issues ✅ FIXED
 
@@ -66,12 +70,18 @@
 - **Plain MkDocs**: No support ❌
 - **ReadTheDocs variants**: Mixed results ⚠️
 
-## Recommendations for Development
+## Current Status Summary
 
-1. **Site Detection**: Consider adding site compatibility detection/warnings
-2. **Error Handling**: Improve error messages to indicate missing object inventory
-3. **Fallback Strategy**: For unsupported sites, could fall back to basic HTML parsing
-4. **Serialization**: Fix Dictionary serialization issue in summarize_inventory with group_by
+### ✅ Completed Improvements
+1. **✅ Site Detection**: Universal URL pattern extension with automatic discovery
+2. **✅ Error Handling**: Structured, actionable error messages implemented
+3. **✅ Serialization**: Fixed Dictionary serialization for all JSON output
+4. **✅ URL Resolution**: Transparent working URL discovery and caching
+
+### 🔄 Future Considerations
+1. **Enhanced MkDocs Detection**: Better classification of MkDocs variants
+2. **Documentation**: Clear usage guidelines about site compatibility
+3. **Ecosystem Expansion**: Support for additional documentation formats
 
 ## Impact on Template Integration
 
