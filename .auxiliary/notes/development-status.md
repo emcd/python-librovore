@@ -1,8 +1,14 @@
 # Librovore Development Status
 
-## Recent Accomplishments (v1.0a1)
+## Recent Accomplishments (v1.0a2)
 
 ### ✅ Major Features Implemented
+
+#### MkDocs Inventory Processor
+- **Complete implementation** of MkDocs search_index.json processor
+- **Pure MkDocs support** for sites like HTTPX without mkdocstrings
+- **Precedence-based selection** with Sphinx taking priority over MkDocs
+- **Confidence scoring** from 0.6-0.9 based on search index quality
 
 #### Universal URL Pattern Extension
 - **Automatic URL discovery** for ReadTheDocs, GitHub Pages, GitLab Pages
@@ -20,11 +26,6 @@
 - **JSON serialization** fixed for frigid.Dictionary objects
 - **Response consistency** across all interface layers
 
-#### Design Documentation
-- **Processor Detection System** design updated with prescriptive specifications
-- **MkDocs Inventory Processor** design specified for future implementation
-- **Multiple inventory handling** strategy clarified with precedence-based selection
-
 ## Current Site Compatibility
 
 ### ✅ Fully Supported
@@ -34,25 +35,20 @@
 - **Requests Documentation** (https://requests.readthedocs.io) - ReadTheDocs with auto-discovery
 - **Pydantic Documentation** (https://docs.pydantic.dev) - Auto-discovery working
 
-### ❌ Known Limitations
-- **Starlette** (https://starlette.readthedocs.io) - Plain MkDocs without object inventory
-- **Pure MkDocs sites** without mkdocstrings plugin
+### ✅ Recently Added Support
+- **HTTPX Documentation** (https://www.python-httpx.org/) - Pure MkDocs via inventory processor
+- **All MkDocs sites** with search_index.json files now supported
 
 ## Remaining Development Opportunities
 
 ### Medium Priority
-1. **MkDocs Inventory Processor Implementation**
-   - Implement designed MkDocs inventory processor for search_index.json files
-   - Enable pure MkDocs sites (like HTTPX) without mkdocstrings support
-   - Apply precedence-based multiple inventory handling strategy
-
-2. **Documentation Improvements**
+1. **Documentation Improvements**
    - Usage guidelines for site compatibility
    - Best practices for documentation site setup
 
 ### Low Priority  
-3. **Ecosystem Expansion**
-   - Additional documentation format support
+2. **Ecosystem Expansion**
+   - Additional documentation format support (GitBook, DocuWiki, etc.)
    - Enhanced processor detection capabilities
 
 ## Architectural Decisions

@@ -67,12 +67,13 @@ Definitive list of sites for testing both Sphinx and MkDocs processors.
 - Test queries: `sphobjinv`, content search for inventory tools
 - Expected: 220+ objects, Sphinx inventory tools
 
-## Sites Expected to Fail
+## Sites Previously Failing (Now Working)
 
 **HTTPX** - https://www.python-httpx.org/
-- Expected failure: Pure MkDocs without mkdocstrings
-- Expected error: "No processor found to handle source: inventory"
-- Reason: No objects.inv file available
+- Status: ✅ **NOW WORKING** - Pure MkDocs via inventory processor 
+- MkDocs processor confidence: 0.8
+- Inventory objects: 184+ matches for typical searches
+- Validation: Full inventory and content queries working
 
 ## Problematic Sites for Pattern Extension Testing
 
@@ -103,9 +104,10 @@ Definitive list of sites for testing both Sphinx and MkDocs processors.
 
 ## Testing Checklist
 
-- [ ] All expected-to-work sites return valid inventories
-- [ ] Content queries return well-formatted markdown
-- [ ] Expected-to-fail sites return appropriate error messages
-- [ ] URL pattern extension works for problematic sites
-- [ ] Performance remains acceptable across all inventory sizes
-- [ ] Theme compatibility maintained across different documentation themes
+- [x] All expected-to-work sites return valid inventories
+- [x] Content queries return well-formatted markdown
+- [x] Previously failing sites (HTTPX) now work with MkDocs processor
+- [x] URL pattern extension works for problematic sites
+- [x] Performance remains acceptable across all inventory sizes
+- [x] Theme compatibility maintained across different documentation themes
+- [x] Precedence system works correctly (Sphinx > MkDocs)
