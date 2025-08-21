@@ -25,3 +25,4 @@ Designs
    :maxdepth: 2
 
    processor-detection-system
+   mkdocs-inventory-processor

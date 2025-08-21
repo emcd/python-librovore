@@ -20,6 +20,11 @@
 - **JSON serialization** fixed for frigid.Dictionary objects
 - **Response consistency** across all interface layers
 
+#### Design Documentation
+- **Processor Detection System** design updated with prescriptive specifications
+- **MkDocs Inventory Processor** design specified for future implementation
+- **Multiple inventory handling** strategy clarified with precedence-based selection
+
 ## Current Site Compatibility
 
 ### ✅ Fully Supported
@@ -36,10 +41,10 @@
 ## Remaining Development Opportunities
 
 ### Medium Priority
-1. **Enhanced MkDocs Detection**
-   - Better classification of MkDocs variants
-   - Specific guidance for enabling mkdocstrings
-   - Clearer compatibility expectations
+1. **MkDocs Inventory Processor Implementation**
+   - Implement designed MkDocs inventory processor for search_index.json files
+   - Enable pure MkDocs sites (like HTTPX) without mkdocstrings support
+   - Apply precedence-based multiple inventory handling strategy
 
 2. **Documentation Improvements**
    - Usage guidelines for site compatibility
