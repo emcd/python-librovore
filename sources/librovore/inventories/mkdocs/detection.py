@@ -66,15 +66,16 @@ class MkDocsInventoryDetection( __.InventoryDetection ):
         filters: __.cabc.Mapping[ str, __.typx.Any ],
         details: __.InventoryQueryDetails = (
             __.InventoryQueryDetails.Documentation ),
-    ) -> list[ dict[ str, __.typx.Any ] ]:
+    ) -> tuple[ __.InventoryObject, ... ]:
         ''' Filters inventory objects from MkDocs search index. '''
         if __.is_absent( self.inventory_data ):
             base_url = __.normalize_base_url( source )
             inventory_data, _ = await probe_search_index( auxdata, base_url )
-            if __.is_absent( inventory_data ): return [ ]
+            if __.is_absent( inventory_data ): return tuple( )
         else: inventory_data = self.inventory_data
-        return filter_inventory(
-            inventory_data, filters = filters, details = details )
+        objects = filter_inventory(
+            inventory_data, source, filters = filters, details = details )
+        return tuple( objects )
 
 
 def calculate_confidence(
@@ -90,16 +91,17 @@ def calculate_confidence(
 
 
 def filter_inventory(
-    inventory_data: dict[ str, __.typx.Any ], /, *,
+    inventory_data: dict[ str, __.typx.Any ],
+    location_url: str, /, *,
     filters: __.cabc.Mapping[ str, __.typx.Any ],
     details: __.InventoryQueryDetails = (
         __.InventoryQueryDetails.Documentation ),
-) -> list[ dict[ str, __.typx.Any ] ]:
+) -> list[ __.InventoryObject ]:
     ''' Filters inventory objects from parsed search index data. '''
     docs = inventory_data.get( 'docs', [ ] )
     location_pattern = filters.get( 'location', '' ) or __.absent
     title_pattern = filters.get( 'title', '' ) or __.absent
-    all_objects: list[ dict[ str, __.typx.Any ] ] = [ ]
+    all_objects: list[ __.InventoryObject ] = [ ]
     for doc in docs:
         if not isinstance( doc, dict ): continue
         typed_doc = __.typx.cast( dict[ str, __.typx.Any ], doc )
@@ -114,33 +116,33 @@ def filter_inventory(
                 not __.is_absent( title_pattern )
                 and title_pattern not in title
         ): continue
-        obj = format_inventory_object( typed_doc, inventory_data )
+        obj = format_inventory_object( typed_doc, location_url )
         all_objects.append( obj )
     return all_objects
 
 
 def format_inventory_object(
     doc: dict[ str, __.typx.Any ],
-    inventory_data: dict[ str, __.typx.Any ],
-) -> dict[ str, __.typx.Any ]:
-    ''' Formats a search index document as inventory object. '''
+    location_url: str,
+) -> __.InventoryObject:
+    ''' Formats MkDocs search index document with attribution. '''
     location = str( doc.get( 'location', '' ) )
     title = str( doc.get( 'title', '' ) )
     text = str( doc.get( 'text', '' ) )
     content_preview = (
         text[ :_CONTENT_PREVIEW_LENGTH ] + '...'
         if len( text ) > _CONTENT_PREVIEW_LENGTH else text )
-    return {
-        'name': title,
-        'uri': location,
-        'dispname': title,
-        'domain': 'page',
-        'role': 'doc',
-        'priority': '1',
-        'content_preview': content_preview,
-        'object_type': 'page',
-        '_inventory_source': 'mkdocs_search_index',
-    }
+    return __.InventoryObject(
+        name = title,
+        uri = location,
+        inventory_type = 'mkdocs_search_index',
+        location_url = location_url,
+        specifics = __.immut.Dictionary(
+            domain = 'page',
+            role = 'doc', 
+            priority = '1',
+            object_type = 'page',
+            content_preview = content_preview ) )
 
 
 async def probe_search_index(

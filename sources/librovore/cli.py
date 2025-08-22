@@ -26,6 +26,7 @@ from . import cacheproxy as _cacheproxy
 from . import exceptions as _exceptions
 from . import functions as _functions
 from . import interfaces as _interfaces
+from . import results as _results
 from . import server as _server
 from . import state as _state
 
@@ -121,7 +122,8 @@ class DetectCommand(
             _scribe.error( "detect failed: %s", exc )
             print( _format_cli_exception( exc ), file = stream )
             raise SystemExit( 1 ) from None
-        output = _format_output( result, display_format )
+        serialized_result = _results.serialize_for_json( result )
+        output = _format_output( serialized_result, display_format )
         print( output, file = stream )
 
 
@@ -171,7 +173,8 @@ class QueryInventoryCommand(
             _scribe.error( "query-inventory failed: %s", exc )
             print( _format_cli_exception( exc ), file = stream )
             raise SystemExit( 1 ) from None
-        output = _format_output( result, display_format )
+        serialized_result = _results.serialize_for_json( result )
+        output = _format_output( serialized_result, display_format )
         print( output, file = stream )
 
 
@@ -218,9 +221,11 @@ class QueryContentCommand(
             print( _format_cli_exception( exc ), file = stream )
             raise SystemExit( 1 ) from None
         # Apply lines_max truncation to content
-        if 'documents' in result and self.lines_max > 0:
-            result = _truncate_query_content( result, self.lines_max )
-        output = _format_output( result, display_format )
+        serialized_result = _results.serialize_for_json( result )
+        if 'documents' in serialized_result and self.lines_max > 0:
+            serialized_result = _truncate_query_content( 
+                serialized_result, self.lines_max )
+        output = _format_output( serialized_result, display_format )
         print( output, file = stream )
 
 
@@ -254,7 +259,8 @@ class SummarizeInventoryCommand(
             search_behaviors = self.search_behaviors,
             filters = self.filters,
             group_by = self.group_by )
-        output = _format_output( result, display_format )
+        serialized_result = _results.serialize_for_json( result )
+        output = _format_output( serialized_result, display_format )
         print( output, file = stream )
 
 
@@ -287,7 +293,8 @@ class SurveyProcessorsCommand(
             _scribe.error( "survey-processors failed: %s", exc )
             print( _format_cli_exception( exc ), file = stream )
             raise SystemExit( 1 ) from None
-        output = _format_output( result, display_format )
+        serialized_result = _results.serialize_for_json( result )
+        output = _format_output( serialized_result, display_format )
         print( output, file = stream )
 
 

@@ -24,6 +24,7 @@
 from . import __
 from . import exceptions as _exceptions
 from . import interfaces as _interfaces
+from . import results as _results
 from . import state as _state
 
 
@@ -92,7 +93,7 @@ class InventoryDetection( Detection ):
         filters: __.cabc.Mapping[ str, __.typx.Any ],
         details: _interfaces.InventoryQueryDetails = (
             _interfaces.InventoryQueryDetails.Documentation ),
-    ) -> list[ dict[ str, __.typx.Any ] ]:
+    ) -> tuple[ _results.InventoryObject, ... ]:
         ''' Extracts and filters inventory objects from source. '''
         raise NotImplementedError
 
@@ -105,9 +106,9 @@ class StructureDetection( Detection ):
         self,
         auxdata: _state.Globals,
         source: str,
-        objects: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ], /, *,
+        objects: __.cabc.Sequence[ _results.InventoryObject ], /, *,
         include_snippets: bool = True,
-    ) -> list[ dict[ str, __.typx.Any ] ]:
+    ) -> tuple[ _results.ContentDocument, ... ]:
         ''' Extracts documentation content for specified objects. '''
         raise NotImplementedError
 

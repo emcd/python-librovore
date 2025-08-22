@@ -26,12 +26,11 @@ from . import detection as _detection
 from . import exceptions as _exceptions
 from . import interfaces as _interfaces
 from . import processors as _processors
+from . import results as _results
 from . import search as _search
 from . import state as _state
 
 
-DocumentationResult: __.typx.TypeAlias = __.cabc.Mapping[ str, __.typx.Any ]
-SearchResult: __.typx.TypeAlias = __.cabc.Mapping[ str, __.typx.Any ]
 LocationArgument: __.typx.TypeAlias = __.typx.Annotated[
     str, __.ddoc.Fname( 'location argument' ) ]
 
@@ -55,7 +54,7 @@ async def detect(
     location: LocationArgument, /,
     genus: _interfaces.ProcessorGenera,
     processor_name: __.Absential[ str ] = __.absent,
-) -> dict[ str, __.typx.Any ]:
+) -> dict[ str, __.typx.Any ] | _results.ErrorResponse:
     ''' Detects relevant processors of particular genus for location. '''
     location = normalize_location( location )
     start_time = __.time.perf_counter( )
@@ -69,7 +68,8 @@ async def detect(
         genus_name = (
             genus.name.lower( ) if hasattr( genus, 'name' ) else str( genus ) )
         exc = _exceptions.ProcessorInavailability( genus_name )
-        return _produce_processor_error_response( exc, genus = genus )
+        return _produce_processor_error_response(
+            exc, location, 'detection', genus = genus )
     response = _processors.DetectionsForLocation(
         source = location,
         detections = detections,
@@ -90,17 +90,17 @@ async def query_content(  # noqa: PLR0913
     filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
     include_snippets: bool = True,
     results_max: int = 10,
-) -> __.typx.Annotated[
-    dict[ str, __.typx.Any ],
-    __.ddoc.Fname( 'content query return' ) ]:
+) -> _results.ContentResult:
     ''' Searches documentation content with relevance ranking. '''
     location = normalize_location( location )
+    start_time = __.time.perf_counter( )
     try:
         idetection = await _detection.detect_inventory(
             auxdata, location, processor_name = processor_name )
     except _exceptions.ProcessorInavailability as exc:
         return _produce_processor_error_response(
-            exc, genus = _interfaces.ProcessorGenera.Inventory )
+            exc, location, term,
+            genus = _interfaces.ProcessorGenera.Inventory )
     # Resolve URL after detection to get working URL if redirect exists
     resolved_location = _detection.resolve_source_url( location )
     objects = await idetection.filter_inventory(
@@ -111,62 +111,51 @@ async def query_content(  # noqa: PLR0913
         objects, term,
         match_mode = search_behaviors.match_mode,
         fuzzy_threshold = search_behaviors.fuzzy_threshold )
-    candidates = [ result.object for result in results[ : results_max * 3 ] ]
+    candidates = [ 
+        result.inventory_object for result in results[ : results_max * 3 ] ]
     if not candidates:
-        return {
-            'success': True,
-            'data': {
-                'source': location,
-                'query': term,
-                'search_metadata': {
-                    'results_count': 0,
-                    'results_max': results_max,
-                },
-                'documents': [ ],
-            },
-        }
-    try:
-        sdetection = await _detection.detect_structure(
-            auxdata, location, processor_name = processor_name )
-    except _exceptions.ProcessorInavailability as exc:
-        return _produce_processor_error_response(
-            exc, genus = _interfaces.ProcessorGenera.Structure )
-    contents = await sdetection.extract_contents(
-        auxdata, location, candidates, include_snippets = include_snippets )
-    _validate_extraction_results(
-        contents, candidates, sdetection.processor.name, location )
-    contents_by_relevance = sorted(
-        contents,
-        key = lambda x: x.get( 'relevance_score', 0.0 ),
-        reverse = True )
-    contents_ = list( contents_by_relevance[ : results_max ] )
-    search_metadata: dict[ str, __.typx.Any ] = {
-        'results_count': len( contents_ ),
-        'results_max': results_max,
-    }
-    documents = [
-        {
-            'name': result[ 'object_name' ],
-            'type': result[ 'object_type' ],
-            'domain': result[ 'domain' ],
-            'priority': result[ 'priority' ],
-            'url': result[ 'url' ],
-            'signature': result[ 'signature' ],
-            'description': result[ 'description' ],
-            'content_snippet': result[ 'content_snippet' ],
-            'relevance_score': result[ 'relevance_score' ],
-            'match_reasons': result[ 'match_reasons' ]
-        }
-        for result in contents_ ]
-    return {
-        'success': True,
-        'data': {
-            'source': resolved_location,
-            'query': term,
-            'search_metadata': search_metadata,
-            'documents': documents,
-        },
-    }
+        end_time = __.time.perf_counter( )
+        search_time_ms = int( ( end_time - start_time ) * 1000 )
+        return _results.ContentQueryResult(
+            location = resolved_location,
+            query = term,
+            documents = tuple( ),
+            search_metadata = _results.SearchMetadata(
+                results_count = 0,
+                results_max = results_max,
+                search_time_ms = search_time_ms ),
+            inventory_locations = tuple( [
+                _results.InventoryLocationInfo(
+                    inventory_type = idetection.processor.name,
+                    location_url = resolved_location,
+                    processor_name = idetection.processor.name,
+                    confidence = idetection.confidence,
+                    object_count = len( objects ) )
+            ] ) )
+    sdetection = await _detection.detect_structure(
+        auxdata, resolved_location, processor_name = processor_name )
+    documents = await sdetection.extract_contents(
+        auxdata, resolved_location, candidates[ : results_max ],
+        include_snippets = include_snippets )
+    end_time = __.time.perf_counter( )
+    search_time_ms = int( ( end_time - start_time ) * 1000 )
+    return _results.ContentQueryResult(
+        location = resolved_location,
+        query = term,
+        documents = tuple( documents ),
+        search_metadata = _results.SearchMetadata(
+            results_count = len( documents ),
+            results_max = results_max,
+            matches_total = len( candidates ),
+            search_time_ms = search_time_ms ),
+        inventory_locations = tuple( [
+            _results.InventoryLocationInfo(
+                inventory_type = idetection.processor.name,
+                location_url = resolved_location,
+                processor_name = idetection.processor.name,
+                confidence = idetection.confidence,
+                object_count = len( objects ) )
+        ] ) )
 
 
 async def query_inventory(  # noqa: PLR0913
@@ -179,20 +168,21 @@ async def query_inventory(  # noqa: PLR0913
     details: _interfaces.InventoryQueryDetails = (
         _interfaces.InventoryQueryDetails.Documentation ),
     results_max: int = 5,
-) -> __.typx.Annotated[
-    dict[ str, __.typx.Any ], __.ddoc.Fname( 'inventory query return' ) ]:
+) -> _results.InventoryResult:
     ''' Searches object inventory by name.
 
         Returns configurable detail levels. Always includes object names
         plus requested detail flags (signatures, summaries, documentation).
     '''
     location = normalize_location( location )
+    start_time = __.time.perf_counter( )
     try:
         detection = await _detection.detect_inventory(
             auxdata, location, processor_name = processor_name )
     except _exceptions.ProcessorInavailability as exc:
         return _produce_processor_error_response(
-            exc, genus = _interfaces.ProcessorGenera.Inventory )
+            exc, location, term,
+            genus = _interfaces.ProcessorGenera.Inventory )
     # Resolve URL after detection to get working URL if redirect exists
     resolved_location = _detection.resolve_source_url( location )
     objects = await detection.filter_inventory(
@@ -201,37 +191,27 @@ async def query_inventory(  # noqa: PLR0913
         objects, term,
         match_mode = search_behaviors.match_mode,
         fuzzy_threshold = search_behaviors.fuzzy_threshold )
-    selections = [ result.object for result in results[ : results_max ] ]
-    documents = [
-        {
-            'name': obj[ 'name' ],
-            'role': obj[ 'role' ],
-            'domain': obj.get( 'domain', '' ),
-            'uri': obj[ 'uri' ],
-            'dispname': obj[ 'dispname' ],
-        }
-        for obj in selections ]
-    search_metadata: dict[ str, __.typx.Any ] = {
-        'objects_count': len( selections ),
-        'results_max': results_max,
-        'matches_total': len( objects ),
-    }
-    return {
-        'success': True,
-        'data': {
-            'project': (
-                objects[ 0 ].get( '_inventory_project', 'Unknown' )
-                if objects else 'Unknown' ),
-            'version': (
-                objects[ 0 ].get( '_inventory_version', 'Unknown' )
-                if objects else 'Unknown' ),
-            'query': term,
-            'documents': documents,
-            'search_metadata': search_metadata,
-            'objects_count': len( selections ),
-            'source': resolved_location,
-        },
-    }
+    selections = [ 
+        result.inventory_object for result in results[ : results_max ] ]
+    end_time = __.time.perf_counter( )
+    search_time_ms = int( ( end_time - start_time ) * 1000 )
+    return _results.InventoryQueryResult(
+        location = resolved_location,
+        query = term,
+        objects = tuple( selections ),
+        search_metadata = _results.SearchMetadata(
+            results_count = len( selections ),
+            results_max = results_max,
+            matches_total = len( objects ),
+            search_time_ms = search_time_ms ),
+        inventory_locations = tuple( [
+            _results.InventoryLocationInfo(
+                inventory_type = detection.processor.name,
+                location_url = resolved_location,
+                processor_name = detection.processor.name,
+                confidence = detection.confidence,
+                object_count = len( objects ) )
+        ] ) )
 
 
 async def summarize_inventory(  # noqa: PLR0913
@@ -251,23 +231,24 @@ async def summarize_inventory(  # noqa: PLR0913
         search_behaviors = search_behaviors, filters = filters,
         results_max = 1000,  # Large number to get all matches
         details = details )
-    if not inventory_result[ 'success' ]:
-        return inventory_result  # Forward error response
-    result_data = inventory_result[ 'data' ]
+    if isinstance( inventory_result, _results.ErrorResponse ):
+        return {
+            'success': False,
+            'data': _results.serialize_for_json( inventory_result ),
+        }
     if group_by is not None:
-        objects_data = _group_documents_by_field(
-            result_data[ 'documents' ], group_by )
-    else: objects_data = result_data[ 'documents' ]
+        objects_data = _group_inventory_objects_by_field(
+            inventory_result.objects, group_by )
+    else: objects_data = inventory_result.objects
     inventory_data: dict[ str, __.typx.Any ] = {
-        'project': result_data[ 'project' ],
-        'version': result_data[ 'version' ],
-        'objects_count':
-            result_data[ 'search_metadata' ][ 'matches_total' ],
+        'objects_count': (
+            inventory_result.search_metadata.matches_total 
+            or len( inventory_result.objects ) ),
         'objects': objects_data,
     }
     return {
         'success': True,
-        'data': serialize_for_json( inventory_data ),
+        'data': _results.serialize_for_json( inventory_data ),
     }
 
 
@@ -302,76 +283,82 @@ def _add_object_metadata_to_results(
 
 
 def _produce_generic_error_response(
-    exc: _exceptions.ProcessorInavailability
-) -> dict[ str, __.typx.Any ]:
+    exc: _exceptions.ProcessorInavailability,
+    location: str,
+    query: str,
+) -> _results.ErrorResponse:
     ''' Produces structured error response for generic processor failures. '''
-    return {
-        'success': False,
-        'error': {
-            'type': 'processor_unavailable',
-            'title': 'No Compatible Processor Found',
-            'message': (
+    return _results.ErrorResponse(
+        location = location,
+        query = query,
+        error = _results.ErrorInfo(
+            type = 'processor_unavailable',
+            title = 'No Compatible Processor Found',
+            message = (
                 'No compatible processor found to handle this '
                 'documentation source.' ),
-            'suggestion': (
+            suggestion = (
                 'Verify the URL points to a supported documentation '
-                'format.' ),
-        },
-    }
+                'format.' ) ) )
 
 
 def _produce_inventory_error_response(
-    exc: _exceptions.ProcessorInavailability
-) -> dict[ str, __.typx.Any ]:
+    exc: _exceptions.ProcessorInavailability,
+    location: str,
+    query: str,
+) -> _results.ErrorResponse:
     ''' Produces structured error response for inventory failures. '''
-    return {
-        'success': False,
-        'error': {
-            'type': 'processor_unavailable',
-            'title': 'No Compatible Format Detected',
-            'message': (
+    return _results.ErrorResponse(
+        location = location,
+        query = query,
+        error = _results.ErrorInfo(
+            type = 'processor_unavailable',
+            title = 'No Compatible Format Detected',
+            message = (
                 'No compatible inventory format detected at this '
                 'documentation source.' ),
-            'suggestion': (
+            suggestion = (
                 'Verify the URL points to a Sphinx documentation site '
-                'with objects.inv file.' ),
-        },
-    }
+                'with objects.inv file.' ) ) )
 
 
 def _produce_processor_error_response(
     exc: _exceptions.ProcessorInavailability,
+    location: str,
+    query: str,
     genus: __.Absential[ _interfaces.ProcessorGenera ] = __.absent,
-) -> dict[ str, __.typx.Any ]:
+) -> _results.ErrorResponse:
     ''' Produces appropriate structured error response based on genus. '''
     if __.is_absent( genus ):
-        return _produce_generic_error_response( exc )
+        return _produce_generic_error_response( exc, location, query )
     match genus:
         case _interfaces.ProcessorGenera.Inventory:
-            return _produce_inventory_error_response( exc )
+            return _produce_inventory_error_response( exc, location, query )
         case _interfaces.ProcessorGenera.Structure:
-            return _produce_structure_error_response( exc )
+            return _produce_structure_error_response( exc, location, query )
         case _:
-            return _produce_generic_error_response( exc )
+            return _produce_generic_error_response( exc, location, query )
 
 
 def _produce_structure_error_response(
-    exc: _exceptions.ProcessorInavailability
-) -> dict[ str, __.typx.Any ]:
+    exc: _exceptions.ProcessorInavailability,
+    location: str,
+    query: str,
+) -> _results.ErrorResponse:
     ''' Produces structured error response for structure failures. '''
-    return {
-        'success': False,
-        'error': {
-            'type': 'processor_unavailable',
-            'title': 'No Compatible Structure Processor',
-            'message': (
+    return _results.ErrorResponse(
+        location = location,
+        query = query,
+        error = _results.ErrorInfo(
+            type = 'processor_unavailable',
+            title = 'No Compatible Structure Processor',
+            message = (
                 'No compatible structure processor found for this '
                 'documentation source.' ),
-            'suggestion': (
+            suggestion = (
                 'Ensure the site uses a supported documentation format '
-                'like Sphinx or MkDocs.' ),
-        },
-    }
+                'like Sphinx or MkDocs.' ) ) )
+
 
 
 def _construct_explore_result_structure(  # noqa: PLR0913
@@ -521,13 +508,41 @@ def _group_documents_by_field(
         ( key, tuple( items ) ) for key, items in groups.items( ) )
 
 
+def _group_inventory_objects_by_field(
+    objects: __.cabc.Sequence[ _results.InventoryObject ],
+    field: __.typx.Optional[ str ]
+) -> __.immut.Dictionary[
+    str, tuple[ _results.InventoryObject, ... ]
+]:
+    ''' Groups inventory objects by specified field for inventory format. '''
+    if field is None: return __.immut.Dictionary( )
+    groups: dict[ str, list[ _results.InventoryObject ] ] = { }
+    for obj in objects:
+        raw_value = obj.specifics.get( field )
+        if raw_value is None:
+            raw_value = getattr( obj, field, f"(missing {field})" )
+        if isinstance( raw_value, list ):
+            str_value = "[list]"
+        elif isinstance( raw_value, dict ):
+            str_value = "[dict]"
+        elif raw_value is None or raw_value == '':
+            str_value = f"(missing {field})"
+        else:
+            str_value = str( raw_value )
+        if str_value not in groups: 
+            groups[ str_value ] = [ ]
+        groups[ str_value ].append( obj )
+    return __.immut.Dictionary(
+        ( key, tuple( items ) ) for key, items in groups.items( ) )
+
+
 def serialize_for_json( obj: __.typx.Any ) -> __.typx.Any:
     ''' Recursively serializes dataclass objects to JSON-compatible format. '''
     if __.dcls.is_dataclass( obj ):
         result = { }  # type: ignore[var-annotated]
         for field in __.dcls.fields( obj ):
             if field.name.startswith( '_' ):
-                continue  # Skip private/internal fields
+                continue
             value = getattr( obj, field.name )
             result[ field.name ] = serialize_for_json( value )
         return result  # type: ignore[return-value]

@@ -27,34 +27,26 @@ import rapidfuzz as _rapidfuzz
 
 from . import __
 from . import interfaces as _interfaces
-
-
-class SearchResult( __.immut.DataclassObject ):
-    ''' Represents a search match with score and metadata. '''
-    
-    object: dict[ str, __.typx.Any ]
-    score: float
-    match_reasons: list[ str ]
+from . import results as _results
 
 
 def filter_by_name(
-    objects: list[ dict[ str, __.typx.Any ] ],
+    objects: __.cabc.Sequence[ _results.InventoryObject ],
     query: str, /, *,
     match_mode: _interfaces.MatchMode = _interfaces.MatchMode.Fuzzy,
     fuzzy_threshold: int = 50,
-) -> list[ SearchResult ]:
+) -> tuple[ _results.SearchResult, ... ]:
     ''' Filter objects by name using specified match mode. '''
     if not query:
         # Empty query returns all objects with neutral score
-        return [
-            SearchResult( 
-                object = obj, score = 1.0, 
-                match_reasons = [ 'empty query' ] )
+        return tuple(
+            _results.SearchResult.from_inventory_object(
+                obj, score = 1.0, match_reasons = [ 'empty query' ] )
             for obj in objects
-        ]
+        )
     
     query_lower = query.lower( )
-    results: list[ SearchResult ] = [ ]
+    results: list[ _results.SearchResult ] = [ ]
     
     if match_mode == _interfaces.MatchMode.Exact:
         results = _filter_exact( objects, query_lower )
@@ -64,17 +56,18 @@ def filter_by_name(
         results = _filter_fuzzy( 
             objects, query_lower, fuzzy_threshold )
     
-    return sorted( results, key = lambda r: r.score, reverse = True )
+    sorted_results = sorted( results, key = lambda r: r.score, reverse = True )
+    return tuple( sorted_results )
 
 
 def _filter_exact( 
-    objects: list[ dict[ str, __.typx.Any ] ], 
+    objects: __.cabc.Sequence[ _results.InventoryObject ], 
     query_lower: str 
-) -> list[ SearchResult ]:
+) -> list[ _results.SearchResult ]:
     ''' Apply exact matching to objects. '''
-    results: list[ SearchResult ] = [ ]
+    results: list[ _results.SearchResult ] = [ ]
     for obj in objects:
-        obj_name_lower = obj[ 'name' ].lower( )
+        obj_name_lower = obj.name.lower( )
         if query_lower in obj_name_lower:
             # Score based on how well the query matches
             if obj_name_lower == query_lower:
@@ -87,15 +80,15 @@ def _filter_exact(
                 score = 0.7
                 reason = 'name contains query'
             
-            results.append( SearchResult(
-                object = obj, score = score, match_reasons = [ reason ] ) )
+            results.append( _results.SearchResult.from_inventory_object(
+                obj, score = score, match_reasons = [ reason ] ) )
     return results
 
 
 def _filter_regex(
-    objects: list[ dict[ str, __.typx.Any ] ],
+    objects: __.cabc.Sequence[ _results.InventoryObject ],
     query: str
-) -> list[ SearchResult ]:
+) -> list[ _results.SearchResult ]:
     ''' Apply regex matching to objects. '''
     try:
         pattern = _re.compile( query, _re.IGNORECASE )
@@ -104,22 +97,22 @@ def _filter_regex(
         return [ ]
     
     return [
-        SearchResult(
-            object = obj, score = 1.0, match_reasons = [ 'regex match' ] )
-        for obj in objects if pattern.search( obj[ 'name' ] )
+        _results.SearchResult.from_inventory_object(
+            obj, score = 1.0, match_reasons = [ 'regex match' ] )
+        for obj in objects if pattern.search( obj.name )
     ]
 
 
 def _filter_fuzzy(
-    objects: list[ dict[ str, __.typx.Any ] ],
+    objects: __.cabc.Sequence[ _results.InventoryObject ],
     query_lower: str,
     fuzzy_threshold: int
-) -> list[ SearchResult ]:
+) -> list[ _results.SearchResult ]:
     ''' Apply fuzzy matching to objects using rapidfuzz. '''
-    results: list[ SearchResult ] = [ ]
+    results: list[ _results.SearchResult ] = [ ]
     
     for obj in objects:
-        obj_name = obj[ 'name' ]
+        obj_name = obj.name
         obj_name_lower = obj_name.lower( )
         
         # Use rapidfuzz ratio for basic fuzzy matching
@@ -128,8 +121,8 @@ def _filter_fuzzy(
         if ratio >= fuzzy_threshold:
             # Normalize score to 0.0-1.0 range
             score = ratio / 100.0
-            results.append( SearchResult(
-                object = obj,
+            results.append( _results.SearchResult.from_inventory_object(
+                obj,
                 score = score,
                 match_reasons = [ f'fuzzy match ({ratio}%)' ]
             ) )
@@ -138,11 +131,11 @@ def _filter_fuzzy(
 
 
 def score_by_relevance(
-    results: list[ SearchResult ],
+    results: __.cabc.Sequence[ _results.SearchResult ],
     query: str
-) -> list[ SearchResult ]:
+) -> tuple[ _results.SearchResult, ... ]:
     ''' Score and rank results by relevance (already done by filter_by_name).
     '''
     # Results are already scored and sorted by filter_by_name
     # This method exists for future enhancement opportunities
-    return results
+    return tuple( results )

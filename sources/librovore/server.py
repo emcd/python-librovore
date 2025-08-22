@@ -30,6 +30,7 @@ from . import __
 from . import exceptions as _exceptions
 from . import functions as _functions
 from . import interfaces as _interfaces
+from . import results as _results
 from . import state as _state
 
 
@@ -159,7 +160,10 @@ def _produce_detect_function( auxdata: _state.Globals ):
         nomargs: __.NominativeArguments = { }
         if processor_name is not None:
             nomargs[ 'processor_name' ] = processor_name
-        return await _functions.detect( auxdata, location, genus, **nomargs )
+        result = await _functions.detect( auxdata, location, genus, **nomargs )
+        if isinstance( result, _results.ErrorResponse ):
+            return _results.serialize_for_json( result )
+        return result
 
     return detect
 
@@ -182,12 +186,13 @@ def _produce_query_content_function( auxdata: _state.Globals ):
         immutable_search_behaviors = (
             _to_immutable_search_behaviors( search_behaviors ) )
         immutable_filters = _to_immutable_filters( filters )
-        return await _functions.query_content(
+        result = await _functions.query_content(
             auxdata, location, term,
             search_behaviors = immutable_search_behaviors,
             filters = immutable_filters,
             include_snippets = include_snippets,
             results_max = results_max )
+        return _results.serialize_for_json( result )
 
     return query_content
 
@@ -213,12 +218,13 @@ def _produce_query_inventory_function( auxdata: _state.Globals ):
         immutable_search_behaviors = (
             _to_immutable_search_behaviors( search_behaviors ) )
         immutable_filters = _to_immutable_filters( filters )
-        return await _functions.query_inventory(
+        result = await _functions.query_inventory(
             auxdata, location, term,
             search_behaviors = immutable_search_behaviors,
             filters = immutable_filters,
             details = details,
             results_max = results_max )
+        return _results.serialize_for_json( result )
 
     return query_inventory
 

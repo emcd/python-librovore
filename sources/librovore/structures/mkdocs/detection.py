@@ -53,15 +53,16 @@ class MkDocsDetection( __.StructureDetection ):
         self,
         auxdata: __.ApplicationGlobals,
         source: str,
-        objects: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ], /, *,
+        objects: __.cabc.Sequence[ __.InventoryObject ], /, *,
         include_snippets: bool = True,
-    ) -> list[ dict[ str, __.typx.Any ] ]:
+    ) -> tuple[ __.ContentDocument, ... ]:
         ''' Extracts documentation content for specified objects. '''
         theme_value = self.theme if self.theme is not None else __.absent
-        return await _extraction.extract_contents(
+        documents = await _extraction.extract_contents(
             auxdata, source, objects,
             theme = theme_value,
             include_snippets = include_snippets )
+        return tuple( documents )
 
 
 

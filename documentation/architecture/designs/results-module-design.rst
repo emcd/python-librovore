@@ -208,6 +208,34 @@ Search and Operation Metadata
         object_count: __.typx.Annotated[
             int, __.ddoc.Doc( "Total objects available in this inventory." ) ]
 
+Error Handling Objects
+-------------------------------------------------------------------------------
+
+.. code-block:: python
+
+    class ErrorInfo( __.immut.DataclassObject ):
+        ''' Structured error information for processor failures. '''
+        
+        type: __.typx.Annotated[
+            str, __.ddoc.Doc( "Error type identifier (e.g., 'processor_unavailable')." ) ]
+        title: __.typx.Annotated[
+            str, __.ddoc.Doc( "Human-readable error title." ) ]
+        message: __.typx.Annotated[
+            str, __.ddoc.Doc( "Detailed error description." ) ]
+        suggestion: __.typx.Annotated[
+            __.typx.Optional[ str ],
+            __.ddoc.Doc( "Suggested remediation steps." ) ] = None
+
+    class ErrorResponse( __.immut.DataclassObject ):
+        ''' Error response wrapper maintaining query context. '''
+        
+        location: __.typx.Annotated[
+            str, __.ddoc.Doc( "Primary location URL for failed query." ) ]
+        query: __.typx.Annotated[
+            str, __.ddoc.Doc( "Search term or query string that failed." ) ]
+        error: __.typx.Annotated[
+            ErrorInfo, __.ddoc.Doc( "Detailed error information." ) ]
+
 Complete Query Results
 -------------------------------------------------------------------------------
 
@@ -333,7 +361,10 @@ The functions module uses structured result objects for all operations:
 
 .. code-block:: python
 
-    # functions.py - Updated to return structured objects
+    # functions.py - Union return types for proper error propagation
+    InventoryResult: __.typx.TypeAlias = InventoryQueryResult | ErrorResponse
+    ContentResult: __.typx.TypeAlias = ContentQueryResult | ErrorResponse
+
     async def query_inventory(
         auxdata: __.ApplicationGlobals,
         location: __.typx.Annotated[ str, __.ddoc.Fname( 'location argument' ) ],
@@ -344,8 +375,8 @@ The functions module uses structured result objects for all operations:
         details: __.InventoryQueryDetails = (
             __.InventoryQueryDetails.Documentation ),
         results_max: int = 5,
-    ) -> InventoryQueryResult:
-        ''' Returns structured inventory query results. '''
+    ) -> InventoryResult:
+        ''' Returns structured inventory query results or error information. '''
 
     async def query_content(
         auxdata: __.ApplicationGlobals,
@@ -356,8 +387,43 @@ The functions module uses structured result objects for all operations:
         filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
         include_snippets: bool = True,
         results_max: int = 10,
-    ) -> ContentQueryResult:
-        ''' Returns structured content query results. '''
+    ) -> ContentResult:
+        ''' Returns structured content query results or error information. '''
+
+Error Handling Patterns
+-------------------------------------------------------------------------------
+
+Union return types enable clean error handling with pattern matching:
+
+.. code-block:: python
+
+    # Type-safe error handling with isinstance checks
+    result = await query_inventory( auxdata, location, term )
+    if isinstance( result, ErrorResponse ):
+        logger.error( f"Query failed: {result.error.message}" )
+        return handle_error( result )
+    
+    # At this point, Pyright/mypy knows result is InventoryQueryResult
+    process_inventory_objects( result.objects )
+
+    # Pattern matching with object unpacking (Python 3.10+)
+    match await query_content( auxdata, location, term ):
+        case ContentQueryResult( documents = docs, search_metadata = meta ):
+            logger.info( f"Found {len(docs)} documents in {meta.search_time_ms}ms" )
+            return process_content_documents( docs )
+        case ErrorResponse( error = ErrorInfo( type = "processor_unavailable" ) ):
+            return suggest_alternative_sources( location )
+        case ErrorResponse( error = error_info ):
+            return handle_generic_error( error_info )
+
+    # Exhaustive matching ensures all cases are handled
+    def handle_query_result( result: InventoryResult ) -> ProcessedResult:
+        match result:
+            case InventoryQueryResult() as success:
+                return process_success_case( success )
+            case ErrorResponse() as error:
+                return process_error_case( error )
+        # Type checker ensures exhaustiveness
 
 Search Engine Integration
 ===============================================================================
@@ -455,6 +521,10 @@ File Structure and Imports
     class SearchMetadata( __.immut.DataclassObject ): ...
     class InventoryLocationInfo( __.immut.DataclassObject ): ...
 
+    # Error handling objects
+    class ErrorInfo( __.immut.DataclassObject ): ...
+    class ErrorResponse( __.immut.DataclassObject ): ...
+
     # Complete query results
     class InventoryQueryResult( __.immut.DataclassObject ): ...
     class ContentQueryResult( __.immut.DataclassObject ): ...
@@ -471,14 +541,20 @@ File Structure and Imports
     InventoryObjects: __.typx.TypeAlias = __.cabc.Sequence[ InventoryObject ]
     SearchResults: __.typx.TypeAlias = __.cabc.Sequence[ SearchResult ]
     ContentDocuments: __.typx.TypeAlias = __.cabc.Sequence[ ContentDocument ]
+    
+    # Union types for error propagation
+    InventoryResult: __.typx.TypeAlias = InventoryQueryResult | ErrorResponse  
+    ContentResult: __.typx.TypeAlias = ContentQueryResult | ErrorResponse
 
 Integration Benefits
 ===============================================================================
 
 **Type Safety and IDE Support**
 - Compile-time validation of object structure and field access
-- Full IDE autocompletion and refactoring support
+- Full IDE autocompletion and refactoring support  
 - Static analysis capabilities for detecting field usage
+- Union types provide exhaustive pattern matching with type narrowing
+- `match` statements with object unpacking enable clean error handling
 
 **Complete Source Attribution**
 - Full provenance tracking for every inventory object
