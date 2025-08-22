@@ -255,3 +255,35 @@ class MultiInventoryConfig:
 - **Breaking changes**: Feature flags and gradual rollout strategy
 
 This multi-inventory approach represents a significant architectural enhancement that can substantially improve librovore's value proposition for complex documentation sites while maintaining the simplicity and reliability of the current single-source approach.
+
+## Multi-Source Object Model Design
+
+### Universal Object Enhancement for Multi-Source Support
+
+Future multi-source operations will be enabled through the structured object design:
+
+**Source Identification**: Complete source attribution in `InventoryObject` enables tracking and coordination across multiple inventory sources for comprehensive documentation coverage.
+
+**Conflict Resolution**: Universal object interface provides foundation for conflict resolution strategies when multiple sources contain overlapping or contradictory information.
+
+**Aggregation Strategies**: Structured objects enable various aggregation approaches including merging, ranking, and source-specific organization of results.
+
+### Multi-Source Result Objects
+
+```python
+class MultiSourceInventoryResult( __.immut.DataclassObject ):
+    ''' Aggregated results from multiple inventory sources. '''
+    
+    primary_location: str  # Primary location URL used for aggregation
+    query: str             # Search term applied across all sources  
+    objects: tuple[ InventoryObject, ... ]  # Aggregated and ranked objects
+    search_metadata: SearchMetadata         # Combined search metadata
+    location_breakdown: __.immut.Dictionary[ str, InventorySourceInfo ]  # Breakdown by location
+    aggregation_metadata: __.immut.Dictionary[ str, __.typx.Any ]        # Aggregation process metadata
+```
+
+This design accommodates the PRIMARY_SUPPLEMENTARY strategy by enabling:
+- Primary source selection based on confidence
+- Supplementary object integration with full attribution  
+- Deduplication tracking through aggregation metadata
+- Performance monitoring through enhanced search metadata

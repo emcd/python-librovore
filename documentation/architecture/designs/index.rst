@@ -26,3 +26,5 @@ Designs
 
    processor-detection-system
    mkdocs-inventory-processor
+   inventory-processor-patterns
+   results-module-design
