@@ -423,26 +423,27 @@ All inventory processors implement standardized processing methods:
         ''' Base class for inventory processors. '''
         
         @__.typx.abc.abstractmethod
-        async def acquire_inventory(
-            self
-        ) -> __.immut.Dictionary[ str, InventoryObject ]:
-            ''' Returns mapping of object URI to inventory object. '''
-            
-        @__.typx.abc.abstractmethod
         async def query_inventory(
             self,
-            term: str, *,
-            search_behaviors: SearchBehaviors = SearchBehaviors( ),
+            term: __.Absential[ str ] = __.absent, *,
             filters: __.cabc.Mapping[ str, __.typx.Any ] = __.immut.Dictionary( ),
-            results_max: int = 10
-        ) -> __.cabc.Sequence[ SearchResult ]:
-            ''' Provides search over inventory objects with filtering support. '''
+            details: __.InventoryQueryDetails = __.InventoryQueryDetails.Documentation,
+            results_max: int = 1000,
+        ) -> tuple[ InventoryObject, ... ]:
+            ''' Returns inventory objects matching search and filter criteria.
+            
+                When term is absent and filters are empty or trivial,
+                returns complete inventory (equivalent to acquire_inventory).
+                When term is present or filters contain constraints,
+                returns filtered subset limited by results_max.
+            '''
 
 **Contract Specifications**:
-- ``acquire_inventory`` returns complete inventory as mapping from URI to inventory object
-- ``query_inventory`` provides fuzzy/exact/regex search with configurable behaviors
-- Search results include relevance scoring and match reason tracking
-- Filtering support accommodates format-specific metadata and characteristics
+- ``query_inventory`` serves dual purpose: complete inventory retrieval and filtering
+- Absent term with empty/trivial filters returns entire inventory 
+- Present term or non-trivial filters return matching subset limited by results_max
+- Search and filtering occur at processor level using format-specific knowledge
+- Results include both structural filtering and name-based search capabilities
 
 format_inventory_object Unified Signature
 -------------------------------------------------------------------------------

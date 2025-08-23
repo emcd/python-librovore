@@ -415,37 +415,60 @@ The functions module uses structured result objects for all operations:
 Error Handling Patterns
 -------------------------------------------------------------------------------
 
-Union return types enable clean error handling with pattern matching:
+The system uses **exception-based error handling at the processor level** with 
+**structured error marshaling at the functions boundary**. This approach maintains 
+clean processor implementations while providing structured APIs for CLI and MCP consumers.
+
+**Processor Layer**: Raises domain-specific exceptions for clear error semantics:
 
 .. code-block:: python
 
-    # Type-safe error handling with isinstance checks
+    # Processors raise exceptions directly
+    class SphinxInventoryProcessor:
+        async def query_inventory( 
+            self, filters: __.cabc.Mapping[ str, __.typx.Any ], 
+            details: __.InventoryQueryDetails 
+        ) -> tuple[ __.InventoryObject, ... ]:
+            try:
+                inventory = extract_inventory( base_url )
+                return tuple( format_objects( inventory, filters ) )
+            except ConnectionError as exc:
+                raise InventoryInaccessibility( url, cause = exc )
+            except ParseError as exc:
+                raise InventoryInvalidity( url, cause = exc )
+
+**Functions Layer**: Catches exceptions and marshals to structured responses:
+
+.. code-block:: python
+
+    # functions.py - Exception marshaling to structured responses
+    async def query_inventory( ... ) -> InventoryResult:
+        try:
+            detection = await detect_inventory( auxdata, location, ... )
+            objects = await detection.query_inventory( filters = filters, ... )
+            return InventoryQueryResult(
+                location = location, query = term, objects = objects, ... )
+        except ProcessorInavailability as exc:
+            return ErrorResponse(
+                location = location, query = term,
+                error = ErrorInfo( type = 'processor_unavailable', ... ) )
+        except InventoryInaccessibility as exc:
+            return ErrorResponse(
+                location = location, query = term,
+                error = ErrorInfo( type = 'inventory_inaccessible', ... ) )
+
+**Consumer Layer**: Uses isinstance checks or pattern matching on structured results:
+
+.. code-block:: python
+
+    # CLI/MCP consumers handle structured responses
     result = await query_inventory( auxdata, location, term )
     if isinstance( result, ErrorResponse ):
-        logger.error( f"Query failed: {result.error.message}" )
-        return handle_error( result )
+        logger.error( f"Query failed: {result.error.message}." )
+        return format_error_response( result )
     
-    # At this point, Pyright/mypy knows result is InventoryQueryResult
-    process_inventory_objects( result.objects )
-
-    # Pattern matching with object unpacking (Python 3.10+)
-    match await query_content( auxdata, location, term ):
-        case ContentQueryResult( documents = docs, search_metadata = meta ):
-            logger.info( f"Found {len(docs)} documents in {meta.search_time_ms}ms" )
-            return process_content_documents( docs )
-        case ErrorResponse( error = ErrorInfo( type = "processor_unavailable" ) ):
-            return suggest_alternative_sources( location )
-        case ErrorResponse( error = error_info ):
-            return handle_generic_error( error_info )
-
-    # Exhaustive matching ensures all cases are handled
-    def handle_query_result( result: InventoryResult ) -> ProcessedResult:
-        match result:
-            case InventoryQueryResult() as success:
-                return process_success_case( success )
-            case ErrorResponse() as error:
-                return process_error_case( error )
-        # Type checker ensures exhaustiveness
+    # At this point, result is InventoryQueryResult
+    return format_success_response( result.objects )
 
 Search Engine Integration
 ===============================================================================
