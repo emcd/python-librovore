@@ -73,7 +73,9 @@ Universal Inventory Object
         ''' Universal inventory object with complete source attribution.
         
             Represents a single documentation object from any inventory source
-            with standardized fields and format-specific metadata container.
+            with standardized fields, format-specific metadata container, and
+            self-formatting capabilities where each processor creates objects
+            that know how to render their own specifics data.
         '''
         
         # Universal identification fields
@@ -101,6 +103,26 @@ Universal Inventory Object
         @property
         def effective_display_name( self ) -> str:
             ''' Returns display_name if available, otherwise falls back to name. '''
+        
+        # Self-formatting capabilities (processor-provided formatters)
+        def render_specifics_markdown(
+            self, /, *, 
+            show_technical: __.typx.Annotated[
+                bool, 
+                __.ddoc.Doc( '''
+                    Controls whether implementation-specific details (internal field names, 
+                    version numbers, priority scores) are included. When False, only 
+                    user-facing information is shown.
+                ''' )
+            ] = True,
+        ) -> tuple[ str, ... ]:
+            ''' Renders specifics as Markdown lines for CLI display. '''
+            
+        def render_specifics_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+            ''' Renders specifics for JSON output. '''
+            
+        def get_compact_display_fields( self ) -> tuple[ tuple[ str, str ], ... ]:
+            ''' Gets priority fields for compact display as (label, value) pairs. '''
         
 
 **Universal Fields**

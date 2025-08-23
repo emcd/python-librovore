@@ -25,6 +25,6 @@ Designs
    :maxdepth: 2
 
    processor-detection-system
-   mkdocs-inventory-processor
-   inventory-processor-patterns
+   inventory-processors
+   structure-processors
    results-module-design

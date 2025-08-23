@@ -29,6 +29,11 @@ inventory and structure processors for documentation sources. The design
 implements confidence-based scoring with TTL-based caching to balance 
 performance with accuracy and data freshness.
 
+This document focuses on the orchestration layer that coordinates processor 
+selection across processor genera (inventory vs. structure processors), while 
+detailed processor-specific detection patterns are covered in the respective 
+processor architecture documents.
+
 Architecture
 ===============================================================================
 
@@ -71,6 +76,47 @@ Component Structure
   Abstract base classes in ``processors.py`` define detection contracts. 
   Format-specific implementations in ``inventories/`` and ``structures/`` 
   subpackages provide concrete detection logic.
+
+Processor Genera System
+===============================================================================
+
+ProcessorGenera Enumeration
+-------------------------------------------------------------------------------
+
+The system defines distinct processor genera that operate independently:
+
+.. code-block:: python
+
+    class ProcessorGenera( __.typx.Enum ):
+        ''' Enumeration of processor genera for detection orchestration. '''
+        
+        Inventory = 'inventory'     # Inventory object extraction processors
+        Structure = 'structure'     # Content extraction processors
+
+**Inventory Processors**: Extract object inventories from documentation sources, 
+providing discovery and search capabilities across different documentation formats.
+Detailed architecture covered in ``inventory-processors.rst``.
+
+**Structure Processors**: Extract content from documentation pages, transforming 
+HTML into structured documents for search and analysis. Detailed architecture 
+covered in ``structure-processors.rst``.
+
+Genus-Specific Detection Pipelines
+-------------------------------------------------------------------------------
+
+Each processor genus maintains independent detection infrastructure:
+
+**Separate Cache Instances**: Each genus has dedicated cache management with 
+genus-appropriate TTL values and eviction strategies.
+
+**Independent Processor Registries**: Processor registration and discovery 
+operates independently per genus, enabling different processor lifecycle management.
+
+**Genus-Specific Selection Logic**: Processor selection algorithms can differ 
+between genera based on their operational characteristics and requirements.
+
+**Separate Error Handling**: Each genus implements error handling appropriate 
+to its operational context and failure modes.
 
 Interface Specifications
 ===============================================================================
@@ -342,57 +388,6 @@ Exception Hierarchy
 - Functions layer catches all detection exceptions and produces structured responses
 - Interface layers receive pre-formatted error information, never raw exceptions
 
-Error Recovery Strategies
--------------------------------------------------------------------------------
-
-**Processor Failure Recovery:**
-- Continue selection with remaining functional processors after individual failures
-- Log processor-specific errors for debugging without disrupting detection flow
-- Maintain detection attempts in cache for diagnostic and performance purposes
-
-**URL Pattern Recovery:**
-- Automatic pattern extension discovers working URLs for failed base URLs
-- Successful redirects are cached globally for performance optimization
-- Pattern extension applies universally to all processor types
-
-**Cache Failure Recovery:**  
-- Fresh detection execution triggered on cache corruption or access errors
-- Graceful degradation to uncached operation maintains system availability
-- Error logging with cache rebuild capability supports system maintenance
-
-Design Trade-offs
-===============================================================================
-
-Performance vs. Accuracy
--------------------------------------------------------------------------------
-
-**Caching Trade-offs:**
-- **Advantage:** Significant performance improvement for repeated source access
-- **Advantage:** Reduces external service load (HTTP requests, file system)  
-- **Disadvantage:** Cached results may become stale for dynamic documentation
-- **Mitigation:** Configurable TTL values balance freshness vs. performance
-
-**Confidence Threshold Trade-offs:**
-- **Advantage:** Prevents selection of unreliable processors
-- **Advantage:** Consistent, objective selection criteria
-- **Disadvantage:** Fixed threshold may not suit all processor types
-- **Future Enhancement:** Processor-specific or adaptive thresholds
-
-Memory vs. Functionality  
--------------------------------------------------------------------------------
-
-**Cache Memory Trade-offs:**
-- **Advantage:** Fast access to detection results without re-execution
-- **Disadvantage:** Memory usage grows with unique source URLs
-- **Mitigation:** TTL-based expiration provides bounded memory usage
-- **Future Enhancement:** Size-based LRU eviction strategies
-
-**Immutability Trade-offs:**
-- **Advantage:** Thread-safe cache access without locking
-- **Advantage:** Predictable behavior and easier debugging
-- **Disadvantage:** Higher memory usage than mutable alternatives
-- **Assessment:** Acceptable trade-off for architectural benefits
-
 Multiple Inventory Handling Strategy
 ===============================================================================
 
@@ -447,5 +442,5 @@ architectural separation between inventory and structure processing.
 - TTL expiration applies uniformly to all cached detection results
 
 This detection system design provides robust, extensible automated processor 
-selection while maintaining clean architectural boundaries and established 
-project practices compliance.
+selection while maintaining clean architectural boundaries between processor 
+genera and established project practices compliance.
