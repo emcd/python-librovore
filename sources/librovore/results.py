@@ -370,6 +370,8 @@ def _serialize_dataclass_for_json(
         return obj.to_json_dict( )
     result: dict[ str, __.typx.Any ] = { }
     for field in __.dcls.fields( obj ):
+        if field.name.startswith( '_' ):
+            continue
         value = getattr( obj, field.name )
         result[ field.name ] = serialize_for_json( value )
     return result

@@ -545,7 +545,8 @@ def _format_output(
         serialized_result = _functions.serialize_for_json( result )
         return __.json.dumps( serialized_result, indent = 2 )
     if display_format == _interfaces.DisplayFormat.Markdown:
-        return _format_as_markdown( result )
+        serialized_result = _functions.serialize_for_json( result )
+        return _format_as_markdown( serialized_result )
     raise ValueError
 
 
@@ -553,32 +554,64 @@ def _format_query_result_markdown(
     result: __.cabc.Mapping[ str, __.typx.Any ]
 ) -> str:
     ''' Formats query results as Markdown. '''
-    project = result.get( 'project', 'Unknown' )
     query = result.get( 'query', 'Unknown' )
     documents = result.get( 'documents', [] )
     metadata = result.get( 'search_metadata', {} )
+    
     lines = [
         f"# Query Results: {query}",
-        f"**Project:** {project}",
         f"**Results:** {metadata.get('results_count', 0)}/"
         f"{metadata.get('matches_total', 0)}",
     ]
     if documents:
         lines.append( "\n## Documents" )
         for index, doc in enumerate( documents, 1 ):
-            # Add separator before each result
             separator = "\n\n🔍 ── Result {} ─────────────────────── 🔍\n"
             lines.append( separator.format( index ) )
-            name = doc.get( 'name', 'Unknown' )
-            role = doc.get( 'role', 'unknown' )
+            inv_obj = doc.get( 'inventory_object', {} )
+            name = inv_obj.get( 'name', 'Unknown' )
             lines.append( f"### `{name}`" )
-            lines.append( f"- **Type:** {role}" )
-            if 'domain' in doc:
-                lines.append( f"- **Domain:** {doc['domain']}" )
-            if 'description' in doc:
-                lines.append( f"- **Content:** {doc['description']}" )
+            _append_inventory_metadata( lines, inv_obj )
+            _append_content_description( lines, doc, inv_obj )
             lines.append( "" )
     return '\n'.join( lines )
+
+
+def _append_inventory_metadata( 
+    lines: list[ str ], 
+    inv_obj: __.cabc.Mapping[ str, __.typx.Any ] 
+) -> None:
+    ''' Appends inventory metadata to lines using generalized approach. '''
+    inventory_type = inv_obj.get( 'inventory_type', '' )
+    if inventory_type == 'sphinx_objects_inv':
+        role = inv_obj.get( 'role', 'unknown' )
+        domain = inv_obj.get( 'domain', '' )
+        lines.append( f"- **Type:** {role}" )
+        if domain:
+            lines.append( f"- **Domain:** {domain}" )
+    elif inventory_type == 'mkdocs_search_index':
+        role = inv_obj.get( 'role', 'unknown' )
+        lines.append( f"- **Type:** {role}" )
+        lines.append( "- **Domain:** page" )
+    else:
+        lines.append( "- **Type:** unknown" )
+
+
+def _append_content_description(
+    lines: list[ str ],
+    doc: __.cabc.Mapping[ str, __.typx.Any ],
+    inv_obj: __.cabc.Mapping[ str, __.typx.Any ]
+) -> None:
+    ''' Appends content description using format-appropriate fallbacks. '''
+    description = doc.get( 'description', '' )
+    if not description:
+        description = doc.get( 'content_snippet', '' )
+    if not description:
+        inventory_type = inv_obj.get( 'inventory_type', '' )
+        if inventory_type == 'mkdocs_search_index':
+            description = inv_obj.get( 'content_preview', '' )
+    if description:
+        lines.append( f"- **Content:** {description}" )
 
 
 def _format_cli_exception( exc: Exception ) -> str:  # noqa: PLR0911
