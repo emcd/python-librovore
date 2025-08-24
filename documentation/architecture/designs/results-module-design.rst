@@ -61,6 +61,11 @@ Architectural Foundation
   separation allows inventory objects to be reused across different search 
   contexts and enables search-independent operations.
 
+**Self-Rendering Object Architecture**
+  All result objects implement standardized rendering methods for different 
+  output formats, encapsulating domain-specific formatting knowledge within 
+  the objects themselves rather than external formatting functions.
+
 Core Object Definitions
 ===============================================================================
 
@@ -105,10 +110,13 @@ Universal Inventory Object
             ''' Returns display_name if available, otherwise falls back to name. '''
         
         # Self-formatting capabilities (processor-provided formatters)
-        def render_specifics_markdown(
-            self, /, *, 
-            show_technical: __.typx.Annotated[
-                bool, 
+        def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+            ''' Renders complete object as JSON-compatible dictionary. '''
+        
+        def render_as_markdown(
+            self, /, *,
+            reveal_internals: __.typx.Annotated[
+                bool,
                 __.ddoc.Doc( '''
                     Controls whether implementation-specific details (internal field names, 
                     version numbers, priority scores) are included. When False, only 
@@ -116,10 +124,7 @@ Universal Inventory Object
                 ''' )
             ] = True,
         ) -> tuple[ str, ... ]:
-            ''' Renders specifics as Markdown lines for CLI display. '''
-            
-        def render_specifics_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
-            ''' Renders specifics for JSON output. '''
+            ''' Renders complete object as Markdown lines for display. ''''
         
 
 **Universal Fields**
@@ -186,6 +191,15 @@ Content and Documentation Objects
         @property
         def has_meaningful_content( self ) -> bool:
             ''' Returns True if document contains useful extracted content. '''
+        
+        def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+            ''' Renders complete document as JSON-compatible dictionary. '''
+        
+        def render_as_markdown(
+            self, /, *,
+            reveal_internals: bool = True,
+        ) -> tuple[ str, ... ]:
+            ''' Renders complete document as Markdown lines for display. ''''
 
 Query Metadata Objects
 ===============================================================================
@@ -212,6 +226,9 @@ Search and Operation Metadata
         @property
         def results_truncated( self ) -> bool:
             ''' Returns True if results were limited by results_max. '''
+        
+        def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+            ''' Renders search metadata as JSON-compatible dictionary. ''''
 
     class InventoryLocationInfo( __.immut.DataclassObject ):
         ''' Information about detected inventory location and processor. '''
@@ -226,6 +243,9 @@ Search and Operation Metadata
             float, __.ddoc.Doc( "Detection confidence score (0.0-1.0)." ) ]
         object_count: __.typx.Annotated[
             int, __.ddoc.Doc( "Total objects available in this inventory." ) ]
+        
+        def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+            ''' Renders location info as JSON-compatible dictionary. '''
 
 Detection Result Objects
 -------------------------------------------------------------------------------
@@ -263,6 +283,15 @@ Detection Result Objects
         @property
         def optimal_processor_name( self ) -> __.typx.Optional[ str ]:
             ''' Returns name of optimal processor if available. '''
+        
+        def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+            ''' Renders detection results as JSON-compatible dictionary. '''
+        
+        def render_as_markdown(
+            self, /, *,
+            reveal_internals: bool = True,
+        ) -> tuple[ str, ... ]:
+            ''' Renders detection results as Markdown lines for display. ''''
 
 Error Handling Objects
 -------------------------------------------------------------------------------
@@ -291,6 +320,15 @@ Error Handling Objects
             str, __.ddoc.Doc( "Search term or query string that failed." ) ]
         error: __.typx.Annotated[
             ErrorInfo, __.ddoc.Doc( "Detailed error information." ) ]
+        
+        def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+            ''' Renders error response as JSON-compatible dictionary. '''
+        
+        def render_as_markdown(
+            self, /, *,
+            reveal_internals: bool = True,
+        ) -> tuple[ str, ... ]:
+            ''' Renders error response as Markdown lines for display. '''
 
 Complete Query Results
 -------------------------------------------------------------------------------
@@ -312,6 +350,15 @@ Complete Query Results
         inventory_locations: __.typx.Annotated[
             tuple[ InventoryLocationInfo, ... ],
             __.ddoc.Doc( "Information about inventory locations used." ) ]
+        
+        def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+            ''' Renders inventory query result as JSON-compatible dictionary. '''
+        
+        def render_as_markdown(
+            self, /, *,
+            reveal_internals: bool = True,
+        ) -> tuple[ str, ... ]:
+            ''' Renders inventory query result as Markdown lines for display. '''
 
     class ContentQueryResult( __.immut.DataclassObject ):
         ''' Complete result structure for content queries. '''
@@ -328,6 +375,19 @@ Complete Query Results
         inventory_locations: __.typx.Annotated[
             tuple[ InventoryLocationInfo, ... ],
             __.ddoc.Doc( "Information about inventory locations used." ) ]
+        
+        def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+            ''' Renders content query result as JSON-compatible dictionary. '''
+        
+        def render_as_markdown(
+            self, /, *,
+            reveal_internals: bool = True,
+            lines_max: __.typx.Annotated[
+                __.typx.Optional[ int ],
+                __.ddoc.Doc( "Maximum lines to display per content result." )
+            ] = None,
+        ) -> tuple[ str, ... ]:
+            ''' Renders content query result as Markdown lines for display. '''
 
 Processor Integration Design
 ===============================================================================
@@ -530,47 +590,50 @@ Enhanced Search Result Objects
     ) -> tuple[ SearchResult, ... ]:
         ''' Enhanced search filtering returning structured results. '''
 
-JSON Compatibility
-===============================================================================
-
-Serialization Support
+Self-Rendering Architecture
 -------------------------------------------------------------------------------
 
-All structured objects support JSON serialization for interface compatibility:
+**Universal Rendering Interface**
+All structured result objects implement standardized rendering methods:
 
 .. code-block:: python
 
-    # Enhanced serialization in results.py
-    def serialize_for_json( obj: __.typx.Any ) -> __.typx.Any:
-        ''' Serialization supporting structured result objects. '''
-        if isinstance( obj, InventoryObject ):
-            return obj.to_json_dict( )
-        if isinstance( obj, ( InventoryQueryResult, ContentQueryResult, DetectionsResult ) ):
-            return obj.to_json_dict( )
-        if __.dcls.is_dataclass( obj ):
-            return serialize_dataclass_for_json( obj )
-        return serialize_existing_types( obj )
+    # Universal rendering interface for all result objects
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders object as JSON-compatible immutable dictionary. '''
+        
+    def render_as_markdown( 
+        self, /, *, 
+        reveal_internals: bool = True 
+    ) -> tuple[ str, ... ]:
+        ''' Renders object as Markdown lines for CLI display. '''
 
-Object-Specific Serialization
--------------------------------------------------------------------------------
-
-Each structured object provides its own JSON serialization method:
+**Domain-Specific Rendering Implementation**
+Each object encapsulates its own formatting logic:
 
 .. code-block:: python
 
-    # InventoryObject serialization method
-    def to_json_dict( self ) -> dict[ str, __.typx.Any ]:
-        ''' Returns JSON-compatible dictionary representation. '''
-        result = {
-            'name': self.name,
-            'uri': self.uri,
-            'inventory_type': self.inventory_type,
-            'location_url': self.location_url,
-            'display_name': self.display_name,
-            'effective_display_name': self.effective_display_name,
-        }
-        result.update( self.specifics )
-        return result
+    # InventoryObject rendering example
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Returns JSON-compatible dictionary with domain knowledge. '''
+        result = __.immut.Dictionary(
+            name = self.name,
+            uri = self.uri,
+            inventory_type = self.inventory_type,
+            location_url = self.location_url,
+            display_name = self.display_name,
+            effective_display_name = self.effective_display_name,
+        )
+        # Merge with domain-specific formatting logic
+        return result.union( self.specifics )
+    
+    def render_as_markdown( 
+        self, /, *, reveal_internals: bool = True 
+    ) -> tuple[ str, ... ]:
+        ''' Returns Markdown lines using processor-specific formatting. '''
+        lines = [ f"### `{self.effective_display_name}`" ]
+        # Domain-specific formatting logic implemented by processors
+        return tuple( lines )
 
 Validation and Type Safety
 ===============================================================================
@@ -640,6 +703,30 @@ File Structure and Imports
     ContentResult: __.typx.TypeAlias = ContentQueryResult | ErrorResponse
     DetectionsResultUnion: __.typx.TypeAlias = DetectionsResult | ErrorResponse
 
+Presentation Layer Integration
+===============================================================================
+
+CLI and Renderers Integration
+-------------------------------------------------------------------------------
+
+The self-rendering architecture enables clean separation between business logic 
+and presentation concerns:
+
+**Presentation vs Business Logic Separation**
+- **Objects handle domain logic**: ``result.render_as_json()``
+- **CLI coordinators handle presentation**: truncation, formatting, display helpers
+- **MCP server uses objects directly**: no CLI-specific presentation layer
+
+**Renderers Subpackage Structure**
+CLI presentation coordination through a separate ``renderers/`` subpackage:
+
+.. code-block:: text
+
+    renderers/
+    ├── __.py           # Common utilities (import cascade pattern)
+    ├── json.py         # JSON presentation coordination  
+    └── markdown.py     # Markdown presentation coordination
+
 Integration Benefits
 ===============================================================================
 
@@ -650,6 +737,12 @@ Integration Benefits
 - Union types provide exhaustive pattern matching with type narrowing
 - `match` statements with object unpacking enable clean error handling
 
+**Domain-Specific Rendering**
+- Objects encapsulate format-specific knowledge within themselves
+- Processors provide domain expertise through object rendering methods
+- Clean separation between data representation and presentation logic
+- Extensible rendering without modifying CLI or interface layers
+
 **Complete Source Attribution**
 - Full provenance tracking for every inventory object
 - Enhanced debugging capabilities with location-specific metadata
@@ -659,12 +752,15 @@ Integration Benefits
 - Unified interface across all inventory processor types
 - Clear separation between universal and format-specific data
 - Predictable object structure for interface layers
+- Self-contained formatting logic reduces coupling
 
 **Performance and Scalability**
 - Immutable objects enable safe concurrent access
 - Structural sharing reduces memory overhead
 - Efficient serialization for network transmission
+- Domain-specific rendering optimizations contained within objects
 
 This results module design provides a robust foundation for type-safe operations 
 across all system components while maintaining clean architectural boundaries 
-and enabling future enhancements through structured object capabilities.
+and enabling future enhancements through structured object capabilities and 
+self-rendering architecture.
