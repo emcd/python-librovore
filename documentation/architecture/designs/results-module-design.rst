@@ -227,6 +227,43 @@ Search and Operation Metadata
         object_count: __.typx.Annotated[
             int, __.ddoc.Doc( "Total objects available in this inventory." ) ]
 
+Detection Result Objects
+-------------------------------------------------------------------------------
+
+.. code-block:: python
+
+    class Detection( __.immut.DataclassObject ):
+        ''' Processor detection information with confidence scoring. '''
+        
+        processor_name: __.typx.Annotated[
+            str, __.ddoc.Doc( "Name of the processor that can handle this location." ) ]
+        confidence: __.typx.Annotated[
+            float, __.ddoc.Doc( "Detection confidence score (0.0-1.0)." ) ]
+        processor_type: __.typx.Annotated[
+            str, __.ddoc.Doc( "Type of processor (inventory, structure)." ) ]
+        detection_metadata: __.typx.Annotated[
+            __.immut.Dictionary[ str, __.typx.Any ],
+            __.ddoc.Doc( "Processor-specific detection metadata." ) 
+        ] = __.dcls.field( default_factory = __.immut.Dictionary )
+
+    class DetectionsResult( __.immut.DataclassObject ):
+        ''' Detection results with processor selection and timing metadata. '''
+        
+        source: __.typx.Annotated[
+            str, __.ddoc.Doc( "Primary location URL for detection operation." ) ]
+        detections: __.typx.Annotated[
+            tuple[ Detection, ... ],
+            __.ddoc.Doc( "All processor detections found for location." ) ]
+        detection_optimal: __.typx.Annotated[
+            __.typx.Optional[ Detection ],
+            __.ddoc.Doc( "Best detection result based on confidence scoring." ) ]
+        time_detection_ms: __.typx.Annotated[
+            int, __.ddoc.Doc( "Detection operation time in milliseconds." ) ]
+        
+        @property
+        def optimal_processor_name( self ) -> __.typx.Optional[ str ]:
+            ''' Returns name of optimal processor if available. '''
+
 Error Handling Objects
 -------------------------------------------------------------------------------
 
@@ -383,6 +420,7 @@ The functions module uses structured result objects for all operations:
     # functions.py - Union return types for proper error propagation
     InventoryResult: __.typx.TypeAlias = InventoryQueryResult | ErrorResponse
     ContentResult: __.typx.TypeAlias = ContentQueryResult | ErrorResponse
+    DetectionsResultUnion: __.typx.TypeAlias = DetectionsResult | ErrorResponse
 
     async def query_inventory(
         auxdata: __.ApplicationGlobals,
@@ -408,6 +446,14 @@ The functions module uses structured result objects for all operations:
         results_max: int = 10,
     ) -> ContentResult:
         ''' Returns structured content query results or error information. '''
+
+    async def detect(
+        auxdata: __.ApplicationGlobals,
+        location: __.typx.Annotated[ str, __.ddoc.Fname( 'location argument' ) ], /, *,
+        processor_name: __.Absential[ str ] = __.absent,
+        processor_types: __.cabc.Sequence[ str ] = ( 'inventory', 'structure' ),
+    ) -> DetectionsResultUnion:
+        ''' Returns structured detection results with processor selection and timing. '''
 
 Error Handling Patterns
 -------------------------------------------------------------------------------
@@ -499,7 +545,7 @@ All structured objects support JSON serialization for interface compatibility:
         ''' Serialization supporting structured result objects. '''
         if isinstance( obj, InventoryObject ):
             return obj.to_json_dict( )
-        if isinstance( obj, ( InventoryQueryResult, ContentQueryResult ) ):
+        if isinstance( obj, ( InventoryQueryResult, ContentQueryResult, DetectionsResult ) ):
             return obj.to_json_dict( )
         if __.dcls.is_dataclass( obj ):
             return serialize_dataclass_for_json( obj )
@@ -543,6 +589,9 @@ Object Validation Strategy
     def validate_content_document( doc: ContentDocument ) -> ContentDocument:
         ''' Validates content document has valid inventory object and content. '''
 
+    def validate_detections_result( result: DetectionsResult ) -> DetectionsResult:
+        ''' Validates detections result has valid detections and timing metadata. '''
+
 Module Organization
 ===============================================================================
 
@@ -570,11 +619,13 @@ File Structure and Imports
     # Complete query results
     class InventoryQueryResult( __.immut.DataclassObject ): ...
     class ContentQueryResult( __.immut.DataclassObject ): ...
+    class DetectionsResult( __.immut.DataclassObject ): ...
 
     # Validation functions
     def validate_inventory_object( ... ): ...
     def validate_search_result( ... ): ...
     def validate_content_document( ... ): ...
+    def validate_detections_result( ... ): ...
 
     # Serialization support
     def serialize_for_json( ... ): ...
@@ -587,6 +638,7 @@ File Structure and Imports
     # Union types for error propagation
     InventoryResult: __.typx.TypeAlias = InventoryQueryResult | ErrorResponse  
     ContentResult: __.typx.TypeAlias = ContentQueryResult | ErrorResponse
+    DetectionsResultUnion: __.typx.TypeAlias = DetectionsResult | ErrorResponse
 
 Integration Benefits
 ===============================================================================
