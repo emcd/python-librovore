@@ -18,26 +18,25 @@
 #============================================================================#
 
 
-''' Structured dataclass objects representing search results,
-    inventory objects, and content documents.
+''' Results structures.
+
+    Search results, inventory objects, content documents, etc....
 '''
 
 
 from . import __
 
 
-# Constants for formatting
 _CONTENT_PREVIEW_LIMIT = 100
 
 
 class InventoryObject( __.immut.DataclassObject ):
     ''' Universal inventory object with complete source attribution.
-    
+
         Represents a single documentation object from any inventory source
         with standardized fields and format-specific metadata container.
     '''
-    
-    # Universal identification fields
+
     name: __.typx.Annotated[
         str,
         __.ddoc.Doc( "Primary object identifier from inventory source." ),
@@ -55,52 +54,46 @@ class InventoryObject( __.immut.DataclassObject ):
         str, __.ddoc.Doc(
             "Complete URL to inventory location for attribution." )
     ]
-    
-    # Optional display enhancement
     display_name: __.typx.Annotated[
         __.typx.Optional[ str ],
         __.ddoc.Doc( "Human-readable name if different from name." ),
     ] = None
-    
-    # Format-specific metadata container
     specifics: __.typx.Annotated[
         __.immut.Dictionary[ str, __.typx.Any ],
         __.ddoc.Doc(
             "Format-specific metadata (domain, role, priority, etc.)." ),
     ] = __.dcls.field( default_factory = lambda: __.immut.Dictionary( ) )
-    
-    
+
+
     @property
     def effective_display_name( self ) -> str:
-        ''' Returns display_name if available, otherwise falls back to
-            name.
-        '''
+        ''' Effective display name. Might be same as name. '''
         if self.display_name is not None:
             return self.display_name
         return self.name
-    
-    @__.abc.abstractmethod
-    def render_specifics_markdown(
-        self, /, *,
-        show_technical: __.typx.Annotated[
-            bool,
-            __.ddoc.Doc( '''
-                Controls whether implementation-specific details (internal 
-                field names, version numbers, priority scores) are included. 
-                When False, only user-facing information is shown.
-            ''' ),
-        ] = True,
-    ) -> tuple[ str, ... ]:
-        ''' Renders specifics as Markdown lines for CLI display. '''
-        raise NotImplementedError
-    
+
     @__.abc.abstractmethod
     def render_specifics_json(
         self
     ) -> __.immut.Dictionary[ str, __.typx.Any ]:
         ''' Renders specifics for JSON output. '''
         raise NotImplementedError
-    
+
+    @__.abc.abstractmethod
+    def render_specifics_markdown(
+        self, /, *,
+        show_technical: __.typx.Annotated[
+            bool,
+            __.ddoc.Doc( '''
+                Controls whether implementation-specific details (internal
+                field names, version numbers, priority scores) are included.
+                When False, only user-facing information is shown.
+            ''' ),
+        ] = True,
+    ) -> tuple[ str, ... ]:
+        ''' Renders specifics as Markdown lines for CLI display. '''
+        raise NotImplementedError
+
     def to_json_dict( self ) -> dict[ str, __.typx.Any ]:
         ''' Returns JSON-compatible dictionary representation. '''
         result: dict[ str, __.typx.Any ] = {
@@ -116,41 +109,9 @@ class InventoryObject( __.immut.DataclassObject ):
         return result
 
 
-
-
-class SearchResult( __.immut.DataclassObject ):
-    ''' Search result with inventory object and match metadata. '''
-    
-    inventory_object: __.typx.Annotated[
-        InventoryObject,
-        __.ddoc.Doc( "Matched inventory object with metadata." ),
-    ]
-    score: __.typx.Annotated[
-        float,
-        __.ddoc.Doc( "Search relevance score (0.0-1.0)." ),
-    ]
-    match_reasons: __.typx.Annotated[
-        tuple[ str, ... ],
-        __.ddoc.Doc( "Detailed reasons for search match." ),
-    ]
-    
-    @classmethod
-    def from_inventory_object(
-        cls,
-        inventory_object: InventoryObject, *,
-        score: float,
-        match_reasons: __.cabc.Sequence[ str ],
-    ) -> __.typx.Self:
-        ''' Creates search result from inventory object with scoring. '''
-        return cls(
-            inventory_object = inventory_object,
-            score = score,
-            match_reasons = tuple( match_reasons ) )
-
-
 class ContentDocument( __.immut.DataclassObject ):
     ''' Documentation content with extracted metadata and snippets. '''
-    
+
     inventory_object: __.typx.Annotated[
         InventoryObject,
         __.ddoc.Doc( "Location inventory object for this content." ),
@@ -171,53 +132,60 @@ class ContentDocument( __.immut.DataclassObject ):
         str,
         __.ddoc.Doc( "Complete URL to full documentation page." ),
     ] = ''
-    
-    # Structure processor metadata
     extraction_metadata: __.typx.Annotated[
         __.immut.Dictionary[ str, __.typx.Any ],
         __.ddoc.Doc( "Metadata from structure processor extraction." ),
     ] = __.dcls.field( default_factory = lambda: __.immut.Dictionary( ) )
-    
+
     @property
     def has_meaningful_content( self ) -> bool:
-        ''' Returns True if document contains useful extracted content.
-        '''
+        ''' Returns True if document contains useful extracted content. '''
         return bool(
-            self.signature or self.description or self.content_snippet
-        )
+            self.signature or self.description or self.content_snippet )
 
 
-class SearchMetadata( __.immut.DataclassObject ):
-    ''' Search operation metadata and performance statistics. '''
-    
-    results_count: __.typx.Annotated[
-        int,
-        __.ddoc.Doc( "Number of results returned to user." ),
+class ErrorInfo( __.immut.DataclassObject ):
+    ''' Structured error information for processor failures. '''
+
+    type: __.typx.Annotated[
+        str,
+        __.ddoc.Doc(
+            "Error type identifier (e.g., 'processor_unavailable')." ),
     ]
-    results_max: __.typx.Annotated[
-        int,
-        __.ddoc.Doc( "Maximum results requested by user." ),
+    title: __.typx.Annotated[
+        str,
+        __.ddoc.Doc( "Human-readable error title." ),
     ]
-    matches_total: __.typx.Annotated[
-        __.typx.Optional[ int ],
-        __.ddoc.Doc( "Total matching objects before limit applied." ),
+    message: __.typx.Annotated[
+        str,
+        __.ddoc.Doc( "Detailed error description." ),
+    ]
+    suggestion: __.typx.Annotated[
+        __.typx.Optional[ str ],
+        __.ddoc.Doc( "Suggested remediation steps." ),
     ] = None
-    search_time_ms: __.typx.Annotated[
-        __.typx.Optional[ int ],
-        __.ddoc.Doc( "Search execution time in milliseconds." ),
-    ] = None
-    
-    @property
-    def results_truncated( self ) -> bool:
-        ''' Returns True if results were limited by results_max. '''
-        if self.matches_total is None:
-            return False
-        return self.results_count < self.matches_total
+
+
+class ErrorResponse( __.immut.DataclassObject ):
+    ''' Error response wrapper maintaining query context. '''
+
+    location: __.typx.Annotated[
+        str,
+        __.ddoc.Doc( "Primary location URL for failed query." ),
+    ]
+    query: __.typx.Annotated[
+        str,
+        __.ddoc.Doc( "Search term or query string that failed." ),
+    ]
+    error: __.typx.Annotated[
+        ErrorInfo,
+        __.ddoc.Doc( "Detailed error information." ),
+    ]
 
 
 class InventoryLocationInfo( __.immut.DataclassObject ):
     ''' Information about detected inventory location and processor. '''
-    
+
     inventory_type: __.typx.Annotated[
         str,
         __.ddoc.Doc( "Inventory format type identifier." ),
@@ -240,9 +208,91 @@ class InventoryLocationInfo( __.immut.DataclassObject ):
     ]
 
 
+class SearchMetadata( __.immut.DataclassObject ):
+    ''' Search operation metadata and performance statistics. '''
+
+    results_count: __.typx.Annotated[
+        int,
+        __.ddoc.Doc( "Number of results returned to user." ),
+    ]
+    results_max: __.typx.Annotated[
+        int,
+        __.ddoc.Doc( "Maximum results requested by user." ),
+    ]
+    matches_total: __.typx.Annotated[
+        __.typx.Optional[ int ],
+        __.ddoc.Doc( "Total matching objects before limit applied." ),
+    ] = None
+    search_time_ms: __.typx.Annotated[
+        __.typx.Optional[ int ],
+        __.ddoc.Doc( "Search execution time in milliseconds." ),
+    ] = None
+
+    @property
+    def results_truncated( self ) -> bool:
+        ''' Returns True if results were limited by results_max. '''
+        if self.matches_total is None:
+            return False
+        return self.results_count < self.matches_total
+
+
+class SearchResult( __.immut.DataclassObject ):
+    ''' Search result with inventory object and match metadata. '''
+
+    inventory_object: __.typx.Annotated[
+        InventoryObject,
+        __.ddoc.Doc( "Matched inventory object with metadata." ),
+    ]
+    score: __.typx.Annotated[
+        float,
+        __.ddoc.Doc( "Search relevance score (0.0-1.0)." ),
+    ]
+    match_reasons: __.typx.Annotated[
+        tuple[ str, ... ],
+        __.ddoc.Doc( "Detailed reasons for search match." ),
+    ]
+
+    @classmethod
+    def from_inventory_object(
+        cls,
+        inventory_object: InventoryObject, *,
+        score: float,
+        match_reasons: __.cabc.Sequence[ str ],
+    ) -> __.typx.Self:
+        ''' Produces search result from inventory object with scoring. '''
+        return cls(
+            inventory_object = inventory_object,
+            score = score,
+            match_reasons = tuple( match_reasons ) )
+
+
+class ContentQueryResult( __.immut.DataclassObject ):
+    ''' Complete result structure for content queries. '''
+
+    location: __.typx.Annotated[
+        str,
+        __.ddoc.Doc( "Primary location URL for this query." ),
+    ]
+    query: __.typx.Annotated[
+        str,
+        __.ddoc.Doc( "Search term or query string used." ),
+    ]
+    documents: __.typx.Annotated[
+        tuple[ ContentDocument, ... ],
+        __.ddoc.Doc( "Documentation content for matching objects." ) ]
+    search_metadata: __.typx.Annotated[
+        SearchMetadata,
+        __.ddoc.Doc( "Search execution and result metadata." ),
+    ]
+    inventory_locations: __.typx.Annotated[
+        tuple[ InventoryLocationInfo, ... ],
+        __.ddoc.Doc( "Information about inventory locations used." ),
+    ]
+
+
 class InventoryQueryResult( __.immut.DataclassObject ):
     ''' Complete result structure for inventory queries. '''
-    
+
     location: __.typx.Annotated[
         str,
         __.ddoc.Doc( "Primary location URL for this query." ),
@@ -265,76 +315,37 @@ class InventoryQueryResult( __.immut.DataclassObject ):
     ]
 
 
-class ContentQueryResult( __.immut.DataclassObject ):
-    ''' Complete result structure for content queries. '''
-    
-    location: __.typx.Annotated[
-        str,
-        __.ddoc.Doc( "Primary location URL for this query." ),
-    ]
-    query: __.typx.Annotated[
-        str,
-        __.ddoc.Doc( "Search term or query string used." ),
-    ]
-    documents: __.typx.Annotated[
-        tuple[ ContentDocument, ... ],
-        __.ddoc.Doc( "Documentation content for matching objects." ) ]
-    search_metadata: __.typx.Annotated[
-        SearchMetadata,
-        __.ddoc.Doc( "Search execution and result metadata." ),
-    ]
-    inventory_locations: __.typx.Annotated[
-        tuple[ InventoryLocationInfo, ... ],
-        __.ddoc.Doc( "Information about inventory locations used." ),
-    ]
+def serialize_for_json( objct: __.typx.Any ) -> __.typx.Any:
+    ''' Serialization supporting structured result objects. '''
+    if isinstance( objct, InventoryObject ):
+        return objct.to_json_dict( )
+    if (
+        isinstance( objct, ( InventoryQueryResult, ContentQueryResult ) )
+        or __.dcls.is_dataclass( objct )
+    ): return _serialize_dataclass_for_json( objct )
+    if isinstance( objct, ( list, tuple, set, frozenset ) ):
+        return _serialize_sequence_for_json( objct )
+    if isinstance( objct, ( dict, __.immut.Dictionary ) ):
+        return _serialize_mapping_for_json( objct )
+    return objct
 
 
-class ErrorInfo( __.immut.DataclassObject ):
-    ''' Structured error information for processor failures. '''
-    
-    type: __.typx.Annotated[
-        str,
-        __.ddoc.Doc(
-            "Error type identifier (e.g., 'processor_unavailable')." ),
-    ]
-    title: __.typx.Annotated[
-        str,
-        __.ddoc.Doc( "Human-readable error title." ),
-    ]
-    message: __.typx.Annotated[
-        str,
-        __.ddoc.Doc( "Detailed error description." ),
-    ]
-    suggestion: __.typx.Annotated[
-        __.typx.Optional[ str ],
-        __.ddoc.Doc( "Suggested remediation steps." ),
-    ] = None
+def validate_content_document( doc: ContentDocument ) -> ContentDocument:
+    ''' Validates content document has valid inventory object and content. '''
+    validate_inventory_object( doc.inventory_object )
+    if not doc.has_meaningful_content:
+        # TODO: Properly raise error.
+        pass
+    return doc
 
 
-class ErrorResponse( __.immut.DataclassObject ):
-    ''' Error response wrapper maintaining query context. '''
-    
-    location: __.typx.Annotated[
-        str,
-        __.ddoc.Doc( "Primary location URL for failed query." ),
-    ]
-    query: __.typx.Annotated[
-        str,
-        __.ddoc.Doc( "Search term or query string that failed." ),
-    ]
-    error: __.typx.Annotated[
-        ErrorInfo,
-        __.ddoc.Doc( "Detailed error information." ),
-    ]
-
-
-def validate_inventory_object( obj: InventoryObject ) -> InventoryObject:
+def validate_inventory_object( objct: InventoryObject ) -> InventoryObject:
     ''' Validates inventory object has required fields and valid values. '''
-    if not obj.name: raise ValueError
-    if not obj.uri: raise ValueError
-    if not obj.inventory_type: raise ValueError
-    if not obj.location_url: raise ValueError
-    return obj
+    if not objct.name: raise ValueError
+    if not objct.uri: raise ValueError
+    if not objct.inventory_type: raise ValueError
+    if not objct.location_url: raise ValueError
+    return objct
 
 
 def validate_search_result( result: SearchResult ) -> SearchResult:
@@ -347,47 +358,6 @@ def validate_search_result( result: SearchResult ) -> SearchResult:
         raise ValueError( message )
     validate_inventory_object( result.inventory_object )
     return result
-
-
-def validate_content_document( doc: ContentDocument ) -> ContentDocument:
-    ''' Validates content document has valid inventory object and content. '''
-    validate_inventory_object( doc.inventory_object )
-    if not doc.has_meaningful_content:
-        # TODO: Consider logging warning for empty content documents
-        # or implementing configurable validation strictness levels
-        pass
-    return doc
-
-
-def serialize_for_json( obj: __.typx.Any ) -> __.typx.Any:
-    ''' Serialization supporting structured result objects. '''
-    if isinstance( obj, InventoryObject ):
-        return obj.to_json_dict( )
-    if (
-        isinstance( obj, ( InventoryQueryResult, ContentQueryResult ) )
-        or __.dcls.is_dataclass( obj )
-    ):
-        return _serialize_dataclass_for_json( obj )
-    if isinstance( obj, ( list, tuple, set, frozenset ) ):
-        return _serialize_sequence_for_json( obj )
-    if isinstance( obj, ( dict, __.immut.Dictionary ) ):
-        return _serialize_mapping_for_json( obj )
-    return obj
-
-
-def _serialize_sequence_for_json( obj: __.typx.Any ) -> list[ __.typx.Any ]:
-    ''' Serializes sequence-like objects to JSON-compatible lists. '''
-    return [ serialize_for_json( item ) for item in obj ]
-
-
-def _serialize_mapping_for_json(
-    obj: __.typx.Any
-) -> dict[ __.typx.Any, __.typx.Any ]:
-    ''' Serializes mapping-like objects to JSON-compatible dictionaries. '''
-    return {
-        key: serialize_for_json( value )
-        for key, value in obj.items( )
-    }
 
 
 def _serialize_dataclass_for_json(
@@ -405,10 +375,24 @@ def _serialize_dataclass_for_json(
     return result
 
 
+def _serialize_mapping_for_json(
+    obj: __.typx.Any
+) -> dict[ __.typx.Any, __.typx.Any ]:
+    ''' Serializes mapping-like objects to JSON-compatible dictionaries. '''
+    return {
+        key: serialize_for_json( value )
+        for key, value in obj.items( )
+    }
+
+
+def _serialize_sequence_for_json( obj: __.typx.Any ) -> list[ __.typx.Any ]:
+    ''' Serializes sequence-like objects to JSON-compatible lists. '''
+    return [ serialize_for_json( item ) for item in obj ]
+
+
+ContentDocuments: __.typx.TypeAlias = __.cabc.Sequence[ ContentDocument ]
 InventoryObjects: __.typx.TypeAlias = __.cabc.Sequence[ InventoryObject ]
 SearchResults: __.typx.TypeAlias = __.cabc.Sequence[ SearchResult ]
-ContentDocuments: __.typx.TypeAlias = __.cabc.Sequence[ ContentDocument ]
 
-# Union types for error propagation
-InventoryResult: __.typx.TypeAlias = InventoryQueryResult | ErrorResponse
 ContentResult: __.typx.TypeAlias = ContentQueryResult | ErrorResponse
+InventoryResult: __.typx.TypeAlias = InventoryQueryResult | ErrorResponse
