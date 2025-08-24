@@ -219,6 +219,15 @@ class ProcessorInvalidity( Omnierror, TypeError ):
         super( ).__init__( message )
 
 
+class InventoryObjectInvalidity( Omnierror, TypeError ):
+    ''' Object is not a valid inventory object instance. '''
+
+    def __init__( self, actual: type ):
+        message = f"Expected InventoryObject, got {actual.__name__}."
+        self.actual_type = actual
+        super( ).__init__( message )
+
+
 class StructureIncompatibility( Omnierror, ValueError ):
     ''' Documentation structure incompatible with processor. '''
 

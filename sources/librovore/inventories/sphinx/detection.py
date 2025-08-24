@@ -107,13 +107,53 @@ async def filter_inventory(
     return tuple( all_objects )
 
 
+class SphinxInventoryObject( __.InventoryObject ):
+    ''' Sphinx-specific inventory object with domain-aware formatting. '''
+    
+    def render_specifics_markdown(
+        self, /, *,
+        show_technical: bool = True,
+    ) -> tuple[ str, ... ]:
+        ''' Renders Sphinx specifics with domain and role information. '''
+        lines: list[ str ] = [ ]
+        role = self.specifics.get( 'role' )
+        if role:
+            lines.append( f"- **Type:** {role}" )
+        domain = self.specifics.get( 'domain' )
+        if domain:
+            lines.append( f"- **Domain:** {domain}" )
+        if show_technical:
+            priority = self.specifics.get( 'priority' )
+            if priority is not None:
+                lines.append( f"- **Priority:** {priority}" )
+            project = self.specifics.get( 'inventory_project' )
+            if project:
+                lines.append( f"- **Project:** {project}" )
+            version = self.specifics.get( 'inventory_version' )
+            if version:
+                lines.append( f"- **Version:** {version}" )
+        return tuple( lines )
+    
+    def render_specifics_json(
+        self
+    ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders Sphinx specifics with structured format information. '''
+        return __.immut.Dictionary(
+            role = self.specifics.get( 'role' ),
+            domain = self.specifics.get( 'domain' ),
+            priority = self.specifics.get( 'priority' ),
+            inventory_project = self.specifics.get( 'inventory_project' ),
+            inventory_version = self.specifics.get( 'inventory_version' ),
+        )
+
+
 def format_inventory_object(
     objct: __.typx.Any,
     inventory: __.typx.Any,
     location_url: str,
-) -> __.InventoryObject:
+) -> SphinxInventoryObject:
     ''' Formats Sphinx inventory object with complete attribution. '''
-    return __.InventoryObject(
+    return SphinxInventoryObject(
         name = objct.name,
         uri = objct.uri,
         inventory_type = 'sphinx_objects_inv',

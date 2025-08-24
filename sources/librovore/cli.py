@@ -122,8 +122,11 @@ class DetectCommand(
             _scribe.error( "detect failed: %s", exc )
             print( _format_cli_exception( exc ), file = stream )
             raise SystemExit( 1 ) from None
-        serialized_result = _results.serialize_for_json( result )
-        output = _format_output( serialized_result, display_format )
+        match display_format:
+            case _interfaces.DisplayFormat.JSON:
+                output = _render_detect_result_json( result )
+            case _interfaces.DisplayFormat.Markdown:
+                output = _render_detect_result_markdown( result )
         print( output, file = stream )
 
 
@@ -173,8 +176,11 @@ class QueryInventoryCommand(
             _scribe.error( "query-inventory failed: %s", exc )
             print( _format_cli_exception( exc ), file = stream )
             raise SystemExit( 1 ) from None
-        serialized_result = _results.serialize_for_json( result )
-        output = _format_output( serialized_result, display_format )
+        match display_format:
+            case _interfaces.DisplayFormat.JSON:
+                output = _render_inventory_query_result_json( result )
+            case _interfaces.DisplayFormat.Markdown:
+                output = _render_inventory_query_result_markdown( result )
         print( output, file = stream )
 
 
@@ -220,12 +226,13 @@ class QueryContentCommand(
             _scribe.error( "query-content failed: %s", exc )
             print( _format_cli_exception( exc ), file = stream )
             raise SystemExit( 1 ) from None
-        # Apply lines_max truncation to content
-        serialized_result = _results.serialize_for_json( result )
-        if 'documents' in serialized_result and self.lines_max > 0:
-            serialized_result = _truncate_query_content( 
-                serialized_result, self.lines_max )
-        output = _format_output( serialized_result, display_format )
+        match display_format:
+            case _interfaces.DisplayFormat.JSON:
+                output = _render_content_query_result_json( 
+                    result, self.lines_max )
+            case _interfaces.DisplayFormat.Markdown:
+                output = _render_content_query_result_markdown( 
+                    result, self.lines_max )
         print( output, file = stream )
 
 
@@ -259,8 +266,11 @@ class SummarizeInventoryCommand(
             search_behaviors = self.search_behaviors,
             filters = self.filters,
             group_by = self.group_by )
-        serialized_result = _results.serialize_for_json( result )
-        output = _format_output( serialized_result, display_format )
+        match display_format:
+            case _interfaces.DisplayFormat.JSON:
+                output = _render_inventory_summary_json( result )
+            case _interfaces.DisplayFormat.Markdown:
+                output = _render_inventory_summary_markdown( result )
         print( output, file = stream )
 
 
@@ -293,8 +303,11 @@ class SurveyProcessorsCommand(
             _scribe.error( "survey-processors failed: %s", exc )
             print( _format_cli_exception( exc ), file = stream )
             raise SystemExit( 1 ) from None
-        serialized_result = _results.serialize_for_json( result )
-        output = _format_output( serialized_result, display_format )
+        match display_format:
+            case _interfaces.DisplayFormat.JSON:
+                output = _render_survey_processors_json( result )
+            case _interfaces.DisplayFormat.Markdown:
+                output = _render_survey_processors_markdown( result )
         print( output, file = stream )
 
 
@@ -428,21 +441,43 @@ def _extract_object_name_and_role( obj: __.typx.Any ) -> tuple[ str, str ]:
     return name, role
 
 
-def _format_as_markdown( result: __.cabc.Mapping[ str, __.typx.Any ] ) -> str:
-    ''' Converts structured data to Markdown format. '''
-    if 'project' in result and 'version' in result and 'objects' in result:
-        return _format_inventory_summary_markdown( result )
-    if 'documents' in result and 'search_metadata' in result:
-        return _format_query_result_markdown( result )
-    if 'source' in result and 'detections' in result:
-        return _format_detect_result_markdown( result )
-    return __.json.dumps( result, indent = 2 )
+def _render_error_json( result: _results.ErrorResponse ) -> str:
+    ''' Renders error response as JSON. '''
+    serialized = _results.serialize_for_json( result )
+    return __.json.dumps( serialized, indent = 2 )
 
 
-def _format_detect_result_markdown(
-    result: __.cabc.Mapping[ str, __.typx.Any ]
+def _render_error_markdown( result: _results.ErrorResponse ) -> str:
+    ''' Renders error response as Markdown. '''
+    suggestion_text = (
+        f"\n\n**Suggestion:** {result.error.suggestion}"
+        if result.error.suggestion else "" )
+    return f"""# Error: {result.error.title}
+
+**Query:** {result.query}
+**Location:** {result.location}
+**Message:** {result.error.message}{suggestion_text}
+"""
+
+
+def _render_detect_result_json( 
+    result: dict[ str, __.typx.Any ] | _results.ErrorResponse
 ) -> str:
-    ''' Formats detection results as Markdown. '''
+    ''' Renders detect result as JSON. '''
+    if isinstance( result, _results.ErrorResponse ):
+        return _render_error_json( result )
+    # TODO: Design issue - detection results should be structured objects
+    serialized = _results.serialize_for_json( result )
+    return __.json.dumps( serialized, indent = 2 )
+
+
+def _render_detect_result_markdown( 
+    result: dict[ str, __.typx.Any ] | _results.ErrorResponse 
+) -> str:
+    ''' Renders detect result as Markdown. '''
+    if isinstance( result, _results.ErrorResponse ):
+        return _render_error_markdown( result )
+    # TODO: Design issue - detection results should be structured objects
     source = result.get( 'source', 'Unknown' )
     optimal = result.get( 'detection_optimal' )
     time_ms = result.get( 'time_detection_ms', 0 )
@@ -462,6 +497,163 @@ def _format_detect_result_markdown(
     return '\n'.join( lines )
 
 
+def _render_inventory_query_result_json( 
+    result: _results.InventoryResult
+) -> str:
+    ''' Renders inventory query result as JSON. '''
+    if isinstance( result, _results.ErrorResponse ):
+        return _render_error_json( result )
+    serialized = _results.serialize_for_json( result )
+    return __.json.dumps( serialized, indent = 2 )
+
+
+def _render_inventory_query_result_markdown( 
+    result: _results.InventoryResult
+) -> str:
+    ''' Renders inventory query result as Markdown. '''
+    if isinstance( result, _results.ErrorResponse ):
+        return _render_error_markdown( result )
+    # Render inventory query result
+    query = result.query
+    objects = result.objects
+    metadata = result.search_metadata
+    lines = [
+        f"# Inventory Results: {query}",
+        f"**Results:** {metadata.results_count}/{metadata.matches_total or 0}",
+    ]
+    if objects:
+        lines.append( "\n## Objects" )
+        for index, obj in enumerate( objects, 1 ):
+            separator = "\n\n📦 ── Object {} ─────────────────────── 📦\n"
+            lines.append( separator.format( index ) )
+            lines.append( f"### `{obj.name}`" )
+            _append_inventory_metadata( lines, obj )
+            lines.append( "" )
+    return '\n'.join( lines )
+
+
+def _render_content_query_result_json( 
+    result: _results.ContentResult, lines_max: int = 0
+) -> str:
+    ''' Renders content query result as JSON. '''
+    if isinstance( result, _results.ErrorResponse ):
+        return _render_error_json( result )
+    if isinstance( result, _results.ContentQueryResult ) and lines_max > 0:
+        serialized = _results.serialize_for_json( result )
+        serialized = _truncate_query_content( serialized, lines_max )
+        return __.json.dumps( serialized, indent = 2 )
+    serialized = _results.serialize_for_json( result )
+    return __.json.dumps( serialized, indent = 2 )
+
+
+def _render_content_query_result_markdown( 
+    result: _results.ContentResult, lines_max: int = 0
+) -> str:
+    ''' Renders content query result as Markdown. '''
+    if isinstance( result, _results.ErrorResponse ):
+        return _render_error_markdown( result )
+    if isinstance( result, _results.ContentQueryResult ) and lines_max > 0:
+        return _format_content_query_result_markdown_truncated( 
+            result, lines_max )
+    # Render normal content query result
+    query = result.query
+    documents = result.documents
+    metadata = result.search_metadata
+    lines = [
+        f"# Query Results: {query}",
+        f"**Results:** {metadata.results_count}/"
+        f"{metadata.matches_total or 0}",
+    ]
+    if documents:
+        lines.append( "\n## Documents" )
+        for index, doc in enumerate( documents, 1 ):
+            separator = "\n\n🔍 ── Result {} ─────────────────────── 🔍\n"
+            lines.append( separator.format( index ) )
+            inv_obj = doc.inventory_object
+            name = inv_obj.name
+            lines.append( f"### `{name}`" )
+            _append_inventory_metadata( lines, inv_obj )
+            _append_content_description( lines, doc, inv_obj )
+            lines.append( "" )
+    return '\n'.join( lines )
+
+
+def _render_inventory_summary_json( 
+    result: dict[ str, __.typx.Any ]
+) -> str:
+    ''' Renders inventory summary as JSON. '''
+    serialized = _results.serialize_for_json( result )
+    return __.json.dumps( serialized, indent = 2 )
+
+
+def _render_inventory_summary_markdown( 
+    result: dict[ str, __.typx.Any ]
+) -> str:
+    ''' Renders inventory summary as Markdown. '''
+    if ( 'project' in result and 'version' in result 
+         and 'objects' in result ):
+        # Render inventory summary
+        lines = [
+            f"# {result[ 'project' ]}",
+            f"**Version:** {result[ 'version' ]}",
+            f"**Objects:** {result[ 'objects_count' ]}",
+        ]
+        objects_value = result.get( 'objects' )
+        if objects_value:
+            if isinstance( objects_value, dict ):
+                grouped_objects = __.typx.cast(
+                    __.cabc.Mapping[ str, __.typx.Any ], objects_value )
+                lines.extend( _format_grouped_objects( grouped_objects ) )
+            else:
+                lines.extend( _format_object_list( objects_value ) )
+        return '\n'.join( lines )
+    serialized = _results.serialize_for_json( result )
+    return __.json.dumps( serialized, indent = 2 )
+
+
+def _render_survey_processors_json( 
+    result: dict[ str, __.typx.Any ]
+) -> str:
+    ''' Renders survey processors result as JSON. '''
+    serialized = _results.serialize_for_json( result )
+    return __.json.dumps( serialized, indent = 2 )
+
+
+def _render_survey_processors_markdown( 
+    result: dict[ str, __.typx.Any ]
+) -> str:
+    ''' Renders survey processors result as Markdown. '''
+    serialized = _results.serialize_for_json( result )
+    return __.json.dumps( serialized, indent = 2 )
+
+
+def _format_content_query_result_markdown_truncated(
+    result: _results.ContentQueryResult, lines_max: int
+) -> str:
+    ''' Formats content query results as Markdown with truncated content. '''
+    query = result.query
+    documents = result.documents
+    metadata = result.search_metadata
+    lines = [
+        f"# Query Results: {query} (truncated)",
+        f"**Results:** {metadata.results_count}/"
+        f"{metadata.matches_total or 0}",
+    ]
+    if documents:
+        lines.append( "\n## Documents" )
+        for index, doc in enumerate( documents, 1 ):
+            separator = "\n\n🔍 ── Result {} ─────────────────────── 🔍\n"
+            lines.append( separator.format( index ) )
+            inv_obj = doc.inventory_object
+            name = inv_obj.name
+            lines.append( f"### `{name}`" )
+            _append_inventory_metadata( lines, inv_obj )
+            _append_content_description_truncated( lines, doc, lines_max )
+            lines.append( "" )
+    return '\n'.join( lines )
+
+
+
 def _format_grouped_objects( 
     objects_value: __.cabc.Mapping[ str, __.typx.Any ] 
 ) -> list[ str ]:
@@ -474,24 +666,6 @@ def _format_grouped_objects(
     return lines
 
 
-def _format_inventory_summary_markdown(
-    result: __.cabc.Mapping[ str, __.typx.Any ]
-) -> str:
-    ''' Formats inventory summary as Markdown. '''
-    lines = [
-        f"# {result[ 'project' ]}",
-        f"**Version:** {result[ 'version' ]}",
-        f"**Objects:** {result[ 'objects_count' ]}",
-    ]
-    objects_value = result.get( 'objects' )
-    if objects_value:
-        if isinstance( objects_value, dict ):
-            grouped_objects = __.typx.cast(
-                __.cabc.Mapping[ str, __.typx.Any ], objects_value )
-            lines.extend( _format_grouped_objects( grouped_objects ) )
-        else:
-            lines.extend( _format_object_list( objects_value ) )
-    return '\n'.join( lines )
 
 
 def _format_object_list( objects_value: __.typx.Any ) -> list[ str ]:
@@ -535,82 +709,50 @@ def _truncate_query_content(
     return result
 
 
-def _format_output(
-    result: __.cabc.Mapping[ str, __.typx.Any ],
-    display_format: _interfaces.DisplayFormat,
-) -> str:
-    ''' Formats command output according to display format. '''
-    if display_format == _interfaces.DisplayFormat.JSON:
-        # Serialize frigid objects to JSON-compatible format
-        serialized_result = _functions.serialize_for_json( result )
-        return __.json.dumps( serialized_result, indent = 2 )
-    if display_format == _interfaces.DisplayFormat.Markdown:
-        serialized_result = _functions.serialize_for_json( result )
-        return _format_as_markdown( serialized_result )
-    raise ValueError
 
 
-def _format_query_result_markdown(
-    result: __.cabc.Mapping[ str, __.typx.Any ]
-) -> str:
-    ''' Formats query results as Markdown. '''
-    query = result.get( 'query', 'Unknown' )
-    documents = result.get( 'documents', [] )
-    metadata = result.get( 'search_metadata', {} )
-    
-    lines = [
-        f"# Query Results: {query}",
-        f"**Results:** {metadata.get('results_count', 0)}/"
-        f"{metadata.get('matches_total', 0)}",
-    ]
-    if documents:
-        lines.append( "\n## Documents" )
-        for index, doc in enumerate( documents, 1 ):
-            separator = "\n\n🔍 ── Result {} ─────────────────────── 🔍\n"
-            lines.append( separator.format( index ) )
-            inv_obj = doc.get( 'inventory_object', {} )
-            name = inv_obj.get( 'name', 'Unknown' )
-            lines.append( f"### `{name}`" )
-            _append_inventory_metadata( lines, inv_obj )
-            _append_content_description( lines, doc, inv_obj )
-            lines.append( "" )
-    return '\n'.join( lines )
+
 
 
 def _append_inventory_metadata( 
     lines: list[ str ], 
-    inv_obj: __.cabc.Mapping[ str, __.typx.Any ] 
+    invobj: _results.InventoryObject
 ) -> None:
-    ''' Appends inventory metadata to lines using generalized approach. '''
-    inventory_type = inv_obj.get( 'inventory_type', '' )
-    if inventory_type == 'sphinx_objects_inv':
-        role = inv_obj.get( 'role', 'unknown' )
-        domain = inv_obj.get( 'domain', '' )
-        lines.append( f"- **Type:** {role}" )
-        if domain:
-            lines.append( f"- **Domain:** {domain}" )
-    elif inventory_type == 'mkdocs_search_index':
-        role = inv_obj.get( 'role', 'unknown' )
-        lines.append( f"- **Type:** {role}" )
-        lines.append( "- **Domain:** page" )
-    else:
-        lines.append( "- **Type:** unknown" )
+    ''' Appends inventory metadata to lines using object self-formatting. '''
+    if not isinstance( invobj, _results.InventoryObject ):
+        raise _exceptions.InventoryObjectInvalidity( type( invobj ) )
+    metadata_lines = invobj.render_specifics_markdown( show_technical = False )
+    lines.extend( metadata_lines )
 
 
 def _append_content_description(
     lines: list[ str ],
-    doc: __.cabc.Mapping[ str, __.typx.Any ],
-    inv_obj: __.cabc.Mapping[ str, __.typx.Any ]
+    doc: _results.ContentDocument,
+    invobj: _results.InventoryObject
 ) -> None:
-    ''' Appends content description using format-appropriate fallbacks. '''
-    description = doc.get( 'description', '' )
+    ''' Appends content description from document fields only. '''
+    description = doc.description
     if not description:
-        description = doc.get( 'content_snippet', '' )
-    if not description:
-        inventory_type = inv_obj.get( 'inventory_type', '' )
-        if inventory_type == 'mkdocs_search_index':
-            description = inv_obj.get( 'content_preview', '' )
+        description = doc.content_snippet
     if description:
+        lines.append( f"- **Content:** {description}" )
+
+
+def _append_content_description_truncated(
+    lines: list[ str ],
+    doc: _results.ContentDocument,
+    lines_max: int
+) -> None:
+    ''' Appends truncated content description from document fields. '''
+    description = doc.description
+    if not description:
+        description = doc.content_snippet
+    if description:
+        desc_lines = description.split( '\n' )
+        if len( desc_lines ) > lines_max:
+            truncated_lines = desc_lines[ :lines_max ]
+            truncated_lines.append( '...' )
+            description = '\n'.join( truncated_lines )
         lines.append( f"- **Content:** {description}" )
 
 

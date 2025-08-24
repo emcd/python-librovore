@@ -219,9 +219,6 @@ that each processor implements to render format-specific data. See the
             
         def render_specifics_json( self ) -> dict[ str, __.typx.Any ]:
             ''' Renders specifics as JSON-serializable dictionary. '''
-            
-        def get_compact_display_fields( self ) -> tuple[ tuple[ str, str ], ... ]:
-            ''' Gets priority fields for compact display formats. '''
 
 CLI and JSON Integration Patterns
 -------------------------------------------------------------------------------

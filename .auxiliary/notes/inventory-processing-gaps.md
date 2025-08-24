@@ -25,9 +25,6 @@ class InventoryObject:
 
     def render_specifics_json( self ) -> dict[ str, __.typx.Any ]:
         ''' Renders specifics for JSON output. '''
-
-    def get_compact_display_fields( self ) -> tuple[ tuple[ str, str ], ... ]:
-        ''' Gets priority fields for compact display as (label, value) pairs. '''
 ```
 
 **Current Implementation**:
@@ -37,7 +34,30 @@ class InventoryObject:
 
 **Consequence**: Format-specific logic scattered in CLI layer, reducing extensibility.
 
-#### 2. Hardcoded Format-Specific Display Logic in CLI
+#### 2. Early Object Serialization in CLI (DTO-to-Last-Mile Violation)
+
+**Status**: ❌ Critical Architecture Issue
+**Impact**: High - Objects converted to dictionaries too early, defeating self-formatting design
+
+**Current Problem** (`cli.py:548-549`):
+```python
+# Objects serialized before formatting
+result = await query_content( auxdata, location, term, ... )
+serialized_result = _functions.serialize_for_json( result )
+return _format_as_markdown( serialized_result )  # Now working with dicts
+```
+
+**Design Expectation**: Objects should flow through to formatting functions and only serialize at final output stage (JSON vs Markdown).
+
+**Consequence**: 
+- Self-formatting methods become inaccessible
+- Forces CLI to work with serialized dictionaries
+- Requires type checking and reconstruction of object state
+- Defeats the entire processor-provided formatters architecture
+
+**Resolution**: Modify CLI to pass actual objects to formatting functions, serialize only at final JSON output.
+
+#### 3. Hardcoded Format-Specific Display Logic in CLI
 
 **Status**: ❌ Needs Refactoring
 **Impact**: High - Violates separation of concerns
@@ -58,11 +78,25 @@ def _append_inventory_metadata(lines, inv_obj):
 
 **Design Expectation**: CLI should call object's self-formatting methods instead of containing format-specific knowledge.
 
-**Resolution Path**: Requires implementing Tier 1, Gap 1 first.
+**Resolution Path**: Requires implementing Tier 1, Gaps 1 and 2 first.
+
+#### 4. Processor-Specific Subclasses in Wrong Module Location
+
+**Status**: ❌ Architecture Violation
+**Impact**: High - Violates processor-agnostic design principles
+
+**Current Problem** (`results.py:147-220`):
+- `SphinxInventoryObject` and `MkDocsInventoryObject` classes in processor-agnostic `results` module
+- Forces `results` module to have processor-specific knowledge
+- Violates clean layer separation
+
+**Design Expectation**: Processors should create instances of base `InventoryObject` class with their own implementations of abstract formatting methods within processor modules.
+
+**Resolution**: Move processor-specific object creation logic to respective processor modules, use base class instances.
 
 ### Tier 2: Secondary Implementation Gaps
 
-#### 3. Processor Capability Advertisement Inconsistencies
+#### 5. Processor Capability Advertisement Inconsistencies
 
 **Status**: ⚠️ Partially Implemented
 **Impact**: Medium - Affects system introspection and validation
@@ -74,7 +108,7 @@ def _append_inventory_metadata(lines, inv_obj):
 
 **Design Expectation**: Comprehensive `ProcessorCapabilities` with detailed filter support, performance characteristics, and operational constraints.
 
-#### 4. Raw Inventory Data Caching Strategy
+#### 6. Raw Inventory Data Caching Strategy
 
 **Status**: ⚠️ Partially Addressed
 **Impact**: Medium - Performance implications for large inventories
@@ -101,7 +135,7 @@ def _append_inventory_metadata(lines, inv_obj):
 
 ### Tier 3: Design Reconciliation (In Progress)
 
-#### 5. Method Naming Inconsistencies
+#### 7. Method Naming Inconsistencies
 
 **Status**: ⚠️ Partial - Design Updated, Implementation Pending
 **Resolution**: Updated design documents to align with implementation approach.
@@ -112,7 +146,7 @@ def _append_inventory_metadata(lines, inv_obj):
 
 **Implementation Status**: Current processors still use `filter_inventory()` method name and need to be updated to match design.
 
-#### 6. Error Handling Pattern Clarification
+#### 8. Error Handling Pattern Clarification
 
 **Status**: ⚠️ Partial - Design Updated, Implementation Needs Verification
 **Resolution**: Updated design to reflect exception-based approach at processor level with structured marshaling at functions boundary.
@@ -126,7 +160,7 @@ def _append_inventory_metadata(lines, inv_obj):
 
 ### Tier 4: Minor Implementation Gaps
 
-#### 7. Processor Interface Method Wrappers
+#### 9. Processor Interface Method Wrappers
 
 **Status**: ⚠️ Minor Gap
 **Impact**: Low - Affects API consistency
@@ -137,11 +171,11 @@ def _append_inventory_metadata(lines, inv_obj):
 
 ## Implementation Recommendations
 
-### Phase 1: Self-Formatting Object System
-1. Add self-formatting methods to `InventoryObject` class
-2. Implement format-specific rendering in Sphinx/MkDocs processors
-3. Refactor CLI layer to use object self-formatting methods
-4. Remove hardcoded format-specific logic from CLI
+### Phase 1: Core Architecture Fixes (High Priority)
+1. **Fix CLI Object Serialization Timing**: Modify CLI to pass actual objects through formatting pipeline
+2. **Move Processor-Specific Classes**: Relocate `SphinxInventoryObject` and `MkDocsInventoryObject` to processor modules
+3. **Remove Unused get_compact_display_fields**: Clean up unused method from design and implementation
+4. **Refactor CLI Formatting**: Remove hardcoded format-specific logic, use object self-formatting methods
 
 ### Phase 2: Processor Interface Consistency
 1. Add method wrappers for `format_inventory_object` in processor classes
@@ -166,9 +200,12 @@ def _append_inventory_metadata(lines, inv_obj):
 ## Success Metrics
 
 **Phase 1 Complete When**:
+- [ ] CLI passes actual objects to formatting functions (not serialized dictionaries)
+- [ ] Processor-specific object classes located in processor modules, not results module
 - [ ] CLI contains no hardcoded inventory type checks
 - [ ] All format-specific rendering handled by object methods
 - [ ] New inventory format can be added without CLI changes
+- [ ] get_compact_display_fields method removed from design and implementation
 
 **Phase 2 Complete When**:
 - [ ] All processors provide consistent method interfaces

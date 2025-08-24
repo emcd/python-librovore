@@ -121,10 +121,39 @@ def filter_inventory(
     return all_objects
 
 
+class MkDocsInventoryObject( __.InventoryObject ):
+    ''' MkDocs-specific inventory object with page-aware formatting. '''
+    
+    def render_specifics_markdown(
+        self, /, *,
+        show_technical: bool = True,
+    ) -> tuple[ str, ... ]:
+        ''' Renders MkDocs specifics with page information. '''
+        lines: list[ str ] = [ ]
+        role = self.specifics.get( 'role' )
+        if role:
+            lines.append( f"- **Type:** {role}" )
+        domain = self.specifics.get( 'domain' )
+        if domain:
+            lines.append( f"- **Domain:** {domain}" )
+        return tuple( lines )
+    
+    def render_specifics_json(
+        self
+    ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders MkDocs specifics with page format information. '''
+        return __.immut.Dictionary(
+            role = self.specifics.get( 'role' ),
+            domain = self.specifics.get( 'domain' ),
+            object_type = self.specifics.get( 'object_type' ),
+            content_preview = self.specifics.get( 'content_preview' ),
+        )
+
+
 def format_inventory_object(
     doc: dict[ str, __.typx.Any ],
     location_url: str,
-) -> __.InventoryObject:
+) -> MkDocsInventoryObject:
     ''' Formats MkDocs search index document with attribution. '''
     location = str( doc.get( 'location', '' ) )
     title = str( doc.get( 'title', '' ) )
@@ -132,7 +161,7 @@ def format_inventory_object(
     content_preview = (
         text[ :_CONTENT_PREVIEW_LENGTH ] + '...'
         if len( text ) > _CONTENT_PREVIEW_LENGTH else text )
-    return __.InventoryObject(
+    return MkDocsInventoryObject(
         name = title,
         uri = location,
         inventory_type = 'mkdocs_search_index',

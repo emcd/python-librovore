@@ -120,9 +120,6 @@ Universal Inventory Object
             
         def render_specifics_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
             ''' Renders specifics for JSON output. '''
-            
-        def get_compact_display_fields( self ) -> tuple[ tuple[ str, str ], ... ]:
-            ''' Gets priority fields for compact display as (label, value) pairs. '''
         
 
 **Universal Fields**

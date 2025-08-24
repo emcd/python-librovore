@@ -26,6 +26,10 @@
 from . import __
 
 
+# Constants for formatting
+_CONTENT_PREVIEW_LIMIT = 100
+
+
 class InventoryObject( __.immut.DataclassObject ):
     ''' Universal inventory object with complete source attribution.
     
@@ -75,6 +79,28 @@ class InventoryObject( __.immut.DataclassObject ):
             return self.display_name
         return self.name
     
+    @__.abc.abstractmethod
+    def render_specifics_markdown(
+        self, /, *,
+        show_technical: __.typx.Annotated[
+            bool,
+            __.ddoc.Doc( '''
+                Controls whether implementation-specific details (internal 
+                field names, version numbers, priority scores) are included. 
+                When False, only user-facing information is shown.
+            ''' ),
+        ] = True,
+    ) -> tuple[ str, ... ]:
+        ''' Renders specifics as Markdown lines for CLI display. '''
+        raise NotImplementedError
+    
+    @__.abc.abstractmethod
+    def render_specifics_json(
+        self
+    ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders specifics for JSON output. '''
+        raise NotImplementedError
+    
     def to_json_dict( self ) -> dict[ str, __.typx.Any ]:
         ''' Returns JSON-compatible dictionary representation. '''
         result: dict[ str, __.typx.Any ] = {
@@ -85,9 +111,11 @@ class InventoryObject( __.immut.DataclassObject ):
             'display_name': self.display_name,
             'effective_display_name': self.effective_display_name,
         }
-        specifics_dict = dict( self.specifics )
-        result.update( specifics_dict )
+        formatted_specifics = dict( self.render_specifics_json( ) )
+        result.update( formatted_specifics )
         return result
+
+
 
 
 class SearchResult( __.immut.DataclassObject ):
