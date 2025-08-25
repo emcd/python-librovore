@@ -26,6 +26,7 @@ from . import cacheproxy as _cacheproxy
 from . import exceptions as _exceptions
 from . import functions as _functions
 from . import interfaces as _interfaces
+from . import renderers as _renderers
 from . import results as _results
 from . import server as _server
 from . import state as _state
@@ -124,9 +125,9 @@ class DetectCommand(
             raise SystemExit( 1 ) from None
         match display_format:
             case _interfaces.DisplayFormat.JSON:
-                output = _render_detect_result_json( result )
+                output = _renderers.render_detect_result_json( result )
             case _interfaces.DisplayFormat.Markdown:
-                output = _render_detect_result_markdown( result )
+                output = _renderers.render_detect_result_markdown( result )
         print( output, file = stream )
 
 
@@ -178,9 +179,11 @@ class QueryInventoryCommand(
             raise SystemExit( 1 ) from None
         match display_format:
             case _interfaces.DisplayFormat.JSON:
-                output = _render_inventory_query_result_json( result )
+                output = _renderers.render_inventory_query_result_json(
+                    result )
             case _interfaces.DisplayFormat.Markdown:
-                output = _render_inventory_query_result_markdown( result )
+                output = _renderers.render_inventory_query_result_markdown(
+                    result )
         print( output, file = stream )
 
 
@@ -228,10 +231,10 @@ class QueryContentCommand(
             raise SystemExit( 1 ) from None
         match display_format:
             case _interfaces.DisplayFormat.JSON:
-                output = _render_content_query_result_json( 
+                output = _renderers.render_content_query_result_json( 
                     result, self.lines_max )
             case _interfaces.DisplayFormat.Markdown:
-                output = _render_content_query_result_markdown( 
+                output = _renderers.render_content_query_result_markdown( 
                     result, self.lines_max )
         print( output, file = stream )
 
@@ -268,9 +271,9 @@ class SummarizeInventoryCommand(
             group_by = self.group_by )
         match display_format:
             case _interfaces.DisplayFormat.JSON:
-                output = _render_inventory_summary_json( result )
+                output = _renderers.render_inventory_summary_json( result )
             case _interfaces.DisplayFormat.Markdown:
-                output = _render_inventory_summary_markdown( result )
+                output = _renderers.render_inventory_summary_markdown( result )
         print( output, file = stream )
 
 
@@ -305,9 +308,9 @@ class SurveyProcessorsCommand(
             raise SystemExit( 1 ) from None
         match display_format:
             case _interfaces.DisplayFormat.JSON:
-                output = _render_survey_processors_json( result )
+                output = _renderers.render_survey_processors_json( result )
             case _interfaces.DisplayFormat.Markdown:
-                output = _render_survey_processors_markdown( result )
+                output = _renderers.render_survey_processors_markdown( result )
         print( output, file = stream )
 
 
@@ -441,190 +444,6 @@ def _extract_object_name_and_role( obj: __.typx.Any ) -> tuple[ str, str ]:
     return name, role
 
 
-def _render_error_json( result: _results.ErrorResponse ) -> str:
-    ''' Renders error response as JSON. '''
-    serialized = _results.serialize_for_json( result )
-    return __.json.dumps( serialized, indent = 2 )
-
-
-def _render_error_markdown( result: _results.ErrorResponse ) -> str:
-    ''' Renders error response as Markdown. '''
-    suggestion_text = (
-        f"\n\n**Suggestion:** {result.error.suggestion}"
-        if result.error.suggestion else "" )
-    return f"""# Error: {result.error.title}
-
-**Query:** {result.query}
-**Location:** {result.location}
-**Message:** {result.error.message}{suggestion_text}
-"""
-
-
-def _render_detect_result_json( 
-    result: dict[ str, __.typx.Any ] | _results.ErrorResponse
-) -> str:
-    ''' Renders detect result as JSON. '''
-    if isinstance( result, _results.ErrorResponse ):
-        return _render_error_json( result )
-    # TODO: Design issue - detection results should be structured objects
-    serialized = _results.serialize_for_json( result )
-    return __.json.dumps( serialized, indent = 2 )
-
-
-def _render_detect_result_markdown( 
-    result: dict[ str, __.typx.Any ] | _results.ErrorResponse 
-) -> str:
-    ''' Renders detect result as Markdown. '''
-    if isinstance( result, _results.ErrorResponse ):
-        return _render_error_markdown( result )
-    # TODO: Design issue - detection results should be structured objects
-    source = result.get( 'source', 'Unknown' )
-    optimal = result.get( 'detection_optimal' )
-    time_ms = result.get( 'time_detection_ms', 0 )
-    lines = [
-        "# Detection Results",
-        f"**Source:** {source}",
-        f"**Detection Time:** {time_ms}ms",
-    ]
-    if optimal:
-        processor = optimal.get( 'processor', {} )
-        confidence = optimal.get( 'confidence', 0 )
-        lines.extend([
-            "\n## Optimal Processor",
-            f"- **Name:** {processor.get('name', 'Unknown')}",
-            f"- **Confidence:** {confidence:.1%}",
-        ])
-    return '\n'.join( lines )
-
-
-def _render_inventory_query_result_json( 
-    result: _results.InventoryResult
-) -> str:
-    ''' Renders inventory query result as JSON. '''
-    if isinstance( result, _results.ErrorResponse ):
-        return _render_error_json( result )
-    serialized = _results.serialize_for_json( result )
-    return __.json.dumps( serialized, indent = 2 )
-
-
-def _render_inventory_query_result_markdown( 
-    result: _results.InventoryResult
-) -> str:
-    ''' Renders inventory query result as Markdown. '''
-    if isinstance( result, _results.ErrorResponse ):
-        return _render_error_markdown( result )
-    # Render inventory query result
-    query = result.query
-    objects = result.objects
-    metadata = result.search_metadata
-    lines = [
-        f"# Inventory Results: {query}",
-        f"**Results:** {metadata.results_count}/{metadata.matches_total or 0}",
-    ]
-    if objects:
-        lines.append( "\n## Objects" )
-        for index, obj in enumerate( objects, 1 ):
-            separator = "\n\n📦 ── Object {} ─────────────────────── 📦\n"
-            lines.append( separator.format( index ) )
-            lines.append( f"### `{obj.name}`" )
-            _append_inventory_metadata( lines, obj )
-            lines.append( "" )
-    return '\n'.join( lines )
-
-
-def _render_content_query_result_json( 
-    result: _results.ContentResult, lines_max: int = 0
-) -> str:
-    ''' Renders content query result as JSON. '''
-    if isinstance( result, _results.ErrorResponse ):
-        return _render_error_json( result )
-    if isinstance( result, _results.ContentQueryResult ) and lines_max > 0:
-        serialized = _results.serialize_for_json( result )
-        serialized = _truncate_query_content( serialized, lines_max )
-        return __.json.dumps( serialized, indent = 2 )
-    serialized = _results.serialize_for_json( result )
-    return __.json.dumps( serialized, indent = 2 )
-
-
-def _render_content_query_result_markdown( 
-    result: _results.ContentResult, lines_max: int = 0
-) -> str:
-    ''' Renders content query result as Markdown. '''
-    if isinstance( result, _results.ErrorResponse ):
-        return _render_error_markdown( result )
-    if isinstance( result, _results.ContentQueryResult ) and lines_max > 0:
-        return _format_content_query_result_markdown_truncated( 
-            result, lines_max )
-    # Render normal content query result
-    query = result.query
-    documents = result.documents
-    metadata = result.search_metadata
-    lines = [
-        f"# Query Results: {query}",
-        f"**Results:** {metadata.results_count}/"
-        f"{metadata.matches_total or 0}",
-    ]
-    if documents:
-        lines.append( "\n## Documents" )
-        for index, doc in enumerate( documents, 1 ):
-            separator = "\n\n🔍 ── Result {} ─────────────────────── 🔍\n"
-            lines.append( separator.format( index ) )
-            inv_obj = doc.inventory_object
-            name = inv_obj.name
-            lines.append( f"### `{name}`" )
-            _append_inventory_metadata( lines, inv_obj )
-            _append_content_description( lines, doc, inv_obj )
-            lines.append( "" )
-    return '\n'.join( lines )
-
-
-def _render_inventory_summary_json( 
-    result: dict[ str, __.typx.Any ]
-) -> str:
-    ''' Renders inventory summary as JSON. '''
-    serialized = _results.serialize_for_json( result )
-    return __.json.dumps( serialized, indent = 2 )
-
-
-def _render_inventory_summary_markdown( 
-    result: dict[ str, __.typx.Any ]
-) -> str:
-    ''' Renders inventory summary as Markdown. '''
-    if ( 'project' in result and 'version' in result 
-         and 'objects' in result ):
-        # Render inventory summary
-        lines = [
-            f"# {result[ 'project' ]}",
-            f"**Version:** {result[ 'version' ]}",
-            f"**Objects:** {result[ 'objects_count' ]}",
-        ]
-        objects_value = result.get( 'objects' )
-        if objects_value:
-            if isinstance( objects_value, dict ):
-                grouped_objects = __.typx.cast(
-                    __.cabc.Mapping[ str, __.typx.Any ], objects_value )
-                lines.extend( _format_grouped_objects( grouped_objects ) )
-            else:
-                lines.extend( _format_object_list( objects_value ) )
-        return '\n'.join( lines )
-    serialized = _results.serialize_for_json( result )
-    return __.json.dumps( serialized, indent = 2 )
-
-
-def _render_survey_processors_json( 
-    result: dict[ str, __.typx.Any ]
-) -> str:
-    ''' Renders survey processors result as JSON. '''
-    serialized = _results.serialize_for_json( result )
-    return __.json.dumps( serialized, indent = 2 )
-
-
-def _render_survey_processors_markdown( 
-    result: dict[ str, __.typx.Any ]
-) -> str:
-    ''' Renders survey processors result as Markdown. '''
-    serialized = _results.serialize_for_json( result )
-    return __.json.dumps( serialized, indent = 2 )
 
 
 def _format_content_query_result_markdown_truncated(
