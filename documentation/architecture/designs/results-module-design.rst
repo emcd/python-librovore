@@ -280,10 +280,6 @@ Detection Result Objects
         time_detection_ms: __.typx.Annotated[
             int, __.ddoc.Doc( "Detection operation time in milliseconds." ) ]
         
-        @property
-        def optimal_processor_name( self ) -> __.typx.Optional[ str ]:
-            ''' Returns name of optimal processor if available. '''
-        
         def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
             ''' Renders detection results as JSON-compatible dictionary. '''
         

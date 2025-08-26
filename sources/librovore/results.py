@@ -82,7 +82,7 @@ class InventoryObject( __.immut.DataclassObject ):
     @__.abc.abstractmethod
     def render_specifics_markdown(
         self, /, *,
-        show_technical: __.typx.Annotated[
+        reveal_internals: __.typx.Annotated[
             bool,
             __.ddoc.Doc( '''
                 Controls whether implementation-specific details (internal
@@ -94,19 +94,40 @@ class InventoryObject( __.immut.DataclassObject ):
         ''' Renders specifics as Markdown lines for CLI display. '''
         raise NotImplementedError
 
-    def to_json_dict( self ) -> dict[ str, __.typx.Any ]:
-        ''' Returns JSON-compatible dictionary representation. '''
-        result: dict[ str, __.typx.Any ] = {
-            'name': self.name,
-            'uri': self.uri,
-            'inventory_type': self.inventory_type,
-            'location_url': self.location_url,
-            'display_name': self.display_name,
-            'effective_display_name': self.effective_display_name,
-        }
-        formatted_specifics = dict( self.render_specifics_json( ) )
-        result.update( formatted_specifics )
-        return result
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders complete object as JSON-compatible dictionary. '''
+        base = __.immut.Dictionary[
+            str, __.typx.Any
+        ](
+            name = self.name,
+            uri = self.uri,
+            inventory_type = self.inventory_type,
+            location_url = self.location_url,
+            display_name = self.display_name,
+            effective_display_name = self.effective_display_name,
+        )
+        formatted_specifics = self.render_specifics_json( )
+        result_dict = dict( base )
+        result_dict.update( dict( formatted_specifics ) )
+        return __.immut.Dictionary[ str, __.typx.Any ]( result_dict )
+
+    def render_as_markdown(
+        self, /, *,
+        reveal_internals: __.typx.Annotated[
+            bool,
+            __.ddoc.Doc( "Controls whether internal details are shown." ),
+        ] = True,
+    ) -> tuple[ str, ... ]:
+        ''' Renders complete object as Markdown lines for display. '''
+        lines = [ f"### `{self.effective_display_name}`" ]
+        if reveal_internals:
+            lines.append( f"**URI:** {self.uri}" )
+            lines.append( f"**Type:** {self.inventory_type}" )
+            lines.append( f"**Location:** {self.location_url}" )
+        specifics_lines = self.render_specifics_markdown(
+            reveal_internals = reveal_internals )
+        lines.extend( specifics_lines )
+        return tuple( lines )
 
 
 class ContentDocument( __.immut.DataclassObject ):
@@ -143,6 +164,43 @@ class ContentDocument( __.immut.DataclassObject ):
         return bool(
             self.signature or self.description or self.content_snippet )
 
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders complete document as JSON-compatible dictionary. '''
+        return __.immut.Dictionary[
+            str, __.typx.Any
+        ](
+            inventory_object = dict( self.inventory_object.render_as_json( ) ),
+            signature = self.signature,
+            description = self.description,
+            content_snippet = self.content_snippet,
+            documentation_url = self.documentation_url,
+            extraction_metadata = dict( self.extraction_metadata ),
+            has_meaningful_content = self.has_meaningful_content,
+        )
+
+    def render_as_markdown(
+        self, /, *,
+        reveal_internals: __.typx.Annotated[
+            bool,
+            __.ddoc.Doc( "Controls whether internal details are shown." ),
+        ] = True,
+    ) -> tuple[ str, ... ]:
+        ''' Renders complete document as Markdown lines for display. '''
+        lines = [ f"### `{self.inventory_object.effective_display_name}`" ]
+        if self.signature:
+            lines.append( f"**Signature:** `{self.signature}`" )
+        if self.description:
+            lines.append( f"**Description:** {self.description}" )
+        if self.content_snippet:
+            lines.append( f"**Content:** {self.content_snippet}" )
+        if self.documentation_url:
+            lines.append( f"**URL:** {self.documentation_url}" )
+        if reveal_internals:
+            inventory_lines = self.inventory_object.render_specifics_markdown(
+                reveal_internals = True )
+            lines.extend( inventory_lines )
+        return tuple( lines )
+
 
 class ErrorInfo( __.immut.DataclassObject ):
     ''' Structured error information for processor failures. '''
@@ -165,6 +223,17 @@ class ErrorInfo( __.immut.DataclassObject ):
         __.ddoc.Doc( "Suggested remediation steps." ),
     ] = None
 
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders error info as JSON-compatible dictionary. '''
+        return __.immut.Dictionary[
+            str, __.typx.Any
+        ](
+            type = self.type,
+            title = self.title,
+            message = self.message,
+            suggestion = self.suggestion,
+        )
+
 
 class ErrorResponse( __.immut.DataclassObject ):
     ''' Error response wrapper maintaining query context. '''
@@ -181,6 +250,39 @@ class ErrorResponse( __.immut.DataclassObject ):
         ErrorInfo,
         __.ddoc.Doc( "Detailed error information." ),
     ]
+
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders error response as JSON-compatible dictionary. '''
+        return __.immut.Dictionary(
+            location = self.location,
+            query = self.query,
+            error = __.immut.Dictionary[
+                str, __.typx.Any
+            ](
+                type = self.error.type,
+                title = self.error.title,
+                message = self.error.message,
+                suggestion = self.error.suggestion,
+            ),
+        )
+
+    def render_as_markdown(
+        self, /, *,
+        reveal_internals: __.typx.Annotated[
+            bool,
+            __.ddoc.Doc( "Controls whether internal details are shown." ),
+        ] = True,
+    ) -> tuple[ str, ... ]:
+        ''' Renders error response as Markdown lines for display. '''
+        lines = [ f"## Error: {self.error.title}" ]
+        lines.append( f"**Message:** {self.error.message}" )
+        if self.error.suggestion:
+            lines.append( f"**Suggestion:** {self.error.suggestion}" )
+        if reveal_internals:
+            lines.append( f"**Location:** {self.location}" )
+            lines.append( f"**Query:** {self.query}" )
+            lines.append( f"**Error Type:** {self.error.type}" )
+        return tuple( lines )
 
 
 class InventoryLocationInfo( __.immut.DataclassObject ):
@@ -206,6 +308,16 @@ class InventoryLocationInfo( __.immut.DataclassObject ):
         int,
         __.ddoc.Doc( "Total objects available in this inventory." ),
     ]
+
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders location info as JSON-compatible dictionary. '''
+        return __.immut.Dictionary(
+            inventory_type = self.inventory_type,
+            location_url = self.location_url,
+            processor_name = self.processor_name,
+            confidence = self.confidence,
+            object_count = self.object_count,
+        )
 
 
 class SearchMetadata( __.immut.DataclassObject ):
@@ -234,6 +346,16 @@ class SearchMetadata( __.immut.DataclassObject ):
         if self.matches_total is None:
             return False
         return self.results_count < self.matches_total
+
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders search metadata as JSON-compatible dictionary. '''
+        return __.immut.Dictionary(
+            results_count = self.results_count,
+            results_max = self.results_max,
+            matches_total = self.matches_total,
+            search_time_ms = self.search_time_ms,
+            results_truncated = self.results_truncated,
+        )
 
 
 class SearchResult( __.immut.DataclassObject ):
@@ -265,6 +387,37 @@ class SearchResult( __.immut.DataclassObject ):
             score = score,
             match_reasons = tuple( match_reasons ) )
 
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders search result as JSON-compatible dictionary. '''
+        return __.immut.Dictionary[
+            str, __.typx.Any
+        ](
+            inventory_object = dict( self.inventory_object.render_as_json( ) ),
+            score = self.score,
+            match_reasons = list( self.match_reasons ),
+        )
+
+    def render_as_markdown(
+        self, /, *,
+        reveal_internals: __.typx.Annotated[
+            bool,
+            __.ddoc.Doc( "Controls whether internal details are shown." ),
+        ] = True,
+    ) -> tuple[ str, ... ]:
+        ''' Renders search result as Markdown lines for display. '''
+        title = "### `{name}` (Score: {score:.2f})".format(
+            name = self.inventory_object.effective_display_name,
+            score = self.score )
+        lines = [ title ]
+        if reveal_internals and self.match_reasons:
+            reasons = ', '.join( self.match_reasons )
+            lines.append( "**Match reasons:** {reasons}".format(
+                reasons = reasons ) )
+        inventory_lines = self.inventory_object.render_as_markdown(
+            reveal_internals = reveal_internals )
+        lines.extend( inventory_lines[ 1: ] )  # Skip duplicate title line
+        return tuple( lines )
+
 
 class ContentQueryResult( __.immut.DataclassObject ):
     ''' Complete result structure for content queries. '''
@@ -288,6 +441,73 @@ class ContentQueryResult( __.immut.DataclassObject ):
         tuple[ InventoryLocationInfo, ... ],
         __.ddoc.Doc( "Information about inventory locations used." ),
     ]
+
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders content query result as JSON-compatible dictionary. '''
+        documents_json = [
+            dict( doc.render_as_json( ) ) for doc in self.documents ]
+        locations_json = [
+            dict( loc.render_as_json( ) ) for loc in self.inventory_locations ]
+        return __.immut.Dictionary[
+            str, __.typx.Any
+        ](
+            location = self.location,
+            query = self.query,
+            documents = documents_json,
+            search_metadata = dict( self.search_metadata.render_as_json( ) ),
+            inventory_locations = locations_json,
+        )
+
+    def render_as_markdown(
+        self, /, *,
+        reveal_internals: __.typx.Annotated[
+            bool,
+            __.ddoc.Doc( "Controls whether internal details are shown." ),
+        ] = True,
+        lines_max: __.typx.Annotated[
+            __.typx.Optional[ int ],
+            __.ddoc.Doc( "Maximum lines to display per content result." ),
+        ] = None,
+    ) -> tuple[ str, ... ]:
+        ''' Renders content query result as Markdown lines for display. '''
+        title = "# Content Query Results"
+        if lines_max is not None:
+            title += " (truncated)"
+        lines = [ title ]
+        lines.append( "**Query:** {query}".format( query = self.query ) )
+        if reveal_internals:
+            lines.append( "**Location:** {location}".format(
+                location = self.location ) )
+        lines.append( "**Results:** {count} of {max}".format(
+            count = self.search_metadata.results_count,
+            max = self.search_metadata.results_max ) )
+        if self.documents:
+            lines.append( "" )
+            lines.append( "## Documents" )
+            for index, doc in enumerate( self.documents, 1 ):
+                separator = "\n📄 ── Document {} ──────────────────── 📄\n"
+                lines.append( separator.format( index ) )
+                lines.append( "**URL:** {url}".format(
+                    url = doc.documentation_url ) )
+                if doc.signature:
+                    lines.append( "**Signature:** {signature}".format(
+                        signature = doc.signature ) )
+                if doc.description:
+                    lines.append( "**Description:** {description}".format(
+                        description = doc.description ) )
+                if doc.content_snippet:
+                    content = doc.content_snippet
+                    if lines_max is not None:
+                        content_lines = content.split( '\n' )
+                        if len( content_lines ) > lines_max:
+                            content_lines = content_lines[ :lines_max ]
+                            content_lines.append(
+                                "... (truncated at {lines_max} lines)".format(
+                                    lines_max = lines_max ) )
+                        content = '\n'.join( content_lines )
+                    lines.append( "**Content:** {content}".format(
+                        content = content ) )
+        return tuple( lines )
 
 
 class InventoryQueryResult( __.immut.DataclassObject ):
@@ -314,15 +534,158 @@ class InventoryQueryResult( __.immut.DataclassObject ):
         __.ddoc.Doc( "Information about inventory locations used." ),
     ]
 
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders inventory query result as JSON-compatible dictionary. '''
+        objects_json = [
+            dict( obj.render_as_json( ) ) for obj in self.objects ]
+        locations_json = [
+            dict( loc.render_as_json( ) ) for loc in self.inventory_locations ]
+        return __.immut.Dictionary[
+            str, __.typx.Any
+        ](
+            location = self.location,
+            query = self.query,
+            objects = objects_json,
+            search_metadata = dict( self.search_metadata.render_as_json( ) ),
+            inventory_locations = locations_json,
+        )
+
+    def render_as_markdown(
+        self, /, *,
+        reveal_internals: __.typx.Annotated[
+            bool,
+            __.ddoc.Doc( "Controls whether internal details are shown." ),
+        ] = True,
+    ) -> tuple[ str, ... ]:
+        ''' Renders inventory query result as Markdown lines for display. '''
+        lines = [ "# Inventory Query Results" ]
+        lines.append( "**Query:** {query}".format( query = self.query ) )
+        if reveal_internals:
+            lines.append( "**Location:** {location}".format(
+                location = self.location ) )
+        lines.append( "**Results:** {count} of {max}".format(
+            count = self.search_metadata.results_count,
+            max = self.search_metadata.results_max ) )
+        if self.objects:
+            lines.append( "" )
+            lines.append( "## Objects" )
+            for index, obj in enumerate( self.objects, 1 ):
+                separator = "\n📦 ── Object {} ─────────────────────── 📦\n"
+                lines.append( separator.format( index ) )
+                obj_lines = obj.render_as_markdown(
+                    reveal_internals = reveal_internals )
+                lines.extend( obj_lines )
+        return tuple( lines )
+
+
+class Detection( __.immut.DataclassObject ):
+    ''' Processor detection information with confidence scoring. '''
+
+    processor_name: __.typx.Annotated[
+        str,
+        __.ddoc.Doc( "Name of the processor that can handle this location." ),
+    ]
+    confidence: __.typx.Annotated[
+        float,
+        __.ddoc.Doc( "Detection confidence score (0.0-1.0)." ),
+    ]
+    processor_type: __.typx.Annotated[
+        str,
+        __.ddoc.Doc( "Type of processor (inventory, structure)." ),
+    ]
+    detection_metadata: __.typx.Annotated[
+        __.immut.Dictionary[ str, __.typx.Any ],
+        __.ddoc.Doc( "Processor-specific detection metadata." ),
+    ] = __.dcls.field( default_factory = lambda: __.immut.Dictionary( ) )
+
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders detection as JSON-compatible dictionary. '''
+        return __.immut.Dictionary[
+            str, __.typx.Any
+        ](
+            processor_name = self.processor_name,
+            confidence = self.confidence,
+            processor_type = self.processor_type,
+            detection_metadata = dict( self.detection_metadata ),
+        )
+
+
+class DetectionsResult( __.immut.DataclassObject ):
+    ''' Detection results with processor selection and timing metadata. '''
+
+    source: __.typx.Annotated[
+        str,
+        __.ddoc.Doc( "Primary location URL for detection operation." ),
+    ]
+    detections: __.typx.Annotated[
+        tuple[ Detection, ... ],
+        __.ddoc.Doc( "All processor detections found for location." ),
+    ]
+    detection_optimal: __.typx.Annotated[
+        __.typx.Optional[ Detection ],
+        __.ddoc.Doc( "Best detection result based on confidence scoring." ),
+    ]
+    time_detection_ms: __.typx.Annotated[
+        int,
+        __.ddoc.Doc( "Detection operation time in milliseconds." ),
+    ]
+
+
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders detection results as JSON-compatible dictionary. '''
+        detections_json = [
+            dict( detection.render_as_json( ) )
+            for detection in self.detections ]
+        return __.immut.Dictionary[
+            str, __.typx.Any
+        ](
+            source = self.source,
+            detections = detections_json,
+            detection_optimal = (
+                dict( self.detection_optimal.render_as_json( ) )
+                if self.detection_optimal else None ),
+            time_detection_ms = self.time_detection_ms,
+        )
+
+    def render_as_markdown(
+        self, /, *,
+        reveal_internals: __.typx.Annotated[
+            bool,
+            __.ddoc.Doc( "Controls whether internal details are shown." ),
+        ] = True,
+    ) -> tuple[ str, ... ]:
+        ''' Renders detection results as Markdown lines for display. '''
+        lines = [ "# Detection Results" ]
+        if reveal_internals:
+            lines.append( "**Source:** {source}".format(
+                source = self.source ) )
+            lines.append( "**Detection time:** {time}ms".format(
+                time = self.time_detection_ms ) )
+        if self.detection_optimal:
+            lines.append( "**Optimal processor:** {name} ({type})".format(
+                name = self.detection_optimal.processor_name,
+                type = self.detection_optimal.processor_type ) )
+            lines.append( "**Confidence:** {conf:.2f}".format(
+                conf = self.detection_optimal.confidence ) )
+        else:
+            lines.append( "**No optimal processor found**" )
+        if reveal_internals and self.detections:
+            lines.append( "" )
+            lines.append( "## All Detections" )
+            detection_lines = [
+                "- **{name}** ({type}): {conf:.2f}".format(
+                    name = detection.processor_name,
+                    type = detection.processor_type,
+                    conf = detection.confidence )
+                for detection in self.detections ]
+            lines.extend( detection_lines )
+        return tuple( lines )
+
 
 def serialize_for_json( objct: __.typx.Any ) -> __.typx.Any:
-    ''' Serialization supporting structured result objects. '''
-    if isinstance( objct, InventoryObject ):
-        return objct.to_json_dict( )
-    if (
-        isinstance( objct, ( InventoryQueryResult, ContentQueryResult ) )
-        or __.dcls.is_dataclass( objct )
-    ): return _serialize_dataclass_for_json( objct )
+    ''' Legacy serialization for non-structured objects (dicts). '''
+    if __.dcls.is_dataclass( objct ):
+        return _serialize_dataclass_for_json( objct )
     if isinstance( objct, ( list, tuple, set, frozenset ) ):
         return _serialize_sequence_for_json( objct )
     if isinstance( objct, ( dict, __.immut.Dictionary ) ):
@@ -364,8 +727,6 @@ def _serialize_dataclass_for_json(
     obj: __.typx.Any,
 ) -> dict[ str, __.typx.Any ]:
     ''' Serializes dataclass objects to JSON-compatible dictionaries. '''
-    if hasattr( obj, 'to_json_dict' ):
-        return obj.to_json_dict( )
     result: dict[ str, __.typx.Any ] = { }
     for field in __.dcls.fields( obj ):
         if field.name.startswith( '_' ):
@@ -396,3 +757,4 @@ SearchResults: __.typx.TypeAlias = __.cabc.Sequence[ SearchResult ]
 
 ContentResult: __.typx.TypeAlias = ContentQueryResult | ErrorResponse
 InventoryResult: __.typx.TypeAlias = InventoryQueryResult | ErrorResponse
+DetectionsResultUnion: __.typx.TypeAlias = DetectionsResult | ErrorResponse

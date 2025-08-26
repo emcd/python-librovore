@@ -126,7 +126,7 @@ class MkDocsInventoryObject( __.InventoryObject ):
     
     def render_specifics_markdown(
         self, /, *,
-        show_technical: bool = True,
+        reveal_internals: bool = True,
     ) -> tuple[ str, ... ]:
         ''' Renders MkDocs specifics with page information. '''
         lines: list[ str ] = [ ]

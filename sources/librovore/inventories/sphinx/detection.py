@@ -112,7 +112,7 @@ class SphinxInventoryObject( __.InventoryObject ):
     
     def render_specifics_markdown(
         self, /, *,
-        show_technical: bool = True,
+        reveal_internals: bool = True,
     ) -> tuple[ str, ... ]:
         ''' Renders Sphinx specifics with domain and role information. '''
         lines: list[ str ] = [ ]
@@ -122,7 +122,7 @@ class SphinxInventoryObject( __.InventoryObject ):
         domain = self.specifics.get( 'domain' )
         if domain:
             lines.append( f"- **Domain:** {domain}" )
-        if show_technical:
+        if reveal_internals:
             priority = self.specifics.get( 'priority' )
             if priority is not None:
                 lines.append( f"- **Priority:** {priority}" )

@@ -163,7 +163,7 @@ def _produce_detect_function( auxdata: _state.Globals ):
         result = await _functions.detect( auxdata, location, genus, **nomargs )
         if isinstance( result, _results.ErrorResponse ):
             return _results.serialize_for_json( result )
-        return result
+        return dict( result.render_as_json( ) )
 
     return detect
 

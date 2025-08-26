@@ -47,9 +47,8 @@ async def detect(
     location: LocationArgument, /,
     genus: _interfaces.ProcessorGenera,
     processor_name: __.Absential[ str ] = __.absent,
-) -> dict[ str, __.typx.Any ] | _results.ErrorResponse:
+) -> _results.DetectionsResult | _results.ErrorResponse:
     ''' Detects relevant processors of particular genus for location. '''
-    # TODO: Return proper result object.
     location = _normalize_location( location )
     start_time = __.time.perf_counter( )
     detections, detection_optimal = (
@@ -64,15 +63,28 @@ async def detect(
         exc = _exceptions.ProcessorInavailability( genus_name )
         return _produce_processor_error_response(
             exc, location, 'detection', genus = genus )
-    response = _processors.DetectionsForLocation(
+    # Convert detections mapping to tuple of results.Detection objects
+    detections_tuple = tuple(
+        _results.Detection(
+            processor_name = detection.processor.name,
+            confidence = detection.confidence,
+            processor_type = genus.value,
+            detection_metadata = __.immut.Dictionary( ),
+        )
+        for detection in detections.values( )
+    )
+    # Convert detection_optimal to results.Detection
+    detection_optimal_result = _results.Detection(
+        processor_name = detection_optimal.processor.name,
+        confidence = detection_optimal.confidence,
+        processor_type = genus.value,
+        detection_metadata = __.immut.Dictionary( ),
+    )
+    return _results.DetectionsResult(
         source = location,
-        detections = detections,
-        detection_optimal = detection_optimal,
+        detections = detections_tuple,
+        detection_optimal = detection_optimal_result,
         time_detection_ms = detection_time_ms )
-    return {
-        'success': True,
-        'data': _serialize_for_json( response ),
-    }
 
 
 async def query_content(  # noqa: PLR0913

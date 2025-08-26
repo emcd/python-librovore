@@ -22,46 +22,6 @@
 from . import __
 
 
-def render_error_json( result: __.ErrorResponse ) -> str:
-    ''' Renders error response as JSON. '''
-    serialized = __.serialize_for_json( result )
-    return __.json.dumps( serialized, indent = 2 )
-
-
-def render_detect_result_json( 
-    result: dict[ str, __.typx.Any ] | __.ErrorResponse
-) -> str:
-    ''' Renders detect result as JSON. '''
-    if isinstance( result, __.ErrorResponse ):
-        return render_error_json( result )
-    # TODO: Detection results should be structured objects
-    serialized = __.serialize_for_json( result )
-    return __.json.dumps( serialized, indent = 2 )
-
-
-def render_inventory_query_result_json( 
-    result: __.InventoryResult
-) -> str:
-    ''' Renders inventory query result as JSON. '''
-    if isinstance( result, __.ErrorResponse ):
-        return render_error_json( result )
-    serialized = __.serialize_for_json( result )
-    return __.json.dumps( serialized, indent = 2 )
-
-
-def render_content_query_result_json( 
-    result: __.ContentResult, lines_max: int = 0
-) -> str:
-    ''' Renders content query result as JSON. '''
-    if isinstance( result, __.ErrorResponse ):
-        return render_error_json( result )
-    if isinstance( result, __.ContentQueryResult ) and lines_max > 0:
-        serialized = __.serialize_for_json( result )
-        serialized = _truncate_query_content( serialized, lines_max )
-        return __.json.dumps( serialized, indent = 2 )
-    serialized = __.serialize_for_json( result )
-    return __.json.dumps( serialized, indent = 2 )
-
 
 def render_inventory_summary_json( 
     result: dict[ str, __.typx.Any ]
@@ -79,19 +39,3 @@ def render_survey_processors_json(
     return __.json.dumps( serialized, indent = 2 )
 
 
-def _truncate_query_content( 
-    serialized: dict[ str, __.typx.Any ], lines_max: int 
-) -> dict[ str, __.typx.Any ]:
-    ''' Truncates content in serialized query result. '''
-    if 'documents' in serialized:
-        for doc in serialized[ 'documents' ]:
-            if doc.get( 'content' ):
-                content_lines = doc[ 'content' ].split( '\n' )
-                if len( content_lines ) > lines_max:
-                    content_lines = content_lines[ :lines_max ]
-                    content_lines.append(
-                        "... (truncated at {lines_max} lines)".format(
-                            lines_max = lines_max )
-                    )
-                doc[ 'content' ] = '\n'.join( content_lines )
-    return serialized

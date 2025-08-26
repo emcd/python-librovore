@@ -125,9 +125,19 @@ class DetectCommand(
             raise SystemExit( 1 ) from None
         match display_format:
             case _interfaces.DisplayFormat.JSON:
-                output = _renderers.render_detect_result_json( result )
+                if isinstance( result, _results.ErrorResponse ):
+                    serialized = dict( result.render_as_json( ) )
+                else:
+                    serialized = dict( result.render_as_json( ) )
+                output = __.json.dumps( serialized, indent = 2 )
             case _interfaces.DisplayFormat.Markdown:
-                output = _renderers.render_detect_result_markdown( result )
+                if isinstance( result, _results.ErrorResponse ):
+                    lines = result.render_as_markdown(
+                        reveal_internals = True )
+                else:
+                    lines = result.render_as_markdown(
+                        reveal_internals = True )
+                output = '\n'.join( lines )
         print( output, file = stream )
 
 
@@ -179,11 +189,12 @@ class QueryInventoryCommand(
             raise SystemExit( 1 ) from None
         match display_format:
             case _interfaces.DisplayFormat.JSON:
-                output = _renderers.render_inventory_query_result_json(
-                    result )
+                output = __.json.dumps(
+                    dict( result.render_as_json( ) ), indent = 2 )
             case _interfaces.DisplayFormat.Markdown:
-                output = _renderers.render_inventory_query_result_markdown(
-                    result )
+                lines = result.render_as_markdown(
+                    reveal_internals = True )
+                output = '\n'.join( lines )
         print( output, file = stream )
 
 
@@ -231,11 +242,16 @@ class QueryContentCommand(
             raise SystemExit( 1 ) from None
         match display_format:
             case _interfaces.DisplayFormat.JSON:
-                output = _renderers.render_content_query_result_json( 
-                    result, self.lines_max )
+                output = __.json.dumps(
+                    dict( result.render_as_json( ) ), indent = 2 )
             case _interfaces.DisplayFormat.Markdown:
-                output = _renderers.render_content_query_result_markdown( 
-                    result, self.lines_max )
+                if isinstance( result, _results.ContentQueryResult ):
+                    lines = result.render_as_markdown(
+                        reveal_internals = True, lines_max = self.lines_max )
+                else:
+                    lines = result.render_as_markdown(
+                        reveal_internals = True )
+                output = '\n'.join( lines )
         print( output, file = stream )
 
 
@@ -446,32 +462,6 @@ def _extract_object_name_and_role( obj: __.typx.Any ) -> tuple[ str, str ]:
 
 
 
-def _format_content_query_result_markdown_truncated(
-    result: _results.ContentQueryResult, lines_max: int
-) -> str:
-    ''' Formats content query results as Markdown with truncated content. '''
-    query = result.query
-    documents = result.documents
-    metadata = result.search_metadata
-    lines = [
-        f"# Query Results: {query} (truncated)",
-        f"**Results:** {metadata.results_count}/"
-        f"{metadata.matches_total or 0}",
-    ]
-    if documents:
-        lines.append( "\n## Documents" )
-        for index, doc in enumerate( documents, 1 ):
-            separator = "\n\n🔍 ── Result {} ─────────────────────── 🔍\n"
-            lines.append( separator.format( index ) )
-            inv_obj = doc.inventory_object
-            name = inv_obj.name
-            lines.append( f"### `{name}`" )
-            _append_inventory_metadata( lines, inv_obj )
-            _append_content_description_truncated( lines, doc, lines_max )
-            lines.append( "" )
-    return '\n'.join( lines )
-
-
 
 def _format_grouped_objects( 
     objects_value: __.cabc.Mapping[ str, __.typx.Any ] 
@@ -540,7 +530,8 @@ def _append_inventory_metadata(
     ''' Appends inventory metadata to lines using object self-formatting. '''
     if not isinstance( invobj, _results.InventoryObject ):
         raise _exceptions.InventoryObjectInvalidity( type( invobj ) )
-    metadata_lines = invobj.render_specifics_markdown( show_technical = False )
+    metadata_lines = invobj.render_specifics_markdown(
+        reveal_internals = False )
     lines.extend( metadata_lines )
 
 
@@ -556,23 +547,6 @@ def _append_content_description(
     if description:
         lines.append( f"- **Content:** {description}" )
 
-
-def _append_content_description_truncated(
-    lines: list[ str ],
-    doc: _results.ContentDocument,
-    lines_max: int
-) -> None:
-    ''' Appends truncated content description from document fields. '''
-    description = doc.description
-    if not description:
-        description = doc.content_snippet
-    if description:
-        desc_lines = description.split( '\n' )
-        if len( desc_lines ) > lines_max:
-            truncated_lines = desc_lines[ :lines_max ]
-            truncated_lines.append( '...' )
-            description = '\n'.join( truncated_lines )
-        lines.append( f"- **Content:** {description}" )
 
 
 def _format_cli_exception( exc: Exception ) -> str:  # noqa: PLR0911

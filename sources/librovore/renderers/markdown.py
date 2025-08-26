@@ -22,160 +22,7 @@
 from . import __
 
 
-def render_error_markdown( 
-    result: __.typx.Annotated[
-        __.ErrorResponse,
-        __.ddoc.Doc( 
-            '''Error response containing query context and failure details.'''
-        ),
-    ]
-) -> __.typx.Annotated[
-    str,
-    __.ddoc.Doc( '''Markdown-formatted error display with query context.''' ),
-]:
-    ''' Renders error response as structured Markdown output. '''
-    suggestion_text = (
-        "\n\n**Suggestion:** {suggestion}".format( 
-            suggestion = result.error.suggestion )
-        if result.error.suggestion else "" )
-    return """# Error: {title}
 
-**Query:** {query}
-**Location:** {location}
-**Message:** {message}{suggestion}
-""".format(
-        title = result.error.title,
-        query = result.query,
-        location = result.location,
-        message = result.error.message,
-        suggestion = suggestion_text
-    )
-
-
-def render_detect_result_markdown( 
-    result: __.typx.Annotated[
-        dict[ str, __.typx.Any ] | __.ErrorResponse,
-        __.ddoc.Doc( 
-            '''Detection result or error response from processor detection.'''
-        ),
-    ]
-) -> __.typx.Annotated[
-    str,
-    __.ddoc.Doc( 
-        '''Markdown-formatted detection results with processor information.'''
-    ),
-]:
-    ''' Renders processor detection results as structured Markdown output. '''
-    if isinstance( result, __.ErrorResponse ):
-        return render_error_markdown( result )
-    # TODO: Detection results should be structured objects
-    source = result.get( 'source', 'Unknown' )
-    optimal = result.get( 'detection_optimal' )
-    time_ms = result.get( 'time_detection_ms', 0 )
-    lines = [
-        "# Detection Results",
-        "**Source:** {source}".format( source = source ),
-        "**Detection Time:** {time_ms}ms".format( time_ms = time_ms ),
-    ]
-    if optimal:
-        processor = optimal.get( 'processor', {} )
-        confidence = optimal.get( 'confidence', 0 )
-        lines.extend([
-            "\n## Optimal Processor",
-            "- **Name:** {name}".format( 
-                name = processor.get( 'name', 'Unknown' ) ),
-            "- **Confidence:** {confidence:.1%}".format( 
-                confidence = confidence ),
-        ])
-    return '\n'.join( lines )
-
-
-def render_inventory_query_result_markdown( 
-    result: __.typx.Annotated[
-        __.InventoryResult,
-        __.ddoc.Doc( 
-            '''Inventory query result containing objects or error response.'''
-        ),
-    ]
-) -> __.typx.Annotated[
-    str,
-    __.ddoc.Doc( 
-        '''Markdown-formatted inventory results with object details.'''
-    ),
-]:
-    ''' Renders inventory query results as structured Markdown output. '''
-    if isinstance( result, __.ErrorResponse ):
-        return render_error_markdown( result )
-    query = result.query
-    objects = result.objects
-    metadata = result.search_metadata
-    lines = [
-        "# Inventory Results: {query}".format( query = query ),
-        "**Results:** {results_count}/{matches_total}".format(
-            results_count = metadata.results_count,
-            matches_total = metadata.matches_total or 0
-        ),
-    ]
-    if objects:
-        lines.append( "\n## Objects" )
-        for index, obj in enumerate( objects, 1 ):
-            separator = "\n\n📦 ── Object {} ─────────────────────── 📦\n"
-            lines.append( separator.format( index ) )
-            lines.append( "### `{name}`".format( name = obj.name ) )
-            _append_inventory_metadata( lines, obj )
-    return '\n'.join( lines )
-
-
-def render_content_query_result_markdown( 
-    result: __.typx.Annotated[
-        __.ContentResult,
-        __.ddoc.Doc( 
-            '''Content query result containing documents or error response.'''
-        ),
-    ],
-    lines_max: __.typx.Annotated[
-        int,
-        __.ddoc.Doc( '''Maximum lines to display per content snippet.''' ),
-    ] = 0
-) -> __.typx.Annotated[
-    str,
-    __.ddoc.Doc( 
-        '''Markdown-formatted content results with document snippets.'''
-    ),
-]:
-    ''' Renders content query results as structured Markdown output. '''
-    if isinstance( result, __.ErrorResponse ):
-        return render_error_markdown( result )
-    if isinstance( result, __.ContentQueryResult ) and lines_max > 0:
-        return _format_content_query_result_markdown_truncated( 
-            result, lines_max )
-    query = result.query
-    documents = result.documents
-    metadata = result.search_metadata
-    lines = [
-        "# Query Results: {query}".format( query = query ),
-        "**Results:** {results_count}/{matches_total}".format(
-            results_count = metadata.results_count,
-            matches_total = metadata.matches_total or 0
-        ),
-    ]
-    if documents:
-        lines.append( "\n## Documents" )
-        for index, doc in enumerate( documents, 1 ):
-            separator = "\n\n📄 ── Document {} ──────────────────── 📄\n"
-            lines.append( separator.format( index ) )
-            lines.append( "**URL:** {url}".format(
-                url = doc.documentation_url ) )
-            if doc.signature:
-                lines.append( "**Signature:** {signature}".format(
-                    signature = doc.signature ) )
-            if doc.description:
-                lines.append( "**Description:** {description}".format(
-                    description = doc.description ) )
-            if doc.content_snippet:
-                lines.append( "**Content:** {content}".format(
-                    content = doc.content_snippet ) )
-    return '\n'.join( lines )
 
 
 def render_inventory_summary_markdown( 
@@ -231,55 +78,6 @@ def render_survey_processors_markdown(
     return __.json.dumps( serialized, indent = 2 )
 
 
-def _format_content_query_result_markdown_truncated(
-    result: __.typx.Annotated[
-        __.ContentQueryResult,
-        __.ddoc.Doc( '''Content query result with documents to format.''' ),
-    ], 
-    lines_max: __.typx.Annotated[
-        int,
-        __.ddoc.Doc( '''Maximum lines to display per content snippet.''' ),
-    ]
-) -> __.typx.Annotated[
-    str,
-    __.ddoc.Doc( 
-        '''Truncated Markdown content with line limit indicators.'''
-    ),
-]:
-    ''' 
-    Formats content query results as Markdown with truncated content snippets. 
-    '''
-    query = result.query
-    documents = result.documents
-    metadata = result.search_metadata
-    lines = [
-        "# Query Results: {query} (truncated)".format( query = query ),
-        "**Results:** {results_count}/{matches_total}".format(
-            results_count = metadata.results_count,
-            matches_total = metadata.matches_total or 0
-        ),
-    ]
-    if documents:
-        lines.append( "\n## Documents" )
-        for index, doc in enumerate( documents, 1 ):
-            separator = "\n\n📄 ── Document {} ──────────────────── 📄\n"
-            lines.append( separator.format( index ) )
-            lines.append( "**URL:** {url}".format(
-                url = doc.documentation_url ) )
-            if doc.signature:
-                lines.append( "**Signature:** {signature}".format(
-                    signature = doc.signature ) )
-            if doc.content_snippet:
-                content_lines = doc.content_snippet.split( '\n' )
-                if len( content_lines ) > lines_max:
-                    content_lines = content_lines[ :lines_max ]
-                    content_lines.append(
-                        "... (truncated at {lines_max} lines)".format(
-                            lines_max = lines_max )
-                    )
-                lines.append( "**Content:** {content}".format(
-                    content = '\n'.join( content_lines ) ) )
-    return '\n'.join( lines )
 
 
 def _append_inventory_metadata(
@@ -297,7 +95,7 @@ def _append_inventory_metadata(
     ]
 ) -> None:
     ''' Appends inventory object metadata using self-rendering interface. '''
-    metadata_lines = obj.render_specifics_markdown( show_technical = False )
+    metadata_lines = obj.render_specifics_markdown( reveal_internals = False )
     lines.extend( metadata_lines )
 
 
