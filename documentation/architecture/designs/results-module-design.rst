@@ -289,6 +289,55 @@ Detection Result Objects
         ) -> tuple[ str, ... ]:
             ''' Renders detection results as Markdown lines for display. ''''
 
+Processor Survey Result Objects
+-------------------------------------------------------------------------------
+
+.. code-block:: python
+
+    class ProcessorInfo( __.immut.DataclassObject ):
+        ''' Information about a processor and its capabilities. '''
+        
+        processor_name: __.typx.Annotated[
+            str, __.ddoc.Doc( "Name of the processor for identification." ) ]
+        processor_type: __.typx.Annotated[
+            str, __.ddoc.Doc( "Type of processor (inventory, structure)." ) ]
+        capabilities: __.typx.Annotated[
+            __.interfaces.ProcessorCapabilities,
+            __.ddoc.Doc( "Complete capability description for processor." ) ]
+        
+        def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+            ''' Renders processor info as JSON-compatible dictionary. '''
+        
+        def render_as_markdown(
+            self, /, *,
+            reveal_internals: bool = True,
+        ) -> tuple[ str, ... ]:
+            ''' Renders processor info as Markdown lines for display. '''
+
+    class ProcessorsSurveyResult( __.immut.DataclassObject ):
+        ''' Survey results listing available processors and capabilities. '''
+        
+        genus: __.typx.Annotated[
+            __.interfaces.ProcessorGenera, 
+            __.ddoc.Doc( "Processor genus that was surveyed (inventory or structure)." ) ]
+        filter_name: __.typx.Annotated[
+            __.typx.Optional[ str ],
+            __.ddoc.Doc( "Optional processor name filter applied to survey." ) ] = None
+        processors: __.typx.Annotated[
+            tuple[ ProcessorInfo, ... ],
+            __.ddoc.Doc( "Available processors matching survey criteria." ) ]
+        survey_time_ms: __.typx.Annotated[
+            int, __.ddoc.Doc( "Survey operation time in milliseconds." ) ]
+        
+        def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+            ''' Renders survey results as JSON-compatible dictionary. '''
+        
+        def render_as_markdown(
+            self, /, *,
+            reveal_internals: bool = True,
+        ) -> tuple[ str, ... ]:
+            ''' Renders survey results as Markdown lines for display. ''''
+
 Error Handling Objects
 -------------------------------------------------------------------------------
 
@@ -477,6 +526,7 @@ The functions module uses structured result objects for all operations:
     InventoryResult: __.typx.TypeAlias = InventoryQueryResult | ErrorResponse
     ContentResult: __.typx.TypeAlias = ContentQueryResult | ErrorResponse
     DetectionsResultUnion: __.typx.TypeAlias = DetectionsResult | ErrorResponse
+    ProcessorsSurveyResultUnion: __.typx.TypeAlias = ProcessorsSurveyResult | ErrorResponse
 
     async def query_inventory(
         auxdata: __.ApplicationGlobals,
@@ -510,6 +560,13 @@ The functions module uses structured result objects for all operations:
         processor_types: __.cabc.Sequence[ str ] = ( 'inventory', 'structure' ),
     ) -> DetectionsResultUnion:
         ''' Returns structured detection results with processor selection and timing. '''
+
+    async def survey_processors(
+        auxdata: __.ApplicationGlobals, /, 
+        genus: __.interfaces.ProcessorGenera,
+        name: __.typx.Optional[ str ] = None,
+    ) -> ProcessorsSurveyResultUnion:
+        ''' Returns structured survey results listing available processors and capabilities. '''
 
 Error Handling Patterns
 -------------------------------------------------------------------------------
@@ -679,12 +736,18 @@ File Structure and Imports
     class InventoryQueryResult( __.immut.DataclassObject ): ...
     class ContentQueryResult( __.immut.DataclassObject ): ...
     class DetectionsResult( __.immut.DataclassObject ): ...
+    
+    # Survey results
+    class ProcessorInfo( __.immut.DataclassObject ): ...
+    class ProcessorsSurveyResult( __.immut.DataclassObject ): ...
 
     # Validation functions
     def validate_inventory_object( ... ): ...
     def validate_search_result( ... ): ...
     def validate_content_document( ... ): ...
     def validate_detections_result( ... ): ...
+    def validate_processor_info( ... ): ...
+    def validate_processors_survey_result( ... ): ...
 
     # Serialization support
     def serialize_for_json( ... ): ...
@@ -698,6 +761,7 @@ File Structure and Imports
     InventoryResult: __.typx.TypeAlias = InventoryQueryResult | ErrorResponse  
     ContentResult: __.typx.TypeAlias = ContentQueryResult | ErrorResponse
     DetectionsResultUnion: __.typx.TypeAlias = DetectionsResult | ErrorResponse
+    ProcessorsSurveyResultUnion: __.typx.TypeAlias = ProcessorsSurveyResult | ErrorResponse
 
 Presentation Layer Integration
 ===============================================================================

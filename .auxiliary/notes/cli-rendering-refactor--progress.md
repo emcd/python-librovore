@@ -238,12 +238,33 @@ Complete transformation of CLI rendering architecture from external functions to
 - [2025-08-26] Test cleanup: Left commented-out tests as-is since they're already properly commented and provide historical context
 - [2025-08-26] Clean removal: All components removed without breaking existing functionality or leaving orphaned references
 
-#### Task 3: Add Structured Returns for Survey Processors
+#### Task 3: Add Structured Returns for Survey Processors ✅ COMPLETED
 **Goal**: Modify design document to specify structured return types for `survey_processors`
 **Rationale**: Follow established pattern of structured objects rather than dict returns
 **Impact**: Complete alignment with structured object architecture
 
-#### Task 4: MCP Server Compatibility Verification
+**Implementation Summary**:
+- ✅ Added `ProcessorInfo` class for individual processor information with capabilities
+- ✅ Added `ProcessorsSurveyResult` class for complete survey results with timing metadata
+- ✅ Updated functions layer integration to include `survey_processors` function signature
+- ✅ Added `ProcessorsSurveyResultUnion` type alias for error propagation
+- ✅ Added validation function signatures for new result objects
+- ✅ Integrated new classes into module organization structure
+
+#### Task 4: Implement Structured Survey Processors Results
+**Goal**: Implement the designed ProcessorInfo and ProcessorsSurveyResult classes and update survey_processors function
+**Rationale**: Complete the structured object migration by implementing the design specifications
+**Impact**: Replace dict-based survey_processors returns with structured self-rendering objects
+
+**Implementation Requirements**:
+- Implement `ProcessorInfo` and `ProcessorsSurveyResult` classes in `sources/librovore/results.py`
+- Update `survey_processors` function in `sources/librovore/functions.py` to return structured objects
+- Add validation functions for new result objects
+- Update CLI and MCP server to use structured object rendering methods
+- Remove dict-based renderer functions and update imports
+- Update type aliases in results module
+
+#### Task 5: MCP Server Compatibility Verification
 **Goal**: Ensure MCP server works correctly with self-rendering objects (noted as incomplete)
 
 ### Future Enhancement Tasks
