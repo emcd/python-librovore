@@ -47,35 +47,6 @@ def create_test_auxdata( ):
 
 
 # @pytest.mark.asyncio
-# async def test_030_summarize_inventory_command_unit( ):
-#     ''' SummarizeInventoryCommand processes arguments correctly. '''
-#     display = MockDisplayTarget( )
-#     auxdata = create_test_auxdata( )
-#     test_inventory_path = get_test_inventory_path( 'librovore' )
-#     search_behaviors = module._interfaces.SearchBehaviors( )
-#     filters = { 'domain': 'py' }
-#     cmd = module.SummarizeInventoryCommand(
-#         location = test_inventory_path,
-#         search_behaviors = search_behaviors,
-#         filters = filters )
-#     await cmd( auxdata, display, module._interfaces.DisplayFormat.JSON )
-#     output = display.stream.getvalue( )
-#     assert '"project":' in output
-#     assert '"domain": "py"' in output
-# 
-# 
-# @pytest.mark.asyncio
-# async def test_040_summarize_inventory_command_no_filters( ):
-#     ''' SummarizeInventoryCommand works without filters. '''
-#     display = MockDisplayTarget( )
-#     auxdata = create_test_auxdata( )
-#     test_inventory_path = get_test_inventory_path( 'librovore' )
-#     cmd = module.SummarizeInventoryCommand( location = test_inventory_path )
-#     await cmd( auxdata, display, module._interfaces.DisplayFormat.JSON )
-#     output = display.stream.getvalue( )
-#     assert '"project":' in output
-# 
-# 
 # @pytest.mark.asyncio
 # async def test_060_use_command_summarize_delegation( ):
 #     ''' UseCommand delegates to SummarizeInventoryCommand correctly. '''
@@ -168,35 +139,6 @@ def test_090_cli_prepare_invocation_args( ):
 #     assert 'project' in result.stdout or 'project' in result.stderr
 #     assert 'documents' in result.stdout or 'documents' in result.stderr
 
-
-# @pytest.mark.slow
-# @pytest.mark.asyncio
-# async def test_600_cli_summarize_inventory_local_file( ):
-#     ''' CLI summarize-inventory processes local files. '''
-#     inventory_path = get_test_inventory_path( 'librovore' )
-#     result = await run_cli_command( [
-#         'use', 'summarize-inventory', '--source', inventory_path
-#     ] )
-#     assert result.returncode == 0
-#     assert (
-#             'Project:' in result.stdout
-#         or  'Project:' in result.stderr )
-#     assert 'objects' in result.stdout or 'objects' in result.stderr
-
-
-# @pytest.mark.slow
-# @pytest.mark.asyncio
-# async def test_610_cli_summarize_inventory_nonexistent_file( ):
-#     ''' CLI summarize-inventory fails gracefully for missing files. '''
-#     result = await run_cli_command( [
-#         'use', 'summarize-inventory', '--source', '/nonexistent/path.inv'
-#     ] )
-#     assert result.returncode != 0
-#     assert (
-#         'inaccessible' in result.stderr.lower( )
-#         or 'not found' in result.stderr.lower( )
-#         or 'no processor found' in result.stderr.lower( )
-#         or 'no such file' in result.stderr.lower( ) )
 
 
 # @pytest.mark.slow

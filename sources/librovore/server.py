@@ -229,30 +229,6 @@ def _produce_query_inventory_function( auxdata: _state.Globals ):
     return query_inventory
 
 
-def _produce_summarize_inventory_function( auxdata: _state.Globals ):
-    async def summarize_inventory(
-        location: LocationArgument,
-        search_behaviors: __.typx.Annotated[
-            SearchBehaviorsMutable,
-            _Field( description = "Search behavior configuration." ),
-        ] = _search_behaviors_default,
-        filters: __.typx.Annotated[
-            FiltersMutable,
-            _Field( description = "Processor-specific filters." ),
-        ] = _filters_default,
-        group_by: GroupByArgument = None,
-        term: TermArgument = '',
-    ) -> dict[ str, __.typx.Any ]:
-        immutable_search_behaviors = (
-            _to_immutable_search_behaviors( search_behaviors ) )
-        immutable_filters = _to_immutable_filters( filters )
-        return await _functions.summarize_inventory(
-            auxdata, location, term,
-            search_behaviors = immutable_search_behaviors,
-            filters = immutable_filters,
-            group_by = group_by )
-
-    return summarize_inventory
 
 
 def _produce_survey_processors_function( auxdata: _state.Globals ):
@@ -278,7 +254,6 @@ def _register_server_functions(
     _scribe.debug( "Registering tools." )
     mcp.tool( )( _produce_query_inventory_function( auxdata ) )
     mcp.tool( )( _produce_query_content_function( auxdata ) )
-    mcp.tool( )( _produce_summarize_inventory_function( auxdata ) )
     if extra_functions:
         mcp.tool( )( _produce_detect_function( auxdata ) )
         mcp.tool( )( _produce_survey_processors_function( auxdata ) )

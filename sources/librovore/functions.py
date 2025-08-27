@@ -211,46 +211,6 @@ async def query_inventory(  # noqa: PLR0913
                 object_count = len( objects ) ) ] ) )
 
 
-async def summarize_inventory(  # noqa: PLR0913
-    auxdata: _state.Globals,
-    location: LocationArgument, /,
-    term: str = '', *,
-    processor_name: __.Absential[ str ] = __.absent,
-    search_behaviors: _interfaces.SearchBehaviors = _search_behaviors_default,
-    filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
-    group_by: __.typx.Optional[ str ] = None,
-) -> __.typx.Annotated[
-    dict[ str, __.typx.Any ], __.ddoc.Fname( 'inventory summary return' )
-]:
-    # TODO? Hoist to the CLI or return a result object.
-    ''' Provides structured summary of inventory data. '''
-    details = _interfaces.InventoryQueryDetails.Name
-    inventory_result = await query_inventory(
-        auxdata, location, term, processor_name = processor_name,
-        search_behaviors = search_behaviors, filters = filters,
-        # TODO: Should pass None for unlimited matches.
-        results_max = 1000,  # Large number to get all matches
-        details = details )
-    if isinstance( inventory_result, _results.ErrorResponse ):
-        return {
-            'success': False,
-            'data': _results.serialize_for_json( inventory_result ),
-        }
-    if group_by is not None:
-        objects_data = _group_inventory_objects_by_field(
-            inventory_result.objects, group_by )
-    else: objects_data = inventory_result.objects
-    inventory_data: dict[ str, __.typx.Any ] = {
-        'objects_count': (
-            inventory_result.search_metadata.matches_total
-            or len( inventory_result.objects ) ),
-        'objects': objects_data,
-    }
-    return {
-        'success': True,
-        'data': _results.serialize_for_json( inventory_data ),
-    }
-
 
 async def survey_processors(
     auxdata: _state.Globals, /,
@@ -271,33 +231,6 @@ async def survey_processors(
         if name is None or name_ == name }
     return { 'processors': processors_capabilities }
 
-
-def _group_inventory_objects_by_field(
-    objects: __.cabc.Sequence[ _results.InventoryObject ],
-    field: __.typx.Optional[ str ]
-) -> __.immut.Dictionary[
-    str, tuple[ _results.InventoryObject, ... ]
-]:
-    ''' Groups inventory objects by specified field for inventory format. '''
-    if field is None: return __.immut.Dictionary( )
-    groups: dict[ str, list[ _results.InventoryObject ] ] = { }
-    for obj in objects:
-        raw_value = obj.specifics.get( field )
-        if raw_value is None:
-            raw_value = getattr( obj, field, f"(missing {field})" )
-        if isinstance( raw_value, list ):
-            str_value = "[list]"
-        elif isinstance( raw_value, dict ):
-            str_value = "[dict]"
-        elif raw_value is None or raw_value == '':
-            str_value = f"(missing {field})"
-        else:
-            str_value = str( raw_value )
-        if str_value not in groups:
-            groups[ str_value ] = [ ]
-        groups[ str_value ].append( obj )
-    return __.immut.Dictionary(
-        ( key, tuple( items ) ) for key, items in groups.items( ) )
 
 
 def _normalize_location( location: str ) -> str:

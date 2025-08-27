@@ -25,41 +25,6 @@ from . import __
 
 
 
-def render_inventory_summary_markdown( 
-    result: __.typx.Annotated[
-        dict[ str, __.typx.Any ],
-        __.ddoc.Doc( 
-            '''Inventory summary data with project and object information.'''
-        ),
-    ]
-) -> __.typx.Annotated[
-    str,
-    __.ddoc.Doc( 
-        '''Markdown-formatted inventory summary with grouped objects.'''
-    ),
-]:
-    ''' Renders inventory summary as structured Markdown output. '''
-    has_project = 'project' in result
-    has_version = 'version' in result
-    has_objects = 'objects' in result
-    if has_project and has_version and has_objects:
-        lines = [
-            "# {project}".format( project = result[ 'project' ] ),
-            "**Version:** {version}".format( version = result[ 'version' ] ),
-            "**Objects:** {objects_count}".format( 
-                objects_count = result[ 'objects_count' ] ),
-        ]
-        objects_value = result.get( 'objects' )
-        if objects_value:
-            if isinstance( objects_value, dict ):
-                grouped_objects = __.typx.cast(
-                    __.cabc.Mapping[ str, __.typx.Any ], objects_value )
-                lines.extend( _format_grouped_objects( grouped_objects ) )
-            else:
-                lines.extend( _format_object_list( objects_value ) )
-        return '\n'.join( lines )
-    # TODO: Remove fallback once working with proper objects instead of dicts
-    return __.json.dumps( result, indent = 2 )
 
 
 def render_survey_processors_markdown( 

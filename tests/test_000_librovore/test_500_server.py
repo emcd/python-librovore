@@ -36,68 +36,6 @@ def mock_auxdata( ):
 
 
 # @pytest.mark.asyncio
-# async def test_100_summarize_inventory_wrapper( mock_auxdata ):
-#     ''' Server summarize_inventory factory produces working function. '''
-#     test_inventory_path = get_test_inventory_path( 'librovore' )
-#     search_behaviors = module.SearchBehaviorsMutable( )
-#     filters = module.FiltersMutable( { 'domain': 'py' } )
-#     summarize_func = module._produce_summarize_inventory_function(
-#         mock_auxdata )
-#     result = await summarize_func(
-#         location = test_inventory_path,
-#         search_behaviors = search_behaviors,
-#         filters = filters )
-#     assert isinstance( result, dict )
-#     assert result[ 'project' ] == 'python-sphinx-mcp-server'
-#     assert any( 'py' == obj.get( 'domain' ) for obj in result[ 'objects' ] )
-# 
-# 
-# @pytest.mark.asyncio
-# async def test_110_summarize_inventory_wrapper_no_filters( mock_auxdata ):
-#     ''' Server summarize_inventory works without filters. '''
-#     test_inventory_path = get_test_inventory_path( 'librovore' )
-#     summarize_func = module._produce_summarize_inventory_function(
-#         mock_auxdata )
-#     result = await summarize_func( location = test_inventory_path )
-#     assert isinstance( result, dict )
-#     assert result[ 'project' ] == 'python-sphinx-mcp-server'
-# 
-# 
-# @pytest.mark.asyncio
-# async def test_120_summarize_inventory_wrapper_with_regex( mock_auxdata ):
-#     ''' Server summarize_inventory handles match_mode correctly. '''
-#     test_inventory_path = get_test_inventory_path( 'librovore' )
-#     search_behaviors = module.SearchBehaviorsMutable(
-#         match_mode = _interfaces.MatchMode.Regex )
-#     filters = module.FiltersMutable( )
-#     summarize_func = module._produce_summarize_inventory_function(
-#         mock_auxdata )
-#     result = await summarize_func(
-#         location = test_inventory_path,
-#         term = 'test.*pattern',
-#         search_behaviors = search_behaviors,
-#         filters = filters )
-#     assert isinstance( result, dict )
-#     assert result[ 'project' ] == 'python-sphinx-mcp-server'
-# 
-# 
-# @pytest.mark.asyncio
-# async def test_150_summarize_inventory_wrapper_with_priority( mock_auxdata ):
-#     ''' Server summarize_inventory handles priority filtering correctly. '''
-#     test_inventory_path = get_test_inventory_path( 'sphobjinv' )
-#     search_behaviors = module.SearchBehaviorsMutable( )
-#     filters = module.FiltersMutable( { 'priority': '0' } )
-#     summarize_func = module._produce_summarize_inventory_function(
-#         mock_auxdata )
-#     result = await summarize_func(
-#         location = test_inventory_path,
-#         search_behaviors = search_behaviors,
-#         filters = filters )
-#     assert isinstance( result, dict )
-#     assert 'objects' in result
-#     assert 'project' in result
-# 
-# 
 # @pytest.mark.asyncio
 # async def test_170_explore_wrapper( mock_auxdata ):
 #     ''' Server query_inventory factory produces working function. '''

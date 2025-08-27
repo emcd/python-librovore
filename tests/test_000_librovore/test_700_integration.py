@@ -111,44 +111,6 @@
 
 # @pytest.mark.slow
 # @pytest.mark.asyncio
-# async def test_200_mcp_summarize_inventory_tool( ):
-#     ''' MCP summarize_inventory tool provides human-readable summary. '''
-#     inventory_path = get_test_inventory_path( 'librovore' )
-#     async with (
-#         mcp_test_server( ) as port,
-#         MCPTestClient( port ) as client
-#     ):
-#         await client.initialize( )
-#         response = await client.call_tool( 'summarize_inventory', {
-#             'source': inventory_path
-#         } )
-#         assert response[ 'jsonrpc' ] == '2.0'
-#         assert 'result' in response
-#         content = response[ 'result' ][ 'content' ]
-#         assert len( content ) > 0
-#         assert content[ 0 ][ 'type' ] == 'text'
-#         text_content = content[ 0 ][ 'text' ]
-#         assert 'Project:' in text_content
-#         assert 'objects' in text_content
-
-
-# @pytest.mark.slow
-# @pytest.mark.asyncio
-# async def test_210_mcp_summarize_inventory_nonexistent_file( ):
-#     ''' MCPsummarize_inventory tool handles nonexistent files gracefully. '''
-#     async with (
-#         mcp_test_server( ) as port,
-#         MCPTestClient( port ) as client
-#     ):
-#         await client.initialize( )
-#         response = await client.call_tool( 'summarize_inventory', {
-#             'source': '/nonexistent/path.inv'
-#         } )
-#         assert response[ 'jsonrpc' ] == '2.0'
-#         assert 'result' in response
-#         assert 'isError' in response[ 'result' ]
-#         assert response[ 'result' ][ 'isError' ]
-
 
 # @pytest.mark.slow
 # @pytest.mark.asyncio

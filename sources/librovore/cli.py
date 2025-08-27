@@ -255,42 +255,6 @@ class QueryContentCommand(
         print( output, file = stream )
 
 
-class SummarizeInventoryCommand(
-    _CliCommand, decorators = ( __.standard_tyro_class, ),
-):
-    ''' Provides human-readable summary of inventory. '''
-
-    location: LocationArgument
-    term: TermArgument = ''
-    filters: __.typx.Annotated[
-        __.cabc.Mapping[ str, __.typx.Any ],
-        __.tyro.conf.arg( prefix_name = False ),
-    ] = __.dcls.field( default_factory = lambda: dict( _filters_default ) )
-    group_by: GroupByArgument = None
-    search_behaviors: __.typx.Annotated[
-        _interfaces.SearchBehaviors,
-        __.tyro.conf.arg( prefix_name = False ),
-    ] = __.dcls.field(
-        default_factory = lambda: _interfaces.SearchBehaviors( ) )
-
-    async def __call__(
-        self,
-        auxdata: _state.Globals,
-        display: __.DisplayTarget,
-        display_format: _interfaces.DisplayFormat,
-    ) -> None:
-        stream = await display.provide_stream( )
-        result = await _functions.summarize_inventory(
-            auxdata, self.location, self.term or '',
-            search_behaviors = self.search_behaviors,
-            filters = self.filters,
-            group_by = self.group_by )
-        match display_format:
-            case _interfaces.DisplayFormat.JSON:
-                output = _renderers.render_inventory_summary_json( result )
-            case _interfaces.DisplayFormat.Markdown:
-                output = _renderers.render_inventory_summary_markdown( result )
-        print( output, file = stream )
 
 
 class SurveyProcessorsCommand(
@@ -379,11 +343,6 @@ class Cli( __.immut.DataclassObject, decorators = ( __.simple_tyro_class, ) ):
         __.typx.Annotated[
             QueryContentCommand,
             __.tyro.conf.subcommand( 'query-content', prefix_name = False ),
-        ],
-        __.typx.Annotated[
-            SummarizeInventoryCommand,
-            __.tyro.conf.subcommand(
-                'summarize-inventory', prefix_name = False ),
         ],
         __.typx.Annotated[
             SurveyProcessorsCommand,

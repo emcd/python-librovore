@@ -20,10 +20,8 @@
 
 
 from .json import (
-    render_inventory_summary_json,
     render_survey_processors_json,
 )
 from .markdown import (
-    render_inventory_summary_markdown,
     render_survey_processors_markdown,
 )

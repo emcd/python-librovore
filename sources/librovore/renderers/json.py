@@ -23,13 +23,6 @@ from . import __
 
 
 
-def render_inventory_summary_json( 
-    result: dict[ str, __.typx.Any ]
-) -> str:
-    ''' Renders inventory summary as JSON. '''
-    serialized = __.serialize_for_json( result )
-    return __.json.dumps( serialized, indent = 2 )
-
 
 def render_survey_processors_json( 
     result: dict[ str, __.typx.Any ]
