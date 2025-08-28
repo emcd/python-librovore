@@ -423,29 +423,6 @@ class ProbeCache( Cache ):
 _http_success_threshold = 400
 
 
-class CacheContext( __.immut.DataclassObject ):
-    ''' Context carrying configured cache instances. '''
-
-    content_cache: ContentCache
-    probe_cache: ProbeCache
-    robots_cache: RobotsCache
-
-    @classmethod
-    def from_configuration(
-        cls,
-        configuration: __.cabc.Mapping[ str, __.typx.Any ]
-    ) -> __.typx.Self:
-        ''' Creates cache context from application configuration. '''
-        robots_cache = RobotsCache.from_configuration( configuration )
-        return cls(
-            content_cache = ContentCache.from_configuration(
-                configuration, robots_cache ),
-            probe_cache = ProbeCache.from_configuration(
-                configuration, robots_cache ),
-            robots_cache = robots_cache,
-        )
-
-
 _scribe = __.acquire_scribe( __name__ )
 
 
@@ -679,19 +656,6 @@ def _extract_mimetype_from_headers( headers: _httpx.Headers ) -> str:
         mimetype, _, _ = content_type.partition( ';' )
         return mimetype.strip( )
     return content_type
-
-
-def _raise_non_textual_content( url: str ) -> None:
-    ''' Raises exception for non-textual content. '''
-    raise _exceptions.DocumentationInaccessibility(
-        url, "Content analysis indicates non-textual data" )
-
-
-def _raise_non_textual_mimetype( url: str, mimetype: str ) -> None:
-    ''' Raises exception for non-textual MIME type. '''
-    raise _exceptions.DocumentationInaccessibility(
-        url, f"Non-textual content detected: {mimetype}" )
-
 
 
 async def _probe_url(

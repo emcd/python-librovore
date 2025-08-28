@@ -302,26 +302,6 @@ async def _extract_object_documentation(
     )
 
 
-def _extract_paragraphs_from_doc_contents(
-    doc_contents: __.typx.Any
-) -> list[ str ]:
-    ''' Legacy function - now unused after markdownify migration. '''
-    # This function is kept for backward compatibility but is no longer used
-    # since we now extract the full doc-contents HTML in _extract_description
-    descriptions: list[ str ] = [ ]
-    for child in doc_contents.children:
-        if hasattr( child, 'name' ):
-            if (
-                child.name == 'div' and
-                'admonition' in child.get( 'class', [ ] )
-            ): continue
-            if child.name == 'p':
-                html_content = str( child )
-                if html_content and html_content not in descriptions:
-                    descriptions.append( html_content )
-    return descriptions
-
-
 def _extract_signature(
     element: __.typx.Any,
     patterns: __.cabc.Mapping[ str, __.typx.Any ]

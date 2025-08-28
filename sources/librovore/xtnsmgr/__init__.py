@@ -26,13 +26,10 @@ from .installation import (
 )
 from .importation import (
     add_package_to_import_path,
-    cleanup_import_paths,
     import_processor_module,
     get_module_info,
     list_registered_processors,
     process_pth_files,
-    reload_processor_module,
-    remove_from_import_path,
 )
 from .cachemgr import (
     CacheInfo,
@@ -51,8 +48,8 @@ from .configuration import (
     select_intrinsic_extensions,
     select_active_extensions,
     extract_extension_arguments,
-    select_external_extensions,
-    extract_extensions,
+    extract_inventory_extensions,
+    extract_structure_extensions,
     validate_extension,
 )
 from .processors import *

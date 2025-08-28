@@ -27,7 +27,6 @@ from mcp.server.fastmcp import FastMCP as _FastMCP
 from pydantic import Field as _Field
 
 from . import __
-from . import exceptions as _exceptions
 from . import functions as _functions
 from . import interfaces as _interfaces
 from . import results as _results
@@ -85,64 +84,6 @@ async def serve(
         case 'sse': await mcp.run_sse_async( mount_path = None )
         case 'stdio': await mcp.run_stdio_async( )
         case _: raise ValueError
-
-
-def _exception_to_error_response( exc: Exception ) -> dict[ str, str ]:  # noqa: PLR0911
-    ''' Maps exceptions to structured error responses for MCP tools. '''
-    match exc:
-        case _exceptions.ProcessorInavailability( ):
-            return {
-                'error_type': 'ProcessorInavailability',
-                'message':
-                    'No processor found to handle this documentation source',
-                'details': f"Source: {exc.source}",
-                'suggestion': 'Verify the URL is a Sphinx documentation site'
-            }
-        case _exceptions.InventoryInaccessibility( ):
-            cause = exc.__cause__ or 'Unknown'
-            return {
-                'error_type': 'InventoryInaccessibility',
-                'message': 'Cannot access documentation inventory',
-                'details': f"Source: {exc.source}, Cause: {cause}",
-                'suggestion': 'Check URL accessibility and network connection'
-            }
-        case _exceptions.DocumentationContentAbsence( ):
-            return {
-                'error_type': 'DocumentationContentAbsence',
-                'message': 'Documentation page structure not recognized',
-                'details': f"URL: {exc.url}",
-                'suggestion': 'This may be an unsupported Sphinx theme'
-            }
-        case _exceptions.DocumentationObjectAbsence( ):
-            return {
-                'error_type': 'ObjectNotFoundError',
-                'message': 'Requested object not found in documentation page',
-                'details': f"Object: {exc.object_id}, URL: {exc.url}",
-                'suggestion': 'Verify the object name and try a broader search'
-            }
-        case _exceptions.InventoryInvalidity( ):
-            cause = exc.__cause__ or 'Unknown'
-            return {
-                'error_type': 'InventoryInvalidity',
-                'message': 'Documentation inventory has invalid format',
-                'details': f"Source: {exc.source}, Cause: {cause}",
-                'suggestion': 'The documentation site may be corrupted'
-            }
-        case _exceptions.DocumentationInaccessibility( ):
-            cause = exc.__cause__ or 'Unknown'
-            return {
-                'error_type': 'DocumentationInaccessibility',
-                'message': 'Documentation file or resource is inaccessible',
-                'details': f"URL: {exc.url}, Cause: {cause}",
-                'suggestion': 'Check URL accessibility and network connection'
-            }
-        case _:
-            return {
-                'error_type': 'UnknownError',
-                'message': 'An unexpected error occurred',
-                'details': f"Exception: {type( exc ).__name__}: {exc}",
-                'suggestion': 'Please report this issue if it persists'
-            }
 
 
 def _produce_detect_function( auxdata: _state.Globals ):

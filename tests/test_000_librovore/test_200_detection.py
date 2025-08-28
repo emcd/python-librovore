@@ -264,24 +264,6 @@ def test_250_cache_add_entry_overwrites_existing( mock_detections ):
     assert entry.timestamp == 2000.0
 
 
-def test_260_cache_remove_entry_missing_returns_absent( ):
-    ''' Cache remove_entry for missing source returns absent. '''
-    cache = module.DetectionsCache( )
-    result = cache.remove_entry( 'nonexistent_source' )
-    assert __.is_absent( result )
-
-
-def test_270_cache_remove_entry_existing_returns_detections( mock_detections ):
-    ''' Cache remove_entry for existing source returns and removes. '''
-    cache = module.DetectionsCache( ttl = 3600 )
-    detections = mock_detections[ 'single_valid' ]
-    with patch.object( module.__.time, 'time', return_value = 1000.0 ):
-        cache.add_entry( 'test_source', detections )
-    result = cache.remove_entry( 'test_source' )
-    assert not __.is_absent( result )
-    assert result == detections
-    assert 'test_source' not in cache._entries
-
 
 def test_280_cache_clear_empties_all_entries( mock_detections ):
     ''' Cache clear removes all stored entries. '''

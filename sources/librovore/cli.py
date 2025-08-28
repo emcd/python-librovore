@@ -402,111 +402,11 @@ def execute( ) -> None:
             raise SystemExit( 1 ) from None
 
 
-def _extract_object_name_and_role( obj: __.typx.Any ) -> tuple[ str, str ]:
-    ''' Extracts name and role from object, with safe fallbacks. '''
-    if not hasattr( obj, 'get' ):
-        return 'Unknown', 'unknown'
-    try:
-        name = getattr( obj, 'get' )( 'name', 'Unknown' )
-    except ( AttributeError, TypeError ):
-        name = 'Unknown'
-    try:
-        role = getattr( obj, 'get' )( 'role', 'unknown' )
-    except ( AttributeError, TypeError ):
-        role = 'unknown'
-    if not isinstance( name, str ):
-        name = str( name ) if name is not None else 'Unknown'
-    if not isinstance( role, str ):
-        role = str( role ) if role is not None else 'unknown'
-    return name, role
 
 
 
 
 
-def _format_grouped_objects( 
-    objects_value: __.cabc.Mapping[ str, __.typx.Any ] 
-) -> list[ str ]:
-    ''' Formats objects grouped by categories. '''
-    lines: list[ str ] = [ "\n## Breakdown by Groups" ]
-    for group_name, group_objects in objects_value.items( ):
-        if hasattr( group_objects, '__len__' ):
-            object_count = len( group_objects )
-            lines.append( f"- **{group_name}:** {object_count} objects" )
-    return lines
-
-
-
-
-def _format_object_list( objects_value: __.typx.Any ) -> list[ str ]:
-    ''' Formats a flat list of objects. '''
-    lines: list[ str ] = [ ]
-    if not hasattr( objects_value, '__len__' ): return lines
-    objects_count = len( objects_value )
-    lines.append( f"\n## Objects ({objects_count})" )
-    if ( hasattr( objects_value, '__getitem__' )
-         and hasattr( objects_value, '__iter__' ) ):
-        subset_limit = _MARKDOWN_OBJECT_LIMIT
-        objects_subset = (
-            objects_value[ :subset_limit ]
-            if objects_count > subset_limit else objects_value )
-        for obj in objects_subset:
-            name, role = _extract_object_name_and_role( obj )
-            lines.append( f"- `{name}` ({role})" )
-        if objects_count > _MARKDOWN_OBJECT_LIMIT:
-            remaining = objects_count - _MARKDOWN_OBJECT_LIMIT
-            lines.append( f"- ... and {remaining} more" )
-    return lines
-
-
-def _truncate_query_content(
-    result: __.cabc.Mapping[ str, __.typx.Any ],
-    lines_max: int,
-) -> __.cabc.Mapping[ str, __.typx.Any ]:
-    ''' Truncates content in query results to specified line limit. '''
-    truncated_docs: list[ __.cabc.Mapping[ str, __.typx.Any ] ] = []
-    for doc in result[ 'documents' ]:
-        truncated_doc = dict( doc )
-        if 'description' in truncated_doc:
-            lines = truncated_doc[ 'description' ].split( '\n' )
-            if len( lines ) > lines_max:
-                truncated_lines = lines[ :lines_max ]
-                truncated_lines.append( '...' )
-                truncated_doc[ 'description' ] = '\n'.join( truncated_lines )
-        truncated_docs.append( truncated_doc )
-    result = dict( result )
-    result[ 'documents' ] = truncated_docs
-    return result
-
-
-
-
-
-
-
-def _append_inventory_metadata( 
-    lines: list[ str ], 
-    invobj: _results.InventoryObject
-) -> None:
-    ''' Appends inventory metadata to lines using object self-formatting. '''
-    if not isinstance( invobj, _results.InventoryObject ):
-        raise _exceptions.InventoryObjectInvalidity( type( invobj ) )
-    metadata_lines = invobj.render_specifics_markdown(
-        reveal_internals = False )
-    lines.extend( metadata_lines )
-
-
-def _append_content_description(
-    lines: list[ str ],
-    doc: _results.ContentDocument,
-    invobj: _results.InventoryObject
-) -> None:
-    ''' Appends content description from document fields only. '''
-    description = doc.description
-    if not description:
-        description = doc.content_snippet
-    if description:
-        lines.append( f"- **Content:** {description}" )
 
 
 

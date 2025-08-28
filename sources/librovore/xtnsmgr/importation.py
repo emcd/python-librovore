@@ -59,26 +59,6 @@ def _add_path_to_sys_path( package_path: __.Path ) -> None:
         _scribe.debug( f"Path already in sys.path: {path_str}." )
 
 
-def remove_from_import_path( package_path: __.Path ) -> None:
-    ''' Remove package path from sys.path. '''
-    path_str = str( package_path )
-    if path_str in __.sys.path:
-        __.sys.path.remove( path_str )
-        if path_str in _added_paths:
-            _added_paths.remove( path_str )
-        _scribe.debug( f"Removed from sys.path: {path_str}." )
-
-
-def cleanup_import_paths( ) -> None:
-    ''' Remove all extension-added paths from sys.path. '''
-    # Copy list to avoid modification during iteration
-    for path_str in _added_paths[ : ]:
-        if path_str in __.sys.path:
-            __.sys.path.remove( path_str )
-        _added_paths.remove( path_str )
-        _scribe.debug( f"Cleaned up sys.path: {path_str}." )
-
-
 def import_processor_module( module_name: str ) -> __.types.ModuleType:
     ''' Import a processor module by name.
 
@@ -95,28 +75,6 @@ def import_processor_module( module_name: str ) -> __.types.ModuleType:
     else:
         _scribe.info( f"Successfully imported: {module_name}." )
         return module
-
-
-def reload_processor_module(
-    module_name: str, *,
-    importer: __.Absential[
-        __.cabc.Callable[ [ str ], __.types.ModuleType ]
-    ] = __.absent,
-    reloader: __.Absential[ __.cabc.Callable[
-        [ __.types.ModuleType ], __.types.ModuleType
-    ] ] = __.absent
-) -> __.types.ModuleType:
-    ''' Reload a processor module if it's already imported. '''
-    if module_name in __.sys.modules:
-        _scribe.debug( f"Reloading processor module: {module_name}." )
-        module = __.sys.modules[ module_name ]
-        if __.is_absent( reloader ):
-            reloader = _importlib.reload
-        return reloader( module )
-    _scribe.debug( f"Module not yet imported, importing: {module_name}." )
-    if __.is_absent( importer ):
-        importer = import_processor_module
-    return importer( module_name )
 
 
 def list_registered_processors( ) -> tuple[ str, ... ]:

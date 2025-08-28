@@ -69,14 +69,6 @@ def extract_structure_extensions(
     return _extract_extension_type( auxdata, 'structure-extensions' )
 
 
-def extract_extensions(
-    auxdata: __.Globals
-) -> tuple[ ExtensionConfig, ... ]:
-    ''' Loads and validates all extensions configuration (legacy). '''
-    inventory_extensions = extract_inventory_extensions( auxdata )
-    structure_extensions = extract_structure_extensions( auxdata )
-    legacy_extensions = _extract_extension_type( auxdata, 'extensions' )
-    return inventory_extensions + structure_extensions + legacy_extensions
 
 
 def _extract_extension_type(
@@ -115,14 +107,6 @@ def select_intrinsic_extensions(
 ) -> tuple[ ExtensionConfig, ... ]:
     ''' Filters extensions to only built-in ones (no package field). '''
     return tuple( ext for ext in extensions if ext.get( 'package' ) is None )
-
-
-def select_external_extensions(
-    extensions: __.cabc.Sequence[ ExtensionConfig ]
-) -> tuple[ ExtensionConfig, ... ]:
-    ''' Filters extensions to only external ones (has package field). '''
-    return tuple(
-        ext for ext in extensions if ext.get( 'package' ) is not None )
 
 
 def extract_extension_arguments(
