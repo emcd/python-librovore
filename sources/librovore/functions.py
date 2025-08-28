@@ -216,20 +216,35 @@ async def survey_processors(
     auxdata: _state.Globals, /,
     genus: _interfaces.ProcessorGenera,
     name: __.typx.Optional[ str ] = None,
-) -> dict[ str, __.typx.Any ]:
+) -> _results.ProcessorsSurveyResultUnion:
     ''' Lists processor capabilities for specified genus, filtered by name. '''
+    start_time = __.time.perf_counter( )
     match genus:
         case _interfaces.ProcessorGenera.Inventory:
             processors = dict( _processors.inventory_processors )
         case _interfaces.ProcessorGenera.Structure:
             processors = dict( _processors.structure_processors )
     if name is not None and name not in processors:
-        raise _exceptions.ProcessorInavailability( name )
-    processors_capabilities = {
-        name_: _serialize_for_json( processor.capabilities )
-        for name_, processor in processors.items( )
-        if name is None or name_ == name }
-    return { 'processors': processors_capabilities }
+        exc = _exceptions.ProcessorInavailability( name )
+        return _produce_processor_error_response(
+            exc, '', name or '', genus = genus )
+    processor_infos: list[ _results.ProcessorInfo ] = [ ]
+    for name_, processor in processors.items( ):
+        if name is None or name_ == name:
+            processor_info = _results.ProcessorInfo(
+                processor_name = name_,
+                processor_type = genus.value,
+                capabilities = processor.capabilities,
+            )
+            processor_infos.append( processor_info )
+    end_time = __.time.perf_counter( )
+    survey_time_ms = int( ( end_time - start_time ) * 1000 )
+    return _results.ProcessorsSurveyResult(
+        genus = genus,
+        filter_name = name,
+        processors = tuple( processor_infos ),
+        survey_time_ms = survey_time_ms,
+    )
 
 
 

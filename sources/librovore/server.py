@@ -242,7 +242,8 @@ def _produce_survey_processors_function( auxdata: _state.Globals ):
             _Field( description = "Optional processor name to filter." )
         ] = None,
     ) -> dict[ str, __.typx.Any ]:
-        return await _functions.survey_processors( auxdata, genus, name )
+        result = await _functions.survey_processors( auxdata, genus, name )
+        return dict( result.render_as_json( ) )
 
     return survey_processors
 

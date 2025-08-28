@@ -682,6 +682,135 @@ class DetectionsResult( __.immut.DataclassObject ):
         return tuple( lines )
 
 
+class ProcessorInfo( __.immut.DataclassObject ):
+    ''' Information about a processor and its capabilities. '''
+
+    processor_name: __.typx.Annotated[
+        str,
+        __.ddoc.Doc( "Name of the processor for identification." ),
+    ]
+    processor_type: __.typx.Annotated[
+        str,
+        __.ddoc.Doc( "Type of processor (inventory, structure)." ),
+    ]
+    capabilities: __.typx.Annotated[
+        __.typx.Any,  # Will be _interfaces.ProcessorCapabilities after import
+        __.ddoc.Doc( "Complete capability description for processor." ),
+    ]
+
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders processor info as JSON-compatible dictionary. '''
+        return __.immut.Dictionary[
+            str, __.typx.Any
+        ](
+            processor_name = self.processor_name,
+            processor_type = self.processor_type,
+            capabilities = serialize_for_json( self.capabilities ),
+        )
+
+    def render_as_markdown(
+        self, /, *,
+        reveal_internals: __.typx.Annotated[
+            bool,
+            __.ddoc.Doc( "Controls whether internal details are shown." ),
+        ] = True,
+    ) -> tuple[ str, ... ]:
+        ''' Renders processor info as Markdown lines for display. '''
+        lines = [ f"### `{self.processor_name}` ({self.processor_type})" ]
+        if reveal_internals:
+            lines.append( f"**Version:** {self.capabilities.version}" )
+            if self.capabilities.results_limit_max:
+                lines.append( 
+                    f"**Max results:** {self.capabilities.results_limit_max}" )
+            if self.capabilities.response_time_typical:
+                lines.append( 
+                    f"**Response time:** "
+                    f"{self.capabilities.response_time_typical}" )
+            if self.capabilities.notes:
+                lines.append( f"**Notes:** {self.capabilities.notes}" )
+        if self.capabilities.supported_filters:
+            lines.append( "" )
+            lines.append( "**Supported filters:**" )
+            for filter_cap in self.capabilities.supported_filters:
+                filter_line = f"- `{filter_cap.name}` ({filter_cap.type})"
+                if filter_cap.required:
+                    filter_line += " *required*"
+                lines.append( filter_line )
+                if filter_cap.description:
+                    lines.append( f"  {filter_cap.description}" )
+                if filter_cap.values:
+                    values_str = ', '.join( filter_cap.values )
+                    lines.append( f"  Values: {values_str}" )
+        return tuple( lines )
+
+
+class ProcessorsSurveyResult( __.immut.DataclassObject ):
+    ''' Survey results listing available processors and capabilities. '''
+
+    genus: __.typx.Annotated[
+        __.typx.Any,  # Will be _interfaces.ProcessorGenera after import
+        __.ddoc.Doc( 
+            "Processor genus that was surveyed (inventory or structure)." ),
+    ]
+    filter_name: __.typx.Annotated[
+        __.typx.Optional[ str ],
+        __.ddoc.Doc( "Optional processor name filter applied to survey." ),
+    ] = None
+    processors: __.typx.Annotated[
+        tuple[ ProcessorInfo, ... ],
+        __.ddoc.Doc( "Available processors matching survey criteria." ),
+    ]
+    survey_time_ms: __.typx.Annotated[
+        int,
+        __.ddoc.Doc( "Survey operation time in milliseconds." ),
+    ]
+
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders survey results as JSON-compatible dictionary. '''
+        processors_json = [
+            dict( processor.render_as_json( ) )
+            for processor in self.processors ]
+        return __.immut.Dictionary[
+            str, __.typx.Any
+        ](
+            genus = (
+                self.genus.value if hasattr( self.genus, 'value' ) 
+                else str( self.genus ) ),
+            filter_name = self.filter_name,
+            processors = processors_json,
+            survey_time_ms = self.survey_time_ms,
+        )
+
+    def render_as_markdown(
+        self, /, *,
+        reveal_internals: __.typx.Annotated[
+            bool,
+            __.ddoc.Doc( "Controls whether internal details are shown." ),
+        ] = True,
+    ) -> tuple[ str, ... ]:
+        ''' Renders survey results as Markdown lines for display. '''
+        genus_name = (
+            self.genus.value if hasattr( self.genus, 'value' ) 
+            else str( self.genus ) )
+        title = f"# Processor Survey Results ({genus_name})"
+        lines = [ title ]
+        if reveal_internals:
+            lines.append( f"**Survey time:** {self.survey_time_ms}ms" )
+            if self.filter_name:
+                lines.append( f"**Filter:** {self.filter_name}" )
+        lines.append( f"**Processors found:** {len( self.processors )}" )
+        if self.processors:
+            lines.append( "" )
+            for i, processor in enumerate( self.processors, 1 ):
+                lines.append( f"📦 ── Processor {i} ──────────" )
+                processor_lines = processor.render_as_markdown( 
+                    reveal_internals = reveal_internals )
+                lines.extend( processor_lines )
+                if i < len( self.processors ):
+                    lines.append( "" )
+        return tuple( lines )
+
+
 def serialize_for_json( objct: __.typx.Any ) -> __.typx.Any:
     ''' Legacy serialization for non-structured objects (dicts). '''
     if __.dcls.is_dataclass( objct ):
@@ -723,6 +852,30 @@ def validate_search_result( result: SearchResult ) -> SearchResult:
     return result
 
 
+def validate_processor_info( info: ProcessorInfo ) -> ProcessorInfo:
+    ''' Validates processor info has required fields and valid values. '''
+    if not info.processor_name:
+        raise ValueError
+    if not info.processor_type:
+        raise ValueError
+    if not info.capabilities:
+        raise ValueError
+    return info
+
+
+def validate_processors_survey_result( 
+    result: ProcessorsSurveyResult 
+) -> ProcessorsSurveyResult:
+    ''' Validates processors survey result has valid structure. '''
+    if not result.genus:
+        raise ValueError
+    if result.survey_time_ms < 0:
+        raise ValueError
+    for processor in result.processors:
+        validate_processor_info( processor )
+    return result
+
+
 def _serialize_dataclass_for_json(
     obj: __.typx.Any,
 ) -> dict[ str, __.typx.Any ]:
@@ -758,3 +911,5 @@ SearchResults: __.typx.TypeAlias = __.cabc.Sequence[ SearchResult ]
 ContentResult: __.typx.TypeAlias = ContentQueryResult | ErrorResponse
 InventoryResult: __.typx.TypeAlias = InventoryQueryResult | ErrorResponse
 DetectionsResultUnion: __.typx.TypeAlias = DetectionsResult | ErrorResponse
+ProcessorsSurveyResultUnion: __.typx.TypeAlias = (
+    ProcessorsSurveyResult | ErrorResponse )

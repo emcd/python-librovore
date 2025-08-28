@@ -777,15 +777,9 @@ and presentation concerns:
 - **CLI coordinators handle presentation**: truncation, formatting, display helpers
 - **MCP server uses objects directly**: no CLI-specific presentation layer
 
-**Renderers Subpackage Structure**
-CLI presentation coordination through a separate ``renderers/`` subpackage:
-
-.. code-block:: text
-
-    renderers/
-    ├── __.py           # Common utilities (import cascade pattern)
-    ├── json.py         # JSON presentation coordination  
-    └── markdown.py     # Markdown presentation coordination
+**Direct Self-Rendering Architecture**
+Objects handle all presentation directly through self-rendering methods, eliminating
+the need for external presentation coordination layers.
 
 Integration Benefits
 ===============================================================================

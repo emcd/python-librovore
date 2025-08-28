@@ -26,7 +26,6 @@ from . import cacheproxy as _cacheproxy
 from . import exceptions as _exceptions
 from . import functions as _functions
 from . import interfaces as _interfaces
-from . import renderers as _renderers
 from . import results as _results
 from . import server as _server
 from . import state as _state
@@ -288,9 +287,12 @@ class SurveyProcessorsCommand(
             raise SystemExit( 1 ) from None
         match display_format:
             case _interfaces.DisplayFormat.JSON:
-                output = _renderers.render_survey_processors_json( result )
+                output = __.json.dumps( 
+                    dict( result.render_as_json( ) ), indent = 2 )
             case _interfaces.DisplayFormat.Markdown:
-                output = _renderers.render_survey_processors_markdown( result )
+                lines = result.render_as_markdown( 
+                    reveal_internals = False )
+                output = '\n'.join( lines )
         print( output, file = stream )
 
 
