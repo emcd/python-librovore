@@ -694,19 +694,13 @@ Validation and Type Safety
 Object Validation Strategy
 -------------------------------------------------------------------------------
 
-.. code-block:: python
+Validation of result objects is implemented at object initialization
+through ``__post_init__`` methods when validation is needed. This ensures
+that invalid objects cannot be constructed and provides fail-fast behavior
+with guaranteed valid state.
 
-    def validate_inventory_object( obj: InventoryObject ) -> InventoryObject:
-        ''' Validates inventory object has required fields and valid values. '''
-
-    def validate_search_result( result: SearchResult ) -> SearchResult:
-        ''' Validates search result consistency and score alignment. '''
-
-    def validate_content_document( doc: ContentDocument ) -> ContentDocument:
-        ''' Validates content document has valid inventory object and content. '''
-
-    def validate_detections_result( result: DetectionsResult ) -> DetectionsResult:
-        ''' Validates detections result has valid detections and timing metadata. '''
+Objects own their validity invariants through initialization-time validation
+rather than relying on external validation functions.
 
 Module Organization
 ===============================================================================
@@ -741,13 +735,6 @@ File Structure and Imports
     class ProcessorInfo( __.immut.DataclassObject ): ...
     class ProcessorsSurveyResult( __.immut.DataclassObject ): ...
 
-    # Validation functions
-    def validate_inventory_object( ... ): ...
-    def validate_search_result( ... ): ...
-    def validate_content_document( ... ): ...
-    def validate_detections_result( ... ): ...
-    def validate_processor_info( ... ): ...
-    def validate_processors_survey_result( ... ): ...
 
     # Serialization support
     def serialize_for_json( ... ): ...

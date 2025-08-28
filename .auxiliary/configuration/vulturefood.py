@@ -39,10 +39,6 @@ ThemeDetectFailure          # Theme detection exceptions
 expected_type           # ProcessorInvalidity exception attribute
 actual_type             # ProcessorInvalidity exception attribute
 
-# Exported validation functions (via results module star import)
-validate_content_document           # Content document validation
-validate_search_result              # Search result validation
-validate_processors_survey_result   # Processors survey validation
 
 # Extension manager exports (public API via xtnsmgr module)
 cleanup_expired_caches              # Cache cleanup utility function

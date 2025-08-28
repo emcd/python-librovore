@@ -822,59 +822,6 @@ def serialize_for_json( objct: __.typx.Any ) -> __.typx.Any:
     return objct
 
 
-def validate_content_document( doc: ContentDocument ) -> ContentDocument:
-    ''' Validates content document has valid inventory object and content. '''
-    validate_inventory_object( doc.inventory_object )
-    if not doc.has_meaningful_content:
-        # TODO: Properly raise error.
-        pass
-    return doc
-
-
-def validate_inventory_object( objct: InventoryObject ) -> InventoryObject:
-    ''' Validates inventory object has required fields and valid values. '''
-    if not objct.name: raise ValueError
-    if not objct.uri: raise ValueError
-    if not objct.inventory_type: raise ValueError
-    if not objct.location_url: raise ValueError
-    return objct
-
-
-def validate_search_result( result: SearchResult ) -> SearchResult:
-    ''' Validates search result consistency and score alignment. '''
-    if not ( 0.0 <= result.score <= 1.0 ):
-        message = (
-            f"SearchResult score must be between 0.0 and 1.0, "
-            f"got {result.score}."
-        )
-        raise ValueError( message )
-    validate_inventory_object( result.inventory_object )
-    return result
-
-
-def validate_processor_info( info: ProcessorInfo ) -> ProcessorInfo:
-    ''' Validates processor info has required fields and valid values. '''
-    if not info.processor_name:
-        raise ValueError
-    if not info.processor_type:
-        raise ValueError
-    if not info.capabilities:
-        raise ValueError
-    return info
-
-
-def validate_processors_survey_result( 
-    result: ProcessorsSurveyResult 
-) -> ProcessorsSurveyResult:
-    ''' Validates processors survey result has valid structure. '''
-    if not result.genus:
-        raise ValueError
-    if result.survey_time_ms < 0:
-        raise ValueError
-    for processor in result.processors:
-        validate_processor_info( processor )
-    return result
-
 
 def _serialize_dataclass_for_json(
     obj: __.typx.Any,
