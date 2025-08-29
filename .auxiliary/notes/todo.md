@@ -3,6 +3,9 @@
 ## Alpha Release Preparation (High Priority)
 
 ### ✅ Recently Completed
+- [x] **MkDocs inventory processor**: Complete implementation of search_index.json processor
+- [x] **Pure MkDocs support**: HTTPX and other pure MkDocs sites now fully functional
+- [x] **Precedence-based detection**: Sphinx takes priority over MkDocs when both available
 - [x] **MkDocs processor**: Complete implementation with HTML-to-Markdown conversion
 - [x] **Language-aware code blocks**: Enhanced code block handling with language detection
 - [x] **Theme-specific extraction**: Material for MkDocs and ReadTheDocs support

@@ -26,6 +26,7 @@ from . import cacheproxy as _cacheproxy
 from . import exceptions as _exceptions
 from . import functions as _functions
 from . import interfaces as _interfaces
+from . import results as _results
 from . import server as _server
 from . import state as _state
 
@@ -121,7 +122,21 @@ class DetectCommand(
             _scribe.error( "detect failed: %s", exc )
             print( _format_cli_exception( exc ), file = stream )
             raise SystemExit( 1 ) from None
-        output = _format_output( result, display_format )
+        match display_format:
+            case _interfaces.DisplayFormat.JSON:
+                if isinstance( result, _results.ErrorResponse ):
+                    serialized = dict( result.render_as_json( ) )
+                else:
+                    serialized = dict( result.render_as_json( ) )
+                output = __.json.dumps( serialized, indent = 2 )
+            case _interfaces.DisplayFormat.Markdown:
+                if isinstance( result, _results.ErrorResponse ):
+                    lines = result.render_as_markdown(
+                        reveal_internals = True )
+                else:
+                    lines = result.render_as_markdown(
+                        reveal_internals = True )
+                output = '\n'.join( lines )
         print( output, file = stream )
 
 
@@ -171,7 +186,14 @@ class QueryInventoryCommand(
             _scribe.error( "query-inventory failed: %s", exc )
             print( _format_cli_exception( exc ), file = stream )
             raise SystemExit( 1 ) from None
-        output = _format_output( result, display_format )
+        match display_format:
+            case _interfaces.DisplayFormat.JSON:
+                output = __.json.dumps(
+                    dict( result.render_as_json( ) ), indent = 2 )
+            case _interfaces.DisplayFormat.Markdown:
+                lines = result.render_as_markdown(
+                    reveal_internals = True )
+                output = '\n'.join( lines )
         print( output, file = stream )
 
 
@@ -217,45 +239,21 @@ class QueryContentCommand(
             _scribe.error( "query-content failed: %s", exc )
             print( _format_cli_exception( exc ), file = stream )
             raise SystemExit( 1 ) from None
-        # Apply lines_max truncation to content
-        if 'documents' in result and self.lines_max > 0:
-            result = _truncate_query_content( result, self.lines_max )
-        output = _format_output( result, display_format )
+        match display_format:
+            case _interfaces.DisplayFormat.JSON:
+                output = __.json.dumps(
+                    dict( result.render_as_json( ) ), indent = 2 )
+            case _interfaces.DisplayFormat.Markdown:
+                if isinstance( result, _results.ContentQueryResult ):
+                    lines = result.render_as_markdown(
+                        reveal_internals = True, lines_max = self.lines_max )
+                else:
+                    lines = result.render_as_markdown(
+                        reveal_internals = True )
+                output = '\n'.join( lines )
         print( output, file = stream )
 
 
-class SummarizeInventoryCommand(
-    _CliCommand, decorators = ( __.standard_tyro_class, ),
-):
-    ''' Provides human-readable summary of inventory. '''
-
-    location: LocationArgument
-    term: TermArgument = ''
-    filters: __.typx.Annotated[
-        __.cabc.Mapping[ str, __.typx.Any ],
-        __.tyro.conf.arg( prefix_name = False ),
-    ] = __.dcls.field( default_factory = lambda: dict( _filters_default ) )
-    group_by: GroupByArgument = None
-    search_behaviors: __.typx.Annotated[
-        _interfaces.SearchBehaviors,
-        __.tyro.conf.arg( prefix_name = False ),
-    ] = __.dcls.field(
-        default_factory = lambda: _interfaces.SearchBehaviors( ) )
-
-    async def __call__(
-        self,
-        auxdata: _state.Globals,
-        display: __.DisplayTarget,
-        display_format: _interfaces.DisplayFormat,
-    ) -> None:
-        stream = await display.provide_stream( )
-        result = await _functions.summarize_inventory(
-            auxdata, self.location, self.term or '',
-            search_behaviors = self.search_behaviors,
-            filters = self.filters,
-            group_by = self.group_by )
-        output = _format_output( result, display_format )
-        print( output, file = stream )
 
 
 class SurveyProcessorsCommand(
@@ -287,7 +285,14 @@ class SurveyProcessorsCommand(
             _scribe.error( "survey-processors failed: %s", exc )
             print( _format_cli_exception( exc ), file = stream )
             raise SystemExit( 1 ) from None
-        output = _format_output( result, display_format )
+        match display_format:
+            case _interfaces.DisplayFormat.JSON:
+                output = __.json.dumps( 
+                    dict( result.render_as_json( ) ), indent = 2 )
+            case _interfaces.DisplayFormat.Markdown:
+                lines = result.render_as_markdown( 
+                    reveal_internals = False )
+                output = '\n'.join( lines )
         print( output, file = stream )
 
 
@@ -340,11 +345,6 @@ class Cli( __.immut.DataclassObject, decorators = ( __.simple_tyro_class, ) ):
         __.typx.Annotated[
             QueryContentCommand,
             __.tyro.conf.subcommand( 'query-content', prefix_name = False ),
-        ],
-        __.typx.Annotated[
-            SummarizeInventoryCommand,
-            __.tyro.conf.subcommand(
-                'summarize-inventory', prefix_name = False ),
         ],
         __.typx.Annotated[
             SurveyProcessorsCommand,
@@ -402,176 +402,12 @@ def execute( ) -> None:
             raise SystemExit( 1 ) from None
 
 
-def _extract_object_name_and_role( obj: __.typx.Any ) -> tuple[ str, str ]:
-    ''' Extracts name and role from object, with safe fallbacks. '''
-    if not hasattr( obj, 'get' ):
-        return 'Unknown', 'unknown'
-    try:
-        name = getattr( obj, 'get' )( 'name', 'Unknown' )
-    except ( AttributeError, TypeError ):
-        name = 'Unknown'
-    try:
-        role = getattr( obj, 'get' )( 'role', 'unknown' )
-    except ( AttributeError, TypeError ):
-        role = 'unknown'
-    if not isinstance( name, str ):
-        name = str( name ) if name is not None else 'Unknown'
-    if not isinstance( role, str ):
-        role = str( role ) if role is not None else 'unknown'
-    return name, role
 
 
-def _format_as_markdown( result: __.cabc.Mapping[ str, __.typx.Any ] ) -> str:
-    ''' Converts structured data to Markdown format. '''
-    if 'project' in result and 'version' in result and 'objects' in result:
-        return _format_inventory_summary_markdown( result )
-    if 'documents' in result and 'search_metadata' in result:
-        return _format_query_result_markdown( result )
-    if 'source' in result and 'detections' in result:
-        return _format_detect_result_markdown( result )
-    return __.json.dumps( result, indent = 2 )
 
 
-def _format_detect_result_markdown(
-    result: __.cabc.Mapping[ str, __.typx.Any ]
-) -> str:
-    ''' Formats detection results as Markdown. '''
-    source = result.get( 'source', 'Unknown' )
-    optimal = result.get( 'detection_optimal' )
-    time_ms = result.get( 'time_detection_ms', 0 )
-    lines = [
-        "# Detection Results",
-        f"**Source:** {source}",
-        f"**Detection Time:** {time_ms}ms",
-    ]
-    if optimal:
-        processor = optimal.get( 'processor', {} )
-        confidence = optimal.get( 'confidence', 0 )
-        lines.extend([
-            "\n## Optimal Processor",
-            f"- **Name:** {processor.get('name', 'Unknown')}",
-            f"- **Confidence:** {confidence:.1%}",
-        ])
-    return '\n'.join( lines )
 
 
-def _format_grouped_objects( 
-    objects_value: __.cabc.Mapping[ str, __.typx.Any ] 
-) -> list[ str ]:
-    ''' Formats objects grouped by categories. '''
-    lines: list[ str ] = [ "\n## Breakdown by Groups" ]
-    for group_name, group_objects in objects_value.items( ):
-        if hasattr( group_objects, '__len__' ):
-            object_count = len( group_objects )
-            lines.append( f"- **{group_name}:** {object_count} objects" )
-    return lines
-
-
-def _format_inventory_summary_markdown(
-    result: __.cabc.Mapping[ str, __.typx.Any ]
-) -> str:
-    ''' Formats inventory summary as Markdown. '''
-    lines = [
-        f"# {result[ 'project' ]}",
-        f"**Version:** {result[ 'version' ]}",
-        f"**Objects:** {result[ 'objects_count' ]}",
-    ]
-    objects_value = result.get( 'objects' )
-    if objects_value:
-        if isinstance( objects_value, dict ):
-            grouped_objects = __.typx.cast(
-                __.cabc.Mapping[ str, __.typx.Any ], objects_value )
-            lines.extend( _format_grouped_objects( grouped_objects ) )
-        else:
-            lines.extend( _format_object_list( objects_value ) )
-    return '\n'.join( lines )
-
-
-def _format_object_list( objects_value: __.typx.Any ) -> list[ str ]:
-    ''' Formats a flat list of objects. '''
-    lines: list[ str ] = [ ]
-    if not hasattr( objects_value, '__len__' ): return lines
-    objects_count = len( objects_value )
-    lines.append( f"\n## Objects ({objects_count})" )
-    if ( hasattr( objects_value, '__getitem__' )
-         and hasattr( objects_value, '__iter__' ) ):
-        subset_limit = _MARKDOWN_OBJECT_LIMIT
-        objects_subset = (
-            objects_value[ :subset_limit ]
-            if objects_count > subset_limit else objects_value )
-        for obj in objects_subset:
-            name, role = _extract_object_name_and_role( obj )
-            lines.append( f"- `{name}` ({role})" )
-        if objects_count > _MARKDOWN_OBJECT_LIMIT:
-            remaining = objects_count - _MARKDOWN_OBJECT_LIMIT
-            lines.append( f"- ... and {remaining} more" )
-    return lines
-
-
-def _truncate_query_content(
-    result: __.cabc.Mapping[ str, __.typx.Any ],
-    lines_max: int,
-) -> __.cabc.Mapping[ str, __.typx.Any ]:
-    ''' Truncates content in query results to specified line limit. '''
-    truncated_docs: list[ __.cabc.Mapping[ str, __.typx.Any ] ] = []
-    for doc in result[ 'documents' ]:
-        truncated_doc = dict( doc )
-        if 'description' in truncated_doc:
-            lines = truncated_doc[ 'description' ].split( '\n' )
-            if len( lines ) > lines_max:
-                truncated_lines = lines[ :lines_max ]
-                truncated_lines.append( '...' )
-                truncated_doc[ 'description' ] = '\n'.join( truncated_lines )
-        truncated_docs.append( truncated_doc )
-    result = dict( result )
-    result[ 'documents' ] = truncated_docs
-    return result
-
-
-def _format_output(
-    result: __.cabc.Mapping[ str, __.typx.Any ],
-    display_format: _interfaces.DisplayFormat,
-) -> str:
-    ''' Formats command output according to display format. '''
-    if display_format == _interfaces.DisplayFormat.JSON:
-        # Serialize frigid objects to JSON-compatible format
-        serialized_result = _functions.serialize_for_json( result )
-        return __.json.dumps( serialized_result, indent = 2 )
-    if display_format == _interfaces.DisplayFormat.Markdown:
-        return _format_as_markdown( result )
-    raise ValueError
-
-
-def _format_query_result_markdown(
-    result: __.cabc.Mapping[ str, __.typx.Any ]
-) -> str:
-    ''' Formats query results as Markdown. '''
-    project = result.get( 'project', 'Unknown' )
-    query = result.get( 'query', 'Unknown' )
-    documents = result.get( 'documents', [] )
-    metadata = result.get( 'search_metadata', {} )
-    lines = [
-        f"# Query Results: {query}",
-        f"**Project:** {project}",
-        f"**Results:** {metadata.get('results_count', 0)}/"
-        f"{metadata.get('matches_total', 0)}",
-    ]
-    if documents:
-        lines.append( "\n## Documents" )
-        for index, doc in enumerate( documents, 1 ):
-            # Add separator before each result
-            separator = "\n\n🔍 ── Result {} ─────────────────────── 🔍\n"
-            lines.append( separator.format( index ) )
-            name = doc.get( 'name', 'Unknown' )
-            role = doc.get( 'role', 'unknown' )
-            lines.append( f"### `{name}`" )
-            lines.append( f"- **Type:** {role}" )
-            if 'domain' in doc:
-                lines.append( f"- **Domain:** {doc['domain']}" )
-            if 'description' in doc:
-                lines.append( f"- **Content:** {doc['description']}" )
-            lines.append( "" )
-    return '\n'.join( lines )
 
 
 def _format_cli_exception( exc: Exception ) -> str:  # noqa: PLR0911

@@ -219,6 +219,8 @@ class ProcessorInvalidity( Omnierror, TypeError ):
         super( ).__init__( message )
 
 
+
+
 class StructureIncompatibility( Omnierror, ValueError ):
     ''' Documentation structure incompatible with processor. '''
 

@@ -1,0 +1,1 @@
+Add MkDocs inventory processor to support pure MkDocs sites using ``search_index.json`` files.

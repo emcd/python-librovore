@@ -147,21 +147,21 @@ _GENERIC_PATTERN = __.immut.Dictionary( {
 async def extract_contents(
     auxdata: __.ApplicationGlobals,
     source: str,
-    objects: __.cabc.Sequence[ __.cabc.Mapping[ str, __.typx.Any ] ], /, *,
+    objects: __.cabc.Sequence[ __.InventoryObject ], /, *,
     theme: __.Absential[ str ] = __.absent,
     include_snippets: bool = True,
-) -> list[ dict[ str, __.typx.Any ] ]:
+) -> list[ __.ContentDocument ]:
     ''' Extracts documentation content for specified objects from MkDocs. '''
     base_url = __.normalize_base_url( source )
     if not objects: return [ ]
     tasks = [
         _extract_object_documentation(
-            auxdata, base_url, dict( obj ), include_snippets, theme )
+            auxdata, base_url, obj, include_snippets, theme )
         for obj in objects ]
     candidate_results = await __.asyncf.gather_async(
         *tasks, return_exceptions = True )
-    results: list[ dict[ str, __.typx.Any ] ] = [
-        dict( result.value ) for result in candidate_results
+    results: list[ __.ContentDocument ] = [
+        result.value for result in candidate_results
         if __.generics.is_value( result ) and result.value is not None ]
     return results
 
@@ -259,13 +259,13 @@ def _extract_description(
 async def _extract_object_documentation(
     auxdata: __.ApplicationGlobals,
     base_url: __.typx.Any,
-    obj: dict[ str, __.typx.Any ],
+    obj: __.InventoryObject,
     include_snippets: bool,
     theme: __.Absential[ str ] = __.absent
-) -> dict[ str, __.typx.Any ] | None:
+) -> __.ContentDocument | None:
     ''' Extracts documentation for a single object from MkDocs site. '''
     doc_url = _derive_documentation_url(
-        base_url, obj[ 'uri' ], obj[ 'name' ] )
+        base_url, obj.uri, obj.name )
     try:
         html_content = (
             await __.retrieve_url_as_text(
@@ -274,7 +274,7 @@ async def _extract_object_documentation(
         __.acquire_scribe( __name__ ).debug(
             "Failed to retrieve %s: %s", doc_url, exc )
         return None
-    anchor = doc_url.fragment or str( obj[ 'name' ] )
+    anchor = doc_url.fragment or str( obj.name )
     try:
         parsed_content = parse_mkdocs_html(
             html_content, anchor, str( doc_url ), theme = theme )
@@ -287,38 +287,19 @@ async def _extract_object_documentation(
             if len( description ) > snippet_max_length
             else description )
     else: content_snippet = ''
-    return {
-        'object_name': obj[ 'name' ],
-        'object_type': obj[ 'role' ],
-        'domain': obj[ 'domain' ],
-        'priority': obj[ 'priority' ],
-        'url': doc_url.geturl( ),
-        'signature': parsed_content[ 'signature' ],
-        'description': description,
-        'content_snippet': content_snippet,
-        'relevance_score': 1.0,
-        'match_reasons': [ 'direct extraction' ],
-    }
-
-
-def _extract_paragraphs_from_doc_contents(
-    doc_contents: __.typx.Any
-) -> list[ str ]:
-    ''' Legacy function - now unused after markdownify migration. '''
-    # This function is kept for backward compatibility but is no longer used
-    # since we now extract the full doc-contents HTML in _extract_description
-    descriptions: list[ str ] = [ ]
-    for child in doc_contents.children:
-        if hasattr( child, 'name' ):
-            if (
-                child.name == 'div' and
-                'admonition' in child.get( 'class', [ ] )
-            ): continue
-            if child.name == 'p':
-                html_content = str( child )
-                if html_content and html_content not in descriptions:
-                    descriptions.append( html_content )
-    return descriptions
+    return __.ContentDocument(
+        inventory_object = obj,
+        signature = parsed_content[ 'signature' ],
+        description = description,
+        content_snippet = content_snippet,
+        documentation_url = doc_url.geturl( ),
+        extraction_metadata = __.immut.Dictionary( {
+            'theme': theme if not __.is_absent( theme ) else 'unknown',
+            'extraction_method': 'mkdocs_html_parsing',
+            'relevance_score': 1.0,
+            'match_reasons': [ 'direct extraction' ],
+        } )
+    )
 
 
 def _extract_signature(

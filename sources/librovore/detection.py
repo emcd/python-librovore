@@ -104,20 +104,11 @@ class DetectionsCache( __.immut.DataclassObject ):
         self._entries.clear( )
         return self
 
-    def remove_entry(
-        self, source: str
-    ) -> __.Absential[ _processors.DetectionsByProcessor ]:
-        ''' Removes specific source from cache, if present. '''
-        entry = self._entries.pop( source, None )
-        if entry: return entry.detections
-        return __.absent
-
 
 
 _inventory_detections_cache = DetectionsCache( )
 _structure_detections_cache = DetectionsCache( )
 
-# Universal URL redirects cache: original_url → working_url
 _url_redirects_cache: dict[ str, str ] = { }
 
 
@@ -164,7 +155,7 @@ async def access_detections_ll(
     '''
     detections = cache.access_detections( source )
     if __.is_absent( detections ):
-        await _execute_processors_with_patterns_and_cache(
+        await _execute_processors_and_cache(
             auxdata, source, cache, processors )
         detections = cache.access_detections( source )
         if __.is_absent( detections ):
@@ -275,7 +266,8 @@ async def _execute_processors_with_patterns(
            for detection in results.values( ) ):
         return results
     base_url = _urls.normalize_base_url( source )
-    working_url = await _urlpatterns.probe_url_patterns( auxdata, base_url )
+    working_url = await _urlpatterns.probe_url_patterns( 
+        auxdata, base_url, '/objects.inv' )
     if not __.is_absent( working_url ):
         working_source = working_url.geturl( )
         pattern_results = await _execute_processors(
@@ -293,33 +285,10 @@ async def _execute_processors_and_cache(
     cache: DetectionsCache,
     processors: __.cabc.Mapping[ str, _processors.Processor ],
 ) -> None:
-    ''' Executes all processors and caches results. '''
-    detections = await _execute_processors( auxdata, source, processors )
-    cache.add_entry( source, detections )
-
-
-async def _execute_processors_with_patterns_and_cache(
-    auxdata: _state.Globals,
-    source: str,
-    cache: DetectionsCache,
-    processors: __.cabc.Mapping[ str, _processors.Processor ],
-) -> None:
     ''' Executes processors with URL pattern extension and caches. '''
     detections = await _execute_processors_with_patterns(
         auxdata, source, processors )
     cache.add_entry( source, detections )
-
-
-async def probe_source_with_patterns(
-    auxdata: _state.Globals,
-    source: str
-) -> __.Absential[ str ]:
-    ''' Probes source with URL pattern extension. '''
-    base_url = _urls.normalize_base_url( source )
-    working_url = await _urlpatterns.probe_url_patterns( auxdata, base_url )
-    if not __.is_absent( working_url ):
-        return working_url.geturl( )
-    return __.absent
 
 
 def _select_detection_optimal(

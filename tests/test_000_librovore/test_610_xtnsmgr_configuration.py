@@ -21,8 +21,6 @@
 ''' Extension configuration parsing and validation tests. '''
 
 
-from unittest.mock import Mock
-
 import pytest
 
 import librovore.exceptions as _exceptions
@@ -160,80 +158,6 @@ def test_100_validate_extension_minimal_config( ):
     module.validate_extension( config )
 
 
-def test_200_extract_extensions_valid_list( ):
-    ''' Valid extension list extracts correctly. '''
-    mock_globals = Mock( )
-    mock_globals.configuration = {
-        'extensions': [
-            {
-                'name': 'sphinx.domains.python',
-                'enabled': True,
-                'arguments': { 'option1': 'value1' }
-            },
-            {
-                'name': 'custom.processor',
-                'package': 'file:///path/to/external',
-                'enabled': False,
-                'arguments': { }
-            }
-        ]
-    }
-    result = module.extract_extensions( mock_globals )
-    assert len( result ) == 2
-    assert result[ 0 ][ 'name' ] == 'sphinx.domains.python'
-    assert result[ 1 ][ 'name' ] == 'custom.processor'
-
-
-def test_210_extract_extensions_no_configuration( ):
-    ''' No configuration returns empty tuple. '''
-    mock_globals = Mock( )
-    mock_globals.configuration = None
-    result = module.extract_extensions( mock_globals )
-    assert result == ( )
-
-
-def test_220_extract_extensions_no_extensions_field( ):
-    ''' Missing extensions field returns empty tuple. '''
-    mock_globals = Mock( )
-    mock_globals.configuration = { }
-    result = module.extract_extensions( mock_globals )
-    assert result == ( )
-
-
-def test_230_extract_extensions_non_list_extensions( ):
-    ''' Non-list extensions field raises ExtensionConfigError. '''
-    mock_globals = Mock( )
-    mock_globals.configuration = { 'extensions': 'not_a_list' }
-    with pytest.raises(
-        _exceptions.ExtensionConfigurationInvalidity,
-        match = "must be a list"
-    ): module.extract_extensions( mock_globals )
-
-
-def test_240_extract_extensions_non_dict_extension( ):
-    ''' Non-dict extension in list raises ExtensionConfigError. '''
-    mock_globals = Mock( )
-    mock_globals.configuration = {
-        'extensions': [ 'not_a_dict' ]
-    }
-    with pytest.raises(
-        _exceptions.ExtensionConfigurationInvalidity,
-        match = "must be dict"
-    ): module.extract_extensions( mock_globals )
-
-
-def test_250_extract_extensions_invalid_extension( ):
-    ''' Invalid extension config raises ExtensionConfigError. '''
-    mock_globals = Mock( )
-    mock_globals.configuration = {
-        'extensions': [
-            { 'enabled': True }  # Missing name
-        ]
-    }
-    with pytest.raises(
-        _exceptions.ExtensionConfigurationInvalidity,
-        match = "Required field 'name'"
-    ): module.extract_extensions( mock_globals )
 
 
 def test_300_select_active_extensions( ):
@@ -262,16 +186,6 @@ def test_310_select_intrinsic_extensions( ):
     assert result[ 1 ][ 'name' ] == 'ext3'
 
 
-def test_320_select_external_extensions( ):
-    ''' External extension filtering includes only external extensions. '''
-    extensions = [
-        { 'name': 'ext1' },  # No package field
-        { 'name': 'ext2', 'package': 'file:///path' },
-        { 'name': 'ext3', 'package': None }  # Explicit None
-    ]
-    result = module.select_external_extensions( extensions )
-    assert len( result ) == 1
-    assert result[ 0 ][ 'name' ] == 'ext2'
 
 
 def test_400_extract_extension_arguments( ):

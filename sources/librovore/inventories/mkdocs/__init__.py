@@ -18,38 +18,16 @@
 #============================================================================#
 
 
-''' Extension manager with async package installation. '''
+''' MkDocs inventory processor. '''
 
 
-from .installation import (
-    install_package,
-)
-from .importation import (
-    add_package_to_import_path,
-    import_processor_module,
-    get_module_info,
-    list_registered_processors,
-    process_pth_files,
-)
-from .cachemgr import (
-    CacheInfo,
-    calculate_cache_path,
-    calculate_platform_id,
-    cleanup_expired_caches,
-    clear_package_cache,
-    acquire_cache_info,
-    ensure_package,
-    invalidate,
-    save_cache_info,
-)
-from .configuration import (
-    ExtensionArguments,
-    ExtensionConfig,
-    select_intrinsic_extensions,
-    select_active_extensions,
-    extract_extension_arguments,
-    extract_inventory_extensions,
-    extract_structure_extensions,
-    validate_extension,
-)
-from .processors import *
+from .main import MkDocsInventoryProcessor
+from . import __
+
+
+def register( 
+    arguments: __.cabc.Mapping[ str, __.typx.Any ] 
+) -> None:
+    ''' Registers MkDocs inventory processor. '''
+    processor = MkDocsInventoryProcessor( )
+    __.inventory_processors[ 'mkdocs' ] = processor

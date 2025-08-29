@@ -152,12 +152,6 @@ Search content with fuzzy matching:
 
     librovore query-content https://fastapi.tiangolo.com "dependency injection"
 
-Get inventory summary:
-
-::
-
-    librovore summarize-inventory https://docs.pydantic.dev
-
 MCP Server for AI Agents
 -------------------------------------------------------------------------------
 
@@ -209,7 +203,7 @@ For development guidance and standards, please see the `development guide
 <https://emcd.github.io/python-librovore/stable/sphinx-html/contribution.html#development>`_.
 
 
-`More Flair <https://www.imdb.com/title/tt0151804/characters/nm0431918>`_
+Additional Indicia
 ===============================================================================
 
 .. image:: https://img.shields.io/github/last-commit/emcd/python-librovore

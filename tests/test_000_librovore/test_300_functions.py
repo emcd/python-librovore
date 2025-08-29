@@ -25,8 +25,8 @@ from unittest.mock import Mock
 
 import pytest
 
-import librovore.exceptions as _exceptions
-import librovore.functions as module
+# import librovore.exceptions as _exceptions
+# import librovore.functions as module
 
 
 @pytest.fixture
@@ -58,8 +58,8 @@ def mock_auxdata( ):
 #         filters = filters,
 #         details = module._interfaces.InventoryQueryDetails.Name )
 #     assert 'search_metadata' in result
-# 
-# 
+#
+#
 # @pytest.mark.asyncio
 # async def test_120_explore_with_role_filter( mock_auxdata ):
 #     ''' Explore function applies role filtering correctly. '''
@@ -72,8 +72,8 @@ def mock_auxdata( ):
 #         filters = filters,
 #         details = module._interfaces.InventoryQueryDetails.Name )
 #     assert 'search_metadata' in result
-# 
-# 
+#
+#
 # @pytest.mark.asyncio
 # async def test_130_explore_with_search_query( mock_auxdata ):
 #     ''' Explore function applies search filtering correctly. '''
@@ -83,8 +83,8 @@ def mock_auxdata( ):
 #         details = module._interfaces.InventoryQueryDetails.Name )
 #     assert 'search_metadata' in result
 #     assert result[ 'query' ] == 'test'
-# 
-# 
+#
+#
 # @pytest.mark.asyncio
 # async def test_140_explore_with_all_filters( mock_auxdata ):
 #     ''' Explore function applies multiple filters correctly. '''
@@ -98,8 +98,8 @@ def mock_auxdata( ):
 #         details = module._interfaces.InventoryQueryDetails.Name )
 #     assert 'search_metadata' in result
 #     assert result[ 'query' ] == 'test'
-# 
-# 
+#
+#
 # @pytest.mark.asyncio
 # async def test_150_explore_nonexistent_file( mock_auxdata ):
 #     ''' Explore function raises appropriate exception for missing files. '''
@@ -107,8 +107,8 @@ def mock_auxdata( ):
 #         await module.query_inventory(
 #             mock_auxdata, "/nonexistent/path.inv", "",
 #             details = module._interfaces.InventoryQueryDetails.Name )
-# 
-# 
+#
+#
 # @pytest.mark.asyncio
 # async def test_160_explore_auto_append_objects_inv( mock_auxdata ):
 #     ''' Explore function auto-appends objects.inv to URLs/paths. '''
@@ -119,89 +119,9 @@ def mock_auxdata( ):
 #         details = module._interfaces.InventoryQueryDetails.Name )
 #     assert 'project' in result
 #     assert 'documents' in result
-# 
-# 
+#
+#
 # @pytest.mark.asyncio
-# async def test_200_summarize_inventory_basic( mock_auxdata ):
-#     ''' Summarize inventory provides structured summary data. '''
-#     inventory_path = get_test_inventory_path( 'librovore' )
-#     result = await module.summarize_inventory( mock_auxdata, inventory_path )
-#     assert 'objects' in result
-#     assert 'project' in result
-#     assert 'version' in result
-#     assert 'objects_count' in result
-# 
-# 
-# @pytest.mark.asyncio
-# async def test_210_summarize_inventory_with_filters( mock_auxdata ):
-#     ''' Summarize inventory works correctly when filters are provided. '''
-#     inventory_path = get_test_inventory_path( 'librovore' )
-#     search_behaviors = _interfaces.SearchBehaviors( )
-#     filters = { 'domain': 'py' }
-#     result = await module.summarize_inventory(
-#         mock_auxdata, inventory_path,
-#         search_behaviors = search_behaviors,
-#         filters = filters )
-#     assert 'objects' in result
-#     assert 'project' in result
-# 
-# 
-# @pytest.mark.asyncio
-# async def test_215_summarize_inventory_with_regex( mock_auxdata ):
-#     ''' Summarize inventory works correctly with regex search behaviors. '''
-#     inventory_path = get_test_inventory_path( 'sphobjinv' )
-#     search_behaviors = _interfaces.SearchBehaviors(
-#         match_mode = _interfaces.MatchMode.Regex )
-#     result = await module.summarize_inventory(
-#         mock_auxdata, inventory_path, '.*inventory.*',
-#         search_behaviors = search_behaviors )
-#     assert 'objects' in result
-#     assert 'project' in result
-# 
-# 
-# @pytest.mark.asyncio
-# async def test_250_summarize_inventory_with_fuzzy( mock_auxdata ):
-#     ''' Summarize inventory works correctly with fuzzy search behaviors. '''
-#     inventory_path = get_test_inventory_path( 'sphobjinv' )
-#     search_behaviors = _interfaces.SearchBehaviors(
-#         match_mode = _interfaces.MatchMode.Fuzzy, fuzzy_threshold = 70 )
-#     result = await module.summarize_inventory(
-#         mock_auxdata, inventory_path, 'inventory',
-#         search_behaviors = search_behaviors )
-#     assert 'objects' in result
-#     assert 'project' in result
-# 
-# 
-# @pytest.mark.asyncio
-# async def test_260_match_mode_enum_values( ):
-#     ''' MatchMode enum has correct string values. '''
-#     assert _interfaces.MatchMode.Exact.value == 'exact'
-#     assert _interfaces.MatchMode.Regex.value == 'regex'
-#     assert _interfaces.MatchMode.Fuzzy.value == 'fuzzy'
-# 
-# 
-# @pytest.mark.asyncio
-# async def test_270_summarize_inventory_nonexistent_file( mock_auxdata ):
-#     ''' Summarize inventory raises exception for missing files. '''
-#     with pytest.raises( _exceptions.ProcessorInavailability ):
-#         await module.summarize_inventory(
-#             mock_auxdata, "/nonexistent/path.inv" )
-# 
-# 
-# @pytest.mark.asyncio
-# async def test_430_summarize_inventory_with_priority( mock_auxdata ):
-#     ''' Summarize inventory works correctly with priority filters. '''
-#     inventory_path = get_test_inventory_path( 'sphobjinv' )
-#     search_behaviors = _interfaces.SearchBehaviors( )
-#     filters = { 'priority': '1' }
-#     result = await module.summarize_inventory(
-#         mock_auxdata, inventory_path,
-#         search_behaviors = search_behaviors,
-#         filters = filters )
-#     assert 'objects' in result
-#     assert 'project' in result
-# 
-# 
 # @pytest.mark.asyncio
 # async def test_500_query_documentation_basic( mock_auxdata ):
 #     ''' Query documentation returns relevant results for basic queries. '''
@@ -219,18 +139,18 @@ def mock_auxdata( ):
 #         assert 'url' in document
 #         assert 'signature' in document
 #         assert 'description' in document
-# 
-# 
-# 
-# 
+#
+#
+#
+#
 # @pytest.mark.asyncio
 # async def test_640_query_documentation_nonexistent_file( mock_auxdata ):
 #     ''' Query documentation handles nonexistent files gracefully. '''
 #     with pytest.raises( _exceptions.ProcessorInavailability ):
 #         await module.query_content(
 #             mock_auxdata, '/nonexistent/path.inv', 'inventory' )
-# 
-# 
+#
+#
 # @pytest.mark.asyncio
 # async def test_700_explore_with_object_not_found( mock_auxdata ):
 #     ''' Explore function handles object not found gracefully. '''
@@ -242,90 +162,4 @@ def mock_auxdata( ):
 #     # When no objects are found, documents should be empty
 #     assert len( result[ 'documents' ] ) == 0
 #     assert result[ 'search_metadata' ][ 'objects_count' ] == 0
-# 
-# 
-def test_800_validate_extraction_results_no_objects( ):
-    ''' Validation passes when no objects are requested. '''
-    results = [ ]
-    requested_objects = [ ]
-    # Should not raise any exception
-    module._validate_extraction_results(
-        results, requested_objects, 'test_processor', 'test_source' )
-
-
-def test_801_validate_extraction_results_no_content( ):
-    ''' Validation raises StructureIncompatibility when no content. '''
-    results = [ ]
-    requested_objects = [ { 'name': 'test_obj' } ]
-    with pytest.raises( _exceptions.StructureIncompatibility ) as exc_info:
-        module._validate_extraction_results(
-            results, requested_objects, 'test_processor', 'test_source' )
-    assert exc_info.value.processor_name == 'test_processor'
-    assert exc_info.value.source == 'test_source'
-
-
-def test_802_validate_extraction_results_meaningful_content( ):
-    ''' Validation passes when meaningful content is extracted. '''
-    results = [
-        { 'signature': 'def example()', 'description': 'Example function' },
-        { 'signature': 'class TestClass', 'description': 'Test class' },
-    ]
-    requested_objects = [
-        { 'name': 'example' },
-        { 'name': 'TestClass' },
-    ]
-    # Should not raise any exception
-    module._validate_extraction_results(
-        results, requested_objects, 'test_processor', 'test_source' )
-
-
-def test_803_validate_extraction_results_low_success_rate( ):
-    ''' Validation raises ContentExtractFailure when success rate too low. '''
-    results = [
-        { 'signature': '', 'description': '' },  # Empty content
-        { 'signature': '', 'description': '' },  # Empty content
-        { 'signature': 'def good()', 'description': 'Good function' },
-    ]
-    requested_objects = [
-        { 'name': 'bad1' },
-        { 'name': 'bad2' },
-        { 'name': 'good' },
-        { 'name': 'bad3' },
-        { 'name': 'bad4' },
-        { 'name': 'bad5' },
-        { 'name': 'bad6' },
-        { 'name': 'bad7' },
-        { 'name': 'bad8' },
-        { 'name': 'bad9' },
-        { 'name': 'bad10' },  # 11 total objects, 1 meaningful = 9% < 10%
-    ]
-    with pytest.raises( _exceptions.ContentExtractFailure ) as exc_info:
-        module._validate_extraction_results(
-            results, requested_objects, 'test_processor', 'test_source' )
-    assert exc_info.value.processor_name == 'test_processor'
-    assert exc_info.value.source == 'test_source'
-    assert exc_info.value.meaningful_results == 1
-    assert exc_info.value.requested_objects == 11
-
-
-def test_804_validate_extraction_results_edge_case_success_rate( ):
-    ''' Validation passes when success rate exactly meets threshold. '''
-    results = [
-        { 'signature': 'def good()', 'description': '' },  # Meaningful
-    ]
-    requested_objects = [
-        { 'name': 'good' },
-        { 'name': 'bad1' },
-        { 'name': 'bad2' },
-        { 'name': 'bad3' },
-        { 'name': 'bad4' },
-        { 'name': 'bad5' },
-        { 'name': 'bad6' },
-        { 'name': 'bad7' },
-        { 'name': 'bad8' },
-        { 'name': 'bad9' },  # 10 total objects, 1 meaningful = 10% = threshold
-    ]
-    # Should not raise any exception
-    module._validate_extraction_results(
-        results, requested_objects, 'test_processor', 'test_source' )
-
+#

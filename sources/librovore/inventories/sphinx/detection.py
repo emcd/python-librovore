@@ -50,10 +50,11 @@ class SphinxInventoryDetection( __.InventoryDetection ):
         filters: __.cabc.Mapping[ str, __.typx.Any ],
         details: __.InventoryQueryDetails = (
             __.InventoryQueryDetails.Documentation ),
-    ) -> list[ dict[ str, __.typx.Any ] ]:
+    ) -> tuple[ __.InventoryObject, ... ]:
         ''' Filters inventory objects from Sphinx source. '''
-        return await filter_inventory(
+        objects = await filter_inventory(
             source, filters = filters, details = details )
+        return tuple( objects )
 
 
 def derive_inventory_url( base_url: _Url ) -> _Url:
@@ -87,37 +88,83 @@ async def filter_inventory(
     filters: __.cabc.Mapping[ str, __.typx.Any ],
     details: __.InventoryQueryDetails = (
         __.InventoryQueryDetails.Documentation ),
-) -> list[ dict[ str, __.typx.Any ] ]:
+) -> tuple[ __.InventoryObject, ... ]:
     ''' Extracts and filters inventory objects by structural criteria only. '''
     domain = filters.get( 'domain', '' ) or __.absent
     role = filters.get( 'role', '' ) or __.absent
     priority = filters.get( 'priority', '' ) or __.absent
     base_url = __.normalize_base_url( source )
     inventory = extract_inventory( base_url )
-    all_objects: list[ dict[ str, __.typx.Any ] ] = [ ]
+    all_objects: list[ __.InventoryObject ] = [ ]
     for objct in inventory.objects:
         if not __.is_absent( domain ) and objct.domain != domain: continue
         if not __.is_absent( role ) and objct.role != role: continue
         if not __.is_absent( priority ) and objct.priority != priority:
             continue
-        obj = dict( format_inventory_object( objct ) )
-        obj[ '_inventory_project' ] = inventory.project
-        obj[ '_inventory_version' ] = inventory.version
+        obj = format_inventory_object( 
+            objct, inventory, source )
         all_objects.append( obj )
-    return all_objects
+    return tuple( all_objects )
+
+
+class SphinxInventoryObject( __.InventoryObject ):
+    ''' Sphinx-specific inventory object with domain-aware formatting. '''
+    
+    def render_specifics_markdown(
+        self, /, *,
+        reveal_internals: bool = True,
+    ) -> tuple[ str, ... ]:
+        ''' Renders Sphinx specifics with domain and role information. '''
+        lines: list[ str ] = [ ]
+        role = self.specifics.get( 'role' )
+        if role:
+            lines.append( f"- **Type:** {role}" )
+        domain = self.specifics.get( 'domain' )
+        if domain:
+            lines.append( f"- **Domain:** {domain}" )
+        if reveal_internals:
+            priority = self.specifics.get( 'priority' )
+            if priority is not None:
+                lines.append( f"- **Priority:** {priority}" )
+            project = self.specifics.get( 'inventory_project' )
+            if project:
+                lines.append( f"- **Project:** {project}" )
+            version = self.specifics.get( 'inventory_version' )
+            if version:
+                lines.append( f"- **Version:** {version}" )
+        return tuple( lines )
+    
+    def render_specifics_json(
+        self
+    ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders Sphinx specifics with structured format information. '''
+        return __.immut.Dictionary(
+            role = self.specifics.get( 'role' ),
+            domain = self.specifics.get( 'domain' ),
+            priority = self.specifics.get( 'priority' ),
+            inventory_project = self.specifics.get( 'inventory_project' ),
+            inventory_version = self.specifics.get( 'inventory_version' ),
+        )
 
 
 def format_inventory_object(
     objct: __.typx.Any,
-) -> __.cabc.Mapping[ str, __.typx.Any ]:
-    ''' Formats an inventory object for output. '''
-    return {
-        'name': objct.name,
-        'domain': objct.domain,
-        'role': objct.role,
-        'priority': objct.priority,
-        'uri': objct.uri,
-        'dispname': (
-            objct.dispname if objct.dispname != '-' else objct.name
-        ),
-    }
+    inventory: __.typx.Any,
+    location_url: str,
+) -> SphinxInventoryObject:
+    ''' Formats Sphinx inventory object with complete attribution. '''
+    return SphinxInventoryObject(
+        name = objct.name,
+        uri = objct.uri,
+        inventory_type = 'sphinx_objects_inv',
+        location_url = location_url,
+        display_name = (
+            objct.dispname 
+            if objct.dispname != '-' 
+            else None ),
+        specifics = __.immut.Dictionary(
+            domain = objct.domain,
+            role = objct.role,
+            priority = objct.priority,
+            inventory_project = inventory.project,
+            inventory_version = inventory.version ) )

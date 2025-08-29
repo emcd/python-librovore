@@ -27,9 +27,9 @@ from mcp.server.fastmcp import FastMCP as _FastMCP
 from pydantic import Field as _Field
 
 from . import __
-from . import exceptions as _exceptions
 from . import functions as _functions
 from . import interfaces as _interfaces
+from . import results as _results
 from . import state as _state
 
 
@@ -86,64 +86,6 @@ async def serve(
         case _: raise ValueError
 
 
-def _exception_to_error_response( exc: Exception ) -> dict[ str, str ]:  # noqa: PLR0911
-    ''' Maps exceptions to structured error responses for MCP tools. '''
-    match exc:
-        case _exceptions.ProcessorInavailability( ):
-            return {
-                'error_type': 'ProcessorInavailability',
-                'message':
-                    'No processor found to handle this documentation source',
-                'details': f"Source: {exc.source}",
-                'suggestion': 'Verify the URL is a Sphinx documentation site'
-            }
-        case _exceptions.InventoryInaccessibility( ):
-            cause = exc.__cause__ or 'Unknown'
-            return {
-                'error_type': 'InventoryInaccessibility',
-                'message': 'Cannot access documentation inventory',
-                'details': f"Source: {exc.source}, Cause: {cause}",
-                'suggestion': 'Check URL accessibility and network connection'
-            }
-        case _exceptions.DocumentationContentAbsence( ):
-            return {
-                'error_type': 'DocumentationContentAbsence',
-                'message': 'Documentation page structure not recognized',
-                'details': f"URL: {exc.url}",
-                'suggestion': 'This may be an unsupported Sphinx theme'
-            }
-        case _exceptions.DocumentationObjectAbsence( ):
-            return {
-                'error_type': 'ObjectNotFoundError',
-                'message': 'Requested object not found in documentation page',
-                'details': f"Object: {exc.object_id}, URL: {exc.url}",
-                'suggestion': 'Verify the object name and try a broader search'
-            }
-        case _exceptions.InventoryInvalidity( ):
-            cause = exc.__cause__ or 'Unknown'
-            return {
-                'error_type': 'InventoryInvalidity',
-                'message': 'Documentation inventory has invalid format',
-                'details': f"Source: {exc.source}, Cause: {cause}",
-                'suggestion': 'The documentation site may be corrupted'
-            }
-        case _exceptions.DocumentationInaccessibility( ):
-            cause = exc.__cause__ or 'Unknown'
-            return {
-                'error_type': 'DocumentationInaccessibility',
-                'message': 'Documentation file or resource is inaccessible',
-                'details': f"URL: {exc.url}, Cause: {cause}",
-                'suggestion': 'Check URL accessibility and network connection'
-            }
-        case _:
-            return {
-                'error_type': 'UnknownError',
-                'message': 'An unexpected error occurred',
-                'details': f"Exception: {type( exc ).__name__}: {exc}",
-                'suggestion': 'Please report this issue if it persists'
-            }
-
-
 def _produce_detect_function( auxdata: _state.Globals ):
     async def detect(
         location: LocationArgument,
@@ -159,7 +101,10 @@ def _produce_detect_function( auxdata: _state.Globals ):
         nomargs: __.NominativeArguments = { }
         if processor_name is not None:
             nomargs[ 'processor_name' ] = processor_name
-        return await _functions.detect( auxdata, location, genus, **nomargs )
+        result = await _functions.detect( auxdata, location, genus, **nomargs )
+        if isinstance( result, _results.ErrorResponse ):
+            return _results.serialize_for_json( result )
+        return dict( result.render_as_json( ) )
 
     return detect
 
@@ -182,12 +127,13 @@ def _produce_query_content_function( auxdata: _state.Globals ):
         immutable_search_behaviors = (
             _to_immutable_search_behaviors( search_behaviors ) )
         immutable_filters = _to_immutable_filters( filters )
-        return await _functions.query_content(
+        result = await _functions.query_content(
             auxdata, location, term,
             search_behaviors = immutable_search_behaviors,
             filters = immutable_filters,
             include_snippets = include_snippets,
             results_max = results_max )
+        return _results.serialize_for_json( result )
 
     return query_content
 
@@ -213,40 +159,17 @@ def _produce_query_inventory_function( auxdata: _state.Globals ):
         immutable_search_behaviors = (
             _to_immutable_search_behaviors( search_behaviors ) )
         immutable_filters = _to_immutable_filters( filters )
-        return await _functions.query_inventory(
+        result = await _functions.query_inventory(
             auxdata, location, term,
             search_behaviors = immutable_search_behaviors,
             filters = immutable_filters,
             details = details,
             results_max = results_max )
+        return _results.serialize_for_json( result )
 
     return query_inventory
 
 
-def _produce_summarize_inventory_function( auxdata: _state.Globals ):
-    async def summarize_inventory(
-        location: LocationArgument,
-        search_behaviors: __.typx.Annotated[
-            SearchBehaviorsMutable,
-            _Field( description = "Search behavior configuration." ),
-        ] = _search_behaviors_default,
-        filters: __.typx.Annotated[
-            FiltersMutable,
-            _Field( description = "Processor-specific filters." ),
-        ] = _filters_default,
-        group_by: GroupByArgument = None,
-        term: TermArgument = '',
-    ) -> dict[ str, __.typx.Any ]:
-        immutable_search_behaviors = (
-            _to_immutable_search_behaviors( search_behaviors ) )
-        immutable_filters = _to_immutable_filters( filters )
-        return await _functions.summarize_inventory(
-            auxdata, location, term,
-            search_behaviors = immutable_search_behaviors,
-            filters = immutable_filters,
-            group_by = group_by )
-
-    return summarize_inventory
 
 
 def _produce_survey_processors_function( auxdata: _state.Globals ):
@@ -260,7 +183,8 @@ def _produce_survey_processors_function( auxdata: _state.Globals ):
             _Field( description = "Optional processor name to filter." )
         ] = None,
     ) -> dict[ str, __.typx.Any ]:
-        return await _functions.survey_processors( auxdata, genus, name )
+        result = await _functions.survey_processors( auxdata, genus, name )
+        return dict( result.render_as_json( ) )
 
     return survey_processors
 
@@ -272,7 +196,6 @@ def _register_server_functions(
     _scribe.debug( "Registering tools." )
     mcp.tool( )( _produce_query_inventory_function( auxdata ) )
     mcp.tool( )( _produce_query_content_function( auxdata ) )
-    mcp.tool( )( _produce_summarize_inventory_function( auxdata ) )
     if extra_functions:
         mcp.tool( )( _produce_detect_function( auxdata ) )
         mcp.tool( )( _produce_survey_processors_function( auxdata ) )

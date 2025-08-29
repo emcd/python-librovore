@@ -29,6 +29,11 @@ inventory and structure processors for documentation sources. The design
 implements confidence-based scoring with TTL-based caching to balance 
 performance with accuracy and data freshness.
 
+This document focuses on the orchestration layer that coordinates processor 
+selection across processor genera (inventory vs. structure processors), while 
+detailed processor-specific detection patterns are covered in the respective 
+processor architecture documents.
+
 Architecture
 ===============================================================================
 
@@ -71,6 +76,47 @@ Component Structure
   Abstract base classes in ``processors.py`` define detection contracts. 
   Format-specific implementations in ``inventories/`` and ``structures/`` 
   subpackages provide concrete detection logic.
+
+Processor Genera System
+===============================================================================
+
+ProcessorGenera Enumeration
+-------------------------------------------------------------------------------
+
+The system defines distinct processor genera that operate independently:
+
+.. code-block:: python
+
+    class ProcessorGenera( __.typx.Enum ):
+        ''' Enumeration of processor genera for detection orchestration. '''
+        
+        Inventory = 'inventory'     # Inventory object extraction processors
+        Structure = 'structure'     # Content extraction processors
+
+**Inventory Processors**: Extract object inventories from documentation sources, 
+providing discovery and search capabilities across different documentation formats.
+Detailed architecture covered in ``inventory-processors.rst``.
+
+**Structure Processors**: Extract content from documentation pages, transforming 
+HTML into structured documents for search and analysis. Detailed architecture 
+covered in ``structure-processors.rst``.
+
+Genus-Specific Detection Pipelines
+-------------------------------------------------------------------------------
+
+Each processor genus maintains independent detection infrastructure:
+
+**Separate Cache Instances**: Each genus has dedicated cache management with 
+genus-appropriate TTL values and eviction strategies.
+
+**Independent Processor Registries**: Processor registration and discovery 
+operates independently per genus, enabling different processor lifecycle management.
+
+**Genus-Specific Selection Logic**: Processor selection algorithms can differ 
+between genera based on their operational characteristics and requirements.
+
+**Separate Error Handling**: Each genus implements error handling appropriate 
+to its operational context and failure modes.
 
 Interface Specifications
 ===============================================================================
@@ -257,153 +303,144 @@ Cache Strategy Extension
 Error Handling Design
 ===============================================================================
 
+Structured Error Response System
+-------------------------------------------------------------------------------
+
+The system implements a structured error response pattern where the functions layer
+handles all processor detection exceptions and returns user-friendly structured
+responses. This design eliminates error interpretation at interface layers while
+providing consistent, actionable error messaging.
+
+**Response Structure:**
+
+.. code-block:: python
+
+    ErrorResponse: __.typx.TypeAlias = __.immut.Dictionary[ str, __.typx.Any ]
+    
+    def _produce_inventory_error_response( 
+        source: str, 
+        attempted_patterns: __.Absential[ __.cabc.Sequence[ str ] ] = __.absent 
+    ) -> ErrorResponse
+    
+    def _produce_structure_error_response( source: str ) -> ErrorResponse
+    
+    def _produce_generic_error_response( 
+        source: str, genus: str 
+    ) -> ErrorResponse
+
+**Error Response Content:**
+- Structured responses include error type, user-friendly title, detailed message
+- Actionable suggestions provided based on specific failure scenarios
+- Clear distinction between inventory and structure detection failures
+- Pre-formatted messages eliminate interface layer error interpretation
+
+Automatic URL Pattern Extension
+-------------------------------------------------------------------------------
+
+The detection system implements universal URL pattern extension that applies to
+all processor types. When detection fails at the original URL, the system
+automatically probes common documentation site patterns before reporting failure.
+
+**Universal Pattern Extension:**
+- Applies to both inventory and structure processors uniformly
+- Documentation content location affects both inventory files and content uniformly
+- Common patterns include ``/en/latest/``, ``/latest/``, ``/main/``, etc.
+- Working URLs are cached in global redirects mapping for future operations
+
+**Redirects Cache Integration:**
+
+.. code-block:: python
+
+    _url_redirects_cache: dict[ str, str ]  # original_url → working_url
+    
+    def normalize_location( location: str ) -> str
+
+**Transparent URL Resolution:**
+- All operations automatically use working URLs from redirects cache
+- Users receive actual working URLs as canonical source in responses
+- Cache updates ensure consistent URL usage across all subsequent operations
+
 Exception Hierarchy
 -------------------------------------------------------------------------------
 
-**Current Exceptions:**
-- ``ProcessorInavailability``: No processor found above confidence threshold
-- Individual processor failures are caught and logged, not propagated
-
-**Recommended Future Enhancements:**
+**Core Exceptions:**
 
 .. code-block:: python
+
+    class ProcessorInavailability( Omnierror, RuntimeError ):
+        ''' No processor found to handle source. '''
+        
+        def __init__( 
+            self, source: str, genus: str, 
+            attempted_processors: __.cabc.Sequence[ str ] 
+        )
 
     class DetectionFailure( Omnierror, RuntimeError ):
         ''' Processor detection operation failed. '''
         
         def __init__( 
-            self, source: str, genus: str, processor_errors: __.cabc.Mapping[ str, Exception ] 
+            self, source: str, genus: str, 
+            processor_errors: __.cabc.Mapping[ str, Exception ] 
         )
 
-    class ProcessorInavailability( Omnierror, RuntimeError ):  
-        ''' No processor found to handle source. '''
-        
-        def __init__( 
-            self, source: str, genus: str, attempted_processors: __.cabc.Sequence[ str ] 
-        )
+**Error Propagation:**
+- Individual processor failures are caught and logged, not propagated upward
+- Functions layer catches all detection exceptions and produces structured responses
+- Interface layers receive pre-formatted error information, never raw exceptions
 
-Error Recovery Strategies
--------------------------------------------------------------------------------
-
-**Processor Failure Recovery:**
-- Continue selection with remaining functional processors
-- Log processor-specific errors for debugging
-- Maintain detection attempts in cache for diagnostic purposes
-
-**Cache Failure Recovery:**  
-- Fresh detection execution on cache corruption or errors
-- Graceful degradation to uncached operation
-- Error logging with cache rebuild capability
-
-Design Trade-offs
+Multiple Inventory Handling Strategy
 ===============================================================================
 
-Performance vs. Accuracy
+Processor Precedence Design
 -------------------------------------------------------------------------------
 
-**Caching Trade-offs:**
-- **Advantage:** Significant performance improvement for repeated source access
-- **Advantage:** Reduces external service load (HTTP requests, file system)  
-- **Disadvantage:** Cached results may become stale for dynamic documentation
-- **Mitigation:** Configurable TTL values balance freshness vs. performance
+When multiple inventory processors successfully detect inventory sources for the 
+same documentation site, the system applies a precedence-based selection strategy 
+to maintain consistency and user predictability.
 
-**Confidence Threshold Trade-offs:**
-- **Advantage:** Prevents selection of unreliable processors
-- **Advantage:** Consistent, objective selection criteria
-- **Disadvantage:** Fixed threshold may not suit all processor types
-- **Future Enhancement:** Processor-specific or adaptive thresholds
+**Detection Precedence Order:**
+1. **Sphinx Inventory Processor** (``objects.inv`` files)
+2. **MkDocs Inventory Processor** (``search_index.json`` files)
+3. **Future processors** in registration order
 
-Memory vs. Functionality  
+**Precedence Selection Algorithm:**
+
+.. code-block:: python
+
+    def select_optimal_detection(
+        detections: __.cabc.Mapping[ str, _processors.Detection ]
+    ) -> __.Absential[ _processors.Detection ]:
+        ''' Selects optimal detection using precedence and confidence. '''
+        # 1. Filter detections meeting confidence threshold
+        # 2. Apply processor precedence order for qualified detections
+        # 3. Use highest confidence as tiebreaker within same precedence level
+        # 4. Return __.absent if no detections meet threshold
+
+**Design Rationale:**
+- **Consistency**: Predictable processor selection across documentation sites
+- **Granularity**: Sphinx inventories provide API-level symbol granularity
+- **Completeness**: MkDocs search indices provide page-level content coverage
+- **Extensibility**: Registration order precedence supports future processor types
+
+Inventory Content Coordination
 -------------------------------------------------------------------------------
 
-**Cache Memory Trade-offs:**
-- **Advantage:** Fast access to detection results without re-execution
-- **Disadvantage:** Memory usage grows with unique source URLs
-- **Mitigation:** TTL-based expiration provides bounded memory usage
-- **Future Enhancement:** Size-based LRU eviction strategies
+For sites with multiple detected inventories, the system coordinates content 
+operations to leverage the selected inventory processor while maintaining 
+architectural separation between inventory and structure processing.
 
-**Immutability Trade-offs:**
-- **Advantage:** Thread-safe cache access without locking
-- **Advantage:** Predictable behavior and easier debugging
-- **Disadvantage:** Higher memory usage than mutable alternatives
-- **Assessment:** Acceptable trade-off for architectural benefits
+**Content Operation Coordination:**
+- Selected inventory processor determines object enumeration and filtering
+- Structure processors operate independently on content extraction
+- Content queries use inventory-selected URIs to guide structure processor operations
+- No cross-processor inventory merging to maintain architectural boundaries
 
-Error Handling Evolution
-===============================================================================
-
-Current Error Handling State
--------------------------------------------------------------------------------
-
-**Exception Design:**
-The current system uses a single ``ProcessorInavailability`` exception raised 
-when no processor exceeds the confidence threshold. The exception provides 
-minimal context, containing only a generic class name identifier.
-
-**Current Error Flow:**
-1. Detection functions attempt processor selection
-2. Failed detection raises ``ProcessorInavailability( genus_name )``
-3. CLI and MCP interfaces format generic error messages
-4. Users receive non-specific guidance regardless of failure cause
-
-**Current Error Messages:**
-- ``"No processor found to handle source: inventory"``
-- ``"No processor found to handle source: structure"``
-- ``"Cannot access documentation inventory: {source}"``
-
-**Limitations:**
-- No distinction between genus-specific failure modes
-- No actionable guidance for common URL pattern issues
-- Duplicate error formatting logic across interfaces
-- No automatic recovery for common documentation site patterns
-
-Desired Error Handling State
--------------------------------------------------------------------------------
-
-**Enhanced Exception Design:**
-The ``ProcessorInavailability`` exception must be enhanced to provide additional 
-context for better error messaging. The exception should indicate the processor 
-genus (inventory vs structure), categorize the type of error encountered, and 
-track whether URL pattern extension was attempted. These enhancements must 
-maintain backward compatibility with existing exception handling code.
-
-**Enhanced Error Messages:**
-- **Inventory Detection**: ``"No compatible inventory format detected at this documentation source"``
-- **URL Pattern Intelligence**: ``"No inventory found - attempted common URL patterns"``
-- **Enhanced Accessibility**: Context-aware guidance based on error type
-- **Genus Clarity**: Clear distinction between inventory and structure failures
-
-**Automatic URL Pattern Extension:**
-Detection system must automatically attempt common documentation URL patterns 
-when base URL detection fails. The system should try standard documentation 
-site patterns (such as `/en/latest/`, `/latest/`, `/main/`) before reporting 
-failure. This capability should be primarily applied to inventory detection 
-where URL patterns are more standardized.
-
-**Functions Layer Error Response Design:**
-Functions layer must catch processor detection exceptions and return structured 
-error responses that contain pre-formatted, user-friendly error information. 
-This eliminates the need for interface layers to interpret raw exceptions or 
-format error messages. The structured responses should include error type, 
-user-friendly titles, detailed messages, and actionable suggestions.
-
-**Cache Integration:**
-When URL pattern extension discovers working URLs, detection cache entries 
-are updated to use the successful URL for future requests, improving 
-performance and user experience.
-
-**Interface Layer Simplification:**
-CLI and MCP layers must be simplified to become response formatters that extract 
-pre-formatted error information from functions layer responses. Interface layers 
-should not interpret raw exceptions or generate error messages. Instead, they 
-extract structured error information and apply appropriate display formatting 
-for their respective interfaces.
-
-**Implementation Phases:**
-1. **Functions Layer Error Response Design**: Implement structured error responses in functions layer
-2. **Automatic URL Patterns**: Implement intelligent URL extension for inventory detection  
-3. **Enhanced Exception Context**: Add contextual fields to ``ProcessorInavailability``
-4. **URL Pattern Detection**: Add utilities for documentation site pattern recognition
+**Cache Strategy:**
+- Detection cache stores all successful detections per processor type
+- Optimal detection selection cached separately from individual processor results
+- Cache entries track processor precedence decisions for consistency
+- TTL expiration applies uniformly to all cached detection results
 
 This detection system design provides robust, extensible automated processor 
-selection while maintaining clean architectural boundaries and established 
-project practices compliance.
+selection while maintaining clean architectural boundaries between processor 
+genera and established project practices compliance.

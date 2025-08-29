@@ -111,23 +111,30 @@ def produce_url_patterns( url: _Url, site_type: str ) -> tuple[ str, ... ]:
 async def probe_url_patterns(
     auxdata: _state.Globals,
     base_url: _Url,
-    inventory_path: str = '/objects.inv'
+    inventory_path: str
 ) -> __.Absential[ _Url ]:
     ''' Probes URL patterns to find working inventory URL. '''
     analysis = UrlPatternAnalysis.from_url( base_url )
-    for pattern in analysis.candidate_patterns:
-        candidate_url = __.urlparse.urlparse( pattern )
-        inventory_url = candidate_url._replace(
-            path = candidate_url.path + inventory_path
-        )
-        try: exists = await _cacheproxy.probe_url(
-            auxdata.probe_cache, inventory_url )
-        except Exception as exc:
-            _scribe.debug( "Pattern probe failed for %s: %s",
-                inventory_url.geturl( ), exc )
-            continue
-        else:
-            if exists: return candidate_url
+    tasks: list[ __.cabc.Awaitable[ bool ] ] = [
+        _cacheproxy.probe_url(
+            auxdata.probe_cache,
+            __.urlparse.urlparse( __.urlparse.urlunparse( (
+                candidate_url.scheme,
+                candidate_url.netloc,
+                candidate_url.path + inventory_path,
+                candidate_url.params,
+                candidate_url.query,
+                candidate_url.fragment
+            ) ) ) )
+        for pattern in analysis.candidate_patterns
+        for candidate_url in [ __.urlparse.urlparse( pattern ) ]
+    ]
+    results = await __.asyncf.gather_async(
+        *tasks, return_exceptions = True )
+    for i, result in enumerate( results ):
+        if __.generics.is_value( result ) and result.value:
+            pattern = analysis.candidate_patterns[ i ]
+            return __.urlparse.urlparse( pattern )
     return __.absent
 
 

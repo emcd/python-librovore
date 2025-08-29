@@ -23,6 +23,23 @@ Release Notes
 
 .. towncrier release notes start
 
+Librovore 1.0a2 (2025-08-28)
+============================
+
+Enhancements
+------------
+
+- Add MkDocs inventory processor to support pure MkDocs sites using ``search_index.json`` files.
+- Implement parallel URL pattern probing for improved performance and network efficiency.
+- Transform JSON output format from dictionary-based to structured dataclass objects with enhanced error handling.
+
+
+Removals
+--------
+
+- CLI: Remove ``summarize-inventory`` subcommand and MCP server tool.
+
+
 Librovore 1.0a1 (2025-08-20)
 ============================
 

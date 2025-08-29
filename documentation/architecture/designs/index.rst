@@ -25,3 +25,6 @@ Designs
    :maxdepth: 2
 
    processor-detection-system
+   inventory-processors
+   structure-processors
+   results-module-design
