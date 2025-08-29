@@ -266,7 +266,8 @@ async def _execute_processors_with_patterns(
            for detection in results.values( ) ):
         return results
     base_url = _urls.normalize_base_url( source )
-    working_url = await _urlpatterns.probe_url_patterns( auxdata, base_url )
+    working_url = await _urlpatterns.probe_url_patterns( 
+        auxdata, base_url, '/objects.inv' )
     if not __.is_absent( working_url ):
         working_source = working_url.geturl( )
         pattern_results = await _execute_processors(
