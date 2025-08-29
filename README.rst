@@ -152,12 +152,6 @@ Search content with fuzzy matching:
 
     librovore query-content https://fastapi.tiangolo.com "dependency injection"
 
-Get inventory summary:
-
-::
-
-    librovore summarize-inventory https://docs.pydantic.dev
-
 MCP Server for AI Agents
 -------------------------------------------------------------------------------
 
