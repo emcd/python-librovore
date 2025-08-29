@@ -1,1 +1,0 @@
-CLI: Remove ``summarize-inventory`` subcommand and MCP server tool.
