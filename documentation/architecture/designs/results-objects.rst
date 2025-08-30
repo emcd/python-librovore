@@ -341,39 +341,69 @@ Processor Survey Result Objects
 Error Handling Objects
 -------------------------------------------------------------------------------
 
+The error handling architecture supports both structured error responses for API boundaries and self-rendering exceptions for natural Python exception flow. This dual approach enables clean function signatures while maintaining structured error information across interface layers.
+
+**Self-Rendering Exception Base Classes**
+
 .. code-block:: python
 
-    class ErrorInfo( __.immut.DataclassObject ):
-        ''' Structured error information for processor failures. '''
-        
-        type: __.typx.Annotated[
-            str, __.ddoc.Doc( "Error type identifier (e.g., 'processor_unavailable')." ) ]
-        title: __.typx.Annotated[
-            str, __.ddoc.Doc( "Human-readable error title." ) ]
-        message: __.typx.Annotated[
-            str, __.ddoc.Doc( "Detailed error description." ) ]
-        suggestion: __.typx.Annotated[
-            __.typx.Optional[ str ],
-            __.ddoc.Doc( "Suggested remediation steps." ) ] = None
+    class Omniexception( __.immut.Object, BaseException ):
+        ''' Base for all exceptions raised by package API. '''
 
-    class ErrorResponse( __.immut.DataclassObject ):
-        ''' Error response wrapper maintaining query context. '''
+    class Omnierror( Omniexception, Exception ):
+        ''' Base for error exceptions with self-rendering capability. '''
         
-        location: __.typx.Annotated[
-            str, __.ddoc.Doc( "Primary location URL for failed query." ) ]
-        query: __.typx.Annotated[
-            str, __.ddoc.Doc( "Search term or query string that failed." ) ]
-        error: __.typx.Annotated[
-            ErrorInfo, __.ddoc.Doc( "Detailed error information." ) ]
-        
+        @__.abc.abstractmethod
         def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
-            ''' Renders error response as JSON-compatible dictionary. '''
+            ''' Renders exception as JSON-compatible dictionary. '''
         
-        def render_as_markdown(
-            self, /, *,
-            reveal_internals: bool = True,
-        ) -> tuple[ str, ... ]:
-            ''' Renders error response as Markdown lines for display. '''
+        @__.abc.abstractmethod  
+        def render_as_markdown( self ) -> tuple[ str, ... ]:
+            ''' Renders exception as Markdown lines for display. '''
+
+**Domain-Specific Self-Rendering Exceptions**
+
+.. code-block:: python
+
+    class ProcessorInavailability( Omnierror, RuntimeError ):
+        ''' No processor found to handle source. '''
+
+        def __init__(
+            self,
+            source: __.typx.Annotated[
+                str, __.ddoc.Doc( "Source URL that could not be processed." ) ],
+            genus: __.Absential[ str ] = __.absent,
+            query: __.Absential[ str ] = __.absent,
+        ): ...
+
+        def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+            ''' Renders processor unavailability as JSON-compatible dictionary. '''
+
+    class InventoryInaccessibility( Omnierror, RuntimeError ):
+        ''' Inventory location cannot be accessed. '''
+
+        def __init__(
+            self,
+            location: __.typx.Annotated[
+                str, __.ddoc.Doc( "Inventory location URL." ) ],
+            cause: __.typx.Annotated[
+                __.typx.Optional[ BaseException ],
+                __.ddoc.Doc( "Underlying exception that caused inaccessibility." )
+            ] = None,
+        ): ...
+
+    class InventoryInvalidity( Omnierror, ValueError ):
+        ''' Inventory data format is invalid or corrupted. '''
+
+        def __init__(
+            self,
+            location: __.typx.Annotated[
+                str, __.ddoc.Doc( "Inventory location URL." ) ],
+            details: __.typx.Annotated[
+                str, __.ddoc.Doc( "Description of invalidity." )
+            ],
+        ): ...
+
 
 Complete Query Results
 -------------------------------------------------------------------------------
@@ -518,16 +548,11 @@ Functions Layer Integration
 Enhanced Business Logic Functions
 -------------------------------------------------------------------------------
 
-The functions module uses structured result objects for all operations:
+The functions module provides clean business logic functions using natural exception flow with self-rendering exceptions:
 
 .. code-block:: python
 
-    # functions.py - Union return types for proper error propagation
-    InventoryResult: __.typx.TypeAlias = InventoryQueryResult | ErrorResponse
-    ContentResult: __.typx.TypeAlias = ContentQueryResult | ErrorResponse
-    DetectionsResultUnion: __.typx.TypeAlias = DetectionsResult | ErrorResponse
-    ProcessorsSurveyResultUnion: __.typx.TypeAlias = ProcessorsSurveyResult | ErrorResponse
-
+    # functions.py - Clean signatures with exception-based error handling
     async def query_inventory(
         auxdata: __.ApplicationGlobals,
         location: __.typx.Annotated[ str, __.ddoc.Fname( 'location argument' ) ],
@@ -538,8 +563,8 @@ The functions module uses structured result objects for all operations:
         details: __.InventoryQueryDetails = (
             __.InventoryQueryDetails.Documentation ),
         results_max: int = 5,
-    ) -> InventoryResult:
-        ''' Returns structured inventory query results or error information. '''
+    ) -> InventoryQueryResult:
+        ''' Returns structured inventory query results. Raises domain exceptions on error. '''
 
     async def query_content(
         auxdata: __.ApplicationGlobals,
@@ -550,36 +575,49 @@ The functions module uses structured result objects for all operations:
         filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
         include_snippets: bool = True,
         results_max: int = 10,
-    ) -> ContentResult:
-        ''' Returns structured content query results or error information. '''
+    ) -> ContentQueryResult:
+        ''' Returns structured content query results. Raises domain exceptions on error. '''
 
     async def detect(
         auxdata: __.ApplicationGlobals,
         location: __.typx.Annotated[ str, __.ddoc.Fname( 'location argument' ) ], /, *,
         processor_name: __.Absential[ str ] = __.absent,
         processor_types: __.cabc.Sequence[ str ] = ( 'inventory', 'structure' ),
-    ) -> DetectionsResultUnion:
+    ) -> DetectionsResult:
         ''' Returns structured detection results with processor selection and timing. '''
 
     async def survey_processors(
         auxdata: __.ApplicationGlobals, /, 
         genus: __.interfaces.ProcessorGenera,
         name: __.typx.Optional[ str ] = None,
-    ) -> ProcessorsSurveyResultUnion:
+    ) -> ProcessorsSurveyResult:
         ''' Returns structured survey results listing available processors and capabilities. '''
+
 
 Error Handling Patterns
 -------------------------------------------------------------------------------
 
-The system uses **exception-based error handling at the processor level** with 
-**structured error marshaling at the functions boundary**. This approach maintains 
-clean processor implementations while providing structured APIs for CLI and MCP consumers.
+The system uses **self-rendering exceptions** for natural Python error flow with clean function signatures and consistent error presentation across interface layers.
 
-**Processor Layer**: Raises domain-specific exceptions for clear error semantics:
+**Self-Rendering Exception Pattern**
+
+Functions use natural exception flow with domain-specific self-rendering exceptions:
 
 .. code-block:: python
 
-    # Processors raise exceptions directly
+    # Business logic functions with clean signatures
+    async def query_inventory(
+        auxdata: __.ApplicationGlobals,
+        location: str,
+        term: str, /, *,
+        search_behaviors: __.SearchBehaviors = _search_behaviors_default,
+        filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
+        details: __.InventoryQueryDetails = __.InventoryQueryDetails.Documentation,
+        results_max: int = 5,
+    ) -> InventoryQueryResult:
+        ''' Returns structured inventory query results. Raises domain exceptions on error. '''
+
+    # Processor layer raises self-rendering exceptions
     class SphinxInventoryProcessor:
         async def query_inventory( 
             self, filters: __.cabc.Mapping[ str, __.typx.Any ], 
@@ -589,42 +627,31 @@ clean processor implementations while providing structured APIs for CLI and MCP 
                 inventory = extract_inventory( base_url )
                 return tuple( format_objects( inventory, filters ) )
             except ConnectionError as exc:
-                raise InventoryInaccessibility( url, cause = exc )
+                raise InventoryInaccessibility( location = url, cause = exc )
             except ParseError as exc:
-                raise InventoryInvalidity( url, cause = exc )
+                raise InventoryInvalidity( location = url, details = str( exc ) )
 
-**Functions Layer**: Catches exceptions and marshals to structured responses:
+**Interface Layer Exception Handling**
 
-.. code-block:: python
-
-    # functions.py - Exception marshaling to structured responses
-    async def query_inventory( ... ) -> InventoryResult:
-        try:
-            detection = await detect_inventory( auxdata, location, ... )
-            objects = await detection.query_inventory( filters = filters, ... )
-            return InventoryQueryResult(
-                location = location, query = term, objects = objects, ... )
-        except ProcessorInavailability as exc:
-            return ErrorResponse(
-                location = location, query = term,
-                error = ErrorInfo( type = 'processor_unavailable', ... ) )
-        except InventoryInaccessibility as exc:
-            return ErrorResponse(
-                location = location, query = term,
-                error = ErrorInfo( type = 'inventory_inaccessible', ... ) )
-
-**Consumer Layer**: Uses isinstance checks or pattern matching on structured results:
+Interface layers use Aspect-Oriented Programming (AOP) patterns with decorators:
 
 .. code-block:: python
 
-    # CLI/MCP consumers handle structured responses
-    result = await query_inventory( auxdata, location, term )
-    if isinstance( result, ErrorResponse ):
-        logger.error( f"Query failed: {result.error.message}." )
-        return format_error_response( result )
-    
-    # At this point, result is InventoryQueryResult
-    return format_success_response( result.objects )
+    # MCP Server - Exception interception decorator signature
+    def intercept_errors( func ) -> __.cabc.Callable:
+        ''' Intercepts package exceptions and renders them as JSON for MCP. '''
+
+    @intercept_errors
+    async def query_inventory_mcp( location: str, term: str, ... ):
+        ''' Searches object inventory by name with fuzzy matching. '''
+
+    # CLI Layer - Parameterized exception handling decorator signature
+    def intercept_errors( 
+        stream: __.typx.TextIO, 
+        display_format: __.DisplayFormat 
+    ) -> __.cabc.Callable:
+        ''' Creates decorator to intercept package exceptions and render for CLI. '''
+
 
 Search Engine Integration
 ===============================================================================
@@ -722,10 +749,6 @@ File Structure and Imports
     class SearchMetadata( __.immut.DataclassObject ): ...
     class InventoryLocationInfo( __.immut.DataclassObject ): ...
 
-    # Error handling objects
-    class ErrorInfo( __.immut.DataclassObject ): ...
-    class ErrorResponse( __.immut.DataclassObject ): ...
-
     # Complete query results
     class InventoryQueryResult( __.immut.DataclassObject ): ...
     class ContentQueryResult( __.immut.DataclassObject ): ...
@@ -744,11 +767,22 @@ File Structure and Imports
     SearchResults: __.typx.TypeAlias = __.cabc.Sequence[ SearchResult ]
     ContentDocuments: __.typx.TypeAlias = __.cabc.Sequence[ ContentDocument ]
     
-    # Union types for error propagation
-    InventoryResult: __.typx.TypeAlias = InventoryQueryResult | ErrorResponse  
-    ContentResult: __.typx.TypeAlias = ContentQueryResult | ErrorResponse
-    DetectionsResultUnion: __.typx.TypeAlias = DetectionsResult | ErrorResponse
-    ProcessorsSurveyResultUnion: __.typx.TypeAlias = ProcessorsSurveyResult | ErrorResponse
+
+.. code-block:: python
+
+    # exceptions.py - Self-rendering exception hierarchy
+    from . import __
+
+    # Base exception hierarchy
+    class Omniexception( __.immut.Object, BaseException ): ...
+    class Omnierror( Omniexception, Exception ): ...
+
+    # Domain-specific exceptions with self-rendering capabilities
+    class ProcessorInavailability( Omnierror, RuntimeError ): ...
+    class InventoryInaccessibility( Omnierror, RuntimeError ): ...
+    class InventoryInvalidity( Omnierror, ValueError ): ...
+    class ContentInaccessibility( Omnierror, RuntimeError ): ...
+    class ContentInvalidity( Omnierror, ValueError ): ...
 
 Presentation Layer Integration
 ===============================================================================
@@ -771,34 +805,53 @@ the need for external presentation coordination layers.
 Integration Benefits
 ===============================================================================
 
+**Clean Function Signatures**
+- Natural exception flow eliminates verbose union return types  
+- Business logic functions have clean success-case signatures
+- Type annotations reflect actual success types without error boilerplate
+- Function signatures become more readable and maintainable
+
 **Type Safety and IDE Support**
 - Compile-time validation of object structure and field access
 - Full IDE autocompletion and refactoring support  
 - Static analysis capabilities for detecting field usage
-- Union types provide exhaustive pattern matching with type narrowing
-- `match` statements with object unpacking enable clean error handling
+- Exception type hierarchy provides structured error catching patterns
+
+**Self-Rendering Architecture**
+- Exceptions handle their own presentation logic through render methods
+- Objects encapsulate format-specific knowledge within themselves  
+- Clean separation between business logic and presentation concerns
+- Consistent error display across CLI and MCP interfaces without duplication
+
+**Aspect-Oriented Error Handling**
+- Interface layers use decorators for cross-cutting error handling concerns
+- Business logic remains pure with no error marshaling overhead
+- Single point of error presentation control per interface layer
+- Exception handling behavior easily modified without touching business functions
 
 **Domain-Specific Rendering**
-- Objects encapsulate format-specific knowledge within themselves
 - Processors provide domain expertise through object rendering methods
-- Clean separation between data representation and presentation logic
 - Extensible rendering without modifying CLI or interface layers
+- Complete error context preservation from point of failure to presentation
+- Self-contained formatting logic reduces coupling between layers
 
 **Complete Source Attribution**
 - Full provenance tracking for every inventory object
 - Enhanced debugging capabilities with location-specific metadata
 - Foundation for future multi-source aggregation capabilities
+- Exception objects maintain complete failure context
 
 **Consistency and Maintainability**  
 - Unified interface across all inventory processor types
 - Clear separation between universal and format-specific data
 - Predictable object structure for interface layers
-- Self-contained formatting logic reduces coupling
+- Error handling complexity isolated to exception classes and decorators
 
 **Performance and Scalability**
 - Immutable objects enable safe concurrent access
 - Structural sharing reduces memory overhead
 - Efficient serialization for network transmission
+- Exception-based flow avoids creating error objects for success cases
 - Domain-specific rendering optimizations contained within objects
 
 This results module design provides a robust foundation for type-safe operations 
