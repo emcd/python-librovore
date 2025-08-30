@@ -19,6 +19,11 @@
 
 ### Future Expansion Processors (Phase 3)
 
+#### llms.txt Processor 🤔 **INVESTIGATE**
+- **Rationale**: Emerging standard for LLM-friendly documentation summaries
+- **Implementation**: Could be separate processor or built into existing processors
+- **Priority**: Experimental - monitor adoption before committing resources
+
 #### Documentation Systems
 - **rustdoc**: Growing Rust ecosystem, JSON output available
 - **JSDoc**: JavaScript/TypeScript ecosystem
@@ -130,22 +135,20 @@
 ## Next Phase Enhancements
 
 ### Sphinx Search Box Emulation
-- [x] **HTML content extraction**: Use BeautifulSoup to extract object documentation ✅
 - [ ] **JavaScript search analysis**: Reverse-engineer Sphinx search.js functionality
 - [ ] **Site mapping**: Build complete site maps from Sphinx documentation
-- [x] **Full-text search**: Index and search complete documentation content beyond just objects.inv
 - [ ] **Search suggestion**: Provide auto-complete and search suggestions
 
-### Object Detail and Relationships
-- [x] **Object detail retrieval**: Get full documentation for specific objects by name/path ✅
-
-### Batch Operations and Advanced Search
-- [x] **Search result ranking**: Score and rank search results by relevance
 
 ### CLI and UX Improvements
 - [ ] **Interactive inventory browser**: Navigate inventories with arrow keys/search
 - [ ] **Configuration files**: Store frequently used inventory sources and filters
 - [ ] **Shell completion**: Bash/zsh auto-completion for commands and parameters
+
+### Advanced Features (Post-1.0)
+- **Interactive CLI browser mode**: Full interactive browsing of documentation inventories
+- **Multi-site search capabilities**: Search across multiple documentation sites simultaneously
+- **Advanced relationship mapping**: Map and visualize relationships between documentation objects
 
 ## Technical Improvements
 
