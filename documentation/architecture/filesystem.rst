@@ -77,22 +77,30 @@ The main Python package follows the standard ``sources/`` directory pattern with
     │   │
     │   │   # Business Logic Layer  
     │   ├── functions.py             # Core business logic shared between interfaces
+    │   ├── results.py               # Result data structures and serialization
     │   ├── search.py                # Universal search engine with fuzzy/exact/regex
     │   ├── detection.py             # Processor detection and selection system
     │   │
     │   │   # Processor Layer
     │   ├── processors.py            # Abstract processor base classes and protocols
     │   ├── inventories/             # Inventory extraction processors
-    │   │   ├── __/                  # Subpackage import hub
+    │   │   ├── __.py                # Subpackage import hub
     │   │   ├── __init__.py
-    │   │   └── sphinx/              # Sphinx objects.inv processing
+    │   │   ├── sphinx/              # Sphinx objects.inv processing
+    │   │   │   ├── __.py            # Subpackage import hub
+    │   │   │   ├── __init__.py
+    │   │   │   ├── detection.py     # Sphinx inventory detection logic
+    │   │   │   └── main.py          # Sphinx inventory processor implementation
+    │   │   └── mkdocs/              # MkDocs search index processing
+    │   │       ├── __.py            # Subpackage import hub
     │   │       ├── __init__.py
-    │   │       ├── detection.py     # Sphinx inventory detection logic
-    │   │       └── main.py          # Sphinx inventory processor implementation
+    │   │       ├── detection.py     # MkDocs inventory detection logic
+    │   │       └── main.py          # MkDocs inventory processor implementation
     │   ├── structures/              # Content extraction processors  
-    │   │   ├── __/                  # Subpackage import hub
+    │   │   ├── __.py                # Subpackage import hub
     │   │   ├── __init__.py
     │   │   ├── sphinx/              # Sphinx HTML content processing
+    │   │   │   ├── __.py            # Subpackage import hub
     │   │   │   ├── __init__.py
     │   │   │   ├── detection.py     # Sphinx structure detection
     │   │   │   ├── main.py          # Core Sphinx structure processor
@@ -100,6 +108,7 @@ The main Python package follows the standard ``sources/`` directory pattern with
     │   │   │   ├── extraction.py    # Content extraction logic
     │   │   │   └── urls.py          # URL construction and resolution
     │   │   └── mkdocs/              # MkDocs content processing
+    │   │       ├── __.py            # Subpackage import hub
     │   │       ├── __init__.py
     │   │       ├── detection.py     # MkDocs structure detection  
     │   │       ├── main.py          # Core MkDocs structure processor
@@ -109,7 +118,7 @@ The main Python package follows the standard ``sources/`` directory pattern with
     │   │   # Extension Management Layer
     │   ├── xtnsapi.py               # Extension developer API interface
     │   ├── xtnsmgr/                 # Extension manager subsystem
-    │   │   ├── __/                  # Subpackage import hub
+    │   │   ├── __.py                # Subpackage import hub
     │   │   ├── __init__.py          # Manager public interface
     │   │   ├── configuration.py     # Extension configuration management
     │   │   ├── installation.py      # Package installation via uv
@@ -123,6 +132,7 @@ The main Python package follows the standard ``sources/`` directory pattern with
     │   ├── state.py                 # Global state and configuration management
     │   ├── cacheproxy.py            # HTTP caching and URL handling
     │   ├── urls.py                  # URL manipulation utilities
+    │   ├── urlpatterns.py           # URL pattern matching and extension utilities
     │   │
     │   │   # Type Definitions
     │   └── _typedecls/              # External library type stubs
@@ -139,12 +149,13 @@ The filesystem organization directly maps to the architectural layers:
 
 **Business Logic Layer (Core Operations)**
   - ``functions.py``: Shared business logic and orchestration
+  - ``results.py``: Result data structures and serialization
   - ``search.py``: Universal search algorithms and ranking
   - ``detection.py``: Processor selection and confidence scoring
 
 **Processor Layer (Format-Specific Logic)**
   - ``processors.py``: Abstract base classes and protocols
-  - ``inventories/``: Documentation inventory extraction (objects.inv parsing)
+  - ``inventories/``: Documentation inventory extraction (Sphinx objects.inv and MkDocs search indexes)
   - ``structures/``: Documentation content extraction and conversion
 
 **Extension Management Layer (Plugin System)**
@@ -157,6 +168,7 @@ The filesystem organization directly maps to the architectural layers:
   - ``state.py``: Application state and globals management
   - ``cacheproxy.py``: HTTP caching and network operations
   - ``urls.py``: URL manipulation and validation
+  - ``urlpatterns.py``: URL pattern matching and extension utilities
 
 All package modules use the standard ``__`` import pattern as documented
 in the common architecture guide. Subpackages (``inventories/``, ``structures/``, ``xtnsmgr/``) 
