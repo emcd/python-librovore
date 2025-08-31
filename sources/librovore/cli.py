@@ -34,6 +34,46 @@ from . import state as _state
 _scribe = __.acquire_scribe( __name__ )
 
 
+def intercept_errors( ) -> __.cabc.Callable[ 
+    [ __.cabc.Callable[ ..., __.cabc.Awaitable[ None ] ] ], 
+    __.cabc.Callable[ ..., __.cabc.Awaitable[ None ] ] 
+]:
+    ''' Decorator for CLI handlers to intercept exceptions.
+    
+        Catches Omnierror exceptions and renders them appropriately.
+        Other exceptions are logged and formatted simply.
+    '''
+    def decorator( 
+        func: __.cabc.Callable[ ..., __.cabc.Awaitable[ None ] ]
+    ) -> __.cabc.Callable[ ..., __.cabc.Awaitable[ None ] ]:
+        @__.funct.wraps( func )
+        async def wrapper( 
+            self: __.typx.Any,
+            auxdata: _state.Globals,
+            display: __.DisplayTarget,
+            display_format: _interfaces.DisplayFormat,
+            *posargs: __.typx.Any,
+            **nomargs: __.typx.Any,
+        ) -> None:
+            stream = await display.provide_stream( )
+            try:
+                return await func( 
+                    self, auxdata, display, display_format, 
+                    *posargs, **nomargs )
+            except _exceptions.Omnierror as exc:
+                lines = exc.render_as_markdown( )
+                error_message = '\n'.join( lines )
+                print( error_message, file = stream )
+                raise SystemExit( 1 ) from None
+            except Exception as exc:
+                _scribe.error( f"{func.__name__} failed: %s", exc )
+                print( f"❌ Unexpected error: {exc}", file = stream )
+                raise SystemExit( 1 ) from None
+
+        return wrapper
+    return decorator
+
+
 GroupByArgument: __.typx.TypeAlias = __.typx.Annotated[
     __.typx.Optional[ str ],
     __.tyro.conf.arg( help = __.access_doctab( 'group by argument' ) ),
@@ -79,12 +119,12 @@ class _CliCommand(
     ''' CLI command. '''
 
     @__.abc.abstractmethod
-    async def __call__(
+    def __call__(
         self,
         auxdata: _state.Globals,
         display: __.DisplayTarget,
         display_format: _interfaces.DisplayFormat,
-    ) -> None:
+    ) -> __.cabc.Awaitable[ None ]:
         ''' Executes command with global state. '''
         raise NotImplementedError
 
@@ -104,6 +144,7 @@ class DetectCommand(
         __.tyro.conf.arg( help = "Specific processor to use." ),
     ] = None
 
+    @intercept_errors( )
     async def __call__(
         self,
         auxdata: _state.Globals,
@@ -114,28 +155,15 @@ class DetectCommand(
         processor_name = (
             self.processor_name if self.processor_name is not None
             else __.absent )
-        try:
-            result = await _functions.detect(
-                auxdata, self.location, self.genus,
-                processor_name = processor_name )
-        except Exception as exc:
-            _scribe.error( "detect failed: %s", exc )
-            print( _format_cli_exception( exc ), file = stream )
-            raise SystemExit( 1 ) from None
+        result = await _functions.detect(
+            auxdata, self.location, self.genus,
+            processor_name = processor_name )
         match display_format:
             case _interfaces.DisplayFormat.JSON:
-                if isinstance( result, _results.ErrorResponse ):
-                    serialized = dict( result.render_as_json( ) )
-                else:
-                    serialized = dict( result.render_as_json( ) )
+                serialized = dict( result.render_as_json( ) )
                 output = __.json.dumps( serialized, indent = 2 )
             case _interfaces.DisplayFormat.Markdown:
-                if isinstance( result, _results.ErrorResponse ):
-                    lines = result.render_as_markdown(
-                        reveal_internals = True )
-                else:
-                    lines = result.render_as_markdown(
-                        reveal_internals = True )
+                lines = result.render_as_markdown( reveal_internals = True )
                 output = '\n'.join( lines )
         print( output, file = stream )
 
@@ -166,6 +194,7 @@ class QueryInventoryCommand(
         __.tyro.conf.arg( help = __.access_doctab( 'results max argument' ) ),
     ] = 5
 
+    @intercept_errors( )
     async def __call__(
         self,
         auxdata: _state.Globals,
@@ -173,26 +202,20 @@ class QueryInventoryCommand(
         display_format: _interfaces.DisplayFormat,
     ) -> None:
         stream = await display.provide_stream( )
-        try:
-            result = await _functions.query_inventory(
-                auxdata,
-                self.location,
-                self.term,
-                search_behaviors = self.search_behaviors,
-                filters = self.filters,
-                results_max = self.results_max,
-                details = self.details )
-        except Exception as exc:
-            _scribe.error( "query-inventory failed: %s", exc )
-            print( _format_cli_exception( exc ), file = stream )
-            raise SystemExit( 1 ) from None
+        result = await _functions.query_inventory(
+            auxdata,
+            self.location,
+            self.term,
+            search_behaviors = self.search_behaviors,
+            filters = self.filters,
+            results_max = self.results_max,
+            details = self.details )
         match display_format:
             case _interfaces.DisplayFormat.JSON:
                 output = __.json.dumps(
                     dict( result.render_as_json( ) ), indent = 2 )
             case _interfaces.DisplayFormat.Markdown:
-                lines = result.render_as_markdown(
-                    reveal_internals = True )
+                lines = result.render_as_markdown( reveal_internals = True )
                 output = '\n'.join( lines )
         print( output, file = stream )
 
@@ -221,6 +244,7 @@ class QueryContentCommand(
             help = "Maximum number of lines to display per result." ),
     ] = 40
 
+    @intercept_errors( )
     async def __call__(
         self,
         auxdata: _state.Globals,
@@ -228,17 +252,12 @@ class QueryContentCommand(
         display_format: _interfaces.DisplayFormat,
     ) -> None:
         stream = await display.provide_stream( )
-        try:
-            result = await _functions.query_content(
-                auxdata, self.location, self.term,
-                search_behaviors = self.search_behaviors,
-                filters = self.filters,
-                results_max = self.results_max,
-                include_snippets = self.include_snippets )
-        except Exception as exc:
-            _scribe.error( "query-content failed: %s", exc )
-            print( _format_cli_exception( exc ), file = stream )
-            raise SystemExit( 1 ) from None
+        result = await _functions.query_content(
+            auxdata, self.location, self.term,
+            search_behaviors = self.search_behaviors,
+            filters = self.filters,
+            results_max = self.results_max,
+            include_snippets = self.include_snippets )
         match display_format:
             case _interfaces.DisplayFormat.JSON:
                 output = __.json.dumps(
@@ -270,6 +289,7 @@ class SurveyProcessorsCommand(
         __.tyro.conf.arg( help = "Name of processor to describe" ),
     ] = None
 
+    @intercept_errors( )
     async def __call__(
         self,
         auxdata: _state.Globals,
@@ -279,19 +299,13 @@ class SurveyProcessorsCommand(
         stream = await display.provide_stream( )
         nomargs: __.NominativeArguments = { 'genus': self.genus }
         if self.name is not None: nomargs[ 'name' ] = self.name
-        try:
-            result = await _functions.survey_processors( auxdata, **nomargs )
-        except Exception as exc:
-            _scribe.error( "survey-processors failed: %s", exc )
-            print( _format_cli_exception( exc ), file = stream )
-            raise SystemExit( 1 ) from None
+        result = await _functions.survey_processors( auxdata, **nomargs )
         match display_format:
             case _interfaces.DisplayFormat.JSON:
                 output = __.json.dumps( 
                     dict( result.render_as_json( ) ), indent = 2 )
             case _interfaces.DisplayFormat.Markdown:
-                lines = result.render_as_markdown( 
-                    reveal_internals = False )
+                lines = result.render_as_markdown( reveal_internals = False )
                 output = '\n'.join( lines )
         print( output, file = stream )
 
@@ -410,35 +424,6 @@ def execute( ) -> None:
 
 
 
-def _format_cli_exception( exc: Exception ) -> str:  # noqa: PLR0911
-    ''' Formats exceptions for user-friendly CLI output. '''
-    match exc:
-        case _exceptions.ProcessorInavailability( ):
-            return (
-                f"❌ No processor found to handle source: {exc.source}\n"
-                f"💡 Verify this is a Sphinx documentation site" )
-        case _exceptions.InventoryInaccessibility( ):
-            return (
-                f"❌ Cannot access documentation inventory: {exc.source}\n"
-                f"💡 Check URL accessibility and network connection" )
-        case _exceptions.DocumentationContentAbsence( ):
-            return (
-                f"❌ Documentation structure not recognized: {exc.url}\n"
-                f"💡 This may be an unsupported Sphinx theme" )
-        case _exceptions.DocumentationObjectAbsence( ):
-            return (
-                f"❌ Object '{exc.object_id}' not found in page: {exc.url}\n"
-                f"💡 Verify the object name and try a broader search" )
-        case _exceptions.InventoryInvalidity( ):
-            return (
-                f"❌ Invalid documentation inventory: {exc.source}\n"
-                f"💡 The documentation site may be corrupted" )
-        case _exceptions.DocumentationInaccessibility( ):
-            return (
-                f"❌ Documentation inaccessible: {exc.url}\n"
-                f"💡 Check URL accessibility and network connection" )
-        case _:
-            return f"❌ Unexpected error: {exc}"
 
 
 async def _prepare(

@@ -20,17 +20,40 @@
 
 ''' MCP server implementation. '''
 
-
 from mcp.server.fastmcp import FastMCP as _FastMCP
 
 # FastMCP uses Pydantic to generate JSON schemas from function signatures.
 from pydantic import Field as _Field
 
 from . import __
+from . import exceptions as _exceptions
 from . import functions as _functions
 from . import interfaces as _interfaces
 from . import results as _results
 from . import state as _state
+
+
+def intercept_errors( 
+    func: __.cabc.Callable[ 
+        ..., __.cabc.Awaitable[ dict[ str, __.typx.Any ] ] ]
+) -> __.cabc.Callable[ ..., __.cabc.Awaitable[ dict[ str, __.typx.Any ] ] ]:
+    ''' Decorator for MCP functions to intercept self-rendering exceptions.
+    
+        Catches Omnierror exceptions and returns their JSON representation
+        instead of raising them. Other exceptions are re-raised unchanged.
+    '''
+    @__.funct.wraps( func )
+    async def wrapper( 
+        *posargs: __.typx.Any, **nomargs: __.typx.Any 
+    ) -> dict[ str, __.typx.Any ]:
+        try:
+            return await func( *posargs, **nomargs )
+        except _exceptions.Omnierror as exc:
+            return dict( exc.render_as_json( ) )
+        except Exception:
+            raise
+
+    return wrapper
 
 
 @__.dcls.dataclass( kw_only = True, slots = True )
@@ -87,6 +110,7 @@ async def serve(
 
 
 def _produce_detect_function( auxdata: _state.Globals ):
+    @intercept_errors
     async def detect(
         location: LocationArgument,
         genus: __.typx.Annotated[
@@ -102,14 +126,13 @@ def _produce_detect_function( auxdata: _state.Globals ):
         if processor_name is not None:
             nomargs[ 'processor_name' ] = processor_name
         result = await _functions.detect( auxdata, location, genus, **nomargs )
-        if isinstance( result, _results.ErrorResponse ):
-            return _results.serialize_for_json( result )
         return dict( result.render_as_json( ) )
 
     return detect
 
 
 def _produce_query_content_function( auxdata: _state.Globals ):
+    @intercept_errors
     async def query_content(  # noqa: PLR0913
         location: LocationArgument,
         term: TermArgument,
@@ -139,6 +162,7 @@ def _produce_query_content_function( auxdata: _state.Globals ):
 
 
 def _produce_query_inventory_function( auxdata: _state.Globals ):
+    @intercept_errors
     async def query_inventory(  # noqa: PLR0913
         location: LocationArgument,
         term: TermArgument,
@@ -173,6 +197,7 @@ def _produce_query_inventory_function( auxdata: _state.Globals ):
 
 
 def _produce_survey_processors_function( auxdata: _state.Globals ):
+    @intercept_errors
     async def survey_processors(
         genus: __.typx.Annotated[
             _interfaces.ProcessorGenera,

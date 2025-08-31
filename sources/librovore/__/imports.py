@@ -31,6 +31,7 @@ import contextlib as        ctxl
 import                      datetime
 import dataclasses as       dcls
 import                      enum
+import functools as         funct
 import                      io
 import                      inspect
 import                      json

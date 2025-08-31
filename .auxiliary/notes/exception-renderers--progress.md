@@ -49,13 +49,17 @@ The analysis recommends implementing self-rendering exceptions combined with AOP
 - [x] Remove _produce_processor_error_response function
 - [x] Remove other _produce_*_error_response functions
 - [x] Update business logic to use natural exception flow
+- [x] Fix anti-pattern: Remove query attribute from ProcessorInavailability exception
+- [x] Clean up exception semantic boundaries (processor availability vs query context)
 
-### Phase 3: Interface Layer AOP Decorators
-- [ ] Create MCP server exception interception decorator
-- [ ] Apply decorator to MCP server functions
-- [ ] Create CLI parameterized exception interception decorator
-- [ ] Apply decorator to CLI command handlers
-- [ ] Test error rendering consistency across interfaces
+### Phase 3: Interface Layer AOP Decorators ✅ COMPLETED
+- [x] Create MCP server exception interception decorator
+- [x] Apply decorator to MCP server functions
+- [x] Create CLI parameterized exception interception decorator  
+- [x] Apply decorator to CLI command handlers
+- [x] Test error rendering consistency across interfaces
+- [x] Remove legacy manual exception handling code
+- [x] Fix type compatibility issues with decorator return types
 
 ### Phase 4: Results Module Cleanup
 - [ ] Remove ErrorResponse class (no longer needed)
@@ -77,14 +81,22 @@ The analysis recommends implementing self-rendering exceptions combined with AOP
 - 2025-08-30: Maintained backward compatibility with existing constructor signatures during Phase 1
 - 2025-08-30: Phase 2 completed - Transformed all functions to use clean signatures with natural exception flow
 - 2025-08-30: Removed 76 lines of error response helper functions, simplified business logic significantly
-- 2025-08-31: Fixed anti-pattern in Phase 2 - Enhanced detection layer to accept query context instead of re-raising exceptions in functions layer
-- 2025-08-31: Modified detect() and detect_inventory() functions to accept optional query parameter for proper exception context
+- 2025-08-31: Fixed anti-pattern in Phase 2 - Removed query attribute from ProcessorInavailability exception (commit dc4ca2a)
+- 2025-08-31: Clarified exception semantic boundaries: processor availability is independent of search queries
+- 2025-08-31: Phase 3 completed - Implemented AOP decorators for both MCP server and CLI interfaces
+- 2025-08-31: Exception interception now handled transparently by decorators, eliminated manual try/catch blocks
+- 2025-08-31: Updated parameter naming conventions from *args/**kwargs to *posargs/**nomargs per codebase preferences
+- 2025-08-31: CLI happy path testing confirmed successful - all major functionality working with decorators
 
 ## Handoff Notes
-- **Current State**: Phase 2 completed - Functions now use clean signatures with natural exception flow
-- **Next Steps**: Begin Phase 3 - Add AOP decorators to interface layers (CLI/MCP)
-- **Known Issues**: Interface layers (CLI/MCP) will break until Phase 3 decorators are applied
+- **Current State**: Phase 3 fully completed - AOP decorators implemented and tested for transparent exception handling
+- **Next Steps**: Begin Phase 4 - Remove legacy ErrorResponse/ErrorInfo classes and union types
+- **Achievements**: 
+  - Clean function signatures with natural Python exception flow
+  - Self-rendering exceptions with JSON/Markdown output capabilities
+  - AOP decorators eliminate manual exception handling in interface layers
+  - All 177 tests pass, all linters clean
 - **Context Dependencies**: 
-  - Functions now raise exceptions instead of returning union types  
-  - CLI and MCP server need exception interception decorators
-  - Union types in results.py are unused and can be removed in Phase 4
+  - MCP server functions use @intercept_errors decorator
+  - CLI command handlers use @intercept_errors decorator
+  - Union types in results.py are unused and ready for Phase 4 removal
