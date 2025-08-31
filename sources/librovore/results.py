@@ -202,89 +202,6 @@ class ContentDocument( __.immut.DataclassObject ):
         return tuple( lines )
 
 
-class ErrorInfo( __.immut.DataclassObject ):
-    ''' Structured error information for processor failures. '''
-
-    type: __.typx.Annotated[
-        str,
-        __.ddoc.Doc(
-            "Error type identifier (e.g., 'processor_unavailable')." ),
-    ]
-    title: __.typx.Annotated[
-        str,
-        __.ddoc.Doc( "Human-readable error title." ),
-    ]
-    message: __.typx.Annotated[
-        str,
-        __.ddoc.Doc( "Detailed error description." ),
-    ]
-    suggestion: __.typx.Annotated[
-        __.typx.Optional[ str ],
-        __.ddoc.Doc( "Suggested remediation steps." ),
-    ] = None
-
-    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
-        ''' Renders error info as JSON-compatible dictionary. '''
-        return __.immut.Dictionary[
-            str, __.typx.Any
-        ](
-            type = self.type,
-            title = self.title,
-            message = self.message,
-            suggestion = self.suggestion,
-        )
-
-
-class ErrorResponse( __.immut.DataclassObject ):
-    ''' Error response wrapper maintaining query context. '''
-
-    location: __.typx.Annotated[
-        str,
-        __.ddoc.Doc( "Primary location URL for failed query." ),
-    ]
-    query: __.typx.Annotated[
-        str,
-        __.ddoc.Doc( "Search term or query string that failed." ),
-    ]
-    error: __.typx.Annotated[
-        ErrorInfo,
-        __.ddoc.Doc( "Detailed error information." ),
-    ]
-
-    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
-        ''' Renders error response as JSON-compatible dictionary. '''
-        return __.immut.Dictionary(
-            location = self.location,
-            query = self.query,
-            error = __.immut.Dictionary[
-                str, __.typx.Any
-            ](
-                type = self.error.type,
-                title = self.error.title,
-                message = self.error.message,
-                suggestion = self.error.suggestion,
-            ),
-        )
-
-    def render_as_markdown(
-        self, /, *,
-        reveal_internals: __.typx.Annotated[
-            bool,
-            __.ddoc.Doc( "Controls whether internal details are shown." ),
-        ] = True,
-    ) -> tuple[ str, ... ]:
-        ''' Renders error response as Markdown lines for display. '''
-        lines = [ f"## Error: {self.error.title}" ]
-        lines.append( f"**Message:** {self.error.message}" )
-        if self.error.suggestion:
-            lines.append( f"**Suggestion:** {self.error.suggestion}" )
-        if reveal_internals:
-            lines.append( f"**Location:** {self.location}" )
-            lines.append( f"**Query:** {self.query}" )
-            lines.append( f"**Error Type:** {self.error.type}" )
-        return tuple( lines )
-
-
 class InventoryLocationInfo( __.immut.DataclassObject ):
     ''' Information about detected inventory location and processor. '''
 
@@ -855,8 +772,3 @@ ContentDocuments: __.typx.TypeAlias = __.cabc.Sequence[ ContentDocument ]
 InventoryObjects: __.typx.TypeAlias = __.cabc.Sequence[ InventoryObject ]
 SearchResults: __.typx.TypeAlias = __.cabc.Sequence[ SearchResult ]
 
-ContentResult: __.typx.TypeAlias = ContentQueryResult | ErrorResponse
-InventoryResult: __.typx.TypeAlias = InventoryQueryResult | ErrorResponse
-DetectionsResultUnion: __.typx.TypeAlias = DetectionsResult | ErrorResponse
-ProcessorsSurveyResultUnion: __.typx.TypeAlias = (
-    ProcessorsSurveyResult | ErrorResponse )

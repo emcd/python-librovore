@@ -52,7 +52,3 @@ from_source                         # Detection.from_source implementations acro
 # Data structures for future use (preserved for upcoming refactoring)
 DetectionsForLocation               # Location-specific detection grouping
 
-# Phase 2->4 transition: Union types unused after Phase 2, will be removed in Phase 4
-ContentResult                       # Union type for content query results (Phase 4 cleanup)
-InventoryResult                     # Union type for inventory query results (Phase 4 cleanup)
-ProcessorsSurveyResultUnion         # Union type for processor survey results (Phase 4 cleanup)
