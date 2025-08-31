@@ -302,11 +302,9 @@ class ProcessorInavailability( Omnierror, RuntimeError ):
         self,
         source: str,
         genus: __.Absential[ str ] = __.absent,
-        query: __.Absential[ str ] = __.absent,
     ):
         self.source = source
         self.genus = genus  
-        self.query = query
         message = f"No processor found to handle source: {source}"
         if not __.is_absent( genus ):
             message += f" (genus: {genus})"
@@ -322,7 +320,6 @@ class ProcessorInavailability( Omnierror, RuntimeError ):
             message = str( self ),
             source = self.source,
             genus = self.genus if not __.is_absent( self.genus ) else None,
-            query = self.query if not __.is_absent( self.query ) else None,
             suggestion = (
                 'Verify the URL points to a supported documentation format.' ),
         )
@@ -341,8 +338,6 @@ class ProcessorInavailability( Omnierror, RuntimeError ):
             lines.append( f"**Source:** {self.source}" )
             if not __.is_absent( self.genus ):
                 lines.append( f"**Genus:** {self.genus}" )
-            if not __.is_absent( self.query ):
-                lines.append( f"**Query:** {self.query}" )
             lines.append( "**Error Type:** processor_unavailable" )
         return tuple( lines )
 

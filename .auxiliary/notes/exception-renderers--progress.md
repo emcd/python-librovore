@@ -41,14 +41,14 @@ The analysis recommends implementing self-rendering exceptions combined with AOP
 - [x] Implement render methods for InventoryInvalidity
 - [ ] Implement render methods for other domain exceptions (deferred for later)
 
-### Phase 2: Functions Layer Clean Signatures
-- [ ] Update query_content function signature (remove union type)
-- [ ] Update query_inventory function signature (remove union type)  
-- [ ] Update detect function signature (remove union type)
-- [ ] Update survey_processors function signature (remove union type)
-- [ ] Remove _produce_processor_error_response function
-- [ ] Remove other _produce_*_error_response functions
-- [ ] Update business logic to use natural exception flow
+### Phase 2: Functions Layer Clean Signatures ✅ COMPLETED
+- [x] Update query_content function signature (remove union type)
+- [x] Update query_inventory function signature (remove union type)  
+- [x] Update detect function signature (remove union type)
+- [x] Update survey_processors function signature (remove union type)
+- [x] Remove _produce_processor_error_response function
+- [x] Remove other _produce_*_error_response functions
+- [x] Update business logic to use natural exception flow
 
 ### Phase 3: Interface Layer AOP Decorators
 - [ ] Create MCP server exception interception decorator
@@ -75,12 +75,16 @@ The analysis recommends implementing self-rendering exceptions combined with AOP
 - 2025-08-30: Planned 4-phase implementation for clean milestones with working states
 - 2025-08-30: Phase 1 completed - Added abstract render methods to Omnierror and implemented for ProcessorInavailability, InventoryInaccessibility, InventoryInvalidity
 - 2025-08-30: Maintained backward compatibility with existing constructor signatures during Phase 1
+- 2025-08-30: Phase 2 completed - Transformed all functions to use clean signatures with natural exception flow
+- 2025-08-30: Removed 76 lines of error response helper functions, simplified business logic significantly
+- 2025-08-31: Fixed anti-pattern in Phase 2 - Enhanced detection layer to accept query context instead of re-raising exceptions in functions layer
+- 2025-08-31: Modified detect() and detect_inventory() functions to accept optional query parameter for proper exception context
 
 ## Handoff Notes
-- **Current State**: Phase 1 completed - Exceptions now have self-rendering capabilities
-- **Next Steps**: Begin Phase 2 - Transform functions.py to use clean signatures with natural exception flow
-- **Known Issues**: None identified in Phase 1
+- **Current State**: Phase 2 completed - Functions now use clean signatures with natural exception flow
+- **Next Steps**: Begin Phase 3 - Add AOP decorators to interface layers (CLI/MCP)
+- **Known Issues**: Interface layers (CLI/MCP) will break until Phase 3 decorators are applied
 - **Context Dependencies**: 
-  - Current functions in functions.py return union types like `ContentResult | ErrorResponse`
-  - Helper functions like `_produce_processor_error_response` need to be removed in Phase 2
-  - Interface layers (CLI/MCP) will need AOP decorators in Phase 3
+  - Functions now raise exceptions instead of returning union types  
+  - CLI and MCP server need exception interception decorators
+  - Union types in results.py are unused and can be removed in Phase 4
