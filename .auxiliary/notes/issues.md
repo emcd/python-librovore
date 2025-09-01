@@ -22,15 +22,6 @@ Sites without Sphinx-compatible object inventories cannot be processed by librov
 
 ## Interface Layer Issues (AOP Decorator Testing - 2025-08-31)
 
-### CLI Issues
-
-**CLI Exception Rendering Ignores Display Format**
-- **Problem**: When using `--display-format JSON`, exceptions are still rendered in Markdown format instead of JSON
-- **Expected**: JSON format should render exception as `render_as_json()` output  
-- **Observed**: CLI always uses Markdown rendering via `cli_exception_handler` decorator
-- **Root Cause**: CLI decorator hardcodes Markdown rendering regardless of display format preference
-- **Test Case**: `hatch run librovore --display-format JSON query-inventory https://example.com/ test`
-- **Impact**: CLI JSON output is inconsistent when errors occur
 
 ### MCP Server Issues
 

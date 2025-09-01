@@ -61,13 +61,30 @@ def intercept_errors( ) -> __.cabc.Callable[
                     self, auxdata, display, display_format, 
                     *posargs, **nomargs )
             except _exceptions.Omnierror as exc:
-                lines = exc.render_as_markdown( )
-                error_message = '\n'.join( lines )
+                match display_format:
+                    case _interfaces.DisplayFormat.JSON:
+                        serialized = dict( exc.render_as_json( ) )
+                        error_message = __.json.dumps( serialized, indent = 2 )
+                    case _interfaces.DisplayFormat.Markdown:
+                        lines = exc.render_as_markdown( )
+                        error_message = '\n'.join( lines )
                 print( error_message, file = stream )
                 raise SystemExit( 1 ) from None
             except Exception as exc:
                 _scribe.error( f"{func.__name__} failed: %s", exc )
-                print( f"❌ Unexpected error: {exc}", file = stream )
+                match display_format:
+                    case _interfaces.DisplayFormat.JSON:
+                        error_data = {
+                            "type": "unexpected_error",
+                            "title": "Unexpected Error",
+                            "message": str( exc ),
+                            "suggestion": (
+                                "Please report this issue if it persists." ),
+                        }
+                        error_message = __.json.dumps( error_data, indent = 2 )
+                    case _interfaces.DisplayFormat.Markdown:
+                        error_message = f"❌ Unexpected error: {exc}"
+                print( error_message, file = stream )
                 raise SystemExit( 1 ) from None
 
         return wrapper
