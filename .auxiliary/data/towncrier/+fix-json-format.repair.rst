@@ -1,0 +1,1 @@
+CLI: Fix exception rendering to respect --display-format setting for consistent JSON output.
