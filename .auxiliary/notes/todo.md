@@ -19,6 +19,7 @@
 ## Code Quality & Maintenance (Medium Priority)
 
 ### 🧹 Code Cleanup
+- [ ] **Remove signature details enum**: Remove `Signature` variant from `InventoryQueryDetails` enum in `query-inventory` command since signature extraction has been completely removed
 - [ ] **Cleanup serialize_for_json functions**: Two `serialize_for_json` functions exist - `results.serialize_for_json()` (still used for processor capabilities metadata) and `functions._serialize_for_json()` (private, appears unused). The problematic MCP server usage has been eliminated. Consider removing the unused private function.
 
 ### 🧪 Testing Strategy Improvements

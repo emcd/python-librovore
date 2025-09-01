@@ -137,10 +137,6 @@ class ContentDocument( __.immut.DataclassObject ):
         InventoryObject,
         __.ddoc.Doc( "Location inventory object for this content." ),
     ]
-    signature: __.typx.Annotated[
-        str,
-        __.ddoc.Doc( "Extracted function/class signature." ),
-    ] = ''
     description: __.typx.Annotated[
         str,
         __.ddoc.Doc( "Extracted object description or summary." ),
@@ -157,7 +153,7 @@ class ContentDocument( __.immut.DataclassObject ):
     @property
     def has_meaningful_content( self ) -> bool:
         ''' Returns True if document contains useful extracted content. '''
-        return bool( self.signature or self.description )
+        return bool( self.description )
 
     def render_as_json( 
         self, /, *,
@@ -175,7 +171,6 @@ class ContentDocument( __.immut.DataclassObject ):
             str, __.typx.Any
         ](
             inventory_object = dict( self.inventory_object.render_as_json( ) ),
-            signature = self.signature,
             description = description,
             documentation_url = self.documentation_url,
             extraction_metadata = dict( self.extraction_metadata ),
@@ -191,8 +186,6 @@ class ContentDocument( __.immut.DataclassObject ):
     ) -> tuple[ str, ... ]:
         ''' Renders complete document as Markdown lines for display. '''
         lines = [ f"### `{self.inventory_object.effective_display_name}`" ]
-        if self.signature:
-            lines.append( f"**Signature:** `{self.signature}`" )
         if self.description:
             lines.append( f"**Description:** {self.description}" )
         if self.documentation_url:
@@ -412,9 +405,6 @@ class ContentQueryResult( __.immut.DataclassObject ):
                 lines.append( separator.format( index ) )
                 lines.append( "**URL:** {url}".format(
                     url = doc.documentation_url ) )
-                if doc.signature:
-                    lines.append( "**Signature:** {signature}".format(
-                        signature = doc.signature ) )
                 if doc.description:
                     description = doc.description
                     if lines_max is not None:
