@@ -145,10 +145,6 @@ class ContentDocument( __.immut.DataclassObject ):
         str,
         __.ddoc.Doc( "Extracted object description or summary." ),
     ] = ''
-    content_snippet: __.typx.Annotated[
-        str,
-        __.ddoc.Doc( "Relevant content excerpt for search context." ),
-    ] = ''
     documentation_url: __.typx.Annotated[
         str,
         __.ddoc.Doc( "Complete URL to full documentation page." ),
@@ -161,18 +157,26 @@ class ContentDocument( __.immut.DataclassObject ):
     @property
     def has_meaningful_content( self ) -> bool:
         ''' Returns True if document contains useful extracted content. '''
-        return bool(
-            self.signature or self.description or self.content_snippet )
+        return bool( self.signature or self.description )
 
-    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+    def render_as_json( 
+        self, /, *,
+        lines_max: __.typx.Optional[ int ] = None,
+    ) -> __.immut.Dictionary[ str, __.typx.Any ]:
         ''' Renders complete document as JSON-compatible dictionary. '''
+        description = self.description
+        if lines_max is not None:
+            desc_lines = description.split( '\n' )
+            if len( desc_lines ) > lines_max:
+                desc_lines = desc_lines[ :lines_max ]
+                desc_lines.append( "..." )
+            description = '\n'.join( desc_lines )
         return __.immut.Dictionary[
             str, __.typx.Any
         ](
             inventory_object = dict( self.inventory_object.render_as_json( ) ),
             signature = self.signature,
-            description = self.description,
-            content_snippet = self.content_snippet,
+            description = description,
             documentation_url = self.documentation_url,
             extraction_metadata = dict( self.extraction_metadata ),
             has_meaningful_content = self.has_meaningful_content,
@@ -191,8 +195,6 @@ class ContentDocument( __.immut.DataclassObject ):
             lines.append( f"**Signature:** `{self.signature}`" )
         if self.description:
             lines.append( f"**Description:** {self.description}" )
-        if self.content_snippet:
-            lines.append( f"**Content:** {self.content_snippet}" )
         if self.documentation_url:
             lines.append( f"**URL:** {self.documentation_url}" )
         if reveal_internals:
@@ -359,10 +361,14 @@ class ContentQueryResult( __.immut.DataclassObject ):
         __.ddoc.Doc( "Information about inventory locations used." ),
     ]
 
-    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+    def render_as_json( 
+        self, /, *,
+        lines_max: __.typx.Optional[ int ] = None,
+    ) -> __.immut.Dictionary[ str, __.typx.Any ]:
         ''' Renders content query result as JSON-compatible dictionary. '''
         documents_json = [
-            dict( doc.render_as_json( ) ) for doc in self.documents ]
+            dict( doc.render_as_json( lines_max = lines_max ) ) 
+            for doc in self.documents ]
         locations_json = [
             dict( loc.render_as_json( ) ) for loc in self.inventory_locations ]
         return __.immut.Dictionary[
@@ -410,20 +416,15 @@ class ContentQueryResult( __.immut.DataclassObject ):
                     lines.append( "**Signature:** {signature}".format(
                         signature = doc.signature ) )
                 if doc.description:
-                    lines.append( "**Description:** {description}".format(
-                        description = doc.description ) )
-                if doc.content_snippet:
-                    content = doc.content_snippet
+                    description = doc.description
                     if lines_max is not None:
-                        content_lines = content.split( '\n' )
-                        if len( content_lines ) > lines_max:
-                            content_lines = content_lines[ :lines_max ]
-                            content_lines.append(
-                                "... (truncated at {lines_max} lines)".format(
-                                    lines_max = lines_max ) )
-                        content = '\n'.join( content_lines )
-                    lines.append( "**Content:** {content}".format(
-                        content = content ) )
+                        desc_lines = description.split( '\n' )
+                        if len( desc_lines ) > lines_max:
+                            desc_lines = desc_lines[ :lines_max ]
+                            desc_lines.append( "..." )
+                        description = '\n'.join( desc_lines )
+                    lines.append( "**Description:** {description}".format(
+                        description = description ) )
         return tuple( lines )
 
 

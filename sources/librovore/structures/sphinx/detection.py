@@ -54,14 +54,12 @@ class SphinxDetection( __.StructureDetection ):
         self,
         auxdata: __.ApplicationGlobals,
         source: str,
-        objects: __.cabc.Sequence[ __.InventoryObject ], /, *,
-        include_snippets: bool = True,
+        objects: __.cabc.Sequence[ __.InventoryObject ], /,
     ) -> tuple[ __.ContentDocument, ... ]:
         ''' Extracts documentation content for specified objects. '''
         theme = self.theme if self.theme is not None else __.absent
         documents = await _extraction.extract_contents(
-            auxdata, source, objects,
-            theme = theme, include_snippets = include_snippets )
+            auxdata, source, objects, theme = theme )
         return tuple( documents )
 
 

@@ -29,7 +29,6 @@ from . import __
 from . import exceptions as _exceptions
 from . import functions as _functions
 from . import interfaces as _interfaces
-from . import results as _results
 from . import state as _state
 
 
@@ -72,10 +71,6 @@ FiltersMutable: __.typx.TypeAlias = dict[ str, __.typx.Any ]
 GroupByArgument: __.typx.TypeAlias = __.typx.Annotated[
     __.typx.Optional[ str ],
     _Field( description = __.access_doctab( 'group by argument' ) ),
-]
-IncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
-    bool,
-    _Field( description = __.access_doctab( 'include snippets argument' ) ),
 ]
 TermArgument: __.typx.TypeAlias = __.typx.Annotated[
     str, _Field( description = __.access_doctab( 'term argument' ) ) ]
@@ -144,8 +139,11 @@ def _produce_query_content_function( auxdata: _state.Globals ):
             FiltersMutable,
             _Field( description = "Processor-specific filters" ),
         ] = _filters_default,
-        include_snippets: IncludeSnippets = True,
         results_max: ResultsMax = 10,
+        lines_max: __.typx.Annotated[
+            int,
+            _Field( description = "Maximum lines to display per result." ),
+        ] = 40,
     ) -> dict[ str, __.typx.Any ]:
         immutable_search_behaviors = (
             _to_immutable_search_behaviors( search_behaviors ) )
@@ -154,9 +152,9 @@ def _produce_query_content_function( auxdata: _state.Globals ):
             auxdata, location, term,
             search_behaviors = immutable_search_behaviors,
             filters = immutable_filters,
-            include_snippets = include_snippets,
-            results_max = results_max )
-        return _results.serialize_for_json( result )
+            results_max = results_max,
+            lines_max = lines_max )
+        return dict( result.render_as_json( lines_max = lines_max ) )
 
     return query_content
 
@@ -177,7 +175,7 @@ def _produce_query_inventory_function( auxdata: _state.Globals ):
         details: __.typx.Annotated[
             _interfaces.InventoryQueryDetails,
             _Field( description = "Detail level for inventory results" ),
-        ] = _interfaces.InventoryQueryDetails.Documentation,
+        ] = _interfaces.InventoryQueryDetails.Name,
         results_max: ResultsMax = 5,
     ) -> dict[ str, __.typx.Any ]:
         immutable_search_behaviors = (
@@ -189,7 +187,7 @@ def _produce_query_inventory_function( auxdata: _state.Globals ):
             filters = immutable_filters,
             details = details,
             results_max = results_max )
-        return _results.serialize_for_json( result )
+        return dict( result.render_as_json( ) )
 
     return query_inventory
 

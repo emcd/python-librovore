@@ -106,8 +106,7 @@ class StructureDetection( Detection ):
         self,
         auxdata: _state.Globals,
         source: str,
-        objects: __.cabc.Sequence[ _results.InventoryObject ], /, *,
-        include_snippets: bool = True,
+        objects: __.cabc.Sequence[ _results.InventoryObject ], /,
     ) -> tuple[ _results.ContentDocument, ... ]:
         ''' Extracts documentation content for specified objects. '''
         raise NotImplementedError

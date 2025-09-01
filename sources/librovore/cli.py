@@ -95,10 +95,6 @@ GroupByArgument: __.typx.TypeAlias = __.typx.Annotated[
     __.typx.Optional[ str ],
     __.tyro.conf.arg( help = __.access_doctab( 'group by argument' ) ),
 ]
-IncludeSnippets: __.typx.TypeAlias = __.typx.Annotated[
-    bool,
-    __.tyro.conf.arg( help = __.access_doctab( 'include snippets argument' ) ),
-]
 PortArgument: __.typx.TypeAlias = __.typx.Annotated[
     __.typx.Optional[ int ],
     __.tyro.conf.arg( help = __.access_doctab( 'server port argument' ) ),
@@ -196,7 +192,7 @@ class QueryInventoryCommand(
         _interfaces.InventoryQueryDetails,
         __.tyro.conf.arg(
             help = __.access_doctab( 'query details argument' ) ),
-    ] = _interfaces.InventoryQueryDetails.Documentation
+    ] = _interfaces.InventoryQueryDetails.Name
     filters: __.typx.Annotated[
         __.cabc.Mapping[ str, __.typx.Any ],
         __.tyro.conf.arg( prefix_name = False ),
@@ -253,7 +249,6 @@ class QueryContentCommand(
         __.cabc.Mapping[ str, __.typx.Any ],
         __.tyro.conf.arg( prefix_name = False ),
     ] = __.dcls.field( default_factory = lambda: dict( _filters_default ) )
-    include_snippets: IncludeSnippets = True
     results_max: ResultsMax = 10
     lines_max: __.typx.Annotated[
         int,
@@ -274,7 +269,7 @@ class QueryContentCommand(
             search_behaviors = self.search_behaviors,
             filters = self.filters,
             results_max = self.results_max,
-            include_snippets = self.include_snippets )
+            lines_max = self.lines_max )
         match display_format:
             case _interfaces.DisplayFormat.JSON:
                 output = __.json.dumps(

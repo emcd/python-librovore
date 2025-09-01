@@ -23,18 +23,17 @@ Sites without Sphinx-compatible object inventories cannot be processed by librov
 ## Interface Layer Issues (AOP Decorator Testing - 2025-08-31)
 
 
-### MCP Server Issues
+### ✅ MCP Server Issues (RESOLVED)
 
-**MCP Response Sizes Significantly Larger Than Expected**
-- **Problem**: MCP server content query responses are much larger than requested content limits
-- **Expected**: Response sizes should respect content filtering and pagination parameters
-- **Observed**: Content responses exceed 69,000+ tokens even with `results_max=1` and `include_snippets=false`
-- **Test Case**: `mcp__librovore__query_content` with FastAPI documentation  
-- **Impact**: MCP responses frequently exceed token limits, causing tool failures
-- **Possible Causes**: 
-  - Rich HTML-to-Markdown conversion creating verbose output
-  - Lack of effective content truncation in structure processors
-  - Missing content length estimation before response serialization
+~~**MCP Response Sizes Significantly Larger Than Expected**~~ **FIXED**
+- **Problem**: ~~MCP server content query responses are much larger than requested content limits~~
+- **Solution**: Implemented proper `lines_max` parameter plumbing and centralized truncation in render methods
+- **Status**: MCP server now properly respects content length limits, preventing 69K+ token responses
+- **Changes**: 
+  - Added `lines_max` parameter to JSON render methods
+  - Eliminated `content_snippet` attribute from ContentDocument  
+  - Centralized all truncation logic in results.py render methods
+  - Replaced legacy `serialize_for_json` usage with parameterized `render_as_json`
 
 ## Current Status Summary
 
@@ -43,5 +42,5 @@ Sites without Sphinx-compatible object inventories cannot be processed by librov
 2. **Documentation**: Clear usage guidelines about site compatibility
 3. **Ecosystem Expansion**: Support for additional documentation formats
 4. **CLI Format Consistency**: Fix CLI exception rendering to respect `--display-format` setting
-5. **MCP Response Optimization**: Implement effective content truncation and size estimation
+5. ~~**MCP Response Optimization**: Implement effective content truncation and size estimation~~ **COMPLETED**
 

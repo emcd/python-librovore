@@ -18,6 +18,9 @@
 
 ## Code Quality & Maintenance (Medium Priority)
 
+### 🧹 Code Cleanup
+- [ ] **Cleanup serialize_for_json functions**: Two `serialize_for_json` functions exist - `results.serialize_for_json()` (still used for processor capabilities metadata) and `functions._serialize_for_json()` (private, appears unused). The problematic MCP server usage has been eliminated. Consider removing the unused private function.
+
 ### 🧪 Testing Strategy Improvements
 - [ ] **Mock heavy operations**: Replace inventory parsing with mocks for unit tests
 - [ ] **Focus on hard gaps**: Mock HTTP/network failures for error path testing

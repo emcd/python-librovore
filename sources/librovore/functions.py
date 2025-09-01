@@ -93,8 +93,8 @@ async def query_content(  # noqa: PLR0913
     processor_name: __.Absential[ str ] = __.absent,
     search_behaviors: _interfaces.SearchBehaviors = _search_behaviors_default,
     filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
-    include_snippets: bool = True,
     results_max: int = 10,
+    lines_max: __.typx.Optional[ int ] = None,
 ) -> _results.ContentQueryResult:
     ''' Searches documentation content with relevance ranking. '''
     location = _normalize_location( location )
@@ -134,8 +134,7 @@ async def query_content(  # noqa: PLR0913
     sdetection = await _detection.detect_structure(
         auxdata, resolved_location, processor_name = processor_name )
     documents = await sdetection.extract_contents(
-        auxdata, resolved_location, candidates[ : results_max ],
-        include_snippets = include_snippets )
+        auxdata, resolved_location, candidates[ : results_max ] )
     end_time = __.time.perf_counter( )
     search_time_ms = int( ( end_time - start_time ) * 1000 )
     return _results.ContentQueryResult(
@@ -158,7 +157,7 @@ async def query_inventory(  # noqa: PLR0913
     search_behaviors: _interfaces.SearchBehaviors = _search_behaviors_default,
     filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
     details: _interfaces.InventoryQueryDetails = (
-        _interfaces.InventoryQueryDetails.Documentation ),
+        _interfaces.InventoryQueryDetails.Name ),
     results_max: int = 5,
 ) -> _results.InventoryQueryResult:
     ''' Searches object inventory by name.

@@ -124,14 +124,13 @@ async def extract_contents(
     source: str,
     objects: __.cabc.Sequence[ __.InventoryObject ], /, *,
     theme: __.Absential[ str ] = __.absent,
-    include_snippets: bool = True,
 ) -> list[ __.ContentDocument ]:
     ''' Extracts documentation content for specified objects. '''
     base_url = _urls.normalize_base_url( source )
     if not objects: return [ ]
     tasks = [
         _extract_object_documentation(
-            auxdata, base_url, obj, include_snippets, theme )
+            auxdata, base_url, obj, theme )
         for obj in objects ]
     candidate_results = await __.asyncf.gather_async(
         *tasks, return_exceptions = True )
@@ -216,8 +215,7 @@ async def _extract_object_documentation(
     auxdata: __.ApplicationGlobals,
     base_url: __.typx.Any,
     obj: __.InventoryObject,
-    include_snippets: bool,
-    theme: __.Absential[ str ] = __.absent
+    theme: __.Absential[ str ] = __.absent,
 ) -> __.ContentDocument | None:
     ''' Extracts documentation for a single object. '''
     from . import conversion as _conversion
@@ -237,18 +235,10 @@ async def _extract_object_documentation(
     except Exception: return None
     description = _conversion.html_to_markdown(
         parsed_content[ 'description' ] )
-    snippet_max_length = 200
-    if include_snippets:
-        content_snippet = (
-            description[ : snippet_max_length ] + '...'
-            if len( description ) > snippet_max_length
-            else description )
-    else: content_snippet = ''
     return __.ContentDocument(
         inventory_object = obj,
         signature = parsed_content[ 'signature' ],
         description = description,
-        content_snippet = content_snippet,
         documentation_url = doc_url.geturl( ),
         extraction_metadata = __.immut.Dictionary( {
             'theme': theme if not __.is_absent( theme ) else 'unknown',
