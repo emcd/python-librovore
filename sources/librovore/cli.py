@@ -184,7 +184,14 @@ class DetectCommand(
 class QueryInventoryCommand(
     _CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
-    ''' Searches object inventory by name with fuzzy matching. '''
+    ''' Explores documentation structure and object inventory.
+
+        Use before content searches to:
+        
+        - Discover available topics and object types
+        - Identify relevant search terms and filters
+        - Understand documentation scope and organization
+    '''
 
     location: LocationArgument
     term: TermArgument
@@ -236,7 +243,16 @@ class QueryInventoryCommand(
 class QueryContentCommand(
     _CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
-    ''' Searches documentation content with relevance ranking and snippets. '''
+    ''' Searches documentation with flexible preview/extraction modes.
+
+        Workflows:
+        
+        - Sample: Use --lines-max 5-10 to preview results and identify relevant
+          content
+        - Extract: Use --content-id from sample results to retrieve full
+          content  
+        - Direct: Search with higher --lines-max for immediate full results
+    '''
 
     location: LocationArgument
     term: TermArgument
@@ -253,12 +269,17 @@ class QueryContentCommand(
     lines_max: __.typx.Annotated[
         int,
         __.tyro.conf.arg(
-            help = "Maximum number of lines to display per result." ),
+            help = (
+                "Lines per result for preview/sampling. Use 5-10 for "
+                "discovery, omit for full content extraction via "
+                "content-id." ) ),
     ] = 40
     content_id: __.typx.Annotated[
         __.typx.Optional[ str ],
         __.tyro.conf.arg(
-            help = "Content identifier for browse-then-extract workflow." ),
+            help = (
+                "Extract full content for specific result. Obtain IDs from "
+                "previous query-content calls with limited lines-max." ) ),
     ] = None
 
     @intercept_errors( )
