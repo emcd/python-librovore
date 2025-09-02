@@ -51,3 +51,4 @@ from_source                         # Detection.from_source implementations acro
 
 # Data structures for future use (preserved for upcoming refactoring)
 DetectionsForLocation               # Location-specific detection grouping
+

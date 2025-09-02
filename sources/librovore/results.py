@@ -137,17 +137,9 @@ class ContentDocument( __.immut.DataclassObject ):
         InventoryObject,
         __.ddoc.Doc( "Location inventory object for this content." ),
     ]
-    signature: __.typx.Annotated[
-        str,
-        __.ddoc.Doc( "Extracted function/class signature." ),
-    ] = ''
     description: __.typx.Annotated[
         str,
         __.ddoc.Doc( "Extracted object description or summary." ),
-    ] = ''
-    content_snippet: __.typx.Annotated[
-        str,
-        __.ddoc.Doc( "Relevant content excerpt for search context." ),
     ] = ''
     documentation_url: __.typx.Annotated[
         str,
@@ -161,18 +153,25 @@ class ContentDocument( __.immut.DataclassObject ):
     @property
     def has_meaningful_content( self ) -> bool:
         ''' Returns True if document contains useful extracted content. '''
-        return bool(
-            self.signature or self.description or self.content_snippet )
+        return bool( self.description )
 
-    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+    def render_as_json( 
+        self, /, *,
+        lines_max: __.typx.Optional[ int ] = None,
+    ) -> __.immut.Dictionary[ str, __.typx.Any ]:
         ''' Renders complete document as JSON-compatible dictionary. '''
+        description = self.description
+        if lines_max is not None:
+            desc_lines = description.split( '\n' )
+            if len( desc_lines ) > lines_max:
+                desc_lines = desc_lines[ :lines_max ]
+                desc_lines.append( "..." )
+            description = '\n'.join( desc_lines )
         return __.immut.Dictionary[
             str, __.typx.Any
         ](
             inventory_object = dict( self.inventory_object.render_as_json( ) ),
-            signature = self.signature,
-            description = self.description,
-            content_snippet = self.content_snippet,
+            description = description,
             documentation_url = self.documentation_url,
             extraction_metadata = dict( self.extraction_metadata ),
             has_meaningful_content = self.has_meaningful_content,
@@ -187,101 +186,14 @@ class ContentDocument( __.immut.DataclassObject ):
     ) -> tuple[ str, ... ]:
         ''' Renders complete document as Markdown lines for display. '''
         lines = [ f"### `{self.inventory_object.effective_display_name}`" ]
-        if self.signature:
-            lines.append( f"**Signature:** `{self.signature}`" )
         if self.description:
             lines.append( f"**Description:** {self.description}" )
-        if self.content_snippet:
-            lines.append( f"**Content:** {self.content_snippet}" )
         if self.documentation_url:
             lines.append( f"**URL:** {self.documentation_url}" )
         if reveal_internals:
             inventory_lines = self.inventory_object.render_specifics_markdown(
                 reveal_internals = True )
             lines.extend( inventory_lines )
-        return tuple( lines )
-
-
-class ErrorInfo( __.immut.DataclassObject ):
-    ''' Structured error information for processor failures. '''
-
-    type: __.typx.Annotated[
-        str,
-        __.ddoc.Doc(
-            "Error type identifier (e.g., 'processor_unavailable')." ),
-    ]
-    title: __.typx.Annotated[
-        str,
-        __.ddoc.Doc( "Human-readable error title." ),
-    ]
-    message: __.typx.Annotated[
-        str,
-        __.ddoc.Doc( "Detailed error description." ),
-    ]
-    suggestion: __.typx.Annotated[
-        __.typx.Optional[ str ],
-        __.ddoc.Doc( "Suggested remediation steps." ),
-    ] = None
-
-    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
-        ''' Renders error info as JSON-compatible dictionary. '''
-        return __.immut.Dictionary[
-            str, __.typx.Any
-        ](
-            type = self.type,
-            title = self.title,
-            message = self.message,
-            suggestion = self.suggestion,
-        )
-
-
-class ErrorResponse( __.immut.DataclassObject ):
-    ''' Error response wrapper maintaining query context. '''
-
-    location: __.typx.Annotated[
-        str,
-        __.ddoc.Doc( "Primary location URL for failed query." ),
-    ]
-    query: __.typx.Annotated[
-        str,
-        __.ddoc.Doc( "Search term or query string that failed." ),
-    ]
-    error: __.typx.Annotated[
-        ErrorInfo,
-        __.ddoc.Doc( "Detailed error information." ),
-    ]
-
-    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
-        ''' Renders error response as JSON-compatible dictionary. '''
-        return __.immut.Dictionary(
-            location = self.location,
-            query = self.query,
-            error = __.immut.Dictionary[
-                str, __.typx.Any
-            ](
-                type = self.error.type,
-                title = self.error.title,
-                message = self.error.message,
-                suggestion = self.error.suggestion,
-            ),
-        )
-
-    def render_as_markdown(
-        self, /, *,
-        reveal_internals: __.typx.Annotated[
-            bool,
-            __.ddoc.Doc( "Controls whether internal details are shown." ),
-        ] = True,
-    ) -> tuple[ str, ... ]:
-        ''' Renders error response as Markdown lines for display. '''
-        lines = [ f"## Error: {self.error.title}" ]
-        lines.append( f"**Message:** {self.error.message}" )
-        if self.error.suggestion:
-            lines.append( f"**Suggestion:** {self.error.suggestion}" )
-        if reveal_internals:
-            lines.append( f"**Location:** {self.location}" )
-            lines.append( f"**Query:** {self.query}" )
-            lines.append( f"**Error Type:** {self.error.type}" )
         return tuple( lines )
 
 
@@ -442,10 +354,14 @@ class ContentQueryResult( __.immut.DataclassObject ):
         __.ddoc.Doc( "Information about inventory locations used." ),
     ]
 
-    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+    def render_as_json( 
+        self, /, *,
+        lines_max: __.typx.Optional[ int ] = None,
+    ) -> __.immut.Dictionary[ str, __.typx.Any ]:
         ''' Renders content query result as JSON-compatible dictionary. '''
         documents_json = [
-            dict( doc.render_as_json( ) ) for doc in self.documents ]
+            dict( doc.render_as_json( lines_max = lines_max ) ) 
+            for doc in self.documents ]
         locations_json = [
             dict( loc.render_as_json( ) ) for loc in self.inventory_locations ]
         return __.immut.Dictionary[
@@ -489,24 +405,16 @@ class ContentQueryResult( __.immut.DataclassObject ):
                 lines.append( separator.format( index ) )
                 lines.append( "**URL:** {url}".format(
                     url = doc.documentation_url ) )
-                if doc.signature:
-                    lines.append( "**Signature:** {signature}".format(
-                        signature = doc.signature ) )
                 if doc.description:
-                    lines.append( "**Description:** {description}".format(
-                        description = doc.description ) )
-                if doc.content_snippet:
-                    content = doc.content_snippet
+                    description = doc.description
                     if lines_max is not None:
-                        content_lines = content.split( '\n' )
-                        if len( content_lines ) > lines_max:
-                            content_lines = content_lines[ :lines_max ]
-                            content_lines.append(
-                                "... (truncated at {lines_max} lines)".format(
-                                    lines_max = lines_max ) )
-                        content = '\n'.join( content_lines )
-                    lines.append( "**Content:** {content}".format(
-                        content = content ) )
+                        desc_lines = description.split( '\n' )
+                        if len( desc_lines ) > lines_max:
+                            desc_lines = desc_lines[ :lines_max ]
+                            desc_lines.append( "..." )
+                        description = '\n'.join( desc_lines )
+                    lines.append( "**Description:** {description}".format(
+                        description = description ) )
         return tuple( lines )
 
 
@@ -855,8 +763,3 @@ ContentDocuments: __.typx.TypeAlias = __.cabc.Sequence[ ContentDocument ]
 InventoryObjects: __.typx.TypeAlias = __.cabc.Sequence[ InventoryObject ]
 SearchResults: __.typx.TypeAlias = __.cabc.Sequence[ SearchResult ]
 
-ContentResult: __.typx.TypeAlias = ContentQueryResult | ErrorResponse
-InventoryResult: __.typx.TypeAlias = InventoryQueryResult | ErrorResponse
-DetectionsResultUnion: __.typx.TypeAlias = DetectionsResult | ErrorResponse
-ProcessorsSurveyResultUnion: __.typx.TypeAlias = (
-    ProcessorsSurveyResult | ErrorResponse )

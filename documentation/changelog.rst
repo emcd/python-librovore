@@ -23,6 +23,22 @@ Release Notes
 
 .. towncrier release notes start
 
+Librovore 1.0a3 (2025-09-01)
+============================
+
+Enhancements
+------------
+
+- Remove unreliable signature detection system to provide cleaner, more focused output with better performance.
+
+
+Repairs
+-------
+
+- CLI: Fix exception rendering to respect --display-format setting for consistent JSON output.
+- MCP: Fix content length issues that caused tool failures by implementing proper response size control through user-specified limits.
+
+
 Librovore 1.0a2 (2025-08-28)
 ============================
 

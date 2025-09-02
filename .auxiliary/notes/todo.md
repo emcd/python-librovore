@@ -2,24 +2,27 @@
 
 ## Alpha Release Preparation (High Priority)
 
-### ✅ Recently Completed
-- [x] **MkDocs inventory processor**: Complete implementation of search_index.json processor
-- [x] **Pure MkDocs support**: HTTPX and other pure MkDocs sites now fully functional
-- [x] **Precedence-based detection**: Sphinx takes priority over MkDocs when both available
-- [x] **MkDocs processor**: Complete implementation with HTML-to-Markdown conversion
-- [x] **Language-aware code blocks**: Enhanced code block handling with language detection
-- [x] **Theme-specific extraction**: Material for MkDocs and ReadTheDocs support
-
 ### 🚀 Alpha Release Priorities
 - [ ] **UX testing**: Comprehensive testing across documentation ecosystems
 - [ ] **README update**: Complete documentation overhaul for alpha users
 - [ ] **Real-world validation**: Test with diverse MkDocs and Sphinx sites
 - [ ] **Error handling review**: Ensure graceful degradation in edge cases
 
+### 🎨 UX and CLI Improvements
+- [ ] **Add cache control**: Add `--no-cache` or `--cache-bust` option to bypass HTTP caching
+- [ ] **Test extraction quality**: Test extraction quality across different MkDocs themes
+- [ ] **Improve error messages**: Evaluate error messages and make them more user-friendly
+- [ ] **Enhance CLI help**: Improve CLI help text and examples
+- [ ] **URL validation**: Add validation for source URLs before processing
+- [ ] **Compact display**: Consider future `--compact` flag for condensed display mode
+
 ## Code Quality & Maintenance (Medium Priority)
 
+### 🧹 Code Cleanup
+- [ ] **Remove signature details enum**: Remove `Signature` variant from `InventoryQueryDetails` enum in `query-inventory` command since signature extraction has been completely removed
+- [ ] **Cleanup serialize_for_json functions**: Two `serialize_for_json` functions exist - `results.serialize_for_json()` (still used for processor capabilities metadata) and `functions._serialize_for_json()` (private, appears unused). The problematic MCP server usage has been eliminated. Consider removing the unused private function.
+
 ### 🧪 Testing Strategy Improvements
-- [x] **Reduce test overlap**: Target specific uncovered lines instead of comprehensive functionality tests
 - [ ] **Mock heavy operations**: Replace inventory parsing with mocks for unit tests
 - [ ] **Focus on hard gaps**: Mock HTTP/network failures for error path testing
 
@@ -54,14 +57,12 @@
 - [ ] **Performance benchmarking**: Establish baseline performance metrics
 - [ ] **Security review**: Review for potential security issues
 
-## Post-1.0 Considerations
+## Future Architecture Enhancements
 
-### 🌟 Extension Ideas (Not for 1.0)
-- Interactive CLI browser mode
-- Multi-site search capabilities
-- Advanced relationship mapping between objects
-
-## Test Analysis Integration
+For detailed technical designs of future enhancements, see:
+- `@structure-processor-enhancement.md` - Phase 3 processor capabilities and inventory-type awareness
+- `@multiple-inventories.md` - Multi-source processing strategy and implementation
+- `@exception-renderers.md` - Self-rendering exception architecture with AOP decorators
 
 ## Success Criteria for 1.0
 

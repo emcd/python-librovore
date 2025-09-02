@@ -47,7 +47,7 @@ async def detect(
     location: LocationArgument, /,
     genus: _interfaces.ProcessorGenera,
     processor_name: __.Absential[ str ] = __.absent,
-) -> _results.DetectionsResult | _results.ErrorResponse:
+) -> _results.DetectionsResult:
     ''' Detects relevant processors of particular genus for location. '''
     location = _normalize_location( location )
     start_time = __.time.perf_counter( )
@@ -57,12 +57,11 @@ async def detect(
     end_time = __.time.perf_counter( )
     detection_time_ms = int( ( end_time - start_time ) * 1000 )
     if __.is_absent( detection_optimal ):
-        # Create a synthetic exception to get proper error formatting
         genus_name = (
             genus.name.lower( ) if hasattr( genus, 'name' ) else str( genus ) )
-        exc = _exceptions.ProcessorInavailability( genus_name )
-        return _produce_processor_error_response(
-            exc, location, 'detection', genus = genus )
+        raise _exceptions.ProcessorInavailability(
+            location,
+            genus = genus_name )
     # Convert detections mapping to tuple of results.Detection objects
     detections_tuple = tuple(
         _results.Detection(
@@ -94,19 +93,14 @@ async def query_content(  # noqa: PLR0913
     processor_name: __.Absential[ str ] = __.absent,
     search_behaviors: _interfaces.SearchBehaviors = _search_behaviors_default,
     filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
-    include_snippets: bool = True,
     results_max: int = 10,
-) -> _results.ContentResult:
+    lines_max: __.typx.Optional[ int ] = None,
+) -> _results.ContentQueryResult:
     ''' Searches documentation content with relevance ranking. '''
     location = _normalize_location( location )
     start_time = __.time.perf_counter( )
-    try:
-        idetection = await _detection.detect_inventory(
-            auxdata, location, processor_name = processor_name )
-    except _exceptions.ProcessorInavailability as exc:
-        return _produce_processor_error_response(
-            exc, location, term,
-            genus = _interfaces.ProcessorGenera.Inventory )
+    idetection = await _detection.detect_inventory(
+        auxdata, location, processor_name = processor_name )
     # Resolve URL after detection to get working URL if redirect exists
     resolved_location = _detection.resolve_source_url( location )
     objects = await idetection.filter_inventory(
@@ -140,8 +134,7 @@ async def query_content(  # noqa: PLR0913
     sdetection = await _detection.detect_structure(
         auxdata, resolved_location, processor_name = processor_name )
     documents = await sdetection.extract_contents(
-        auxdata, resolved_location, candidates[ : results_max ],
-        include_snippets = include_snippets )
+        auxdata, resolved_location, candidates[ : results_max ] )
     end_time = __.time.perf_counter( )
     search_time_ms = int( ( end_time - start_time ) * 1000 )
     return _results.ContentQueryResult(
@@ -164,9 +157,9 @@ async def query_inventory(  # noqa: PLR0913
     search_behaviors: _interfaces.SearchBehaviors = _search_behaviors_default,
     filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
     details: _interfaces.InventoryQueryDetails = (
-        _interfaces.InventoryQueryDetails.Documentation ),
+        _interfaces.InventoryQueryDetails.Name ),
     results_max: int = 5,
-) -> _results.InventoryResult:
+) -> _results.InventoryQueryResult:
     ''' Searches object inventory by name.
 
         Returns configurable detail levels. Always includes object names
@@ -174,13 +167,8 @@ async def query_inventory(  # noqa: PLR0913
     '''
     location = _normalize_location( location )
     start_time = __.time.perf_counter( )
-    try:
-        detection = await _detection.detect_inventory(
-            auxdata, location, processor_name = processor_name )
-    except _exceptions.ProcessorInavailability as exc:
-        return _produce_processor_error_response(
-            exc, location, term,
-            genus = _interfaces.ProcessorGenera.Inventory )
+    detection = await _detection.detect_inventory(
+        auxdata, location, processor_name = processor_name )
     # Resolve URL after detection to get working URL if redirect exists
     resolved_location = _detection.resolve_source_url( location )
     objects = await detection.filter_inventory(
@@ -216,7 +204,7 @@ async def survey_processors(
     auxdata: _state.Globals, /,
     genus: _interfaces.ProcessorGenera,
     name: __.typx.Optional[ str ] = None,
-) -> _results.ProcessorsSurveyResultUnion:
+) -> _results.ProcessorsSurveyResult:
     ''' Lists processor capabilities for specified genus, filtered by name. '''
     start_time = __.time.perf_counter( )
     match genus:
@@ -225,9 +213,9 @@ async def survey_processors(
         case _interfaces.ProcessorGenera.Structure:
             processors = dict( _processors.structure_processors )
     if name is not None and name not in processors:
-        exc = _exceptions.ProcessorInavailability( name )
-        return _produce_processor_error_response(
-            exc, '', name or '', genus = genus )
+        raise _exceptions.ProcessorInavailability(
+            name,
+            genus = genus.value )
     processor_infos: list[ _results.ProcessorInfo ] = [ ]
     for name_, processor in processors.items( ):
         if name is None or name_ == name:
@@ -254,81 +242,6 @@ def _normalize_location( location: str ) -> str:
     if location.endswith( '/index.html' ): return location[ : -11 ]
     return location
 
-
-def _produce_generic_error_response(
-    exc: _exceptions.ProcessorInavailability,
-    location: str,
-    query: str,
-) -> _results.ErrorResponse:
-    ''' Produces structured error response for generic processor failures. '''
-    return _results.ErrorResponse(
-        location = location,
-        query = query,
-        error = _results.ErrorInfo(
-            type = 'processor_unavailable',
-            title = 'No Compatible Processor Found',
-            message = (
-                'No compatible processor found to handle this '
-                'documentation source.' ),
-            suggestion = (
-                'Verify the URL points to a supported documentation format.' )
-        ) )
-
-
-def _produce_inventory_error_response(
-    exc: _exceptions.ProcessorInavailability,
-    location: str,
-    query: str,
-) -> _results.ErrorResponse:
-    ''' Produces structured error response for inventory failures. '''
-    return _results.ErrorResponse(
-        location = location,
-        query = query,
-        error = _results.ErrorInfo(
-            type = 'processor_unavailable',
-            title = 'No Compatible Format Detected',
-            message = (
-                'No compatible inventory format detected at this '
-                'documentation source.' ),
-            suggestion = (
-                'Verify the URL points to a supported documentation site.' ) )
-    )
-
-
-def _produce_processor_error_response(
-    exc: _exceptions.ProcessorInavailability,
-    location: str,
-    query: str,
-    genus: __.Absential[ _interfaces.ProcessorGenera ] = __.absent,
-) -> _results.ErrorResponse:
-    ''' Produces appropriate structured error response based on genus. '''
-    match genus:
-        case _interfaces.ProcessorGenera.Inventory:
-            return _produce_inventory_error_response( exc, location, query )
-        case _interfaces.ProcessorGenera.Structure:
-            return _produce_structure_error_response( exc, location, query )
-        case _:
-            return _produce_generic_error_response( exc, location, query )
-
-
-def _produce_structure_error_response(
-    exc: _exceptions.ProcessorInavailability,
-    location: str,
-    query: str,
-) -> _results.ErrorResponse:
-    ''' Produces structured error response for structure failures. '''
-    return _results.ErrorResponse(
-        location = location,
-        query = query,
-        error = _results.ErrorInfo(
-            type = 'processor_unavailable',
-            title = 'No Compatible Structure Processor',
-            message = (
-                'No compatible structure processor found for this '
-                'documentation source.' ),
-            suggestion = (
-                'Ensure the site uses a supported documentation format '
-                'like Sphinx or MkDocs.' ) ) )
 
 
 def _serialize_for_json( obj: __.typx.Any ) -> __.typx.Any:

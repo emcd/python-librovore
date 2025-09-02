@@ -27,4 +27,4 @@ Designs
    processor-detection-system
    inventory-processors
    structure-processors
-   results-module-design
+   results-objects

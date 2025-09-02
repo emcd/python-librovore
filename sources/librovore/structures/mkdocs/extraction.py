@@ -42,12 +42,6 @@ MATERIAL_THEME_PATTERNS: __.cabc.Mapping[
             'section[id]',
             '.highlight',
         ],
-        'signature_selectors': [
-            '.doc-heading',
-            '.highlight .n',
-            'h1, h2, h3, h4, h5, h6',
-            'code',
-        ],
         'description_selectors': [
             '.doc-contents',
             '.doc-object-member .doc-contents',
@@ -81,11 +75,6 @@ MATERIAL_THEME_PATTERNS: __.cabc.Mapping[
             'dl.function',
             'dl.method',
         ],
-        'signature_selectors': [
-            'dt',
-            '.descname',
-            '.sig-name',
-        ],
         'description_selectors': [
             'dd',
             '.field-body',
@@ -117,12 +106,6 @@ _GENERIC_PATTERN = __.immut.Dictionary( {
         '.doc-object-member',
         'dl',
     ],
-    'signature_selectors': [
-        'h1, h2, h3, h4, h5, h6',
-        'dt',
-        'code',
-        '.highlight',
-    ],
     'description_selectors': [
         'p',
         'dd',
@@ -149,14 +132,13 @@ async def extract_contents(
     source: str,
     objects: __.cabc.Sequence[ __.InventoryObject ], /, *,
     theme: __.Absential[ str ] = __.absent,
-    include_snippets: bool = True,
 ) -> list[ __.ContentDocument ]:
     ''' Extracts documentation content for specified objects from MkDocs. '''
     base_url = __.normalize_base_url( source )
     if not objects: return [ ]
     tasks = [
         _extract_object_documentation(
-            auxdata, base_url, obj, include_snippets, theme )
+            auxdata, base_url, obj, theme )
         for obj in objects ]
     candidate_results = await __.asyncf.gather_async(
         *tasks, return_exceptions = True )
@@ -180,20 +162,14 @@ def parse_mkdocs_html(
     target_element = _find_target_element( main_container, element_id )
     if not target_element:
         raise __.DocumentationObjectAbsence( element_id, url )
-    signature, description = _extract_content_from_element(
+    description = _extract_content_from_element(
         target_element, element_id, theme )
     return {
-        'signature': signature,
         'description': description,
         'object_name': element_id,
     }
 
 
-def _clean_extracted_text( text: str ) -> str:
-    ''' Cleans extracted text while preserving meaningful structure. '''
-    text = text.strip( )
-    text = __.re.sub( r' +', ' ', text )
-    return __.re.sub( r'\n\s*\n', '\n\n', text )
 
 
 def _cleanup_content(
@@ -232,16 +208,14 @@ def _extract_content_from_element(
     element: __.typx.Any,
     element_id: str,
     theme: __.Absential[ str ] = __.absent
-) -> tuple[ str, str ]:
-    ''' Extracts signature and description content from element. '''
+) -> str:
+    ''' Extracts description content from element. '''
     theme_name = theme if not __.is_absent( theme ) else 'material'
     patterns = MATERIAL_THEME_PATTERNS.get( theme_name, _GENERIC_PATTERN )
-    signature = _extract_signature( element, patterns )
     description = _extract_description( element, patterns )
     cleanup_selectors = __.typx.cast(
         __.cabc.Sequence[ str ], patterns[ 'cleanup_selectors' ] )
-    description = _cleanup_content( description, cleanup_selectors )
-    return signature, description
+    return _cleanup_content( description, cleanup_selectors )
 
 
 def _extract_description(
@@ -260,8 +234,7 @@ async def _extract_object_documentation(
     auxdata: __.ApplicationGlobals,
     base_url: __.typx.Any,
     obj: __.InventoryObject,
-    include_snippets: bool,
-    theme: __.Absential[ str ] = __.absent
+    theme: __.Absential[ str ] = __.absent,
 ) -> __.ContentDocument | None:
     ''' Extracts documentation for a single object from MkDocs site. '''
     doc_url = _derive_documentation_url(
@@ -280,18 +253,9 @@ async def _extract_object_documentation(
             html_content, anchor, str( doc_url ), theme = theme )
     except Exception: return None
     description = _convert_to_markdown( parsed_content[ 'description' ] )
-    snippet_max_length = 200
-    if include_snippets:
-        content_snippet = (
-            description[ : snippet_max_length ] + '...'
-            if len( description ) > snippet_max_length
-            else description )
-    else: content_snippet = ''
     return __.ContentDocument(
         inventory_object = obj,
-        signature = parsed_content[ 'signature' ],
         description = description,
-        content_snippet = content_snippet,
         documentation_url = doc_url.geturl( ),
         extraction_metadata = __.immut.Dictionary( {
             'theme': theme if not __.is_absent( theme ) else 'unknown',
@@ -302,18 +266,6 @@ async def _extract_object_documentation(
     )
 
 
-def _extract_signature(
-    element: __.typx.Any,
-    patterns: __.cabc.Mapping[ str, __.typx.Any ]
-) -> str:
-    ''' Extracts signature/heading content from element. '''
-    signature_selectors = __.typx.cast(
-        __.cabc.Sequence[ str ], patterns[ 'signature_selectors' ] )
-    for selector in signature_selectors:
-        signature_elem = element.select_one( selector )
-        if signature_elem:
-            return _clean_extracted_text( signature_elem.get_text( ) )
-    return _clean_extracted_text( element.get_text( ) )
 
 
 def _extract_using_fallback_selectors(

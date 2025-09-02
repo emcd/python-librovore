@@ -34,7 +34,27 @@ class Omniexception( __.immut.Object, BaseException ):
 
 
 class Omnierror( Omniexception, Exception ):
-    ''' Base for error exceptions raised by package API. '''
+    ''' Base for error exceptions with self-rendering capability. '''
+
+    @__.abc.abstractmethod
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders exception as JSON-compatible dictionary. '''
+        raise NotImplementedError
+
+    @__.abc.abstractmethod  
+    def render_as_markdown(
+        self, /, *,
+        reveal_internals: __.typx.Annotated[
+            bool,
+            __.ddoc.Doc( '''
+                Controls whether implementation-specific details (internal 
+                field names, version numbers, priority scores) are included. 
+                When False, only user-facing information is shown.
+            ''' ),
+        ] = True,
+    ) -> tuple[ str, ... ]:
+        ''' Renders exception as Markdown lines for display. '''
+        raise NotImplementedError
 
 
 class DetectionConfidenceInvalidity( Omnierror, ValueError ):
@@ -150,19 +170,94 @@ class InventoryFilterInvalidity( Omnierror, ValueError ):
 class InventoryInaccessibility( Omnierror, RuntimeError ):
     ''' Inventory file or resource absent or inaccessible. '''
 
-    def __init__( self, source: str, cause: str | Exception ):
-        message = f"Inventory at '{source}' is inaccessible. Cause: {cause}"
+    def __init__(
+        self,
+        source: str,
+        cause: __.typx.Optional[ BaseException ] = None,
+    ):
         self.source = source
+        self.cause = cause
+        message = f"Inventory at '{source}' is inaccessible."
+        if cause is not None:
+            message += f" Cause: {cause}"
         super( ).__init__( message )
+
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders inventory inaccessibility as JSON-compatible dict. '''
+        return __.immut.Dictionary[
+            str, __.typx.Any
+        ](
+            type = 'inventory_inaccessible',
+            title = 'Inventory Location Inaccessible',
+            message = str( self ),
+            source = self.source,
+            cause = str( self.cause ) if self.cause is not None else None,
+            suggestion = (
+                'Check that the URL is correct and the documentation site is '
+                'accessible.' ),
+        )
+
+    def render_as_markdown(
+        self, /, *,
+        reveal_internals: bool = True,
+    ) -> tuple[ str, ... ]:
+        ''' Renders inventory inaccessibility as Markdown lines. '''
+        lines = [ "## Error: Inventory Location Inaccessible" ]
+        lines.append( f"**Message:** {self}" )
+        lines.append(
+            "**Suggestion:** Check that the URL is correct and the "
+            "documentation site is accessible." )
+        if reveal_internals:
+            lines.append( f"**Source:** {self.source}" )
+            if self.cause is not None:
+                lines.append( f"**Cause:** {self.cause}" )
+            lines.append( "**Error Type:** inventory_inaccessible" )
+        return tuple( lines )
 
 
 class InventoryInvalidity( Omnierror, ValueError ):
     ''' Inventory has invalid format or cannot be parsed. '''
 
-    def __init__( self, source: str, cause: str | Exception ):
-        message = f"Inventory at '{source}' is invalid. Cause: {cause}"
+    def __init__(
+        self,
+        source: str,
+        cause: str | Exception,
+    ):
         self.source = source
+        self.cause = cause
+        message = f"Inventory at '{source}' is invalid. Cause: {cause}"
         super( ).__init__( message )
+
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders inventory invalidity as JSON-compatible dict. '''
+        return __.immut.Dictionary[
+            str, __.typx.Any
+        ](
+            type = 'inventory_invalid',
+            title = 'Invalid Inventory Format',
+            message = str( self ),
+            source = self.source,
+            cause = str( self.cause ),
+            suggestion = (
+                'Verify that the inventory format is supported and the file '
+                'is not corrupted.' ),
+        )
+
+    def render_as_markdown(
+        self, /, *,
+        reveal_internals: bool = True,
+    ) -> tuple[ str, ... ]:
+        ''' Renders inventory invalidity as Markdown lines. '''
+        lines = [ "## Error: Invalid Inventory Format" ]
+        lines.append( f"**Message:** {self}" )
+        lines.append(
+            "**Suggestion:** Verify that the inventory format is supported "
+            "and the file is not corrupted." )
+        if reveal_internals:
+            lines.append( f"**Source:** {self.source}" )
+            lines.append( f"**Cause:** {self.cause}" )
+            lines.append( "**Error Type:** inventory_invalid" )
+        return tuple( lines )
 
 
 class InventoryUrlInvalidity( Omnierror, ValueError ):
@@ -203,10 +298,48 @@ class ProcessorGenusInvalidity( Omnierror, ValueError ):
 class ProcessorInavailability( Omnierror, RuntimeError ):
     ''' No processor found to handle source. '''
 
-    def __init__( self, source: str ):
-        message = f"No processor found to handle source: {source}"
+    def __init__(
+        self,
+        source: str,
+        genus: __.Absential[ str ] = __.absent,
+    ):
         self.source = source
+        self.genus = genus  
+        message = f"No processor found to handle source: {source}"
+        if not __.is_absent( genus ):
+            message += f" (genus: {genus})"
         super( ).__init__( message )
+
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders processor unavailability as JSON-compatible dictionary. '''
+        return __.immut.Dictionary[
+            str, __.typx.Any
+        ](
+            type = 'processor_unavailable',
+            title = 'No Compatible Processor Found',
+            message = str( self ),
+            source = self.source,
+            genus = self.genus if not __.is_absent( self.genus ) else None,
+            suggestion = (
+                'Verify the URL points to a supported documentation format.' ),
+        )
+
+    def render_as_markdown(
+        self, /, *,
+        reveal_internals: bool = True,
+    ) -> tuple[ str, ... ]:
+        ''' Renders processor unavailability as Markdown lines for display. '''
+        lines = [ "## Error: No Compatible Processor Found" ]
+        lines.append( f"**Message:** {self}" )
+        lines.append(
+            "**Suggestion:** Verify the URL points to a supported "
+            "documentation format." )
+        if reveal_internals:
+            lines.append( f"**Source:** {self.source}" )
+            if not __.is_absent( self.genus ):
+                lines.append( f"**Genus:** {self.genus}" )
+            lines.append( "**Error Type:** processor_unavailable" )
+        return tuple( lines )
 
 
 class ProcessorInvalidity( Omnierror, TypeError ):

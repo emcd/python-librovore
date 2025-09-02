@@ -38,12 +38,10 @@ THEME_EXTRACTION_PATTERNS: __.cabc.Mapping[
         'anchor_elements': [ 'dt', 'a' ],
         'content_strategies': __.immut.Dictionary( {
             'dt': __.immut.Dictionary( {
-                'signature_source': 'self',
                 'description_source': 'next_sibling',
                 'description_element': 'dd',
             } ),
             'a': __.immut.Dictionary( {
-                'signature_source': 'parent_text',
                 'description_source': 'parent_next_sibling',
                 'description_element': 'dd',
             } ),
@@ -54,18 +52,15 @@ THEME_EXTRACTION_PATTERNS: __.cabc.Mapping[
         'anchor_elements': [ 'span', 'a', 'dt' ],
         'content_strategies': __.immut.Dictionary( {
             'span': __.immut.Dictionary( {
-                'signature_source': 'parent_header',
                 'description_source': 'parent_next_element',
                 'description_element': 'p',
                 'fallback_container': 'section',
             } ),
             'a': __.immut.Dictionary( {
-                'signature_source': 'parent_text',
                 'description_source': 'parent_next_element',
                 'description_element': 'p',
             } ),
             'dt': __.immut.Dictionary( {
-                'signature_source': 'self',
                 'description_source': 'next_sibling',
                 'description_element': 'dd',
             } ),
@@ -76,12 +71,10 @@ THEME_EXTRACTION_PATTERNS: __.cabc.Mapping[
         'anchor_elements': [ 'dt', 'span', 'a' ],
         'content_strategies': __.immut.Dictionary( {
             'dt': __.immut.Dictionary( {
-                'signature_source': 'self',
                 'description_source': 'next_sibling',
                 'description_element': 'dd',
             } ),
             'span': __.immut.Dictionary( {
-                'signature_source': 'parent_header',
                 'description_source': 'parent_content',
                 'description_element': 'p',
             } ),
@@ -95,22 +88,18 @@ _GENERIC_PATTERN = __.immut.Dictionary( {
     'anchor_elements': [ 'dt', 'span', 'a', 'section', 'div' ],
     'content_strategies': __.immut.Dictionary( {
         'dt': __.immut.Dictionary( {
-            'signature_source': 'self',
             'description_source': 'next_sibling',
             'description_element': 'dd',
         } ),
         'section': __.immut.Dictionary( {
-            'signature_source': 'first_header',
             'description_source': 'first_paragraph',
             'description_element': 'p',
         } ),
         'span': __.immut.Dictionary( {
-            'signature_source': 'parent_header',
             'description_source': 'parent_next_element',
             'description_element': 'p',
         } ),
         'a': __.immut.Dictionary( {
-            'signature_source': 'parent_text',
             'description_source': 'parent_next_element',
             'description_element': 'p',
         } ),
@@ -124,14 +113,13 @@ async def extract_contents(
     source: str,
     objects: __.cabc.Sequence[ __.InventoryObject ], /, *,
     theme: __.Absential[ str ] = __.absent,
-    include_snippets: bool = True,
 ) -> list[ __.ContentDocument ]:
     ''' Extracts documentation content for specified objects. '''
     base_url = _urls.normalize_base_url( source )
     if not objects: return [ ]
     tasks = [
         _extract_object_documentation(
-            auxdata, base_url, obj, include_snippets, theme )
+            auxdata, base_url, obj, theme )
         for obj in objects ]
     candidate_results = await __.asyncf.gather_async(
         *tasks, return_exceptions = True )
@@ -158,10 +146,9 @@ def parse_documentation_html(
     element = container.find( id = element_id )
     if not element:
         raise __.DocumentationObjectAbsence( element_id, url )
-    signature, description = _extract_content_with_dsl(
+    description = _extract_content_with_dsl(
         element, element_id, theme )
     return {
-        'signature': signature,
         'description': description,
         'object_name': element_id,
     }
@@ -180,7 +167,7 @@ def _extract_content_with_dsl(
     element: __.typx.Any,
     element_id: str,
     theme: __.Absential[ str ] = __.absent
-) -> tuple[ str, str ]:
+) -> str:
     ''' Extracts content using DSL pattern configuration. '''
     theme_name = theme if not __.is_absent( theme ) else None
     if theme_name is not None:
@@ -191,13 +178,12 @@ def _extract_content_with_dsl(
         pattern[ 'content_strategies' ] )
     strategy = content_strategies.get( element.name )
     if not strategy: return _generic_extraction( element )
-    signature = _extract_signature_with_strategy( element, strategy )
     description = _extract_description_with_strategy( element, strategy )
     if 'cleanup_selectors' in pattern:
         cleanup_selectors = __.typx.cast(
             __.cabc.Sequence[ str ], pattern[ 'cleanup_selectors' ] )
         description = _cleanup_content( description, cleanup_selectors )
-    return signature, description
+    return description
 
 
 def _extract_description_with_strategy(
@@ -216,8 +202,7 @@ async def _extract_object_documentation(
     auxdata: __.ApplicationGlobals,
     base_url: __.typx.Any,
     obj: __.InventoryObject,
-    include_snippets: bool,
-    theme: __.Absential[ str ] = __.absent
+    theme: __.Absential[ str ] = __.absent,
 ) -> __.ContentDocument | None:
     ''' Extracts documentation for a single object. '''
     from . import conversion as _conversion
@@ -237,18 +222,9 @@ async def _extract_object_documentation(
     except Exception: return None
     description = _conversion.html_to_markdown(
         parsed_content[ 'description' ] )
-    snippet_max_length = 200
-    if include_snippets:
-        content_snippet = (
-            description[ : snippet_max_length ] + '...'
-            if len( description ) > snippet_max_length
-            else description )
-    else: content_snippet = ''
     return __.ContentDocument(
         inventory_object = obj,
-        signature = parsed_content[ 'signature' ],
         description = description,
-        content_snippet = content_snippet,
         documentation_url = doc_url.geturl( ),
         extraction_metadata = __.immut.Dictionary( {
             'theme': theme if not __.is_absent( theme ) else 'unknown',
@@ -259,33 +235,6 @@ async def _extract_object_documentation(
     )
 
 
-def _extract_signature_with_strategy(
-    element: __.typx.Any,
-    strategy: __.cabc.Mapping[ str, __.typx.Any ]
-) -> str:
-    ''' Extracts signature using DSL strategy. '''
-    source_type = __.typx.cast( str, strategy[ 'signature_source' ] )
-    match source_type:
-        case 'self': return _clean_extracted_text( element.get_text( ) )
-        case 'parent_text':
-            return (
-                _clean_extracted_text( element.parent.get_text( ) )
-                if element.parent else '' )
-        case 'parent_header':
-            if element.parent:
-                header = element.parent.find(
-                    [ 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' ] )
-                return (
-                    _clean_extracted_text( header.get_text( ) )
-                    if header else '' )
-            return ''
-        case 'first_header':
-            header = element.find(
-                [ 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' ] )
-            return (
-                _clean_extracted_text( header.get_text( ) )
-                if header else '' )
-        case _: return _clean_extracted_text( element.get_text( ) )
 
 
 def _find_main_content_container(
@@ -335,25 +284,16 @@ def _find_main_content_container(
     return __.absent
 
 
-def _clean_extracted_text( text: str ) -> str:
-    ''' Cleans extracted text while preserving internal spacing. '''
-    # Remove leading/trailing whitespace but preserve internal spaces
-    text = text.strip( )
-    # Normalize multiple spaces to single spaces
-    text = __.re.sub( r' +', ' ', text )
-    # Remove excessive newlines but preserve paragraph breaks
-    return __.re.sub( r'\n\s*\n', '\n\n', text )
 
 
-def _generic_extraction( element: __.typx.Any ) -> tuple[ str, str ]:
+def _generic_extraction( element: __.typx.Any ) -> str:
     ''' Generic fallback extraction for unknown element types. '''
-    signature = _clean_extracted_text( element.get_text( ) )
     description = ''
     if element.parent:
         next_p = element.parent.find( 'p' )
         if next_p:
             description = str( next_p )
-    return signature, description
+    return description
 
 
 def _get_description_by_source_type(
