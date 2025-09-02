@@ -9,7 +9,7 @@ build-backend = 'hatchling.build'
 
 [project]
 name = 'librovore'
-description = 'Model Context Protocol (MCP) server for Sphinx documentation.'
+description = '🐲📚 Librovore - CLI and MCP server for consuming documentation.'
 dynamic = [ 'version' ]
 license = 'Apache-2.0'
 readme = { 'file' = 'README.rst', 'content-type' = 'text/x-rst' }

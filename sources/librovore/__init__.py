@@ -18,7 +18,7 @@
 #============================================================================#
 
 
-''' Model Context Protocol (MCP) server for Sphinx documentation. '''
+''' 🐲📚 Librovore - CLI and MCP server for consuming documentation. '''
 
 
 from . import __

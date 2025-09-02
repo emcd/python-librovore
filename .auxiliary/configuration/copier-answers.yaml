@@ -1,9 +1,9 @@
 # Changes here will be overwritten by Copier
-_commit: v1.46
+_commit: v1.47.2
 _src_path: gh:emcd/python-project-common
 author_email: emcd@users.noreply.github.com
 author_name: Eric McDonald
-description: 🐲📚 Librovore - The all-consuming documentation devourer that speaks MCP.
+description: 🐲📚 Librovore - CLI and MCP server for consuming documentation.
 development_status: 4 - Beta
 distribution_name: librovore
 enable_cli: true
