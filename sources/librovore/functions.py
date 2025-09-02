@@ -31,6 +31,7 @@ from . import search as _search
 from . import state as _state
 
 
+
 _SUCCESS_RATE_MINIMUM = 0.1
 
 
@@ -93,6 +94,7 @@ async def query_content(  # noqa: PLR0913
     processor_name: __.Absential[ str ] = __.absent,
     search_behaviors: _interfaces.SearchBehaviors = _search_behaviors_default,
     filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
+    content_id: __.Absential[ str ] = __.absent,
     results_max: int = 10,
     lines_max: __.typx.Optional[ int ] = None,
 ) -> _results.ContentQueryResult:
@@ -107,12 +109,17 @@ async def query_content(  # noqa: PLR0913
         auxdata, resolved_location,
         filters = filters,
         details = _interfaces.InventoryQueryDetails.Name )
-    results = _search.filter_by_name(
-        objects, term,
-        match_mode = search_behaviors.match_mode,
-        fuzzy_threshold = search_behaviors.fuzzy_threshold )
-    candidates = [
-        result.inventory_object for result in results[ : results_max * 3 ] ]
+    if not __.is_absent( content_id ):
+        candidates = _process_content_id_filter(
+            content_id, resolved_location, objects )
+    else:
+        results = _search.filter_by_name(
+            objects, term,
+            match_mode = search_behaviors.match_mode,
+            fuzzy_threshold = search_behaviors.fuzzy_threshold )
+        candidates = [
+            result.inventory_object 
+            for result in results[ : results_max * 3 ] ]
     locations = tuple( [ _results.InventoryLocationInfo(
         inventory_type = idetection.processor.name,
         location_url = resolved_location,
@@ -242,6 +249,27 @@ def _normalize_location( location: str ) -> str:
     if location.endswith( '/index.html' ): return location[ : -11 ]
     return location
 
+
+def _process_content_id_filter(
+    content_id: str,
+    resolved_location: str,
+    objects: __.cabc.Sequence[ _results.InventoryObject ],
+) -> tuple[ _results.InventoryObject, ... ]:
+    ''' Processes content ID for browse-then-extract workflow filtering. '''
+    try:
+        parsed_location, name = _results.parse_content_id( content_id )
+    except ValueError as exc:
+        raise _exceptions.ContentIdInvalidity( 
+            content_id, f"Parsing failed: {exc}" ) from exc
+    if parsed_location != resolved_location:
+        raise _exceptions.ContentIdLocationMismatch(
+            parsed_location, resolved_location )
+    matching_objects = [
+        obj for obj in objects if obj.name == name ]
+    if not matching_objects:
+        raise _exceptions.ContentIdObjectAbsence( 
+            name, resolved_location )
+    return tuple( matching_objects[ :1 ] )
 
 
 def _serialize_for_json( obj: __.typx.Any ) -> __.typx.Any:

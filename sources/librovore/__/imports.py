@@ -25,6 +25,7 @@
 
 import                      abc
 import                      asyncio
+import                      base64
 import collections.abc as   cabc
 import                      collections
 import contextlib as        ctxl

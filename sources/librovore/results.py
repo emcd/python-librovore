@@ -25,6 +25,7 @@
 
 
 from . import __
+from . import exceptions as _exceptions
 
 
 _CONTENT_PREVIEW_LIMIT = 100
@@ -131,11 +132,15 @@ class InventoryObject( __.immut.DataclassObject ):
 
 
 class ContentDocument( __.immut.DataclassObject ):
-    ''' Documentation content with extracted metadata and snippets. '''
+    ''' Documentation content with extracted metadata and content ID. '''
 
     inventory_object: __.typx.Annotated[
         InventoryObject,
         __.ddoc.Doc( "Location inventory object for this content." ),
+    ]
+    content_id: __.typx.Annotated[
+        str,
+        __.ddoc.Doc( "Deterministic identifier for content retrieval." ),
     ]
     description: __.typx.Annotated[
         str,
@@ -171,6 +176,7 @@ class ContentDocument( __.immut.DataclassObject ):
             str, __.typx.Any
         ](
             inventory_object = dict( self.inventory_object.render_as_json( ) ),
+            content_id = self.content_id,
             description = description,
             documentation_url = self.documentation_url,
             extraction_metadata = dict( self.extraction_metadata ),
@@ -183,13 +189,32 @@ class ContentDocument( __.immut.DataclassObject ):
             bool,
             __.ddoc.Doc( "Controls whether internal details are shown." ),
         ] = True,
+        lines_max: __.typx.Annotated[
+            __.typx.Optional[ int ],
+            __.ddoc.Doc( "Maximum lines to display for description." ),
+        ] = None,
+        include_title: __.typx.Annotated[
+            bool,
+            __.ddoc.Doc( "Whether to include document title header." ),
+        ] = True,
     ) -> tuple[ str, ... ]:
         ''' Renders complete document as Markdown lines for display. '''
-        lines = [ f"### `{self.inventory_object.effective_display_name}`" ]
+        lines: list[ str ] = [ ]
+        if include_title:
+            lines.append( 
+                f"### `{self.inventory_object.effective_display_name}`" )
         if self.description:
-            lines.append( f"**Description:** {self.description}" )
+            description = self.description
+            if lines_max is not None:
+                desc_lines = description.split( '\n' )
+                if len( desc_lines ) > lines_max:
+                    desc_lines = desc_lines[ :lines_max ]
+                    desc_lines.append( "..." )
+                description = '\n'.join( desc_lines )
+            lines.append( f"**Description:** {description}" )
         if self.documentation_url:
             lines.append( f"**URL:** {self.documentation_url}" )
+        lines.append( f"**Content ID:** `{self.content_id}`" )
         if reveal_internals:
             inventory_lines = self.inventory_object.render_specifics_markdown(
                 reveal_internals = True )
@@ -403,18 +428,11 @@ class ContentQueryResult( __.immut.DataclassObject ):
             for index, doc in enumerate( self.documents, 1 ):
                 separator = "\n📄 ── Document {} ──────────────────── 📄\n"
                 lines.append( separator.format( index ) )
-                lines.append( "**URL:** {url}".format(
-                    url = doc.documentation_url ) )
-                if doc.description:
-                    description = doc.description
-                    if lines_max is not None:
-                        desc_lines = description.split( '\n' )
-                        if len( desc_lines ) > lines_max:
-                            desc_lines = desc_lines[ :lines_max ]
-                            desc_lines.append( "..." )
-                        description = '\n'.join( desc_lines )
-                    lines.append( "**Description:** {description}".format(
-                        description = description ) )
+                doc_lines = doc.render_as_markdown( 
+                    reveal_internals = reveal_internals,
+                    lines_max = lines_max,
+                    include_title = False )
+                lines.extend( doc_lines )
         return tuple( lines )
 
 
@@ -717,6 +735,37 @@ class ProcessorsSurveyResult( __.immut.DataclassObject ):
                 if i < len( self.processors ):
                     lines.append( "" )
         return tuple( lines )
+
+
+def parse_content_id( content_id: str ) -> tuple[ str, str ]:
+    ''' Parses content identifier back to location and name components.
+    
+        Returns tuple of (location, name) extracted from content_id.
+        Raises ContentIdInvalidity if content_id is malformed or cannot be 
+        decoded.
+    '''
+    try:
+        identifier_source = __.base64.b64decode( 
+            content_id.encode( 'ascii' ) ).decode( 'utf-8' )
+    except Exception as exc:
+        raise _exceptions.ContentIdInvalidity( 
+            content_id, "Base64 decoding failed" ) from exc
+    if ':' not in identifier_source:
+        raise _exceptions.ContentIdInvalidity( 
+            content_id, "Missing location:object separator" )
+    location, name = identifier_source.rsplit( ':', 1 )
+    return location, name
+
+
+def produce_content_id( location: str, name: str ) -> str:
+    ''' Produces deterministic content identifier for browse-then-extract.
+    
+        Uses base64 encoding of location + ":" + name to create stable,
+        debuggable identifiers that maintain stateless operation.
+    '''
+    identifier_source = f"{location}:{name}"
+    return __.base64.b64encode( 
+        identifier_source.encode( 'utf-8' ) ).decode( 'ascii' )
 
 
 def serialize_for_json( objct: __.typx.Any ) -> __.typx.Any:

@@ -255,6 +255,11 @@ class QueryContentCommand(
         __.tyro.conf.arg(
             help = "Maximum number of lines to display per result." ),
     ] = 40
+    content_id: __.typx.Annotated[
+        __.typx.Optional[ str ],
+        __.tyro.conf.arg(
+            help = "Content identifier for browse-then-extract workflow." ),
+    ] = None
 
     @intercept_errors( )
     async def __call__(
@@ -264,10 +269,13 @@ class QueryContentCommand(
         display_format: _interfaces.DisplayFormat,
     ) -> None:
         stream = await display.provide_stream( )
+        content_id_ = (
+            __.absent if self.content_id is None else self.content_id )
         result = await _functions.query_content(
             auxdata, self.location, self.term,
             search_behaviors = self.search_behaviors,
             filters = self.filters,
+            content_id = content_id_,
             results_max = self.results_max,
             lines_max = self.lines_max )
         match display_format:
