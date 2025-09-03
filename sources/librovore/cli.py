@@ -30,7 +30,6 @@ from . import results as _results
 from . import server as _server
 from . import state as _state
 
-
 _scribe = __.acquire_scribe( __name__ )
 
 
@@ -52,13 +51,14 @@ def intercept_errors( ) -> __.cabc.Callable[
             auxdata: _state.Globals,
             display: __.DisplayTarget,
             display_format: _interfaces.DisplayFormat,
+            color: bool,
             *posargs: __.typx.Any,
             **nomargs: __.typx.Any,
         ) -> None:
             stream = await display.provide_stream( )
             try:
                 return await func( 
-                    self, auxdata, display, display_format, 
+                    self, auxdata, display, display_format, color,
                     *posargs, **nomargs )
             except _exceptions.Omnierror as exc:
                 match display_format:
@@ -124,6 +124,50 @@ _MARKDOWN_OBJECT_LIMIT = 10
 _MARKDOWN_CONTENT_LIMIT = 200
 
 
+def decide_rich_markdown( 
+    stream: __.typx.TextIO, colorize: bool 
+) -> bool:
+    ''' Determines whether to use Rich markdown rendering. '''
+    return (
+        colorize
+        and stream.isatty( ) 
+        and not __.os.environ.get( 'NO_COLOR' )
+    )
+
+
+async def _render_and_print_result(
+    result: _results.ResultBase,
+    display_format: _interfaces.DisplayFormat,
+    stream: __.typx.TextIO,
+    color: bool,
+    **nomargs: __.typx.Any
+) -> None:
+    ''' Centralizes result rendering logic with Rich formatting support. '''
+    match display_format:
+        case _interfaces.DisplayFormat.JSON:
+            nomargs_filtered = {
+                key: value for key, value in nomargs.items()
+                if key in [ 'lines_max' ]  # Only pass relevant nomargs
+            }
+            serialized = dict( result.render_as_json( **nomargs_filtered ) )
+            output = __.json.dumps( serialized, indent = 2 )
+            print( output, file = stream )
+        case _interfaces.DisplayFormat.Markdown:
+            lines = result.render_as_markdown( **nomargs )
+            if decide_rich_markdown( stream, color ):
+                from rich.console import (
+                    Console,
+                )
+                from rich.markdown import (
+                    Markdown,
+                )
+                console = Console( file = stream, force_terminal = True )
+                markdown_obj = Markdown( '\n'.join( lines ) )
+                console.print( markdown_obj )
+            else:
+                output = '\n'.join( lines )
+                print( output, file = stream )
+
 
 class _CliCommand(
     __.immut.DataclassProtocol, __.typx.Protocol,
@@ -137,6 +181,7 @@ class _CliCommand(
         auxdata: _state.Globals,
         display: __.DisplayTarget,
         display_format: _interfaces.DisplayFormat,
+        color: bool,
     ) -> __.cabc.Awaitable[ None ]:
         ''' Executes command with global state. '''
         raise NotImplementedError
@@ -163,6 +208,7 @@ class DetectCommand(
         auxdata: _state.Globals,
         display: __.DisplayTarget,
         display_format: _interfaces.DisplayFormat,
+        color: bool,
     ) -> None:
         stream = await display.provide_stream( )
         processor_name = (
@@ -171,20 +217,21 @@ class DetectCommand(
         result = await _functions.detect(
             auxdata, self.location, self.genus,
             processor_name = processor_name )
-        match display_format:
-            case _interfaces.DisplayFormat.JSON:
-                serialized = dict( result.render_as_json( ) )
-                output = __.json.dumps( serialized, indent = 2 )
-            case _interfaces.DisplayFormat.Markdown:
-                lines = result.render_as_markdown( reveal_internals = True )
-                output = '\n'.join( lines )
-        print( output, file = stream )
+        await _render_and_print_result(
+            result, display_format, stream, color, reveal_internals = True )
 
 
 class QueryInventoryCommand(
     _CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
-    ''' Searches object inventory by name with fuzzy matching. '''
+    ''' Explores documentation structure and object inventory.
+
+        Use before content searches to:
+        
+        - Discover available topics and object types
+        - Identify relevant search terms and filters
+        - Understand documentation scope and organization
+    '''
 
     location: LocationArgument
     term: TermArgument
@@ -213,6 +260,7 @@ class QueryInventoryCommand(
         auxdata: _state.Globals,
         display: __.DisplayTarget,
         display_format: _interfaces.DisplayFormat,
+        color: bool,
     ) -> None:
         stream = await display.provide_stream( )
         result = await _functions.query_inventory(
@@ -223,20 +271,24 @@ class QueryInventoryCommand(
             filters = self.filters,
             results_max = self.results_max,
             details = self.details )
-        match display_format:
-            case _interfaces.DisplayFormat.JSON:
-                output = __.json.dumps(
-                    dict( result.render_as_json( ) ), indent = 2 )
-            case _interfaces.DisplayFormat.Markdown:
-                lines = result.render_as_markdown( reveal_internals = True )
-                output = '\n'.join( lines )
-        print( output, file = stream )
+        await _render_and_print_result(
+            result, display_format, stream, color,
+            reveal_internals = True )
 
 
 class QueryContentCommand(
     _CliCommand, decorators = ( __.standard_tyro_class, ),
 ):
-    ''' Searches documentation content with relevance ranking and snippets. '''
+    ''' Searches documentation with flexible preview/extraction modes.
+
+        Workflows:
+        
+        - Sample: Use --lines-max 5-10 to preview results and identify relevant
+          content
+        - Extract: Use --content-id from sample results to retrieve full
+          content  
+        - Direct: Search with higher --lines-max for immediate full results
+    '''
 
     location: LocationArgument
     term: TermArgument
@@ -253,8 +305,18 @@ class QueryContentCommand(
     lines_max: __.typx.Annotated[
         int,
         __.tyro.conf.arg(
-            help = "Maximum number of lines to display per result." ),
+            help = (
+                "Lines per result for preview/sampling. Use 5-10 for "
+                "discovery, omit for full content extraction via "
+                "content-id." ) ),
     ] = 40
+    content_id: __.typx.Annotated[
+        __.typx.Optional[ str ],
+        __.tyro.conf.arg(
+            help = (
+                "Extract full content for specific result. Obtain IDs from "
+                "previous query-content calls with limited lines-max." ) ),
+    ] = None
 
     @intercept_errors( )
     async def __call__(
@@ -262,27 +324,21 @@ class QueryContentCommand(
         auxdata: _state.Globals,
         display: __.DisplayTarget,
         display_format: _interfaces.DisplayFormat,
+        color: bool,
     ) -> None:
         stream = await display.provide_stream( )
+        content_id_ = (
+            __.absent if self.content_id is None else self.content_id )
         result = await _functions.query_content(
             auxdata, self.location, self.term,
             search_behaviors = self.search_behaviors,
             filters = self.filters,
+            content_id = content_id_,
             results_max = self.results_max,
             lines_max = self.lines_max )
-        match display_format:
-            case _interfaces.DisplayFormat.JSON:
-                output = __.json.dumps(
-                    dict( result.render_as_json( ) ), indent = 2 )
-            case _interfaces.DisplayFormat.Markdown:
-                if isinstance( result, _results.ContentQueryResult ):
-                    lines = result.render_as_markdown(
-                        reveal_internals = True, lines_max = self.lines_max )
-                else:
-                    lines = result.render_as_markdown(
-                        reveal_internals = True )
-                output = '\n'.join( lines )
-        print( output, file = stream )
+        await _render_and_print_result(
+            result, display_format, stream, color,
+            reveal_internals = True, lines_max = self.lines_max )
 
 
 
@@ -307,19 +363,15 @@ class SurveyProcessorsCommand(
         auxdata: _state.Globals,
         display: __.DisplayTarget,
         display_format: _interfaces.DisplayFormat,
+        color: bool,
     ) -> None:
         stream = await display.provide_stream( )
         nomargs: __.NominativeArguments = { 'genus': self.genus }
         if self.name is not None: nomargs[ 'name' ] = self.name
         result = await _functions.survey_processors( auxdata, **nomargs )
-        match display_format:
-            case _interfaces.DisplayFormat.JSON:
-                output = __.json.dumps( 
-                    dict( result.render_as_json( ) ), indent = 2 )
-            case _interfaces.DisplayFormat.Markdown:
-                lines = result.render_as_markdown( reveal_internals = False )
-                output = '\n'.join( lines )
-        print( output, file = stream )
+        await _render_and_print_result(
+            result, display_format, stream, color,
+            reveal_internals = False )
 
 
 
@@ -343,6 +395,7 @@ class ServeCommand(
         auxdata: _state.Globals,
         display: __.DisplayTarget,
         display_format: _interfaces.DisplayFormat,
+        color: bool,
     ) -> None:
         nomargs: __.NominativeArguments = { }
         if self.port is not None: nomargs[ 'port' ] = self.port
@@ -359,6 +412,13 @@ class Cli( __.immut.DataclassObject, decorators = ( __.simple_tyro_class, ) ):
         _interfaces.DisplayFormat,
         __.tyro.conf.arg( help = "Output format for command results." ),
     ] = _interfaces.DisplayFormat.Markdown
+    color: __.typx.Annotated[
+        bool,
+        __.tyro.conf.arg(
+            aliases = ( "--ansi-sgr", ),
+            help = "Enable colored output and terminal formatting"
+        ),
+    ] = True
     command: __.typx.Union[
         __.typx.Annotated[
             DetectCommand,
@@ -397,7 +457,8 @@ class Cli( __.immut.DataclassObject, decorators = ( __.simple_tyro_class, ) ):
             await self.command(
                 auxdata = auxdata,
                 display = self.display,
-                display_format = self.display_format )
+                display_format = self.display_format,
+                color = self.color )
 
     def prepare_invocation_args(
         self,

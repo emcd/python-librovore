@@ -1,1 +1,0 @@
-MCP: Fix content length issues that caused tool failures by implementing proper response size control through user-specified limits.

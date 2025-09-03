@@ -399,6 +399,133 @@ class ContentExtractFailure( StructureProcessFailure ):
         super( ).__init__( processor_name, source, cause )
 
 
+class ContentIdInvalidity( Omnierror, ValueError ):
+    ''' Content ID has invalid format or encoding. '''
+
+    def __init__( self, content_id: str, cause: str ):
+        self.content_id = content_id
+        self.cause = cause
+        super( ).__init__(
+            f"Content ID '{content_id}' is invalid. {cause}" )
+
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders content ID invalidity as JSON-compatible dictionary. '''
+        return __.immut.Dictionary[
+            str, __.typx.Any
+        ](
+            type = 'content_id_invalid',
+            title = 'Invalid Content ID Format',
+            message = str( self ),
+            content_id = self.content_id,
+            cause = self.cause,
+            suggestion = (
+                'Verify the content ID was generated correctly and not '
+                'corrupted during transmission.' ),
+        )
+
+    def render_as_markdown(
+        self, /, *,
+        reveal_internals: bool = True,
+    ) -> tuple[ str, ... ]:
+        ''' Renders content ID invalidity as Markdown lines for display. '''
+        lines = [ "## Error: Invalid Content ID Format" ]
+        lines.append( f"**Message:** {self}" )
+        lines.append(
+            "**Suggestion:** Verify the content ID was generated correctly "
+            "and not corrupted during transmission." )
+        if reveal_internals:
+            lines.append( f"**Content ID:** {self.content_id}" )
+            lines.append( f"**Cause:** {self.cause}" )
+            lines.append( "**Error Type:** content_id_invalid" )
+        return tuple( lines )
+
+
+class ContentIdLocationMismatch( Omnierror, ValueError ):
+    ''' Content ID location does not match query location. '''
+
+    def __init__( self, content_id_location: str, query_location: str ):
+        self.content_id_location = content_id_location
+        self.query_location = query_location
+        super( ).__init__(
+            f"Content ID location '{content_id_location}' does not match "
+            f"query location '{query_location}'" )
+
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders content ID location mismatch as JSON-compatible dict. '''
+        return __.immut.Dictionary[
+            str, __.typx.Any
+        ](
+            type = 'content_id_location_mismatch',
+            title = 'Content ID Location Mismatch',
+            message = str( self ),
+            content_id_location = self.content_id_location,
+            query_location = self.query_location,
+            suggestion = (
+                'Ensure the content ID was generated from the same location '
+                'being queried, or use a content ID from the correct '
+                'location.' ),
+        )
+
+    def render_as_markdown(
+        self, /, *,
+        reveal_internals: bool = True,
+    ) -> tuple[ str, ... ]:
+        ''' Renders content ID location mismatch as Markdown lines. '''
+        lines = [ "## Error: Content ID Location Mismatch" ]
+        lines.append( f"**Message:** {self}" )
+        lines.append(
+            "**Suggestion:** Ensure the content ID was generated from the "
+            "same location being queried, or use a content ID from the "
+            "correct location." )
+        if reveal_internals:
+            lines.append(
+                f"**Content ID Location:** {self.content_id_location}" )
+            lines.append( f"**Query Location:** {self.query_location}" )
+            lines.append( "**Error Type:** content_id_location_mismatch" )
+        return tuple( lines )
+
+
+class ContentIdObjectAbsence( Omnierror, ValueError ):
+    ''' Object specified in content ID not found in location. '''
+
+    def __init__( self, object_name: str, location: str ):
+        self.object_name = object_name
+        self.location = location
+        super( ).__init__(
+            f"Object '{object_name}' not found at location '{location}'" )
+
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders content ID object absence as JSON-compatible dict. '''
+        return __.immut.Dictionary[
+            str, __.typx.Any
+        ](
+            type = 'content_id_object_not_found',
+            title = 'Content ID Object Not Found',
+            message = str( self ),
+            object_name = self.object_name,
+            location = self.location,
+            suggestion = (
+                'Verify the object name exists at the location, or check '
+                'if the object has been renamed or removed.' ),
+        )
+
+    def render_as_markdown(
+        self, /, *,
+        reveal_internals: bool = True,
+    ) -> tuple[ str, ... ]:
+        ''' Renders content ID object absence as Markdown lines. '''
+        lines = [ "## Error: Content ID Object Not Found" ]
+        lines.append( f"**Message:** {self}" )
+        lines.append(
+            "**Suggestion:** Verify the object name exists at the location, "
+            "or check if the object has been renamed or removed." )
+        if reveal_internals:
+            lines.append( f"**Object Name:** {self.object_name}" )
+            lines.append( f"**Location:** {self.location}" )
+            lines.append( "**Error Type:** content_id_object_not_found" )
+        return tuple( lines )
+
+
 class ThemeDetectFailure( StructureProcessFailure ):
     ''' Theme detection failed during processing. '''
 

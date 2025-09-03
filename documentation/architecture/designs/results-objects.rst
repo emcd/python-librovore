@@ -169,16 +169,14 @@ Content and Documentation Objects
 .. code-block:: python
 
     class ContentDocument( __.immut.DataclassObject ):
-        ''' Documentation content with extracted metadata and snippets. '''
+        ''' Documentation content with extracted metadata and content identification. '''
         
         inventory_object: __.typx.Annotated[
             InventoryObject, __.ddoc.Doc( "Location inventory object for this content." ) ]
-        signature: __.typx.Annotated[
-            str, __.ddoc.Doc( "Extracted function/class signature." ) ] = ''
+        content_id: __.typx.Annotated[
+            str, __.ddoc.Doc( "Deterministic identifier for content retrieval." ) ]
         description: __.typx.Annotated[
             str, __.ddoc.Doc( "Extracted object description or summary." ) ] = ''
-        content_snippet: __.typx.Annotated[
-            str, __.ddoc.Doc( "Relevant content excerpt for search context." ) ] = ''
         documentation_url: __.typx.Annotated[
             str, __.ddoc.Doc( "Complete URL to full documentation page." ) ] = ''
         
@@ -200,6 +198,46 @@ Content and Documentation Objects
             reveal_internals: bool = True,
         ) -> tuple[ str, ... ]:
             ''' Renders complete document as Markdown lines for display. ''''
+
+Content Identification System
+-------------------------------------------------------------------------------
+
+The content ID system enables browse-then-extract workflows by providing stable identifiers for documentation content objects. Content IDs are deterministic identifiers that allow users to first query with truncated results for previews, then extract full content for specific objects.
+
+**Content ID Generation Strategy**
+
+Content IDs use deterministic object identification: ``base64(location + ":" + object_name)``
+
+**Design Benefits:**
+
+- **Stateless Architecture**: Content IDs are self-contained, requiring no session storage
+- **Stable Identification**: Same object always generates same ID regardless of query timing
+- **Human-Debuggable**: IDs can be decoded to understand referenced objects
+- **Performance**: No expensive computation or state tracking required
+
+**Usage Pattern:**
+
+.. code-block:: python
+
+    # Stage 1: Browse with previews - generates content IDs for all results
+    preview_result = await query_content(
+        auxdata, location, term, lines_max = 5 )
+    
+    # Stage 2: Extract full content using content ID from preview
+    full_result = await query_content(
+        auxdata, location, term, 
+        content_id = preview_result.documents[0].content_id,
+        lines_max = 100 )
+
+**Interface Integration:**
+
+The content_id parameter extends the existing query_content function:
+
+- **Without content_id**: Returns multiple ContentDocument objects with content IDs populated
+- **With content_id**: Filters to single matching ContentDocument with full content
+- **Error Handling**: Invalid content IDs raise ProcessorInavailability exceptions
+
+This design transforms query_content from a simple search function into a flexible content navigation tool while maintaining complete backward compatibility and stateless operation.
 
 Query Metadata Objects
 ===============================================================================
@@ -451,8 +489,11 @@ Complete Query Results
             tuple[ InventoryLocationInfo, ... ],
             __.ddoc.Doc( "Information about inventory locations used." ) ]
         
-        def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
-            ''' Renders content query result as JSON-compatible dictionary. '''
+        def render_as_json(
+            self, /, *,
+            lines_max: __.typx.Optional[ int ] = None,
+        ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+            ''' Renders content query result as JSON-compatible dictionary with optional content truncation. '''
         
         def render_as_markdown(
             self, /, *,
@@ -573,10 +614,11 @@ The functions module provides clean business logic functions using natural excep
         processor_name: __.Absential[ str ] = __.absent,
         search_behaviors: __.SearchBehaviors = _search_behaviors_default,
         filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
-        include_snippets: bool = True,
+        content_id: __.Absential[ str ] = __.absent,
         results_max: int = 10,
+        lines_max: __.typx.Optional[ int ] = None,
     ) -> ContentQueryResult:
-        ''' Returns structured content query results. Raises domain exceptions on error. '''
+        ''' Returns structured content query results. When content_id provided, returns single matching document. Raises domain exceptions on error. '''
 
     async def detect(
         auxdata: __.ApplicationGlobals,

@@ -95,7 +95,7 @@ async def serve(
 ) -> None:
     ''' Runs MCP server. '''
     _scribe.debug( "Initializing FastMCP server." )
-    mcp = _FastMCP( 'Sphinx MCP Server', port = port )
+    mcp = _FastMCP( 'Librovore Documentation Server', port = port )
     _register_server_functions(
         auxdata, mcp, extra_functions = extra_functions )
     match transport:
@@ -142,16 +142,30 @@ def _produce_query_content_function( auxdata: _state.Globals ):
         results_max: ResultsMax = 10,
         lines_max: __.typx.Annotated[
             int,
-            _Field( description = "Maximum lines to display per result." ),
+            _Field(
+                description = (
+                    "Lines per result. Use 5-10 for sampling/preview, "
+                    "larger values or omit for full content. Results "
+                    "include content_id for extraction." ) ),
         ] = 40,
+        content_id: __.typx.Annotated[
+            __.typx.Optional[ str ],
+            _Field(
+                description = (
+                    "Retrieve complete content for specific result from "
+                    "previous query. Use content_id values returned in "
+                    "sample searches." ) ),
+        ] = None,
     ) -> dict[ str, __.typx.Any ]:
         immutable_search_behaviors = (
             _to_immutable_search_behaviors( search_behaviors ) )
         immutable_filters = _to_immutable_filters( filters )
+        content_id_ = __.absent if content_id is None else content_id
         result = await _functions.query_content(
             auxdata, location, term,
             search_behaviors = immutable_search_behaviors,
             filters = immutable_filters,
+            content_id = content_id_,
             results_max = results_max,
             lines_max = lines_max )
         return dict( result.render_as_json( lines_max = lines_max ) )

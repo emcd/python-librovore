@@ -317,7 +317,7 @@ structure processor implementations:
             base_url: str, /, *,
             auxdata: __.state.Globals,
             filters: __.cabc.Mapping[ str, __.typx.Any ] = __.immut.Dictionary( ),
-            include_snippets: bool = True,
+            lines_max: __.typx.Optional[ int ] = None,
         ) -> __.cabc.Sequence[ ContentDocument ]:
             ''' Extracts content from inventory objects with full type safety. '''
 
@@ -332,7 +332,7 @@ interface with comprehensive parameter support:
 - ``base_url``: Documentation base URL for context-aware URL construction  
 - ``auxdata``: System global state for caching and configuration access
 - ``filters``: Optional filtering parameters for selective content extraction
-- ``include_snippets``: Boolean flag controlling snippet extraction behavior
+- ``lines_max``: Optional limit on content length for truncation control
 
 **Return Value**: Sequence of ``ContentDocument`` instances with extracted 
 content, metadata, and attribution information.
@@ -407,7 +407,7 @@ patterns that preserve content structure and metadata:
         url: str
         inventory_object: InventoryObject
         metadata: __.immut.Dictionary[ str, __.typx.Any ]
-        snippets: __.cabc.Sequence[ ContentSnippet ]
+        content_id: str
 
 **Metadata Preservation**: Content extraction preserves relevant metadata from 
 both the original HTML content and the associated inventory object.
@@ -484,7 +484,7 @@ Structure processors integrate with system caching for improved performance:
 cached to optimize repeated selection operations.
 
 **Content Caching**: Extracted content cached at appropriate granularity levels 
-including full documents, content snippets, and processed metadata.
+including full documents with content identification, and processed metadata.
 
 **URL Construction Caching**: URL construction results cached to avoid repeated 
 computation for similar inventory objects.
@@ -546,22 +546,22 @@ syntax highlighting preservation and language identification.
 **Table Conversion**: Robust table conversion that preserves tabular data structure 
 in Markdown format while handling complex table layouts.
 
-Snippet Extraction Algorithms
+Content Identification System
 -------------------------------------------------------------------------------
 
-Content snippet extraction provides focused content segments for search results:
+Content identification provides stable reference mechanisms for documentation content:
 
-**Context-Aware Extraction**: Snippet extraction that considers query context 
-and relevance requirements for optimal content segment identification.
+**Deterministic ID Generation**: Content ID generation using deterministic algorithms
+that create stable identifiers based on location and object name combinations.
 
-**Boundary Detection**: Intelligent boundary detection that respects semantic 
-content boundaries including paragraph breaks, section boundaries, and structural elements.
+**Content Navigation**: Content identification supports browse-then-extract workflows
+where users preview multiple results before selecting specific content for full extraction.
 
-**Length Optimization**: Snippet length optimization that balances content 
-completeness with display constraints and performance requirements.
+**Stateless Design**: Content identification maintains stateless operation model
+with no requirement for session storage or server-side state management.
 
-**Relevance Scoring**: Snippet relevance scoring that prioritizes content 
-segments most likely to satisfy user information needs.
+**Base64 Encoding**: Content IDs use base64 encoding of location and object name
+combinations for human-debuggable yet compact identifier representation.
 
 Cross-Reference Handling
 -------------------------------------------------------------------------------

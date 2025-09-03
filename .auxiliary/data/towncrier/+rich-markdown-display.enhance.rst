@@ -1,0 +1,1 @@
+CLI: Add Rich markdown terminal display with syntax highlighting and improved formatting, plus new ``--color``/``--no-color`` and ``--ansi-sgr``/``--no-ansi-sgr`` flags for output control.

@@ -18,7 +18,7 @@
 #============================================================================#
 
 
-''' Model Context Protocol (MCP) server for Sphinx documentation. '''
+''' 🐲📚 Librovore - CLI and MCP server for consuming documentation. '''
 
 
 from . import __
@@ -30,7 +30,7 @@ from . import exceptions
 
 
 __version__: str
-__version__ = '1.0a3'
+__version__ = '1.0a4'
 
 
 def main( ):

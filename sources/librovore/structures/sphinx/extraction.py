@@ -119,7 +119,7 @@ async def extract_contents(
     if not objects: return [ ]
     tasks = [
         _extract_object_documentation(
-            auxdata, base_url, obj, theme )
+            auxdata, base_url, source, obj, theme )
         for obj in objects ]
     candidate_results = await __.asyncf.gather_async(
         *tasks, return_exceptions = True )
@@ -201,6 +201,7 @@ def _extract_description_with_strategy(
 async def _extract_object_documentation(
     auxdata: __.ApplicationGlobals,
     base_url: __.typx.Any,
+    location: str,
     obj: __.InventoryObject,
     theme: __.Absential[ str ] = __.absent,
 ) -> __.ContentDocument | None:
@@ -222,8 +223,10 @@ async def _extract_object_documentation(
     except Exception: return None
     description = _conversion.html_to_markdown(
         parsed_content[ 'description' ] )
+    content_id = __.produce_content_id( location, obj.name )
     return __.ContentDocument(
         inventory_object = obj,
+        content_id = content_id,
         description = description,
         documentation_url = doc_url.geturl( ),
         extraction_metadata = __.immut.Dictionary( {

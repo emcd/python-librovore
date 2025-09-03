@@ -1,0 +1,1 @@
+CLI: Add ``--content-id`` parameter enabling browse-then-extract workflows where users can preview content with limited lines then extract full content by ID.

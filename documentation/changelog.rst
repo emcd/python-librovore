@@ -23,6 +23,17 @@ Release Notes
 
 .. towncrier release notes start
 
+librovore 1.0a4 (2025-09-03)
+============================
+
+Enhancements
+------------
+
+- CLI: Add Rich markdown terminal display with syntax highlighting and improved formatting, plus new ``--color``/``--no-color`` and ``--ansi-sgr``/``--no-ansi-sgr`` flags for output control.
+- CLI: Add ``--content-id`` parameter enabling browse-then-extract workflows where users can preview content with limited lines then extract full content by ID.
+- MCP: Improve workflow descriptions and rename server from "Sphinx MCP Server" to "Librovore Documentation Server" to better reflect multi-processor capabilities.
+
+
 Librovore 1.0a3 (2025-09-01)
 ============================
 
