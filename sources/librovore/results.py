@@ -31,7 +31,21 @@ from . import exceptions as _exceptions
 _CONTENT_PREVIEW_LIMIT = 100
 
 
-class InventoryObject( __.immut.DataclassObject ):
+class ResultBase( __.immut.DataclassProtocol, __.typx.Protocol ):
+    ''' Base protocol for all result objects with rendering methods. '''
+
+    @__.abc.abstractmethod
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders result as JSON-compatible dictionary. '''
+        raise NotImplementedError
+
+    @__.abc.abstractmethod
+    def render_as_markdown( self ) -> tuple[ str, ... ]:
+        ''' Renders result as Markdown lines for display. '''
+        raise NotImplementedError
+
+
+class InventoryObject( ResultBase ):
     ''' Universal inventory object with complete source attribution.
 
         Represents a single documentation object from any inventory source
@@ -131,7 +145,7 @@ class InventoryObject( __.immut.DataclassObject ):
         return tuple( lines )
 
 
-class ContentDocument( __.immut.DataclassObject ):
+class ContentDocument( ResultBase ):
     ''' Documentation content with extracted metadata and content ID. '''
 
     inventory_object: __.typx.Annotated[
@@ -295,7 +309,7 @@ class SearchMetadata( __.immut.DataclassObject ):
         )
 
 
-class SearchResult( __.immut.DataclassObject ):
+class SearchResult( ResultBase ):
     ''' Search result with inventory object and match metadata. '''
 
     inventory_object: __.typx.Annotated[
@@ -356,7 +370,7 @@ class SearchResult( __.immut.DataclassObject ):
         return tuple( lines )
 
 
-class ContentQueryResult( __.immut.DataclassObject ):
+class ContentQueryResult( ResultBase ):
     ''' Complete result structure for content queries. '''
 
     location: __.typx.Annotated[
@@ -436,7 +450,7 @@ class ContentQueryResult( __.immut.DataclassObject ):
         return tuple( lines )
 
 
-class InventoryQueryResult( __.immut.DataclassObject ):
+class InventoryQueryResult( ResultBase ):
     ''' Complete result structure for inventory queries. '''
 
     location: __.typx.Annotated[
@@ -536,7 +550,7 @@ class Detection( __.immut.DataclassObject ):
         )
 
 
-class DetectionsResult( __.immut.DataclassObject ):
+class DetectionsResult( ResultBase ):
     ''' Detection results with processor selection and timing metadata. '''
 
     source: __.typx.Annotated[
@@ -608,7 +622,7 @@ class DetectionsResult( __.immut.DataclassObject ):
         return tuple( lines )
 
 
-class ProcessorInfo( __.immut.DataclassObject ):
+class ProcessorInfo( ResultBase ):
     ''' Information about a processor and its capabilities. '''
 
     processor_name: __.typx.Annotated[
@@ -670,7 +684,7 @@ class ProcessorInfo( __.immut.DataclassObject ):
         return tuple( lines )
 
 
-class ProcessorsSurveyResult( __.immut.DataclassObject ):
+class ProcessorsSurveyResult( ResultBase ):
     ''' Survey results listing available processors and capabilities. '''
 
     genus: __.typx.Annotated[
