@@ -1,1 +1,0 @@
-MCP: Improve workflow descriptions and rename server from "Sphinx MCP Server" to "Librovore Documentation Server" to better reflect multi-processor capabilities.
