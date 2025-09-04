@@ -217,6 +217,9 @@ class ContentDocument( ResultBase ):
         if include_title:
             lines.append( 
                 f"### `{self.inventory_object.effective_display_name}`" )
+        if self.documentation_url:
+            lines.append( f"**URL:** {self.documentation_url}" )
+        lines.append( f"**Content ID:** `{self.content_id}`" )
         if self.description:
             description = self.description
             if lines_max is not None:
@@ -226,9 +229,6 @@ class ContentDocument( ResultBase ):
                     desc_lines.append( "..." )
                 description = '\n'.join( desc_lines )
             lines.append( f"**Description:** {description}" )
-        if self.documentation_url:
-            lines.append( f"**URL:** {self.documentation_url}" )
-        lines.append( f"**Content ID:** `{self.content_id}`" )
         if reveal_internals:
             inventory_lines = self.inventory_object.render_specifics_markdown(
                 reveal_internals = True )
@@ -645,7 +645,7 @@ class ProcessorInfo( ResultBase ):
         ](
             processor_name = self.processor_name,
             processor_type = self.processor_type,
-            capabilities = serialize_for_json( self.capabilities ),
+            capabilities = self.capabilities.render_as_json( ),
         )
 
     def render_as_markdown(
@@ -658,29 +658,8 @@ class ProcessorInfo( ResultBase ):
         ''' Renders processor info as Markdown lines for display. '''
         lines = [ f"### `{self.processor_name}` ({self.processor_type})" ]
         if reveal_internals:
-            lines.append( f"**Version:** {self.capabilities.version}" )
-            if self.capabilities.results_limit_max:
-                lines.append( 
-                    f"**Max results:** {self.capabilities.results_limit_max}" )
-            if self.capabilities.response_time_typical:
-                lines.append( 
-                    f"**Response time:** "
-                    f"{self.capabilities.response_time_typical}" )
-            if self.capabilities.notes:
-                lines.append( f"**Notes:** {self.capabilities.notes}" )
-        if self.capabilities.supported_filters:
-            lines.append( "" )
-            lines.append( "**Supported filters:**" )
-            for filter_cap in self.capabilities.supported_filters:
-                filter_line = f"- `{filter_cap.name}` ({filter_cap.type})"
-                if filter_cap.required:
-                    filter_line += " *required*"
-                lines.append( filter_line )
-                if filter_cap.description:
-                    lines.append( f"  {filter_cap.description}" )
-                if filter_cap.values:
-                    values_str = ', '.join( filter_cap.values )
-                    lines.append( f"  Values: {values_str}" )
+            capabilities_lines = self.capabilities.render_as_markdown( )
+            lines.extend( capabilities_lines )
         return tuple( lines )
 
 
@@ -782,44 +761,9 @@ def produce_content_id( location: str, name: str ) -> str:
         identifier_source.encode( 'utf-8' ) ).decode( 'ascii' )
 
 
-def serialize_for_json( objct: __.typx.Any ) -> __.typx.Any:
-    ''' Legacy serialization for non-structured objects (dicts). '''
-    if __.dcls.is_dataclass( objct ):
-        return _serialize_dataclass_for_json( objct )
-    if isinstance( objct, ( list, tuple, set, frozenset ) ):
-        return _serialize_sequence_for_json( objct )
-    if isinstance( objct, ( dict, __.immut.Dictionary ) ):
-        return _serialize_mapping_for_json( objct )
-    return objct
 
 
 
-def _serialize_dataclass_for_json(
-    obj: __.typx.Any,
-) -> dict[ str, __.typx.Any ]:
-    ''' Serializes dataclass objects to JSON-compatible dictionaries. '''
-    result: dict[ str, __.typx.Any ] = { }
-    for field in __.dcls.fields( obj ):
-        if field.name.startswith( '_' ):
-            continue
-        value = getattr( obj, field.name )
-        result[ field.name ] = serialize_for_json( value )
-    return result
-
-
-def _serialize_mapping_for_json(
-    obj: __.typx.Any
-) -> dict[ __.typx.Any, __.typx.Any ]:
-    ''' Serializes mapping-like objects to JSON-compatible dictionaries. '''
-    return {
-        key: serialize_for_json( value )
-        for key, value in obj.items( )
-    }
-
-
-def _serialize_sequence_for_json( obj: __.typx.Any ) -> list[ __.typx.Any ]:
-    ''' Serializes sequence-like objects to JSON-compatible lists. '''
-    return [ serialize_for_json( item ) for item in obj ]
 
 
 ContentDocuments: __.typx.TypeAlias = __.cabc.Sequence[ ContentDocument ]

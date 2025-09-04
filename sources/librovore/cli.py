@@ -235,11 +235,6 @@ class QueryInventoryCommand(
 
     location: LocationArgument
     term: TermArgument
-    details: __.typx.Annotated[
-        _interfaces.InventoryQueryDetails,
-        __.tyro.conf.arg(
-            help = __.access_doctab( 'query details argument' ) ),
-    ] = _interfaces.InventoryQueryDetails.Name
     filters: __.typx.Annotated[
         __.cabc.Mapping[ str, __.typx.Any ],
         __.tyro.conf.arg( prefix_name = False ),
@@ -269,8 +264,7 @@ class QueryInventoryCommand(
             self.term,
             search_behaviors = self.search_behaviors,
             filters = self.filters,
-            results_max = self.results_max,
-            details = self.details )
+            results_max = self.results_max )
         await _render_and_print_result(
             result, display_format, stream, color,
             reveal_internals = True )

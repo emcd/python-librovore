@@ -48,12 +48,10 @@ class SphinxInventoryDetection( __.InventoryDetection ):
         auxdata: __.ApplicationGlobals,
         source: str, /, *,
         filters: __.cabc.Mapping[ str, __.typx.Any ],
-        details: __.InventoryQueryDetails = (
-            __.InventoryQueryDetails.Documentation ),
     ) -> tuple[ __.InventoryObject, ... ]:
         ''' Filters inventory objects from Sphinx source. '''
         objects = await filter_inventory(
-            source, filters = filters, details = details )
+            source, filters = filters )
         return tuple( objects )
 
 
@@ -86,8 +84,6 @@ def extract_inventory( base_url: _Url ) -> _sphobjinv.Inventory:
 async def filter_inventory(
     source: str, /, *,
     filters: __.cabc.Mapping[ str, __.typx.Any ],
-    details: __.InventoryQueryDetails = (
-        __.InventoryQueryDetails.Documentation ),
 ) -> tuple[ __.InventoryObject, ... ]:
     ''' Extracts and filters inventory objects by structural criteria only. '''
     domain = filters.get( 'domain', '' ) or __.absent

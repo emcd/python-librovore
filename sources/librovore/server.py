@@ -175,7 +175,7 @@ def _produce_query_content_function( auxdata: _state.Globals ):
 
 def _produce_query_inventory_function( auxdata: _state.Globals ):
     @intercept_errors
-    async def query_inventory(  # noqa: PLR0913
+    async def query_inventory(
         location: LocationArgument,
         term: TermArgument,
         search_behaviors: __.typx.Annotated[
@@ -186,10 +186,6 @@ def _produce_query_inventory_function( auxdata: _state.Globals ):
             FiltersMutable,
             _Field( description = "Processor-specific filters" ),
         ] = _filters_default,
-        details: __.typx.Annotated[
-            _interfaces.InventoryQueryDetails,
-            _Field( description = "Detail level for inventory results" ),
-        ] = _interfaces.InventoryQueryDetails.Name,
         results_max: ResultsMax = 5,
     ) -> dict[ str, __.typx.Any ]:
         immutable_search_behaviors = (
@@ -199,7 +195,6 @@ def _produce_query_inventory_function( auxdata: _state.Globals ):
             auxdata, location, term,
             search_behaviors = immutable_search_behaviors,
             filters = immutable_filters,
-            details = details,
             results_max = results_max )
         return dict( result.render_as_json( ) )
 

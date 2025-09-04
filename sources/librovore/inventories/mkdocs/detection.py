@@ -64,8 +64,6 @@ class MkDocsInventoryDetection( __.InventoryDetection ):
         auxdata: __.ApplicationGlobals,
         source: str, /, *,
         filters: __.cabc.Mapping[ str, __.typx.Any ],
-        details: __.InventoryQueryDetails = (
-            __.InventoryQueryDetails.Documentation ),
     ) -> tuple[ __.InventoryObject, ... ]:
         ''' Filters inventory objects from MkDocs search index. '''
         if __.is_absent( self.inventory_data ):
@@ -74,7 +72,7 @@ class MkDocsInventoryDetection( __.InventoryDetection ):
             if __.is_absent( inventory_data ): return tuple( )
         else: inventory_data = self.inventory_data
         objects = filter_inventory(
-            inventory_data, source, filters = filters, details = details )
+            inventory_data, source, filters = filters )
         return tuple( objects )
 
 
@@ -94,8 +92,6 @@ def filter_inventory(
     inventory_data: dict[ str, __.typx.Any ],
     location_url: str, /, *,
     filters: __.cabc.Mapping[ str, __.typx.Any ],
-    details: __.InventoryQueryDetails = (
-        __.InventoryQueryDetails.Documentation ),
 ) -> list[ __.InventoryObject ]:
     ''' Filters inventory objects from parsed search index data. '''
     docs = inventory_data.get( 'docs', [ ] )

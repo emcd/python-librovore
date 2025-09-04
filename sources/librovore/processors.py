@@ -91,8 +91,6 @@ class InventoryDetection( Detection ):
         auxdata: _state.Globals,
         source: str, /, *,
         filters: __.cabc.Mapping[ str, __.typx.Any ],
-        details: _interfaces.InventoryQueryDetails = (
-            _interfaces.InventoryQueryDetails.Documentation ),
     ) -> tuple[ _results.InventoryObject, ... ]:
         ''' Extracts and filters inventory objects from source. '''
         raise NotImplementedError
