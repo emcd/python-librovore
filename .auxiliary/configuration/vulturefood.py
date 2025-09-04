@@ -7,10 +7,6 @@ package_name            # unused variable
 Omnierror              # unused base exception class for derivation
 # --- END: Injected by Copier ---
 
-# CLI dataclass fields (used via tyro argument parsing)
-silence                 # DisplayTarget field for --quiet/--silent CLI args
-
-
 # Type aliases (used in function signatures)
 GroupByArgument         # CLI and server function parameter type
 UrlPatternResult        # URL pattern matching result type
