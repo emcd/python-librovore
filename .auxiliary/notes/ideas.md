@@ -85,9 +85,28 @@
 ## Immediate Enhancements
 
 ### Advanced Filtering and Search
-- [ ] **Boolean search operators**: Support `domain=py AND role=class` expressions
-- [ ] **Case-sensitive search**: Option for exact case matching
-- [ ] **Content snippets**: Include relevant content excerpts in search results
+- [x] **Case-sensitive search**: Option for exact case matching (implemented as `--case-sensitive`)
+- [ ] **Term splitting for multi-word queries**: Optional flag to split search terms on spaces/hyphens for broader discovery
+
+#### Term Splitting Enhancement Concept
+**Problem**: Multi-word terms like `"mutually exclusive"` may miss relevant matches when API names use abbreviations (`mutex_group`) or alternate phrasing.
+
+**Proposed Solution**: Optional `--split-terms` flag that:
+- Splits query on spaces, hyphens, underscores: `"mutually exclusive"` → `["mutually", "exclusive"]`
+- Searches each component separately using existing fuzzy matching
+- Uses sophisticated scoring that considers:
+  - **Individual component matches**: Each word found independently
+  - **Phrase completeness**: Bonus for finding multiple components in same object
+  - **Proximity scoring**: Higher scores when components appear close together
+- **Fallback behavior**: If phrase search yields insufficient results (< threshold), automatically retry with split terms
+
+**Implementation Notes**:
+- Maintains current `partial_ratio` approach as primary method
+- Only adds complexity when explicitly requested or as fallback
+- Could help bridge terminology gaps between user queries and API naming conventions
+- Needs careful tuning to avoid overwhelming users with false positives
+
+**Priority**: Low - Test current `partial_ratio` improvements first, implement only if discovery gaps remain
 
 ### Enhanced Output Formats
 - [ ] **Signature cleanup**: Remove Sphinx artifacts like `¶` from signatures
@@ -101,7 +120,6 @@
 - **Search resources**: `@mcp.resource("search://{url}?q={query}")` for search results
 
 ### Content Quality Improvements
-- [ ] **HTML artifact removal**: Clean up formatting remnants in extracted content
 - [ ] **Link resolution**: Convert relative links to absolute URLs
 - [ ] **Image handling**: Proper handling of images in documentation
 - [ ] **Table formatting**: Better markdown conversion for HTML tables
