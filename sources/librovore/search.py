@@ -30,31 +30,37 @@ from . import interfaces as _interfaces
 from . import results as _results
 
 
+_SEARCH_BEHAVIORS_DEFAULT = _interfaces.SearchBehaviors( )
+_EXACT_THRESHOLD_MIN = 95
+
+
 def filter_by_name(
     objects: __.cabc.Sequence[ _results.InventoryObject ],
-    query: str, /, *,
-    match_mode: _interfaces.MatchMode = _interfaces.MatchMode.Fuzzy,
-    fuzzy_threshold: int = 50,
+    term: str, /, *,
+    search_behaviors: _interfaces.SearchBehaviors = _SEARCH_BEHAVIORS_DEFAULT,
 ) -> tuple[ _results.SearchResult, ... ]:
-    ''' Filter objects by name using specified match mode. '''
-    if not query:
-        # Empty query returns all objects with neutral score
+    ''' Filters objects by name using specified match mode and options. '''
+    if not term:
         return tuple(
             _results.SearchResult.from_inventory_object(
-                obj, score = 1.0, match_reasons = [ 'empty query' ] )
+                obj, score = 1.0, match_reasons = [ 'empty term' ] )
             for obj in objects
         )
 
-    query_lower = query.lower( )
     results: list[ _results.SearchResult ] = [ ]
 
-    if match_mode == _interfaces.MatchMode.Exact:
-        results = _filter_exact( objects, query_lower )
-    elif match_mode == _interfaces.MatchMode.Regex:
-        results = _filter_regex( objects, query )
-    elif match_mode == _interfaces.MatchMode.Fuzzy:
-        results = _filter_fuzzy(
-            objects, query_lower, fuzzy_threshold )
+    match search_behaviors.match_mode:
+        case _interfaces.MatchMode.Exact:
+            results = _filter_exact(
+                objects, term, search_behaviors.contains_term,
+                search_behaviors.case_sensitive )
+        case _interfaces.MatchMode.Pattern:
+            results = _filter_regex( objects, term )
+        case _interfaces.MatchMode.Similar:
+            results = _filter_similar(
+                objects, term, search_behaviors.similarity_score_min,
+                search_behaviors.contains_term,
+                search_behaviors.case_sensitive )
 
     sorted_results = sorted( results, key = lambda r: r.score, reverse = True )
     return tuple( sorted_results )
@@ -62,26 +68,30 @@ def filter_by_name(
 
 def _filter_exact(
     objects: __.cabc.Sequence[ _results.InventoryObject ],
-    query_lower: str
+    term: str,
+    contains_term: bool,
+    case_sensitive: bool
 ) -> list[ _results.SearchResult ]:
-    ''' Apply exact matching to objects. '''
+    ''' Applies exact matching with partial_ratio for precision discovery. '''
     results: list[ _results.SearchResult ] = [ ]
+    term_compare = term if case_sensitive else term.lower( )
     for obj in objects:
-        obj_name_lower = obj.name.lower( )
-        if query_lower in obj_name_lower:
-            # Score based on how well the query matches
-            if obj_name_lower == query_lower:
-                score = 1.0
-                reason = 'exact name match'
-            elif obj_name_lower.startswith( query_lower ):
-                score = 0.9
-                reason = 'name starts with query'
+        obj_name_compare = obj.name if case_sensitive else obj.name.lower( )
+        if obj_name_compare == term_compare:
+            score = 1.0
+            reason = 'exact match'
+        elif contains_term:
+            partial_score = _rapidfuzz.fuzz.partial_ratio(
+                term_compare, obj_name_compare )
+            if partial_score >= _EXACT_THRESHOLD_MIN:
+                score = partial_score / 100.0
+                reason = f'partial match ({partial_score}%)'
             else:
-                score = 0.7
-                reason = 'name contains query'
-
-            results.append( _results.SearchResult.from_inventory_object(
-                obj, score = score, match_reasons = [ reason ] ) )
+                continue
+        else:
+            continue
+        results.append( _results.SearchResult.from_inventory_object(
+            obj, score = score, match_reasons = [ reason ] ) )
     return results
 
 
@@ -93,7 +103,6 @@ def _filter_regex(
     try:
         pattern = _re.compile( query, _re.IGNORECASE )
     except _re.error:
-        # Invalid regex, return no results
         return [ ]
 
     return [
@@ -103,28 +112,36 @@ def _filter_regex(
     ]
 
 
-def _filter_fuzzy(
+def _filter_similar(
     objects: __.cabc.Sequence[ _results.InventoryObject ],
-    query_lower: str,
-    fuzzy_threshold: int
+    term: str,
+    similarity_score_min: int,
+    contains_term: bool,
+    case_sensitive: bool
 ) -> list[ _results.SearchResult ]:
-    ''' Apply fuzzy matching to objects using rapidfuzz. '''
+    ''' Applies similar matching with partial_ratio for discovery. '''
     results: list[ _results.SearchResult ] = [ ]
-
+    term_compare = term if case_sensitive else term.lower( )
     for obj in objects:
-        obj_name = obj.name
-        obj_name_lower = obj_name.lower( )
-
-        # Use rapidfuzz ratio for basic fuzzy matching
-        ratio = _rapidfuzz.fuzz.ratio( query_lower, obj_name_lower )
-
-        if ratio >= fuzzy_threshold:
-            # Normalize score to 0.0-1.0 range
-            score = ratio / 100.0
-            results.append( _results.SearchResult.from_inventory_object(
-                obj,
-                score = score,
-                match_reasons = [ f'fuzzy match ({ratio}%)' ]
-            ) )
-
+        obj_name_compare = obj.name if case_sensitive else obj.name.lower( )
+        if obj_name_compare == term_compare:
+            score = 1.0
+            reason = 'exact match'
+        elif contains_term:
+            partial_score = _rapidfuzz.fuzz.partial_ratio(
+                term_compare, obj_name_compare )
+            regular_score = _rapidfuzz.fuzz.ratio(
+                term_compare, obj_name_compare )
+            ratio = max( partial_score, regular_score )
+            if ratio >= similarity_score_min:
+                score = ratio / 100.0
+                score_type = ( 'partial' if partial_score > regular_score 
+                              else 'similar' )
+                reason = f'{score_type} match ({ratio}%)'
+            else:
+                continue
+        else:
+            continue
+        results.append( _results.SearchResult.from_inventory_object(
+            obj, score = score, match_reasons = [ reason ] ) )
     return results

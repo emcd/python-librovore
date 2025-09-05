@@ -377,9 +377,9 @@ class ContentQueryResult( ResultBase ):
         str,
         __.ddoc.Doc( "Primary location URL for this query." ),
     ]
-    query: __.typx.Annotated[
+    term: __.typx.Annotated[
         str,
-        __.ddoc.Doc( "Search term or query string used." ),
+        __.ddoc.Doc( "Search term used for this query." ),
     ]
     documents: __.typx.Annotated[
         tuple[ ContentDocument, ... ],
@@ -407,7 +407,7 @@ class ContentQueryResult( ResultBase ):
             str, __.typx.Any
         ](
             location = self.location,
-            query = self.query,
+            term = self.term,
             documents = documents_json,
             search_metadata = dict( self.search_metadata.render_as_json( ) ),
             inventory_locations = locations_json,
@@ -429,7 +429,7 @@ class ContentQueryResult( ResultBase ):
         if lines_max is not None:
             title += " (truncated)"
         lines = [ title ]
-        lines.append( "**Query:** {query}".format( query = self.query ) )
+        lines.append( "**Term:** {term}".format( term = self.term ) )
         if reveal_internals:
             lines.append( "**Location:** {location}".format(
                 location = self.location ) )
@@ -457,9 +457,9 @@ class InventoryQueryResult( ResultBase ):
         str,
         __.ddoc.Doc( "Primary location URL for this query." ),
     ]
-    query: __.typx.Annotated[
+    term: __.typx.Annotated[
         str,
-        __.ddoc.Doc( "Search term or query string used." ),
+        __.ddoc.Doc( "Search term used for this query." ),
     ]
     objects: __.typx.Annotated[
         tuple[ InventoryObject, ... ],
@@ -484,7 +484,7 @@ class InventoryQueryResult( ResultBase ):
             str, __.typx.Any
         ](
             location = self.location,
-            query = self.query,
+            term = self.term,
             objects = objects_json,
             search_metadata = dict( self.search_metadata.render_as_json( ) ),
             inventory_locations = locations_json,
@@ -499,7 +499,7 @@ class InventoryQueryResult( ResultBase ):
     ) -> tuple[ str, ... ]:
         ''' Renders inventory query result as Markdown lines for display. '''
         lines = [ "# Inventory Query Results" ]
-        lines.append( "**Query:** {query}".format( query = self.query ) )
+        lines.append( "**Term:** {term}".format( term = self.term ) )
         if reveal_internals:
             lines.append( "**Location:** {location}".format(
                 location = self.location ) )

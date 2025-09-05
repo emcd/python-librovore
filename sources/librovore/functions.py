@@ -113,9 +113,7 @@ async def query_content(  # noqa: PLR0913
             content_id, resolved_location, objects )
     else:
         results = _search.filter_by_name(
-            objects, term,
-            match_mode = search_behaviors.match_mode,
-            fuzzy_threshold = search_behaviors.fuzzy_threshold )
+            objects, term, search_behaviors = search_behaviors )
         candidates = [
             result.inventory_object 
             for result in results[ : results_max * 3 ] ]
@@ -130,7 +128,7 @@ async def query_content(  # noqa: PLR0913
         search_time_ms = int( ( end_time - start_time ) * 1000 )
         return _results.ContentQueryResult(
             location = resolved_location,
-            query = term,
+            term = term,
             documents = tuple( ),
             search_metadata = _results.SearchMetadata(
                 results_count = 0,
@@ -145,7 +143,7 @@ async def query_content(  # noqa: PLR0913
     search_time_ms = int( ( end_time - start_time ) * 1000 )
     return _results.ContentQueryResult(
         location = resolved_location,
-        query = term,
+        term = term,
         documents = tuple( documents ),
         search_metadata = _results.SearchMetadata(
             results_count = len( documents ),
@@ -178,16 +176,14 @@ async def query_inventory(  # noqa: PLR0913
     objects = await detection.filter_inventory(
         auxdata, resolved_location, filters = filters )
     results = _search.filter_by_name(
-        objects, term,
-        match_mode = search_behaviors.match_mode,
-        fuzzy_threshold = search_behaviors.fuzzy_threshold )
+        objects, term, search_behaviors = search_behaviors )
     selections = [
         result.inventory_object for result in results[ : results_max ] ]
     end_time = __.time.perf_counter( )
     search_time_ms = int( ( end_time - start_time ) * 1000 )
     return _results.InventoryQueryResult(
         location = resolved_location,
-        query = term,
+        term = term,
         objects = tuple( selections ),
         search_metadata = _results.SearchMetadata(
             results_count = len( selections ),

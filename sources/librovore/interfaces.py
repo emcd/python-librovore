@@ -53,15 +53,27 @@ class MatchMode( str, __.enum.Enum ):
     ''' Enumeration for different term matching modes. '''
 
     Exact = 'exact'
-    Regex = 'regex'
-    Fuzzy = 'fuzzy'
+    Similar = 'similar'
+    Pattern = 'pattern'
 
 
 class SearchBehaviors( __.immut.DataclassObject ):
     ''' Search behavior configuration for the search engine. '''
 
-    match_mode: MatchMode = MatchMode.Fuzzy
-    fuzzy_threshold: int = 50
+    match_mode: MatchMode = MatchMode.Similar
+    similarity_score_min: int = 50
+    contains_term: __.typx.Annotated[
+        bool,
+        __.ddoc.Doc(
+            "Enable substring matching in Exact and Similar modes. "
+            "When enabled, allows terms to match as substrings." ),
+    ] = True
+    case_sensitive: __.typx.Annotated[
+        bool,
+        __.ddoc.Doc(
+            "Enable case-sensitive matching. When False, "
+            "performs case-insensitive matching (default)." ),
+    ] = False
 
 
 _search_behaviors_default = SearchBehaviors( )

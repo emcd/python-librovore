@@ -33,6 +33,8 @@ from . import state as _state
 _scribe = __.acquire_scribe( __name__ )
 
 
+
+
 class TargetStream( __.enum.Enum ):
     ''' Output stream selection. '''
     Stdout = 'stdout'
@@ -285,7 +287,6 @@ class QueryInventoryCommand(
         int,
         __.tyro.conf.arg( help = __.access_doctab( 'results max argument' ) ),
     ] = 5
-
     @intercept_errors( )
     async def __call__(
         self,
@@ -344,7 +345,6 @@ class QueryContentCommand(
                 "Extract full content for specific result. Obtain IDs from "
                 "previous query-content calls with limited lines-max." ) ),
     ] = None
-
     @intercept_errors( )
     async def __call__(
         self,

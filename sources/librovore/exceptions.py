@@ -441,14 +441,14 @@ class ContentIdInvalidity( Omnierror, ValueError ):
 
 
 class ContentIdLocationMismatch( Omnierror, ValueError ):
-    ''' Content ID location does not match query location. '''
+    ''' Content ID location does not match term query location. '''
 
-    def __init__( self, content_id_location: str, query_location: str ):
+    def __init__( self, content_id_location: str, term_location: str ):
         self.content_id_location = content_id_location
-        self.query_location = query_location
+        self.term_location = term_location
         super( ).__init__(
             f"Content ID location '{content_id_location}' does not match "
-            f"query location '{query_location}'" )
+            f"term location '{term_location}'" )
 
     def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
         ''' Renders content ID location mismatch as JSON-compatible dict. '''
@@ -459,7 +459,7 @@ class ContentIdLocationMismatch( Omnierror, ValueError ):
             title = 'Content ID Location Mismatch',
             message = str( self ),
             content_id_location = self.content_id_location,
-            query_location = self.query_location,
+            term_location = self.term_location,
             suggestion = (
                 'Ensure the content ID was generated from the same location '
                 'being queried, or use a content ID from the correct '
@@ -480,7 +480,7 @@ class ContentIdLocationMismatch( Omnierror, ValueError ):
         if reveal_internals:
             lines.append(
                 f"**Content ID Location:** {self.content_id_location}" )
-            lines.append( f"**Query Location:** {self.query_location}" )
+            lines.append( f"**Term Location:** {self.term_location}" )
             lines.append( "**Error Type:** content_id_location_mismatch" )
         return tuple( lines )
 
