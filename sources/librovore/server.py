@@ -172,6 +172,13 @@ def _produce_query_content_function( auxdata: _state.Globals ):
                     "previous query. Use content_id values returned in "
                     "sample searches." ) ),
         ] = None,
+        reveal_internals: __.typx.Annotated[
+            bool,
+            _Field(
+                description = (
+                    "Show internal implementation details (domain, priority, "
+                    "project, version)." ) ),
+        ] = False,
     ) -> dict[ str, __.typx.Any ]:
         immutable_search_behaviors = (
             _to_immutable_search_behaviors( search_behaviors ) )
@@ -210,6 +217,13 @@ def _produce_query_inventory_function( auxdata: _state.Globals ):
         results_max: ResultsMax = 5,
         contains_term: ContainsTerm = True,
         case_sensitive: CaseSensitive = False,
+        reveal_internals: __.typx.Annotated[
+            bool,
+            _Field(
+                description = (
+                    "Show internal implementation details (domain, priority, "
+                    "project, version)." ) ),
+        ] = False,
     ) -> dict[ str, __.typx.Any ]:
         immutable_search_behaviors = (
             _to_immutable_search_behaviors( search_behaviors ) )
@@ -224,7 +238,8 @@ def _produce_query_inventory_function( auxdata: _state.Globals ):
                 case_sensitive = case_sensitive ),
             filters = immutable_filters,
             results_max = results_max )
-        return dict( result.render_as_json( ) )
+        return dict( result.render_as_json(
+            reveal_internals = reveal_internals ) )
 
     return query_inventory
 

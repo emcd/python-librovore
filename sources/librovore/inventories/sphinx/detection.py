@@ -108,17 +108,17 @@ class SphinxInventoryObject( __.InventoryObject ):
     
     def render_specifics_markdown(
         self, /, *,
-        reveal_internals: bool = True,
+        reveal_internals: bool = False,
     ) -> tuple[ str, ... ]:
         ''' Renders Sphinx specifics with domain and role information. '''
         lines: list[ str ] = [ ]
         role = self.specifics.get( 'role' )
         if role:
             lines.append( f"- **Type:** {role}" )
-        domain = self.specifics.get( 'domain' )
-        if domain:
-            lines.append( f"- **Domain:** {domain}" )
         if reveal_internals:
+            domain = self.specifics.get( 'domain' )
+            if domain:
+                lines.append( f"- **Domain:** {domain}" )
             priority = self.specifics.get( 'priority' )
             if priority is not None:
                 lines.append( f"- **Priority:** {priority}" )
@@ -131,16 +131,19 @@ class SphinxInventoryObject( __.InventoryObject ):
         return tuple( lines )
     
     def render_specifics_json(
-        self
+        self, /, *,
+        reveal_internals: bool = False,
     ) -> __.immut.Dictionary[ str, __.typx.Any ]:
         ''' Renders Sphinx specifics with structured format information. '''
-        return __.immut.Dictionary(
-            role = self.specifics.get( 'role' ),
-            domain = self.specifics.get( 'domain' ),
-            priority = self.specifics.get( 'priority' ),
-            inventory_project = self.specifics.get( 'inventory_project' ),
-            inventory_version = self.specifics.get( 'inventory_version' ),
-        )
+        base_data = { 'role': self.specifics.get( 'role' ) }
+        if reveal_internals:
+            base_data.update( {
+                'domain': self.specifics.get( 'domain' ),
+                'priority': self.specifics.get( 'priority' ),
+                'inventory_project': self.specifics.get( 'inventory_project' ),
+                'inventory_version': self.specifics.get( 'inventory_version' ),
+            } )
+        return __.immut.Dictionary( base_data )
 
 
 def format_inventory_object(

@@ -195,7 +195,7 @@ async def _render_and_print_result(
         case _interfaces.DisplayFormat.JSON:
             nomargs_filtered = {
                 key: value for key, value in nomargs.items()
-                if key in [ 'lines_max' ]  # Only pass relevant nomargs
+                if key in [ 'lines_max', 'reveal_internals' ]
             }
             serialized = dict( result.render_as_json( **nomargs_filtered ) )
             output = __.json.dumps( serialized, indent = 2 )
@@ -257,7 +257,7 @@ class DetectCommand(
             auxdata, self.location, self.genus,
             processor_name = processor_name )
         await _render_and_print_result(
-            result, display, auxdata.exits, reveal_internals = True )
+            result, display, auxdata.exits, reveal_internals = False )
 
 
 class QueryInventoryCommand(
@@ -287,6 +287,14 @@ class QueryInventoryCommand(
         int,
         __.tyro.conf.arg( help = __.access_doctab( 'results max argument' ) ),
     ] = 5
+    reveal_internals: __.typx.Annotated[
+        bool,
+        __.tyro.conf.arg(
+            help = (
+                "Show internal implementation details (domain, priority, "
+                "project, version)." )
+        ),
+    ] = False
     @intercept_errors( )
     async def __call__(
         self,
@@ -301,7 +309,8 @@ class QueryInventoryCommand(
             filters = self.filters,
             results_max = self.results_max )
         await _render_and_print_result(
-            result, display, auxdata.exits, reveal_internals = True )
+            result, display, auxdata.exits,
+            reveal_internals = self.reveal_internals )
 
 
 class QueryContentCommand(
@@ -345,6 +354,14 @@ class QueryContentCommand(
                 "Extract full content for specific result. Obtain IDs from "
                 "previous query-content calls with limited lines-max." ) ),
     ] = None
+    reveal_internals: __.typx.Annotated[
+        bool,
+        __.tyro.conf.arg(
+            help = (
+                "Show internal implementation details (domain, priority, "
+                "project, version)." )
+        ),
+    ] = False
     @intercept_errors( )
     async def __call__(
         self,
@@ -362,7 +379,8 @@ class QueryContentCommand(
             lines_max = self.lines_max )
         await _render_and_print_result(
             result, display, auxdata.exits,
-            reveal_internals = True, lines_max = self.lines_max )
+            reveal_internals = self.reveal_internals,
+            lines_max = self.lines_max )
 
 
 

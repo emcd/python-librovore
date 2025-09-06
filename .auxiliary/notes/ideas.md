@@ -113,6 +113,7 @@
 - [ ] **Code examples extraction**: Parse and format code blocks from documentation
 - [ ] **Markdown tables**: For documentation embedding
 - [ ] **Tree view**: Hierarchical display of domains/roles
+- [ ] **Rich code theme configuration**: Add configurable code theme support for Rich markdown rendering (e.g., `code_theme="github-dark"`)
 
 ### MCP Resources Integration
 - **Inventory resources**: `@mcp.resource("inventory://{url}")` for cached access

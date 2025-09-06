@@ -122,28 +122,32 @@ class MkDocsInventoryObject( __.InventoryObject ):
     
     def render_specifics_markdown(
         self, /, *,
-        reveal_internals: bool = True,
+        reveal_internals: bool = False,
     ) -> tuple[ str, ... ]:
         ''' Renders MkDocs specifics with page information. '''
         lines: list[ str ] = [ ]
         role = self.specifics.get( 'role' )
         if role:
             lines.append( f"- **Type:** {role}" )
-        domain = self.specifics.get( 'domain' )
-        if domain:
-            lines.append( f"- **Domain:** {domain}" )
+        if reveal_internals:
+            domain = self.specifics.get( 'domain' )
+            if domain:
+                lines.append( f"- **Domain:** {domain}" )
         return tuple( lines )
     
     def render_specifics_json(
-        self
+        self, /, *,
+        reveal_internals: bool = False,
     ) -> __.immut.Dictionary[ str, __.typx.Any ]:
         ''' Renders MkDocs specifics with page format information. '''
-        return __.immut.Dictionary(
-            role = self.specifics.get( 'role' ),
-            domain = self.specifics.get( 'domain' ),
-            object_type = self.specifics.get( 'object_type' ),
-            content_preview = self.specifics.get( 'content_preview' ),
-        )
+        base_data = { 'role': self.specifics.get( 'role' ) }
+        if reveal_internals:
+            base_data.update( {
+                'domain': self.specifics.get( 'domain' ),
+                'object_type': self.specifics.get( 'object_type' ),
+                'content_preview': self.specifics.get( 'content_preview' ),
+            } )
+        return __.immut.Dictionary( base_data )
 
 
 def format_inventory_object(
