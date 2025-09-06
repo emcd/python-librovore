@@ -1,10 +1,9 @@
 # Librovore MCP Server Test Results & Issues
 
-## Formatting Issues
+## Content Query Issues
 
-### Content ID Spacing
-- **Issue**: In content query results, the `Content ID` metadata appears immediately after the content text without a blank line separator
-- **Impact**: Poor visual separation between content and metadata in Rich markdown display
-- **Example**: Content ends with `...final` then immediately shows `**URL:** https://...` 
-- **Fix needed**: Add blank line before metadata section in content result rendering
-- **Location**: Likely in `sources/librovore/results.py` in the `ContentQueryResult.render_as_markdown()` method
+### Missing asyncio content from Python 3 documentation
+- **Description**: When querying for "asyncio" in the Python 3 docs, expected content is missing from results
+- **Impact**: Users may not find relevant asyncio documentation through content queries
+- **Priority**: Medium - affects discoverability of important Python standard library documentation
+- **Status**: Identified, needs investigation

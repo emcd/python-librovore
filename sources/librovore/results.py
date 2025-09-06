@@ -40,7 +40,10 @@ class ResultBase( __.immut.DataclassProtocol, __.typx.Protocol ):
         raise NotImplementedError
 
     @__.abc.abstractmethod
-    def render_as_markdown( self ) -> tuple[ str, ... ]:
+    def render_as_markdown(
+        self, /, *,
+        reveal_internals: bool = False,
+    ) -> tuple[ str, ... ]:
         ''' Renders result as Markdown lines for display. '''
         raise NotImplementedError
 
@@ -89,7 +92,8 @@ class InventoryObject( ResultBase ):
 
     @__.abc.abstractmethod
     def render_specifics_json(
-        self
+        self, /, *,
+        reveal_internals: bool = False,
     ) -> __.immut.Dictionary[ str, __.typx.Any ]:
         ''' Renders specifics for JSON output. '''
         raise NotImplementedError
@@ -104,12 +108,15 @@ class InventoryObject( ResultBase ):
                 field names, version numbers, priority scores) are included.
                 When False, only user-facing information is shown.
             ''' ),
-        ] = True,
+        ] = False,
     ) -> tuple[ str, ... ]:
         ''' Renders specifics as Markdown lines for CLI display. '''
         raise NotImplementedError
 
-    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+    def render_as_json(
+        self, /, *,
+        reveal_internals: bool = False,
+    ) -> __.immut.Dictionary[ str, __.typx.Any ]:
         ''' Renders complete object as JSON-compatible dictionary. '''
         base = __.immut.Dictionary[
             str, __.typx.Any
@@ -121,7 +128,8 @@ class InventoryObject( ResultBase ):
             display_name = self.display_name,
             effective_display_name = self.effective_display_name,
         )
-        formatted_specifics = self.render_specifics_json( )
+        formatted_specifics = self.render_specifics_json(
+            reveal_internals = reveal_internals )
         result_dict = dict( base )
         result_dict.update( dict( formatted_specifics ) )
         return __.immut.Dictionary[ str, __.typx.Any ]( result_dict )
@@ -131,14 +139,13 @@ class InventoryObject( ResultBase ):
         reveal_internals: __.typx.Annotated[
             bool,
             __.ddoc.Doc( "Controls whether internal details are shown." ),
-        ] = True,
+        ] = False,
     ) -> tuple[ str, ... ]:
         ''' Renders complete object as Markdown lines for display. '''
         lines = [ f"### `{self.effective_display_name}`" ]
-        if reveal_internals:
-            lines.append( f"**URI:** {self.uri}" )
-            lines.append( f"**Type:** {self.inventory_type}" )
-            lines.append( f"**Location:** {self.location_url}" )
+        lines.append( f"- **URI:** {self.uri}" )
+        lines.append( f"- **Type:** {self.inventory_type}" )
+        lines.append( f"- **Location:** {self.location_url}" )
         specifics_lines = self.render_specifics_markdown(
             reveal_internals = reveal_internals )
         lines.extend( specifics_lines )
@@ -202,7 +209,7 @@ class ContentDocument( ResultBase ):
         reveal_internals: __.typx.Annotated[
             bool,
             __.ddoc.Doc( "Controls whether internal details are shown." ),
-        ] = True,
+        ] = False,
         lines_max: __.typx.Annotated[
             __.typx.Optional[ int ],
             __.ddoc.Doc( "Maximum lines to display for description." ),
@@ -217,7 +224,18 @@ class ContentDocument( ResultBase ):
         if include_title:
             lines.append( 
                 f"### `{self.inventory_object.effective_display_name}`" )
+        metadata_lines: list[ str ] = [ ]
+        if self.documentation_url:
+            metadata_lines.append( f"- **URL:** {self.documentation_url}" )
+        metadata_lines.append( f"- **Content ID:** `{self.content_id}`" )
+        if metadata_lines:
+            lines.extend( metadata_lines )
+        inventory_lines = self.inventory_object.render_specifics_markdown(
+            reveal_internals = reveal_internals )
+        if inventory_lines:
+            lines.extend( inventory_lines )
         if self.description:
+            lines.append( "" )
             description = self.description
             if lines_max is not None:
                 desc_lines = description.split( '\n' )
@@ -225,14 +243,7 @@ class ContentDocument( ResultBase ):
                     desc_lines = desc_lines[ :lines_max ]
                     desc_lines.append( "..." )
                 description = '\n'.join( desc_lines )
-            lines.append( f"**Description:** {description}" )
-        if self.documentation_url:
-            lines.append( f"**URL:** {self.documentation_url}" )
-        lines.append( f"**Content ID:** `{self.content_id}`" )
-        if reveal_internals:
-            inventory_lines = self.inventory_object.render_specifics_markdown(
-                reveal_internals = True )
-            lines.extend( inventory_lines )
+            lines.append( description )
         return tuple( lines )
 
 
@@ -353,7 +364,7 @@ class SearchResult( ResultBase ):
         reveal_internals: __.typx.Annotated[
             bool,
             __.ddoc.Doc( "Controls whether internal details are shown." ),
-        ] = True,
+        ] = False,
     ) -> tuple[ str, ... ]:
         ''' Renders search result as Markdown lines for display. '''
         title = "### `{name}` (Score: {score:.2f})".format(
@@ -362,7 +373,7 @@ class SearchResult( ResultBase ):
         lines = [ title ]
         if reveal_internals and self.match_reasons:
             reasons = ', '.join( self.match_reasons )
-            lines.append( "**Match reasons:** {reasons}".format(
+            lines.append( "- **Match reasons:** {reasons}".format(
                 reasons = reasons ) )
         inventory_lines = self.inventory_object.render_as_markdown(
             reveal_internals = reveal_internals )
@@ -377,9 +388,9 @@ class ContentQueryResult( ResultBase ):
         str,
         __.ddoc.Doc( "Primary location URL for this query." ),
     ]
-    query: __.typx.Annotated[
+    term: __.typx.Annotated[
         str,
-        __.ddoc.Doc( "Search term or query string used." ),
+        __.ddoc.Doc( "Search term used for this query." ),
     ]
     documents: __.typx.Annotated[
         tuple[ ContentDocument, ... ],
@@ -407,7 +418,7 @@ class ContentQueryResult( ResultBase ):
             str, __.typx.Any
         ](
             location = self.location,
-            query = self.query,
+            term = self.term,
             documents = documents_json,
             search_metadata = dict( self.search_metadata.render_as_json( ) ),
             inventory_locations = locations_json,
@@ -418,7 +429,7 @@ class ContentQueryResult( ResultBase ):
         reveal_internals: __.typx.Annotated[
             bool,
             __.ddoc.Doc( "Controls whether internal details are shown." ),
-        ] = True,
+        ] = False,
         lines_max: __.typx.Annotated[
             __.typx.Optional[ int ],
             __.ddoc.Doc( "Maximum lines to display per content result." ),
@@ -429,11 +440,11 @@ class ContentQueryResult( ResultBase ):
         if lines_max is not None:
             title += " (truncated)"
         lines = [ title ]
-        lines.append( "**Query:** {query}".format( query = self.query ) )
+        lines.append( "- **Term:** {term}".format( term = self.term ) )
         if reveal_internals:
-            lines.append( "**Location:** {location}".format(
+            lines.append( "- **Location:** {location}".format(
                 location = self.location ) )
-        lines.append( "**Results:** {count} of {max}".format(
+        lines.append( "- **Results:** {count} of {max}".format(
             count = self.search_metadata.results_count,
             max = self.search_metadata.results_max ) )
         if self.documents:
@@ -457,9 +468,9 @@ class InventoryQueryResult( ResultBase ):
         str,
         __.ddoc.Doc( "Primary location URL for this query." ),
     ]
-    query: __.typx.Annotated[
+    term: __.typx.Annotated[
         str,
-        __.ddoc.Doc( "Search term or query string used." ),
+        __.ddoc.Doc( "Search term used for this query." ),
     ]
     objects: __.typx.Annotated[
         tuple[ InventoryObject, ... ],
@@ -474,17 +485,21 @@ class InventoryQueryResult( ResultBase ):
         __.ddoc.Doc( "Information about inventory locations used." ),
     ]
 
-    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+    def render_as_json(
+        self, /, *,
+        reveal_internals: bool = False,
+    ) -> __.immut.Dictionary[ str, __.typx.Any ]:
         ''' Renders inventory query result as JSON-compatible dictionary. '''
         objects_json = [
-            dict( obj.render_as_json( ) ) for obj in self.objects ]
+            dict( obj.render_as_json( reveal_internals = reveal_internals ) )
+            for obj in self.objects ]
         locations_json = [
             dict( loc.render_as_json( ) ) for loc in self.inventory_locations ]
         return __.immut.Dictionary[
             str, __.typx.Any
         ](
             location = self.location,
-            query = self.query,
+            term = self.term,
             objects = objects_json,
             search_metadata = dict( self.search_metadata.render_as_json( ) ),
             inventory_locations = locations_json,
@@ -495,15 +510,15 @@ class InventoryQueryResult( ResultBase ):
         reveal_internals: __.typx.Annotated[
             bool,
             __.ddoc.Doc( "Controls whether internal details are shown." ),
-        ] = True,
+        ] = False,
     ) -> tuple[ str, ... ]:
         ''' Renders inventory query result as Markdown lines for display. '''
         lines = [ "# Inventory Query Results" ]
-        lines.append( "**Query:** {query}".format( query = self.query ) )
+        lines.append( "- **Term:** {term}".format( term = self.term ) )
         if reveal_internals:
-            lines.append( "**Location:** {location}".format(
+            lines.append( "- **Location:** {location}".format(
                 location = self.location ) )
-        lines.append( "**Results:** {count} of {max}".format(
+        lines.append( "- **Results:** {count} of {max}".format(
             count = self.search_metadata.results_count,
             max = self.search_metadata.results_max ) )
         if self.objects:
@@ -592,23 +607,23 @@ class DetectionsResult( ResultBase ):
         reveal_internals: __.typx.Annotated[
             bool,
             __.ddoc.Doc( "Controls whether internal details are shown." ),
-        ] = True,
+        ] = False,
     ) -> tuple[ str, ... ]:
         ''' Renders detection results as Markdown lines for display. '''
         lines = [ "# Detection Results" ]
         if reveal_internals:
-            lines.append( "**Source:** {source}".format(
+            lines.append( "- **Source:** {source}".format(
                 source = self.source ) )
-            lines.append( "**Detection time:** {time}ms".format(
+            lines.append( "- **Detection time:** {time}ms".format(
                 time = self.time_detection_ms ) )
         if self.detection_optimal:
-            lines.append( "**Optimal processor:** {name} ({type})".format(
+            lines.append( "- **Optimal processor:** {name} ({type})".format(
                 name = self.detection_optimal.processor_name,
                 type = self.detection_optimal.processor_type ) )
-            lines.append( "**Confidence:** {conf:.2f}".format(
+            lines.append( "- **Confidence:** {conf:.2f}".format(
                 conf = self.detection_optimal.confidence ) )
         else:
-            lines.append( "**No optimal processor found**" )
+            lines.append( "- **No optimal processor found**" )
         if reveal_internals and self.detections:
             lines.append( "" )
             lines.append( "## All Detections" )
@@ -645,7 +660,7 @@ class ProcessorInfo( ResultBase ):
         ](
             processor_name = self.processor_name,
             processor_type = self.processor_type,
-            capabilities = serialize_for_json( self.capabilities ),
+            capabilities = self.capabilities.render_as_json( ),
         )
 
     def render_as_markdown(
@@ -653,34 +668,13 @@ class ProcessorInfo( ResultBase ):
         reveal_internals: __.typx.Annotated[
             bool,
             __.ddoc.Doc( "Controls whether internal details are shown." ),
-        ] = True,
+        ] = False,
     ) -> tuple[ str, ... ]:
         ''' Renders processor info as Markdown lines for display. '''
         lines = [ f"### `{self.processor_name}` ({self.processor_type})" ]
         if reveal_internals:
-            lines.append( f"**Version:** {self.capabilities.version}" )
-            if self.capabilities.results_limit_max:
-                lines.append( 
-                    f"**Max results:** {self.capabilities.results_limit_max}" )
-            if self.capabilities.response_time_typical:
-                lines.append( 
-                    f"**Response time:** "
-                    f"{self.capabilities.response_time_typical}" )
-            if self.capabilities.notes:
-                lines.append( f"**Notes:** {self.capabilities.notes}" )
-        if self.capabilities.supported_filters:
-            lines.append( "" )
-            lines.append( "**Supported filters:**" )
-            for filter_cap in self.capabilities.supported_filters:
-                filter_line = f"- `{filter_cap.name}` ({filter_cap.type})"
-                if filter_cap.required:
-                    filter_line += " *required*"
-                lines.append( filter_line )
-                if filter_cap.description:
-                    lines.append( f"  {filter_cap.description}" )
-                if filter_cap.values:
-                    values_str = ', '.join( filter_cap.values )
-                    lines.append( f"  Values: {values_str}" )
+            capabilities_lines = self.capabilities.render_as_markdown( )
+            lines.extend( capabilities_lines )
         return tuple( lines )
 
 
@@ -726,7 +720,7 @@ class ProcessorsSurveyResult( ResultBase ):
         reveal_internals: __.typx.Annotated[
             bool,
             __.ddoc.Doc( "Controls whether internal details are shown." ),
-        ] = True,
+        ] = False,
     ) -> tuple[ str, ... ]:
         ''' Renders survey results as Markdown lines for display. '''
         genus_name = (
@@ -735,10 +729,10 @@ class ProcessorsSurveyResult( ResultBase ):
         title = f"# Processor Survey Results ({genus_name})"
         lines = [ title ]
         if reveal_internals:
-            lines.append( f"**Survey time:** {self.survey_time_ms}ms" )
+            lines.append( f"- **Survey time:** {self.survey_time_ms}ms" )
             if self.filter_name:
-                lines.append( f"**Filter:** {self.filter_name}" )
-        lines.append( f"**Processors found:** {len( self.processors )}" )
+                lines.append( f"- **Filter:** {self.filter_name}" )
+        lines.append( f"- **Processors found:** {len( self.processors )}" )
         if self.processors:
             lines.append( "" )
             for i, processor in enumerate( self.processors, 1 ):
@@ -782,44 +776,9 @@ def produce_content_id( location: str, name: str ) -> str:
         identifier_source.encode( 'utf-8' ) ).decode( 'ascii' )
 
 
-def serialize_for_json( objct: __.typx.Any ) -> __.typx.Any:
-    ''' Legacy serialization for non-structured objects (dicts). '''
-    if __.dcls.is_dataclass( objct ):
-        return _serialize_dataclass_for_json( objct )
-    if isinstance( objct, ( list, tuple, set, frozenset ) ):
-        return _serialize_sequence_for_json( objct )
-    if isinstance( objct, ( dict, __.immut.Dictionary ) ):
-        return _serialize_mapping_for_json( objct )
-    return objct
 
 
 
-def _serialize_dataclass_for_json(
-    obj: __.typx.Any,
-) -> dict[ str, __.typx.Any ]:
-    ''' Serializes dataclass objects to JSON-compatible dictionaries. '''
-    result: dict[ str, __.typx.Any ] = { }
-    for field in __.dcls.fields( obj ):
-        if field.name.startswith( '_' ):
-            continue
-        value = getattr( obj, field.name )
-        result[ field.name ] = serialize_for_json( value )
-    return result
-
-
-def _serialize_mapping_for_json(
-    obj: __.typx.Any
-) -> dict[ __.typx.Any, __.typx.Any ]:
-    ''' Serializes mapping-like objects to JSON-compatible dictionaries. '''
-    return {
-        key: serialize_for_json( value )
-        for key, value in obj.items( )
-    }
-
-
-def _serialize_sequence_for_json( obj: __.typx.Any ) -> list[ __.typx.Any ]:
-    ''' Serializes sequence-like objects to JSON-compatible lists. '''
-    return [ serialize_for_json( item ) for item in obj ]
 
 
 ContentDocuments: __.typx.TypeAlias = __.cabc.Sequence[ ContentDocument ]

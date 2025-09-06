@@ -63,8 +63,8 @@ class SearchBehaviorsMutable:
         immutable dataclass internals leaking into JSON schema generation.
     '''
 
-    match_mode: _interfaces.MatchMode = _interfaces.MatchMode.Fuzzy
-    fuzzy_threshold: int = 50
+    match_mode: _interfaces.MatchMode = _interfaces.MatchMode.Similar
+    similarity_score_min: int = 50
 
 
 FiltersMutable: __.typx.TypeAlias = dict[ str, __.typx.Any ]
@@ -78,6 +78,20 @@ ResultsMax: __.typx.TypeAlias = __.typx.Annotated[
     int, _Field( description = __.access_doctab( 'results max argument' ) ) ]
 LocationArgument: __.typx.TypeAlias = __.typx.Annotated[
     str, _Field( description = __.access_doctab( 'location argument' ) ) ]
+ContainsTerm: __.typx.TypeAlias = __.typx.Annotated[
+    bool,
+    _Field(
+        description = (
+            "Enable substring matching in Exact and Similar modes. "
+            "When enabled, allows terms to match as substrings." ) ),
+]
+CaseSensitive: __.typx.TypeAlias = __.typx.Annotated[
+    bool,
+    _Field(
+        description = (
+            "Enable case-sensitive matching. When False, "
+            "performs case-insensitive matching (default)." ) ),
+]
 
 
 _filters_default = FiltersMutable( )
@@ -148,6 +162,8 @@ def _produce_query_content_function( auxdata: _state.Globals ):
                     "larger values or omit for full content. Results "
                     "include content_id for extraction." ) ),
         ] = 40,
+        contains_term: ContainsTerm = True,
+        case_sensitive: CaseSensitive = False,
         content_id: __.typx.Annotated[
             __.typx.Optional[ str ],
             _Field(
@@ -156,6 +172,13 @@ def _produce_query_content_function( auxdata: _state.Globals ):
                     "previous query. Use content_id values returned in "
                     "sample searches." ) ),
         ] = None,
+        reveal_internals: __.typx.Annotated[
+            bool,
+            _Field(
+                description = (
+                    "Show internal implementation details (domain, priority, "
+                    "project, version)." ) ),
+        ] = False,
     ) -> dict[ str, __.typx.Any ]:
         immutable_search_behaviors = (
             _to_immutable_search_behaviors( search_behaviors ) )
@@ -163,7 +186,12 @@ def _produce_query_content_function( auxdata: _state.Globals ):
         content_id_ = __.absent if content_id is None else content_id
         result = await _functions.query_content(
             auxdata, location, term,
-            search_behaviors = immutable_search_behaviors,
+            search_behaviors = _interfaces.SearchBehaviors(
+                match_mode = immutable_search_behaviors.match_mode,
+                similarity_score_min = (
+                    immutable_search_behaviors.similarity_score_min ),
+                contains_term = contains_term,
+                case_sensitive = case_sensitive ),
             filters = immutable_filters,
             content_id = content_id_,
             results_max = results_max,
@@ -186,22 +214,32 @@ def _produce_query_inventory_function( auxdata: _state.Globals ):
             FiltersMutable,
             _Field( description = "Processor-specific filters" ),
         ] = _filters_default,
-        details: __.typx.Annotated[
-            _interfaces.InventoryQueryDetails,
-            _Field( description = "Detail level for inventory results" ),
-        ] = _interfaces.InventoryQueryDetails.Name,
         results_max: ResultsMax = 5,
+        contains_term: ContainsTerm = True,
+        case_sensitive: CaseSensitive = False,
+        reveal_internals: __.typx.Annotated[
+            bool,
+            _Field(
+                description = (
+                    "Show internal implementation details (domain, priority, "
+                    "project, version)." ) ),
+        ] = False,
     ) -> dict[ str, __.typx.Any ]:
         immutable_search_behaviors = (
             _to_immutable_search_behaviors( search_behaviors ) )
         immutable_filters = _to_immutable_filters( filters )
         result = await _functions.query_inventory(
             auxdata, location, term,
-            search_behaviors = immutable_search_behaviors,
+            search_behaviors = _interfaces.SearchBehaviors(
+                match_mode = immutable_search_behaviors.match_mode,
+                similarity_score_min = (
+                    immutable_search_behaviors.similarity_score_min ),
+                contains_term = contains_term,
+                case_sensitive = case_sensitive ),
             filters = immutable_filters,
-            details = details,
             results_max = results_max )
-        return dict( result.render_as_json( ) )
+        return dict( result.render_as_json(
+            reveal_internals = reveal_internals ) )
 
     return query_inventory
 

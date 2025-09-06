@@ -21,37 +21,5 @@
 ''' Internal enumerations and interfaces. '''
 
 
-from . import imports as __
 
 
-class DisplayStreams( __.enum.Enum ):
-    ''' Stream upon which to place output. '''
-
-    Stderr = 'stderr'
-    Stdout = 'stdout'
-
-
-class DisplayTarget( __.immut.DataclassObject ):
-    silence: __.typx.Annotated[
-        bool,
-        __.tyro.conf.arg(
-            aliases = ( '--quiet', '--silent', ), prefix_name = False ),
-    ] = False
-    file: __.typx.Annotated[
-        __.typx.Optional[ __.Path ],
-        __.tyro.conf.arg(
-            name = 'console-capture-file', prefix_name = False ),
-    ] = None
-    stream: __.typx.Annotated[
-        DisplayStreams,
-        __.tyro.conf.arg( name = 'console-stream', prefix_name = False ),
-    ] = DisplayStreams.Stderr
-
-    async def provide_stream( self ) -> __.io.TextIOWrapper:
-        ''' Provides output stream for display. '''
-        if self.file: return open( self.file, 'w' )
-        match self.stream:
-            case DisplayStreams.Stdout:
-                return __.sys.stdout # pyright: ignore[reportReturnType]
-            case DisplayStreams.Stderr:
-                return __.sys.stderr # pyright: ignore[reportReturnType]

@@ -71,7 +71,7 @@ def mock_auxdata( ):
 #     ''' Server query_inventory handles fuzzy matching correctly. '''
 #     test_inventory_path = get_test_inventory_path( 'sphobjinv' )
 #     search_behaviors = module.SearchBehaviorsMutable(
-#         match_mode = _interfaces.MatchMode.Fuzzy, fuzzy_threshold = 60 )
+#         match_mode = _interfaces.MatchMode.Similar, fuzzy_threshold = 60 )
 #     filters = module.FiltersMutable( )
 #     query_func = module._produce_query_inventory_function( mock_auxdata )
 #     result = await query_func(

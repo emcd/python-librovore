@@ -33,6 +33,57 @@ from . import state as _state
 _scribe = __.acquire_scribe( __name__ )
 
 
+
+
+class TargetStream( __.enum.Enum ):
+    ''' Output stream selection. '''
+    Stdout = 'stdout'
+    Stderr = 'stderr'
+
+
+TargetMutex = __.tyro.conf.create_mutex_group( required = False )
+
+
+class DisplayOptions( __.immut.DataclassObject ):
+    ''' Consolidated display configuration for CLI output. '''
+    format: _interfaces.DisplayFormat = _interfaces.DisplayFormat.Markdown
+    target_stream: __.typx.Annotated[
+        __.typx.Optional[ TargetStream ],
+        TargetMutex,
+        __.tyro.conf.arg( help = "Output to stdout or stderr." )
+    ] = TargetStream.Stderr
+    target_file: __.typx.Annotated[
+        __.typx.Optional[ __.Path ],
+        TargetMutex,
+        __.tyro.conf.arg( help = "Output to specified file." )
+    ] = None
+    color: __.typx.Annotated[
+        bool,
+        __.tyro.conf.arg(
+            aliases = ( "--ansi-sgr", ),
+            help = "Enable colored output and terminal formatting."
+        ),
+    ] = True
+
+    async def provide_stream( 
+        self, exits: __.ctxl.AsyncExitStack
+    ) -> __.typx.TextIO:
+        ''' Provides the target output stream. '''
+        if self.target_file is not None:
+            target_path = self.target_file.resolve( )
+            target_path.parent.mkdir( parents = True, exist_ok = True )
+            return exits.enter_context( target_path.open( 'w' ) )
+        target_stream = self.target_stream or TargetStream.Stderr
+        match target_stream:
+            case TargetStream.Stdout: return __.sys.stdout
+            case TargetStream.Stderr: return __.sys.stderr
+            case _: return __.sys.stderr
+
+    def decide_rich_markdown( self, stream: __.typx.TextIO ) -> bool:
+        ''' Determines whether to use Rich markdown rendering. '''
+        return decide_rich_markdown( stream, self.color )
+
+
 def intercept_errors( ) -> __.cabc.Callable[ 
     [ __.cabc.Callable[ ..., __.cabc.Awaitable[ None ] ] ], 
     __.cabc.Callable[ ..., __.cabc.Awaitable[ None ] ] 
@@ -49,19 +100,16 @@ def intercept_errors( ) -> __.cabc.Callable[
         async def wrapper( 
             self: __.typx.Any,
             auxdata: _state.Globals,
-            display: __.DisplayTarget,
-            display_format: _interfaces.DisplayFormat,
-            color: bool,
+            display: DisplayOptions,
             *posargs: __.typx.Any,
             **nomargs: __.typx.Any,
         ) -> None:
-            stream = await display.provide_stream( )
+            stream = await display.provide_stream( auxdata.exits )
             try:
                 return await func( 
-                    self, auxdata, display, display_format, color,
-                    *posargs, **nomargs )
+                    self, auxdata, display, *posargs, **nomargs )
             except _exceptions.Omnierror as exc:
-                match display_format:
+                match display.format:
                     case _interfaces.DisplayFormat.JSON:
                         serialized = dict( exc.render_as_json( ) )
                         error_message = __.json.dumps( serialized, indent = 2 )
@@ -72,7 +120,7 @@ def intercept_errors( ) -> __.cabc.Callable[
                 raise SystemExit( 1 ) from None
             except Exception as exc:
                 _scribe.error( f"{func.__name__} failed: %s", exc )
-                match display_format:
+                match display.format:
                     case _interfaces.DisplayFormat.JSON:
                         error_data = {
                             "type": "unexpected_error",
@@ -137,30 +185,26 @@ def decide_rich_markdown(
 
 async def _render_and_print_result(
     result: _results.ResultBase,
-    display_format: _interfaces.DisplayFormat,
-    stream: __.typx.TextIO,
-    color: bool,
+    display: DisplayOptions,
+    exits: __.ctxl.AsyncExitStack,
     **nomargs: __.typx.Any
 ) -> None:
     ''' Centralizes result rendering logic with Rich formatting support. '''
-    match display_format:
+    stream = await display.provide_stream( exits )
+    match display.format:
         case _interfaces.DisplayFormat.JSON:
             nomargs_filtered = {
                 key: value for key, value in nomargs.items()
-                if key in [ 'lines_max' ]  # Only pass relevant nomargs
+                if key in [ 'lines_max', 'reveal_internals' ]
             }
             serialized = dict( result.render_as_json( **nomargs_filtered ) )
             output = __.json.dumps( serialized, indent = 2 )
             print( output, file = stream )
         case _interfaces.DisplayFormat.Markdown:
             lines = result.render_as_markdown( **nomargs )
-            if decide_rich_markdown( stream, color ):
-                from rich.console import (
-                    Console,
-                )
-                from rich.markdown import (
-                    Markdown,
-                )
+            if display.decide_rich_markdown( stream ):
+                from rich.console import Console
+                from rich.markdown import Markdown
                 console = Console( file = stream, force_terminal = True )
                 markdown_obj = Markdown( '\n'.join( lines ) )
                 console.print( markdown_obj )
@@ -179,9 +223,7 @@ class _CliCommand(
     def __call__(
         self,
         auxdata: _state.Globals,
-        display: __.DisplayTarget,
-        display_format: _interfaces.DisplayFormat,
-        color: bool,
+        display: DisplayOptions,
     ) -> __.cabc.Awaitable[ None ]:
         ''' Executes command with global state. '''
         raise NotImplementedError
@@ -206,11 +248,8 @@ class DetectCommand(
     async def __call__(
         self,
         auxdata: _state.Globals,
-        display: __.DisplayTarget,
-        display_format: _interfaces.DisplayFormat,
-        color: bool,
+        display: DisplayOptions,
     ) -> None:
-        stream = await display.provide_stream( )
         processor_name = (
             self.processor_name if self.processor_name is not None
             else __.absent )
@@ -218,7 +257,7 @@ class DetectCommand(
             auxdata, self.location, self.genus,
             processor_name = processor_name )
         await _render_and_print_result(
-            result, display_format, stream, color, reveal_internals = True )
+            result, display, auxdata.exits, reveal_internals = False )
 
 
 class QueryInventoryCommand(
@@ -235,11 +274,6 @@ class QueryInventoryCommand(
 
     location: LocationArgument
     term: TermArgument
-    details: __.typx.Annotated[
-        _interfaces.InventoryQueryDetails,
-        __.tyro.conf.arg(
-            help = __.access_doctab( 'query details argument' ) ),
-    ] = _interfaces.InventoryQueryDetails.Name
     filters: __.typx.Annotated[
         __.cabc.Mapping[ str, __.typx.Any ],
         __.tyro.conf.arg( prefix_name = False ),
@@ -253,27 +287,30 @@ class QueryInventoryCommand(
         int,
         __.tyro.conf.arg( help = __.access_doctab( 'results max argument' ) ),
     ] = 5
-
+    reveal_internals: __.typx.Annotated[
+        bool,
+        __.tyro.conf.arg(
+            help = (
+                "Show internal implementation details (domain, priority, "
+                "project, version)." )
+        ),
+    ] = False
     @intercept_errors( )
     async def __call__(
         self,
         auxdata: _state.Globals,
-        display: __.DisplayTarget,
-        display_format: _interfaces.DisplayFormat,
-        color: bool,
+        display: DisplayOptions,
     ) -> None:
-        stream = await display.provide_stream( )
         result = await _functions.query_inventory(
             auxdata,
             self.location,
             self.term,
             search_behaviors = self.search_behaviors,
             filters = self.filters,
-            results_max = self.results_max,
-            details = self.details )
+            results_max = self.results_max )
         await _render_and_print_result(
-            result, display_format, stream, color,
-            reveal_internals = True )
+            result, display, auxdata.exits,
+            reveal_internals = self.reveal_internals )
 
 
 class QueryContentCommand(
@@ -317,16 +354,20 @@ class QueryContentCommand(
                 "Extract full content for specific result. Obtain IDs from "
                 "previous query-content calls with limited lines-max." ) ),
     ] = None
-
+    reveal_internals: __.typx.Annotated[
+        bool,
+        __.tyro.conf.arg(
+            help = (
+                "Show internal implementation details (domain, priority, "
+                "project, version)." )
+        ),
+    ] = False
     @intercept_errors( )
     async def __call__(
         self,
         auxdata: _state.Globals,
-        display: __.DisplayTarget,
-        display_format: _interfaces.DisplayFormat,
-        color: bool,
+        display: DisplayOptions,
     ) -> None:
-        stream = await display.provide_stream( )
         content_id_ = (
             __.absent if self.content_id is None else self.content_id )
         result = await _functions.query_content(
@@ -337,8 +378,9 @@ class QueryContentCommand(
             results_max = self.results_max,
             lines_max = self.lines_max )
         await _render_and_print_result(
-            result, display_format, stream, color,
-            reveal_internals = True, lines_max = self.lines_max )
+            result, display, auxdata.exits,
+            reveal_internals = self.reveal_internals,
+            lines_max = self.lines_max )
 
 
 
@@ -361,17 +403,13 @@ class SurveyProcessorsCommand(
     async def __call__(
         self,
         auxdata: _state.Globals,
-        display: __.DisplayTarget,
-        display_format: _interfaces.DisplayFormat,
-        color: bool,
+        display: DisplayOptions,
     ) -> None:
-        stream = await display.provide_stream( )
         nomargs: __.NominativeArguments = { 'genus': self.genus }
         if self.name is not None: nomargs[ 'name' ] = self.name
         result = await _functions.survey_processors( auxdata, **nomargs )
         await _render_and_print_result(
-            result, display_format, stream, color,
-            reveal_internals = False )
+            result, display, auxdata.exits, reveal_internals = False )
 
 
 
@@ -393,9 +431,7 @@ class ServeCommand(
     async def __call__(
         self,
         auxdata: _state.Globals,
-        display: __.DisplayTarget,
-        display_format: _interfaces.DisplayFormat,
-        color: bool,
+        display: DisplayOptions,
     ) -> None:
         nomargs: __.NominativeArguments = { }
         if self.port is not None: nomargs[ 'port' ] = self.port
@@ -407,18 +443,8 @@ class ServeCommand(
 class Cli( __.immut.DataclassObject, decorators = ( __.simple_tyro_class, ) ):
     ''' MCP server CLI. '''
 
-    display: __.DisplayTarget
-    display_format: __.typx.Annotated[
-        _interfaces.DisplayFormat,
-        __.tyro.conf.arg( help = "Output format for command results." ),
-    ] = _interfaces.DisplayFormat.Markdown
-    color: __.typx.Annotated[
-        bool,
-        __.tyro.conf.arg(
-            aliases = ( "--ansi-sgr", ),
-            help = "Enable colored output and terminal formatting"
-        ),
-    ] = True
+    display: DisplayOptions = __.dcls.field( 
+        default_factory = lambda: DisplayOptions( ) )
     command: __.typx.Union[
         __.typx.Annotated[
             DetectCommand,
@@ -456,9 +482,7 @@ class Cli( __.immut.DataclassObject, decorators = ( __.simple_tyro_class, ) ):
             await xtnsmgr.register_processors( auxdata )
             await self.command(
                 auxdata = auxdata,
-                display = self.display,
-                display_format = self.display_format,
-                color = self.color )
+                display = self.display )
 
     def prepare_invocation_args(
         self,

@@ -48,28 +48,32 @@ class ProcessorGenera( __.enum.Enum ):
     Structure = 'structure'
 
 
-class InventoryQueryDetails( __.enum.IntFlag ):
-    ''' Enumeration for inventory query detail levels. '''
-
-    Name =          0               # Object names only (baseline)
-    Signature =     __.enum.auto( ) # Include signatures
-    Summary =       __.enum.auto( ) # Include brief descriptions
-    Documentation = __.enum.auto( ) # Include full documentation
-
 
 class MatchMode( str, __.enum.Enum ):
     ''' Enumeration for different term matching modes. '''
 
     Exact = 'exact'
-    Regex = 'regex'
-    Fuzzy = 'fuzzy'
+    Similar = 'similar'
+    Pattern = 'pattern'
 
 
 class SearchBehaviors( __.immut.DataclassObject ):
     ''' Search behavior configuration for the search engine. '''
 
-    match_mode: MatchMode = MatchMode.Fuzzy
-    fuzzy_threshold: int = 50
+    match_mode: MatchMode = MatchMode.Similar
+    similarity_score_min: int = 50
+    contains_term: __.typx.Annotated[
+        bool,
+        __.ddoc.Doc(
+            "Enable substring matching in Exact and Similar modes. "
+            "When enabled, allows terms to match as substrings." ),
+    ] = True
+    case_sensitive: __.typx.Annotated[
+        bool,
+        __.ddoc.Doc(
+            "Enable case-sensitive matching. When False, "
+            "performs case-insensitive matching (default)." ),
+    ] = False
 
 
 _search_behaviors_default = SearchBehaviors( )
@@ -85,3 +89,43 @@ class ProcessorCapabilities( __.immut.DataclassObject ):
     results_limit_max: __.typx.Optional[ int ] = None
     response_time_typical: __.typx.Optional[ str ] = None  # "fast", etc.
     notes: __.typx.Optional[ str ] = None
+
+    def render_as_json( self ) -> dict[ str, __.typx.Any ]:
+        ''' Renders capabilities as JSON-compatible dictionary. '''
+        return {
+            'processor_name': self.processor_name,
+            'version': self.version,
+            'supported_filters': [
+                {
+                    'name': filter_cap.name,
+                    'type': filter_cap.type,
+                    'required': filter_cap.required,
+                    'description': filter_cap.description,
+                }
+                for filter_cap in self.supported_filters
+            ],
+            'results_limit_max': self.results_limit_max,
+            'response_time_typical': self.response_time_typical,
+            'notes': self.notes,
+        }
+
+    def render_as_markdown( self ) -> tuple[ str, ... ]:
+        ''' Renders capabilities as Markdown lines for display. '''
+        lines = [ f"**Version:** {self.version}" ]
+        if self.results_limit_max:
+            lines.append( f"**Max results:** {self.results_limit_max}" )
+        if self.response_time_typical:
+            lines.append( f"**Response time:** {self.response_time_typical}" )
+        if self.notes:
+            lines.append( f"**Notes:** {self.notes}" )
+        if self.supported_filters:
+            lines.append( "" )
+            lines.append( "**Supported filters:**" )
+            for filter_cap in self.supported_filters:
+                filter_line = f"- `{filter_cap.name}` ({filter_cap.type})"
+                if filter_cap.required:
+                    filter_line += " *required*"
+                if filter_cap.description:
+                    filter_line += f": {filter_cap.description}"
+                lines.append( filter_line )
+        return tuple( lines )

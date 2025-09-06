@@ -107,16 +107,13 @@ async def query_content(  # noqa: PLR0913
     resolved_location = _detection.resolve_source_url( location )
     objects = await idetection.filter_inventory(
         auxdata, resolved_location,
-        filters = filters,
-        details = _interfaces.InventoryQueryDetails.Name )
+        filters = filters )
     if not __.is_absent( content_id ):
         candidates = _process_content_id_filter(
             content_id, resolved_location, objects )
     else:
         results = _search.filter_by_name(
-            objects, term,
-            match_mode = search_behaviors.match_mode,
-            fuzzy_threshold = search_behaviors.fuzzy_threshold )
+            objects, term, search_behaviors = search_behaviors )
         candidates = [
             result.inventory_object 
             for result in results[ : results_max * 3 ] ]
@@ -131,7 +128,7 @@ async def query_content(  # noqa: PLR0913
         search_time_ms = int( ( end_time - start_time ) * 1000 )
         return _results.ContentQueryResult(
             location = resolved_location,
-            query = term,
+            term = term,
             documents = tuple( ),
             search_metadata = _results.SearchMetadata(
                 results_count = 0,
@@ -146,7 +143,7 @@ async def query_content(  # noqa: PLR0913
     search_time_ms = int( ( end_time - start_time ) * 1000 )
     return _results.ContentQueryResult(
         location = resolved_location,
-        query = term,
+        term = term,
         documents = tuple( documents ),
         search_metadata = _results.SearchMetadata(
             results_count = len( documents ),
@@ -163,8 +160,6 @@ async def query_inventory(  # noqa: PLR0913
     processor_name: __.Absential[ str ] = __.absent,
     search_behaviors: _interfaces.SearchBehaviors = _search_behaviors_default,
     filters: __.cabc.Mapping[ str, __.typx.Any ] = _filters_default,
-    details: _interfaces.InventoryQueryDetails = (
-        _interfaces.InventoryQueryDetails.Name ),
     results_max: int = 5,
 ) -> _results.InventoryQueryResult:
     ''' Searches object inventory by name.
@@ -179,18 +174,16 @@ async def query_inventory(  # noqa: PLR0913
     # Resolve URL after detection to get working URL if redirect exists
     resolved_location = _detection.resolve_source_url( location )
     objects = await detection.filter_inventory(
-        auxdata, resolved_location, filters = filters, details = details )
+        auxdata, resolved_location, filters = filters )
     results = _search.filter_by_name(
-        objects, term,
-        match_mode = search_behaviors.match_mode,
-        fuzzy_threshold = search_behaviors.fuzzy_threshold )
+        objects, term, search_behaviors = search_behaviors )
     selections = [
         result.inventory_object for result in results[ : results_max ] ]
     end_time = __.time.perf_counter( )
     search_time_ms = int( ( end_time - start_time ) * 1000 )
     return _results.InventoryQueryResult(
         location = resolved_location,
-        query = term,
+        term = term,
         objects = tuple( selections ),
         search_metadata = _results.SearchMetadata(
             results_count = len( selections ),
@@ -272,23 +265,3 @@ def _process_content_id_filter(
     return tuple( matching_objects[ :1 ] )
 
 
-def _serialize_for_json( obj: __.typx.Any ) -> __.typx.Any:
-    ''' Recursively serializes dataclass objects to JSON-compatible format. '''
-    # TODO: Remove type suppressions.
-    if __.dcls.is_dataclass( obj ):
-        result = { }  # type: ignore[var-annotated]
-        for field in __.dcls.fields( obj ):
-            if field.name.startswith( '_' ):
-                continue
-            value = getattr( obj, field.name )
-            result[ field.name ] = _serialize_for_json( value )
-        return result  # type: ignore[return-value]
-    if isinstance( obj, ( list, tuple ) ):
-        return [ _serialize_for_json( item ) for item in obj ]  # type: ignore[misc]
-    if isinstance( obj, ( frozenset, set ) ):
-        return list( obj )  # type: ignore[arg-type]
-    if hasattr( obj, 'items' ):  # Handle mappings (dict, frigid.Dictionary)
-        return { k: _serialize_for_json( v ) for k, v in obj.items( ) }
-    if obj is None or isinstance( obj, ( str, int, float, bool ) ):
-        return obj
-    return str( obj )

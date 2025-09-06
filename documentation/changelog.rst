@@ -23,6 +23,23 @@ Release Notes
 
 .. towncrier release notes start
 
+librovore 1.0a5 (2025-09-05)
+============================
+
+Enhancements
+------------
+
+- CLI: Consolidate display options into unified dataclass with mutual exclusion validation for better user experience.
+- Implement unified partial_ratio search strategy to dramatically improve substring discovery in documentation inventories.
+- Improve UX formatting by cleaning up metadata display order and removing dead architecture.
+
+
+Repairs
+-------
+
+- Fix Rich markdown rendering by converting metadata patterns to bullet lists for improved readability.
+
+
 librovore 1.0a4 (2025-09-03)
 ============================
 

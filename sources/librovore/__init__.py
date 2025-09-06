@@ -30,7 +30,7 @@ from . import exceptions
 
 
 __version__: str
-__version__ = '1.0a4'
+__version__ = '1.0a5'
 
 
 def main( ):

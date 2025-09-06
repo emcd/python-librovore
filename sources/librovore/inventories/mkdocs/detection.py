@@ -64,8 +64,6 @@ class MkDocsInventoryDetection( __.InventoryDetection ):
         auxdata: __.ApplicationGlobals,
         source: str, /, *,
         filters: __.cabc.Mapping[ str, __.typx.Any ],
-        details: __.InventoryQueryDetails = (
-            __.InventoryQueryDetails.Documentation ),
     ) -> tuple[ __.InventoryObject, ... ]:
         ''' Filters inventory objects from MkDocs search index. '''
         if __.is_absent( self.inventory_data ):
@@ -74,7 +72,7 @@ class MkDocsInventoryDetection( __.InventoryDetection ):
             if __.is_absent( inventory_data ): return tuple( )
         else: inventory_data = self.inventory_data
         objects = filter_inventory(
-            inventory_data, source, filters = filters, details = details )
+            inventory_data, source, filters = filters )
         return tuple( objects )
 
 
@@ -94,8 +92,6 @@ def filter_inventory(
     inventory_data: dict[ str, __.typx.Any ],
     location_url: str, /, *,
     filters: __.cabc.Mapping[ str, __.typx.Any ],
-    details: __.InventoryQueryDetails = (
-        __.InventoryQueryDetails.Documentation ),
 ) -> list[ __.InventoryObject ]:
     ''' Filters inventory objects from parsed search index data. '''
     docs = inventory_data.get( 'docs', [ ] )
@@ -126,28 +122,32 @@ class MkDocsInventoryObject( __.InventoryObject ):
     
     def render_specifics_markdown(
         self, /, *,
-        reveal_internals: bool = True,
+        reveal_internals: bool = False,
     ) -> tuple[ str, ... ]:
         ''' Renders MkDocs specifics with page information. '''
         lines: list[ str ] = [ ]
         role = self.specifics.get( 'role' )
         if role:
             lines.append( f"- **Type:** {role}" )
-        domain = self.specifics.get( 'domain' )
-        if domain:
-            lines.append( f"- **Domain:** {domain}" )
+        if reveal_internals:
+            domain = self.specifics.get( 'domain' )
+            if domain:
+                lines.append( f"- **Domain:** {domain}" )
         return tuple( lines )
     
     def render_specifics_json(
-        self
+        self, /, *,
+        reveal_internals: bool = False,
     ) -> __.immut.Dictionary[ str, __.typx.Any ]:
         ''' Renders MkDocs specifics with page format information. '''
-        return __.immut.Dictionary(
-            role = self.specifics.get( 'role' ),
-            domain = self.specifics.get( 'domain' ),
-            object_type = self.specifics.get( 'object_type' ),
-            content_preview = self.specifics.get( 'content_preview' ),
-        )
+        base_data = { 'role': self.specifics.get( 'role' ) }
+        if reveal_internals:
+            base_data.update( {
+                'domain': self.specifics.get( 'domain' ),
+                'object_type': self.specifics.get( 'object_type' ),
+                'content_preview': self.specifics.get( 'content_preview' ),
+            } )
+        return __.immut.Dictionary( base_data )
 
 
 def format_inventory_object(

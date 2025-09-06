@@ -260,6 +260,56 @@ inventory_object.render_specifics_markdown()  # Self-formatting without external
 
 No registration system is needed - processors are discovered through the existing detection system and their capabilities are queried dynamically via the `get_capabilities()` method. This avoids additional configuration and maintains the current discovery patterns.
 
+### Content Search Strategy: Inventory-Guided vs Pure Content Search
+
+**Issue Discovered**: During Tyro documentation investigation, we found a discoverability gap between inventory-guided search (librovore) and native website search engines.
+
+**Root Cause Analysis**:
+- **Inventory-guided search** (librovore approach): Search → Filter Inventory Names → Extract Content from Matches
+- **Pure content search** (website engines): Search → Full-Text Content Search → Return Matching Content
+- **The gap**: Users searching for `"mutex"` expect to find `"create_mutex_group"`, but inventory object names may not contain the conceptual terms users naturally search for
+
+**Search Strategy Comparison**:
+
+| Approach | Discovery | Performance | Coverage | Precision |
+|----------|-----------|-------------|----------|-----------|
+| **Inventory-guided** | Limited to API names | Fast (pre-filtered) | API-complete | High (structured) |
+| **Pure content** | Full-text discovery | Slower (full crawl) | Content-complete | Variable |
+| **Hybrid** | Best of both | Moderate | Comprehensive | Balanced |
+
+**Design Decision for Structure Processors**:
+- **Primary**: Maintain inventory-guided approach for performance and precision
+- **Enhancement**: Improve inventory search with better fuzzy matching (`partial_ratio`) and match modes
+- **Future consideration**: Hybrid approach where inventory search falls back to content search when insufficient results
+
+**Implementation Notes**:
+```python
+# Current flow (inventory-guided)
+objects = await idetection.filter_inventory(...)           # Get all inventory objects
+candidates = filter_by_name(objects, term, match_mode=...)  # Search inventory names
+documents = await sdetection.extract_contents(...)         # Extract matching content
+
+# Potential hybrid enhancement (future consideration)
+inventory_results = filter_by_name(objects, term, ...)
+if len(inventory_results) < min_results_threshold:
+    # Fallback to content search when inventory search insufficient
+    content_results = await sdetection.search_content_directly(...)
+    combined_results = merge_and_dedupe(inventory_results, content_results)
+```
+
+**Advantages of Current Approach**:
+1. **Performance**: Pre-filtered object set reduces extraction overhead
+2. **Structure**: Inventory objects provide rich metadata (roles, domains, priorities)
+3. **Precision**: API-focused results avoid noise from prose content
+4. **Consistency**: Standardized object structure across documentation formats
+
+**Limitations Addressed by Match Mode Improvements**:
+1. **Discovery gap**: Enhanced with `partial_ratio` for substring discovery
+2. **Fuzzy threshold**: Better defaults for conceptual term matching  
+3. **Match mode clarity**: Exact/Similar/Pattern modes with clear semantics
+
+This analysis confirms the inventory-guided approach is architecturally sound for structure processors, with search improvements handling the discovered discoverability issues.
+
 ## Implementation Benefits
 
 1. **Type Safety**: Structure processors work with typed `InventoryObject` instances
