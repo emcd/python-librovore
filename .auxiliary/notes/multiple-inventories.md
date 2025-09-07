@@ -116,6 +116,50 @@ async def merge_primary_supplementary(
 - Less predictable user experience
 - Difficult to tune and debug
 
+### 5. INVENTORY_STRUCTURE_HYBRID (Robustness Enhancement)
+**Status**: Proposed for all strategies  
+**Behavior**: Use inventory-guided extraction as primary approach with structure-based fallback
+
+**Implementation approach**:
+```python
+async def extract_with_structure_fallback(
+    inventory_objects: list[InventoryObject],
+    structure_processor: StructureProcessor
+) -> list[ContentDocument]:
+    # Primary: Extract using inventory-guided approach
+    inventory_results = await structure_processor.extract_contents_typed(inventory_objects)
+    
+    # Fallback: For failed extractions, try structure-based approach
+    failed_objects = [obj for obj, result in zip(inventory_objects, inventory_results) if not result]
+    if failed_objects:
+        structure_results = await structure_processor.extract_content_structure_based(failed_objects)
+        inventory_results.extend(structure_results)
+    
+    return inventory_results
+```
+
+**Robustness Benefits**:
+- **Inventory metadata errors**: When inventory URIs are wrong or object metadata is inaccurate
+- **Theme evolution**: When documentation sites change themes/structure without updating inventories  
+- **Mixed content types**: When inventory objects span multiple content patterns
+- **Incomplete inventories**: When inventory misses content that exists in HTML
+
+**Integration with Other Strategies**:
+- **PRIMARY_SUPPLEMENTARY + HYBRID**: Use structure fallback for each inventory source independently
+- **SOURCE_UNION + HYBRID**: Apply structure fallback to merged inventory results
+- **ADAPTIVE + HYBRID**: Choose inventory vs structure approach based on query characteristics
+
+**Implementation Details**:
+- Structure-based extraction uses HTML semantic analysis (skip `aside`, `nav`, `header`)
+- LLM-assisted pattern discovery for unknown documentation structures
+- Content quality scoring to prefer inventory-guided results when both succeed
+- Graceful degradation: inventory → structure → generic text extraction
+
+**Performance Impact**: 
+- Minimal when inventory extraction succeeds (common case)
+- 2-3x latency increase only for failed inventory extractions
+- Caching of structure-based patterns reduces repeated analysis costs
+
 ## Technical Challenges
 
 ### Deduplication Logic
