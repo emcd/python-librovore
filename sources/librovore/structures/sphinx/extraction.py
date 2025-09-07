@@ -35,7 +35,7 @@ THEME_EXTRACTION_PATTERNS: __.cabc.Mapping[
     str, __.cabc.Mapping[ str, __.typx.Any ]
 ] = __.immut.Dictionary( {
     'pydoctheme': __.immut.Dictionary( {
-        'anchor_elements': [ 'dt', 'a' ],
+        'anchor_elements': [ 'dt', 'a', 'section' ],
         'content_strategies': __.immut.Dictionary( {
             'dt': __.immut.Dictionary( {
                 'description_source': 'next_sibling',
@@ -45,8 +45,12 @@ THEME_EXTRACTION_PATTERNS: __.cabc.Mapping[
                 'description_source': 'parent_next_sibling',
                 'description_element': 'dd',
             } ),
+            'section': __.immut.Dictionary( {
+                'description_source': 'first_main_paragraph',
+                'description_element': 'p',
+            } ),
         } ),
-        'cleanup_selectors': [ 'a.headerlink' ],
+        'cleanup_selectors': [ 'a.headerlink', 'aside' ],
     } ),
     'furo': __.immut.Dictionary( {
         'anchor_elements': [ 'span', 'a', 'dt' ],
@@ -159,8 +163,13 @@ def _cleanup_content(
     cleanup_selectors: __.cabc.Sequence[ str ]
 ) -> str:
     ''' Removes unwanted elements from content using CSS selectors. '''
-    # TODO: Implement CSS selector-based cleanup
-    return content
+    if not content.strip( ) or not cleanup_selectors:
+        return content
+    soup: __.typx.Any = _BeautifulSoup( content, 'lxml' )
+    for selector in cleanup_selectors:
+        for element in soup.select( selector ):
+            element.decompose( )
+    return str( soup )
 
 
 def _extract_content_with_dsl(
@@ -305,24 +314,35 @@ def _get_description_by_source_type(
     element_type: str
 ) -> str:
     ''' Gets description content based on source type. '''
-    match source_type:
-        case 'next_sibling':
-            return _get_sibling_text( element, element_type )
-        case 'parent_next_sibling':
-            return _get_parent_sibling_text( element, element_type )
-        case 'parent_next_element':
-            return _get_parent_element_text( element, element_type )
-        case 'parent_content':
-            return _get_parent_content_text( element, element_type )
-        case 'first_paragraph':
-            return _get_first_paragraph_text( element )
-        case _: return ''
+    extractors = {
+        'next_sibling': lambda: _get_sibling_text( element, element_type ),
+        'parent_next_sibling': lambda: _get_parent_sibling_text(
+            element, element_type ),
+        'parent_next_element': lambda: _get_parent_element_text(
+            element, element_type ),
+        'parent_content': lambda: _get_parent_content_text(
+            element, element_type ),
+        'first_paragraph': lambda: _get_first_paragraph_text( element ),
+        'first_main_paragraph': lambda: _get_first_main_paragraph_text(
+            element ),
+    }
+    extractor = extractors.get( source_type )
+    return extractor( ) if extractor else ''
 
 
 def _get_first_paragraph_text( element: __.typx.Any ) -> str:
     ''' Gets HTML content from first paragraph within element. '''
     paragraph = element.find( 'p' )
     return str( paragraph ) if paragraph else ''
+
+
+def _get_first_main_paragraph_text( element: __.typx.Any ) -> str:
+    ''' Gets HTML content from first paragraph, skipping sidebars. '''
+    for paragraph in element.find_all( 'p' ):
+        if paragraph.find_parent( [ 'aside', 'nav', 'header' ] ):
+            continue
+        return str( paragraph ) if paragraph else ''
+    return ''
 
 
 def _get_parent_content_text( element: __.typx.Any, element_type: str ) -> str:
