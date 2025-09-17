@@ -30,7 +30,7 @@ class StructureProcessorCapabilities( __.immut.DataclassObject ):
     ''' Capability advertisement for structure processors. '''
     
     supported_inventory_types: frozenset[ str ]            # e.g., {'sphinx_objects_inv', 'mkdocs_search_index'}
-    content_extraction_features: frozenset[ str ]          # e.g., {'signatures', 'descriptions', 'code_examples'}
+    content_extraction_features: frozenset[ str ]          # e.g., {'signatures', 'descriptions', 'code_examples', 'cross_references'}
     confidence_by_inventory_type: __.immut.Dictionary[ str, float ]  # Quality scores (0.0-1.0) for extraction success
     
     
@@ -50,28 +50,39 @@ class StructureDetection( Detection ):
     @__.typx.abc.abstractmethod
     def get_capabilities( cls ) -> StructureProcessorCapabilities:
         ''' Returns processor capabilities for filtering and selection.
-        
+
             The content_extraction_features advertise what types of content this
-            processor can reliably extract (signatures, descriptions, code_examples, 
-            cross_references, etc.). This helps with processor selection and user
-            expectations about extraction quality.
-            
-            The confidence_by_inventory_type scores (0.0-1.0) help select the best 
-            processor when multiple processors support the same inventory type or
-            when sites have multiple inventory formats available.
+            processor can reliably extract:
+            - 'signatures': Function/class signatures with parameters and return types
+            - 'descriptions': Descriptive content and documentation text
+            - 'code-examples': Code blocks with preserved language information
+            - 'cross-references': Links and references to other documentation
+            - 'arguments': Individual parameter documentation
+            - 'returns': Return value documentation
+            - 'attributes': Class and module attribute documentation
+
+            Based on comprehensive theme analysis, these features use empirically-
+            discovered universal patterns rather than theme-specific guesswork.
         '''
         # Subclasses implement to declare their inventory type support
     
     @__.typx.abc.abstractmethod
-    async def extract_contents_typed(
+    async def extract_contents(
         self,
         auxdata: ApplicationGlobals,
         source: str,
-        objects: __.cabc.Sequence[ InventoryObject ], /, *,
-        include_snippets: bool = True,
+        objects: __.cabc.Sequence[ InventoryObject ]
     ) -> tuple[ ContentDocument, ... ]:
-        ''' Extracts content with full inventory object context. '''
-        # Implementation performs inventory-type-aware content extraction
+        ''' Extracts content using inventory object metadata for strategy selection.
+
+            Uses inventory object roles and types to choose optimal extraction:
+            - API objects (functions, classes, methods): signature-aware extraction
+            - Content objects (modules, pages): description-focused extraction
+            - Code examples: language-preserving extraction
+
+            Based on universal patterns from comprehensive theme analysis.
+        '''
+        # Implementation performs inventory-metadata-aware strategy selection
     
     def can_process_inventory_type( self, inventory_type: str ) -> bool:
         ''' Checks if processor can handle inventory type. '''
@@ -87,24 +98,40 @@ class SphinxDetection( StructureDetection ):
     
     @__.typx.classmethod
     def get_capabilities( cls ) -> StructureProcessorCapabilities:
-        ''' Sphinx processor capabilities. '''
-        # Implementation returns capabilities declaring:
-        # - supported_inventory_types: {'sphinx_objects_inv'}
-        # - content_extraction_features: {'signatures', 'descriptions', 'parameter_docs', 'return_docs', 'example_code', 'cross_references'}
-        # - confidence_by_inventory_type: {'sphinx_objects_inv': 1.0}
+        ''' Sphinx processor capabilities based on universal pattern analysis. '''
+        return StructureProcessorCapabilities(
+            supported_inventory_types=frozenset({'sphinx_objects_inv'}),
+            content_extraction_features=frozenset({
+                'signatures',        # dt.sig.sig-object.py + dd patterns (100% consistent)
+                'descriptions',      # Content extraction with navigation cleanup
+                'arguments',         # Parameter documentation from signatures
+                'returns',           # Return value documentation
+                'attributes',        # Class and module attribute documentation
+                'code-examples',     # .highlight containers with language detection
+                'cross-references'   # Sphinx cross-reference extraction
+            }),
+            confidence_by_inventory_type={'sphinx_objects_inv': 1.0}
+        )
     
-    async def extract_contents_typed(
+    async def extract_contents(
         self,
-        auxdata: ApplicationGlobals, 
+        auxdata: ApplicationGlobals,
         source: str,
-        objects: __.cabc.Sequence[ InventoryObject ], /, *,
-        include_snippets: bool = True,
+        objects: __.cabc.Sequence[ InventoryObject ]
     ) -> tuple[ ContentDocument, ... ]:
-        ''' Extracts content with inventory-type-aware URL construction. '''
-        # Implementation filters objects to supported types (defensive programming)
-        # Creates extraction tasks for each supported object
-        # Uses inventory-type-aware URL construction via _build_sphinx_url
-        # Gathers results asynchronously and filters successful extractions
+        ''' Extracts content using universal Sphinx patterns and inventory metadata. '''
+        tasks = []
+        for obj in objects:
+            if obj.role in ['function', 'class', 'method']:
+                # Use universal signature patterns (dt.sig.sig-object.py + dd)
+                task = self._extract_with_signature_patterns(auxdata, source, obj)
+            else:
+                # Use universal content patterns with defensive selectors
+                task = self._extract_with_content_patterns(auxdata, source, obj)
+            tasks.append(task)
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        return tuple(r for r in results if isinstance(r, ContentDocument))
         
     def _build_sphinx_url(
         self, base_url: __.typx.Any, obj: InventoryObject
@@ -124,24 +151,47 @@ class MkDocsDetection( StructureDetection ):
     
     @__.typx.classmethod
     def get_capabilities( cls ) -> StructureProcessorCapabilities:
-        ''' MkDocs processor capabilities. '''
-        # Implementation returns capabilities declaring:
-        # - supported_inventory_types: {'mkdocs_search_index'}
-        # - content_extraction_features: {'page_content', 'headings', 'navigation'}
-        # - confidence_by_inventory_type: {'mkdocs_search_index': 0.8}
+        ''' MkDocs processor capabilities based on universal pattern analysis. '''
+        return StructureProcessorCapabilities(
+            supported_inventory_types=frozenset({'mkdocs_search_index', 'sphinx_objects_inv'}),
+            content_extraction_features=frozenset({
+                'signatures',        # div.autodoc-signature patterns (mkdocstrings)
+                'descriptions',      # Page content with theme-aware container selection
+                'arguments',         # Parameter documentation from mkdocstrings
+                'returns',           # Return value documentation
+                'attributes',        # Attribute documentation
+                'code-examples',     # .highlight containers with language-{lang} detection
+                'navigation'         # Navigation context extraction
+            }),
+            confidence_by_inventory_type={
+                'mkdocs_search_index': 0.8,
+                'sphinx_objects_inv': 0.7  # Lower confidence since mkdocs is primary
+            }
+        )
     
-    async def extract_contents_typed(
+    async def extract_contents(
         self,
         auxdata: ApplicationGlobals,
-        source: str, 
-        objects: __.cabc.Sequence[ InventoryObject ], /, *,
-        include_snippets: bool = True,
+        source: str,
+        objects: __.cabc.Sequence[ InventoryObject ]
     ) -> tuple[ ContentDocument, ... ]:
-        ''' Extracts MkDocs content with type awareness. '''
-        # Implementation filters to MkDocs-compatible objects
-        # Creates MkDocs-specific extraction tasks
-        # Uses _build_mkdocs_url for proper URL construction
-        # Returns tuple of successfully extracted documents
+        ''' Extracts MkDocs content using source attribution for strategy selection. '''
+        tasks = []
+        for obj in objects:
+            # Use source attribution to choose extraction strategy
+            if obj.inventory_source == 'sphinx_objects_inv' and obj.role in ['function', 'class', 'method']:
+                # Use Sphinx signature patterns for objects from sphinx inventory
+                task = self._extract_with_sphinx_patterns(auxdata, source, obj)
+            elif obj.inventory_source == 'mkdocs_search_index' and obj.role in ['function', 'class', 'method']:
+                # Use mkdocstrings signature patterns for mkdocs objects
+                task = self._extract_with_mkdocstrings_patterns(auxdata, source, obj)
+            else:
+                # Use universal content patterns for other objects
+                task = self._extract_with_content_patterns(auxdata, source, obj)
+            tasks.append(task)
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        return tuple(r for r in results if isinstance(r, ContentDocument))
             
     def _build_mkdocs_url(
         self, base_url: __.typx.Any, obj: InventoryObject
@@ -167,7 +217,7 @@ async def query_content(
     # Implementation performs existing inventory query
     # NEW: Filters inventory objects by structure processor capabilities
     # Selects structure processor with highest detection confidence
-    # Extracts content using processor's extract_contents_typed method
+    # Extracts content using processor's extract_contents method
     # Returns ContentQueryResult with proper error propagation
 
 async def _filter_objects_by_structure_capabilities(
@@ -323,12 +373,11 @@ class StructureDetection( Detection ):
     ''' Enhanced base class with dual extraction capabilities. '''
     
     @__.typx.abc.abstractmethod
-    async def extract_contents_typed(
+    async def extract_contents(
         self,
         auxdata: ApplicationGlobals,
         source: str,
-        objects: __.cabc.Sequence[ InventoryObject ], /, *,
-        include_snippets: bool = True,
+        objects: __.cabc.Sequence[ InventoryObject ]
     ) -> tuple[ ContentDocument, ... ]:
         ''' Primary: Inventory-guided extraction. '''
         # Implementation performs inventory-type-aware content extraction
@@ -420,5 +469,55 @@ This structure-based fallback complements the inventory-type awareness without c
 4. **Performance Optimization**: Avoid unnecessary processing attempts
 5. **Error Handling**: Clear errors when no capable processor is available
 6. **Future Extensibility**: New inventory types just need to register capabilities
+
+## Universal Pattern Implementation Strategy
+
+### Defensive Selector Strategy
+
+Based on comprehensive theme analysis, universal patterns use defensive selector strategies to prevent confusion between theme structures:
+
+```python
+# High-specificity selectors (safe across all themes)
+UNIVERSAL_CONTENT_SELECTORS = [
+    'article[role="main"]',      # Semantic HTML5 with role
+    'main[role="main"]',         # Explicit main role
+    'div.body[role="main"]',     # Sphinx pattern with role
+    'section.wy-nav-content-wrap', # RTD-specific (unlikely to conflict)
+]
+
+# Theme-specific selectors (looked up by detected theme)
+THEME_SPECIFIC_SELECTORS = {
+    'sphinx_rtd_theme': ['section.wy-nav-content-wrap'],
+    'pydata_sphinx_theme': ['main.bd-main', 'article.bd-article'],
+    'furo': ['article[role="main"]'],
+    'alabaster': ['div.body[role="main"]'],
+    'material': ['article.md-content__inner', 'main.md-main'],
+    'readthedocs': ['div.col-md-9[role="main"]'],
+}
+
+# Generic selectors (require content quality validation)
+GENERIC_CONTENT_SELECTORS = [
+    'main',                      # HTML5 semantic main element
+    'div.body',                  # Common documentation pattern
+    'div.content',               # Generic content wrapper (validate required)
+]
+```
+
+### Content Validation Requirements
+
+For generic selectors, content validation prevents false matches. Key validation criteria:
+
+- **Paragraph Count**: Container should have multiple paragraphs (not just navigation links)
+- **Content Length**: Minimum substantial text content threshold to avoid empty containers
+- **Link Density**: High link-to-text ratios indicate navigation areas rather than content
+- **Semantic Context**: Prefer containers with semantic structure (headings, lists, code blocks)
+- **Navigation Exclusion**: Avoid containers primarily consisting of navigation elements
+- **Content Quality**: Prioritize containers with coherent documentation structure
+
+### Pattern Discovery vs Runtime
+
+- **Pattern Discovery**: Comprehensive analysis of documentation themes (development-time)
+- **Runtime Selection**: Fast selector application with validation (production-time)
+- **Fallback Chain**: Ordered from specific to generic with increasing validation requirements
 
 This completes the Phase 3 enhancement while integrating seamlessly with the processor-provided formatters design.
