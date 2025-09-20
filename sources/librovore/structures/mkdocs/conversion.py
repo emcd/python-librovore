@@ -24,6 +24,7 @@
 from bs4 import BeautifulSoup as _BeautifulSoup
 
 from . import __
+from .converters import extract_code_language as _extract_code_language
 
 
 def html_to_markdown( html_text: str ) -> str:
@@ -250,35 +251,9 @@ def _clean_whitespace( text: str ) -> str:
     return text.strip( )
 
 
-def _detect_code_language( element: __.typx.Any ) -> str:  # noqa: C901, PLR0911
-    ''' Detects programming language from code block element. '''
-    classes = element.get( 'class', [ ] )
-    if isinstance( classes, str ):
-        classes = classes.split( )
-    for cls in classes:
-        if cls.startswith( 'language-' ):
-            return cls[ 9: ]
-        if cls.startswith( 'highlight-' ):
-            return cls[ 10: ]
-        if cls.startswith( 'lang-' ):
-            return cls[ 5: ]
-        if cls in ( 'python', 'javascript', 'typescript', 'bash', 'shell',
-                   'json', 'yaml', 'xml', 'html', 'css', 'sql', 'rust',
-                   'go', 'java', 'cpp', 'c' ):
-            return cls
-    code_element = element.find( 'code' )
-    if code_element:
-        code_classes = code_element.get( 'class', [ ] )
-        if isinstance( code_classes, str ):
-            code_classes = code_classes.split( )
-        for cls in code_classes:
-            if cls.startswith( 'language-' ):
-                return cls[ 9: ]
-            if cls.startswith( 'highlight-' ):
-                return cls[ 10: ]
-            if cls.startswith( 'lang-' ):
-                return cls[ 5: ]
-    return ''
+def _detect_code_language( element: __.typx.Any ) -> str:
+    ''' Detects programming language using universal patterns. '''
+    return _extract_code_language( element )
 
 
 def _should_skip_element( element: __.typx.Any ) -> bool:

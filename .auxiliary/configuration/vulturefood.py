@@ -45,3 +45,8 @@ from_source                         # Detection.from_source implementations acro
 # Data structures for future use (preserved for upcoming refactoring)
 DetectionsForLocation               # Location-specific detection grouping
 
+# Universal pattern helper functions (part of converter API)
+convert_code_block_to_markdown           # Code block converter function
+html_to_markdown_sphinx                  # Sphinx HTML to markdown converter function
+_extract_description_with_strategy       # Sphinx extraction strategy function
+

@@ -25,91 +25,11 @@ from bs4 import BeautifulSoup as _BeautifulSoup
 
 from . import __
 from . import urls as _urls
+from .patterns import THEME_PATTERNS as _THEME_PATTERNS
+from .patterns import UNIVERSAL_PATTERNS as _UNIVERSAL_PATTERNS
 
 
 _scribe = __.acquire_scribe( __name__ )
-
-
-# Theme-specific content extraction patterns
-THEME_EXTRACTION_PATTERNS: __.cabc.Mapping[
-    str, __.cabc.Mapping[ str, __.typx.Any ]
-] = __.immut.Dictionary( {
-    'pydoctheme': __.immut.Dictionary( {
-        'anchor_elements': [ 'dt', 'a', 'section' ],
-        'content_strategies': __.immut.Dictionary( {
-            'dt': __.immut.Dictionary( {
-                'description_source': 'next_sibling',
-                'description_element': 'dd',
-            } ),
-            'a': __.immut.Dictionary( {
-                'description_source': 'parent_next_sibling',
-                'description_element': 'dd',
-            } ),
-            'section': __.immut.Dictionary( {
-                'description_source': 'first_main_paragraph',
-                'description_element': 'p',
-            } ),
-        } ),
-        'cleanup_selectors': [ 'a.headerlink', 'aside' ],
-    } ),
-    'furo': __.immut.Dictionary( {
-        'anchor_elements': [ 'span', 'a', 'dt' ],
-        'content_strategies': __.immut.Dictionary( {
-            'span': __.immut.Dictionary( {
-                'description_source': 'parent_next_element',
-                'description_element': 'p',
-                'fallback_container': 'section',
-            } ),
-            'a': __.immut.Dictionary( {
-                'description_source': 'parent_next_element',
-                'description_element': 'p',
-            } ),
-            'dt': __.immut.Dictionary( {
-                'description_source': 'next_sibling',
-                'description_element': 'dd',
-            } ),
-        } ),
-        'cleanup_selectors': [ 'a.headerlink', '.highlight' ],
-    } ),
-    'sphinx_rtd_theme': __.immut.Dictionary( {
-        'anchor_elements': [ 'dt', 'span', 'a' ],
-        'content_strategies': __.immut.Dictionary( {
-            'dt': __.immut.Dictionary( {
-                'description_source': 'next_sibling',
-                'description_element': 'dd',
-            } ),
-            'span': __.immut.Dictionary( {
-                'description_source': 'parent_content',
-                'description_element': 'p',
-            } ),
-        } ),
-        'cleanup_selectors': [ 'a.headerlink' ],
-    } ),
-} )
-
-# Generic fallback pattern for unknown themes
-_GENERIC_PATTERN = __.immut.Dictionary( {
-    'anchor_elements': [ 'dt', 'span', 'a', 'section', 'div' ],
-    'content_strategies': __.immut.Dictionary( {
-        'dt': __.immut.Dictionary( {
-            'description_source': 'next_sibling',
-            'description_element': 'dd',
-        } ),
-        'section': __.immut.Dictionary( {
-            'description_source': 'first_paragraph',
-            'description_element': 'p',
-        } ),
-        'span': __.immut.Dictionary( {
-            'description_source': 'parent_next_element',
-            'description_element': 'p',
-        } ),
-        'a': __.immut.Dictionary( {
-            'description_source': 'parent_next_element',
-            'description_element': 'p',
-        } ),
-    } ),
-    'cleanup_selectors': [ 'a.headerlink' ],
-} )
 
 
 async def extract_contents(
@@ -177,22 +97,14 @@ def _extract_content_with_dsl(
     element_id: str,
     theme: __.Absential[ str ] = __.absent
 ) -> str:
-    ''' Extracts content using DSL pattern configuration. '''
-    theme_name = theme if not __.is_absent( theme ) else None
-    if theme_name is not None:
-        pattern = THEME_EXTRACTION_PATTERNS.get( theme_name, _GENERIC_PATTERN )
-    else: pattern = _GENERIC_PATTERN
-    content_strategies = __.typx.cast(
-        __.cabc.Mapping[ str, __.cabc.Mapping[ str, __.typx.Any ] ],
-        pattern[ 'content_strategies' ] )
-    strategy = content_strategies.get( element.name )
-    if not strategy: return _generic_extraction( element )
-    description = _extract_description_with_strategy( element, strategy )
-    if 'cleanup_selectors' in pattern:
-        cleanup_selectors = __.typx.cast(
-            __.cabc.Sequence[ str ], pattern[ 'cleanup_selectors' ] )
-        description = _cleanup_content( description, cleanup_selectors )
-    return description
+    ''' Extracts content using universal pattern configuration. '''
+    if element.name == 'dt' and _is_api_signature( element ):
+        return _extract_api_signature_content( element )
+    description = _generic_extraction( element )
+    cleanup_selectors = _UNIVERSAL_PATTERNS[ 'navigation_cleanup' ][
+        'universal_selectors'
+    ]
+    return _cleanup_content( description, cleanup_selectors )
 
 
 def _extract_description_with_strategy(
@@ -200,9 +112,8 @@ def _extract_description_with_strategy(
     strategy: __.cabc.Mapping[ str, __.typx.Any ]
 ) -> str:
     ''' Extracts description using DSL strategy. '''
-    source_type = __.typx.cast( str, strategy[ 'description_source' ] )
-    element_type = __.typx.cast(
-        str, strategy.get( 'description_element', 'p' ) )
+    source_type = strategy[ 'description_source' ]
+    element_type = strategy.get( 'description_element', 'p' )
     return _get_description_by_source_type(
         element, source_type, element_type )
 
@@ -252,46 +163,21 @@ async def _extract_object_documentation(
 def _find_main_content_container(
     soup: __.typx.Any, theme: __.Absential[ str ] = __.absent
 ) -> __.Absential[ __.typx.Any ]:
-    ''' Finds the main content container using theme-specific strategies. '''
-    if theme == 'furo':
-        containers = [
-            soup.find( 'article', { 'role': 'main' } ),
-            soup.find( 'div', { 'id': 'furo-main-content' } ),
+    ''' Finds main content container trying theme-specific patterns first. '''
+    if (
+        not __.is_absent( theme )
+        and theme in _THEME_PATTERNS[ 'content_containers' ]
+    ):
+        theme_selectors = _THEME_PATTERNS[ 'content_containers' ][
+            theme
         ]
-    elif theme == 'sphinx_rtd_theme':
-        containers = [
-            soup.find( 'div', { 'class': 'document' } ),
-            soup.find( 'div', { 'class': 'body' } ),
-            soup.find( 'div', { 'role': 'main' } ),
-        ]
-    elif theme == 'pydoctheme':  # Python docs
-        containers = [
-            soup.find( 'div', { 'class': 'body' } ),
-            soup.find( 'div', { 'class': 'content' } ),
-            soup.body,  # Python docs often use body directly
-        ]
-    elif theme == 'flask':  # Flask docs
-        containers = [
-            soup.find( 'div', { 'class': 'body' } ),
-            soup.find( 'div', { 'class': 'content' } ),
-            soup.body,
-        ]
-    elif theme == 'alabaster':
-        containers = [
-            soup.find( 'div', { 'class': 'body' } ),
-            soup.find( 'div', { 'class': 'content' } ),
-        ]
-    else:  # Generic fallback for unknown themes
-        containers = [
-            soup.find( 'article', { 'role': 'main' } ),  # Furo theme
-            soup.find( 'div', { 'class': 'body' } ),  # Basic theme
-            soup.find( 'div', { 'class': 'content' } ),  # Nature theme
-            soup.find( 'div', { 'class': 'main' } ),  # Generic main
-            soup.find( 'main' ),  # HTML5 main element
-            soup.find( 'div', { 'role': 'main' } ),  # Role-based
-            soup.body,  # Fallback to body if nothing else works
-        ]
-    for container in containers:
+        for selector in theme_selectors:
+            container = soup.select_one( selector )
+            if container: return container
+    content_config = _UNIVERSAL_PATTERNS[ 'content_containers' ]
+    universal_selectors = content_config[ 'universal_selectors' ]
+    for selector in universal_selectors:
+        container = soup.select_one( selector )
         if container: return container
     return __.absent
 
@@ -372,4 +258,20 @@ def _get_parent_sibling_text( element: __.typx.Any, element_type: str ) -> str:
 def _get_sibling_text( element: __.typx.Any, element_type: str ) -> str:
     ''' Gets HTML content from next sibling element. '''
     sibling = element.find_next_sibling( element_type )
+    return sibling.decode_contents( ) if sibling else ''
+
+
+def _is_api_signature( element: __.typx.Any ) -> bool:
+    ''' Determines if element is an API signature using universal patterns. '''
+    signature_config = _UNIVERSAL_PATTERNS[ 'api_signatures' ]
+    signature_classes = signature_config[ 'signature_classes' ]
+    element_classes = element.get( 'class', [ ] )
+    return any( cls in element_classes for cls in signature_classes )
+
+
+def _extract_api_signature_content( element: __.typx.Any ) -> str:
+    ''' Extracts API signature content using universal patterns. '''
+    signature_config = _UNIVERSAL_PATTERNS[ 'api_signatures' ]
+    description_selector = signature_config[ 'description_selector' ]
+    sibling = element.find_next_sibling( description_selector )
     return sibling.decode_contents( ) if sibling else ''

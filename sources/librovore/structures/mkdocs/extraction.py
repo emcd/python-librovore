@@ -24,107 +24,8 @@
 from bs4 import BeautifulSoup as _BeautifulSoup
 
 from . import __
-
-
-MATERIAL_THEME_PATTERNS: __.cabc.Mapping[
-    str, __.cabc.Mapping[ str, __.typx.Any ]
-] = __.immut.Dictionary( {
-    'material': __.immut.Dictionary( {
-        'main_content_selectors': [
-            'article[role="main"]',
-            '.md-content__inner',
-            '.md-typeset',
-            'main .md-content',
-        ],
-        'api_section_selectors': [
-            '.doc.doc-object-member',
-            '.doc.doc-children',
-            'section[id]',
-            '.highlight',
-        ],
-        'description_selectors': [
-            '.doc-contents',
-            '.doc-object-member .doc-contents',
-            'p',
-            '.admonition',
-        ],
-        'cleanup_selectors': [
-            '.md-nav',
-            '.md-header',
-            '.md-footer',
-            '.md-sidebar',
-            '.headerlink',
-            '.md-clipboard',
-            'a.md-top',
-        ],
-        'code_block_selectors': [
-            '.highlight',
-            'pre code',
-            '.codehilite',
-        ],
-    } ),
-    'readthedocs': __.immut.Dictionary( {
-        'main_content_selectors': [
-            '.wy-nav-content-wrap main',
-            '.document',
-            '[role="main"]',
-        ],
-        'api_section_selectors': [
-            '.section',
-            'dl.class',
-            'dl.function',
-            'dl.method',
-        ],
-        'description_selectors': [
-            'dd',
-            '.field-body',
-            'p',
-        ],
-        'cleanup_selectors': [
-            '.headerlink',
-            '.wy-nav-top',
-            '.wy-nav-side',
-        ],
-        'code_block_selectors': [
-            '.highlight',
-            'pre',
-        ],
-    } ),
-} )
-
-_GENERIC_PATTERN = __.immut.Dictionary( {
-    'main_content_selectors': [
-        'article[role="main"]',
-        'main',
-        '.content',
-        '.document',
-        'body',
-    ],
-    'api_section_selectors': [
-        'section[id]',
-        'div[id]',
-        '.doc-object-member',
-        'dl',
-    ],
-    'description_selectors': [
-        'p',
-        'dd',
-        '.description',
-        '.doc-contents',
-    ],
-    'cleanup_selectors': [
-        '.headerlink',
-        'nav',
-        'header',
-        'footer',
-        '.sidebar',
-    ],
-    'code_block_selectors': [
-        '.highlight',
-        'pre',
-        'code',
-    ],
-} )
+from .patterns import THEME_PATTERNS as _THEME_PATTERNS
+from .patterns import UNIVERSAL_PATTERNS as _UNIVERSAL_PATTERNS
 
 
 async def extract_contents(
@@ -209,25 +110,20 @@ def _extract_content_from_element(
     element_id: str,
     theme: __.Absential[ str ] = __.absent
 ) -> str:
-    ''' Extracts description content from element. '''
-    theme_name = theme if not __.is_absent( theme ) else 'material'
-    patterns = MATERIAL_THEME_PATTERNS.get( theme_name, _GENERIC_PATTERN )
-    description = _extract_description( element, patterns )
-    cleanup_selectors = __.typx.cast(
-        __.cabc.Sequence[ str ], patterns[ 'cleanup_selectors' ] )
+    ''' Extracts description content using universal patterns. '''
+    description = _extract_description( element )
+    cleanup_selectors = _UNIVERSAL_PATTERNS[ 'navigation_cleanup' ][
+        'universal_selectors'
+    ]
     return _cleanup_content( description, cleanup_selectors )
 
 
-def _extract_description(
-    element: __.typx.Any,
-    patterns: __.cabc.Mapping[ str, __.typx.Any ]
-) -> str:
+def _extract_description( element: __.typx.Any ) -> str:
     ''' Extracts description content from element. '''
     doc_contents = _find_doc_contents_container( element )
     if doc_contents:
         return doc_contents.decode_contents( )
-    descriptions = _extract_using_fallback_selectors( element, patterns )
-    return '\n\n'.join( descriptions ) if descriptions else ''
+    return ''
 
 
 async def _extract_object_documentation(
@@ -271,26 +167,6 @@ async def _extract_object_documentation(
 
 
 
-def _extract_using_fallback_selectors(
-    element: __.typx.Any,
-    patterns: __.cabc.Mapping[ str, __.typx.Any ]
-) -> list[ str ]:
-    ''' Extracts description using fallback selectors. '''
-    descriptions: list[ str ] = [ ]
-    description_selectors = __.typx.cast(
-        __.cabc.Sequence[ str ], patterns[ 'description_selectors' ] )
-    for selector in description_selectors:
-        desc_elements = element.select( selector )
-        for desc_elem in desc_elements:
-            if (
-                desc_elem.get( 'class' ) and
-                'admonition-title' in desc_elem.get( 'class', [ ] )
-            ): continue
-            html_content = str( desc_elem )
-            if html_content and html_content not in descriptions:
-                descriptions.append( html_content )
-    return descriptions
-
 
 def _find_doc_contents_container( element: __.typx.Any ) -> __.typx.Any | None:
     ''' Finds the doc-contents container for the element. '''
@@ -327,12 +203,20 @@ def _find_target_element(
 def _find_main_content_container(
     soup: __.typx.Any, theme: __.Absential[ str ] = __.absent
 ) -> __.Absential[ __.typx.Any ]:
-    ''' Finds main content container using theme-specific strategies. '''
-    theme_name = theme if not __.is_absent( theme ) else 'material'
-    patterns = MATERIAL_THEME_PATTERNS.get( theme_name, _GENERIC_PATTERN )
-    main_selectors = __.typx.cast(
-        __.cabc.Sequence[ str ], patterns[ 'main_content_selectors' ] )
-    for selector in main_selectors:
+    ''' Finds main content container trying theme-specific patterns first. '''
+    if (
+        not __.is_absent( theme )
+        and theme in _THEME_PATTERNS[ 'content_containers' ]
+    ):
+        theme_selectors = _THEME_PATTERNS[ 'content_containers' ][
+            theme
+        ]
+        for selector in theme_selectors:
+            container = soup.select_one( selector )
+            if container: return container
+    content_config = _UNIVERSAL_PATTERNS[ 'content_containers' ]
+    universal_selectors = content_config[ 'universal_selectors' ]
+    for selector in universal_selectors:
         container = soup.select_one( selector )
         if container: return container
     return __.absent
