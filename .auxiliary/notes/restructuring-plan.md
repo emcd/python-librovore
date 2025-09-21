@@ -141,9 +141,16 @@ class StructureDetection:
 - Filter inventory objects to what selected processor supports
 - Clear error handling when no compatible processor available
 
-**Dependencies**: Phase 1 (Universal Patterns)
-**Testing**: Existing site detection must continue working
-**Success Criteria**: Processors correctly advertise capabilities and filter inventory objects
+**Dependencies**: Phase 1 (Universal Patterns) ✅
+**Testing**: Existing site detection must continue working ✅
+**Success Criteria**: Processors correctly advertise capabilities and filter inventory objects ✅
+
+**Status**: ✅ **COMPLETED** (2025-09-21)
+- StructureProcessorCapabilities class with type-safe ContentExtractionFeatures enum
+- Enhanced StructureDetection base class with get_capabilities() method
+- Sphinx and MkDocs processors advertise appropriate capabilities
+- Capability filtering integrated into query_content() function
+- All quality gates passed, CLI testing validated
 
 ### Phase 3: Multi-Source Inventory Coordination
 **Priority**: Medium (adds coverage, doesn't break existing functionality)

@@ -24,6 +24,13 @@
 from . import __
 
 
+class DisplayFormat( __.enum.Enum ):
+    ''' Enumeration for CLI display formats. '''
+
+    JSON = 'json'
+    Markdown = 'markdown'
+
+
 class FilterCapability( __.immut.DataclassObject ):
     ''' Describes a filter supported by a processor. '''
 
@@ -34,15 +41,8 @@ class FilterCapability( __.immut.DataclassObject ):
     required: bool = False
 
 
-class DisplayFormat( __.enum.Enum ):
-    ''' Enumeration for CLI display formats. '''
-
-    JSON = 'json'
-    Markdown = 'markdown'
-
-
 class ProcessorGenera( __.enum.Enum ):
-    ''' Enumeration for processor types/genera. '''
+    ''' Processor types/genera. '''
 
     Inventory = 'inventory'
     Structure = 'structure'
@@ -50,11 +50,24 @@ class ProcessorGenera( __.enum.Enum ):
 
 
 class MatchMode( str, __.enum.Enum ):
-    ''' Enumeration for different term matching modes. '''
+    ''' Different term matching modes. '''
 
     Exact = 'exact'
     Similar = 'similar'
     Pattern = 'pattern'
+
+
+class ContentExtractionFeatures( str, __.enum.Enum ):
+    ''' Content extraction capability features. '''
+
+    Signatures = 'signatures'           # Function/class signatures
+    Descriptions = 'descriptions'       # Descriptive content and documentation
+    Arguments = 'arguments'             # Individual parameter documentation
+    Returns = 'returns'                 # Return value documentation
+    Attributes = 'attributes'           # Class and module attribute docs
+    CodeExamples = 'code-examples'      # Code blocks with language information
+    CrossReferences = 'cross-references' # Links and references to other docs
+    Navigation = 'navigation'           # Navigation context extraction
 
 
 class SearchBehaviors( __.immut.DataclassObject ):
@@ -129,3 +142,24 @@ class ProcessorCapabilities( __.immut.DataclassObject ):
                     filter_line += f": {filter_cap.description}"
                 lines.append( filter_line )
         return tuple( lines )
+
+
+class StructureProcessorCapabilities( __.immut.DataclassObject ):
+    ''' Capability advertisement for structure processors. '''
+
+    supported_inventory_types: frozenset[ str ]
+    content_extraction_features: frozenset[ ContentExtractionFeatures ]
+    confidence_by_inventory_type: __.immut.Dictionary[ str, float ]
+
+    def get_confidence_for_type( self, inventory_type: str ) -> float:
+        ''' Gets extraction confidence for inventory type.
+
+            The confidence score (0.0-1.0) indicates how well this processor
+            can extract content from the inventory type. Used for processor
+            selection when multiple processors support the same type.
+        '''
+        return self.confidence_by_inventory_type.get( inventory_type, 0.0 )
+
+    def supports_inventory_type( self, inventory_type: str ) -> bool:
+        ''' Checks if processor supports specified inventory type. '''
+        return inventory_type in self.supported_inventory_types

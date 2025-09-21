@@ -137,8 +137,23 @@ async def query_content(  # noqa: PLR0913
             inventory_locations = locations )
     sdetection = await _detection.detect_structure(
         auxdata, resolved_location, processor_name = processor_name )
+    structure_capabilities = sdetection.get_capabilities( )
+    compatible_candidates = _filter_objects_by_structure_capabilities(
+        candidates[ : results_max ], structure_capabilities )
+    if not compatible_candidates:
+        end_time = __.time.perf_counter( )
+        search_time_ms = int( ( end_time - start_time ) * 1000 )
+        return _results.ContentQueryResult(
+            location = resolved_location,
+            term = term,
+            documents = ( ),
+            search_metadata = _results.SearchMetadata(
+                results_count = 0,
+                results_max = results_max,
+                search_time_ms = search_time_ms ),
+            inventory_locations = locations )
     documents = await sdetection.extract_contents(
-        auxdata, resolved_location, candidates[ : results_max ] )
+        auxdata, resolved_location, compatible_candidates )
     end_time = __.time.perf_counter( )
     search_time_ms = int( ( end_time - start_time ) * 1000 )
     return _results.ContentQueryResult(
@@ -263,5 +278,17 @@ def _process_content_id_filter(
         raise _exceptions.ContentIdObjectAbsence( 
             name, resolved_location )
     return tuple( matching_objects[ :1 ] )
+
+
+def _filter_objects_by_structure_capabilities(
+    candidates: __.cabc.Sequence[ _results.InventoryObject ],
+    structure_capabilities: _interfaces.StructureProcessorCapabilities,
+) -> tuple[ _results.InventoryObject, ... ]:
+    ''' Filters inventory objects by structure processor capabilities. '''
+    compatible_objects = [
+        obj for obj in candidates
+        if structure_capabilities.supports_inventory_type(
+            obj.inventory_type ) ]
+    return tuple( compatible_objects )
 
 

@@ -50,3 +50,20 @@ convert_code_block_to_markdown           # Code block converter function
 html_to_markdown_sphinx                  # Sphinx HTML to markdown converter function
 _extract_description_with_strategy       # Sphinx extraction strategy function
 
+# Phase 2 capability-based architecture (being implemented)
+StructureProcessorCapabilities          # Capability advertisement class for structure processors
+content_extraction_features             # Attribute of StructureProcessorCapabilities
+get_confidence_for_type                  # Method of StructureProcessorCapabilities
+supports_inventory_type                  # Method of StructureProcessorCapabilities
+can_process_inventory_type               # Method of StructureDetection base class
+_filter_objects_by_structure_capabilities # Helper function for capability filtering
+ContentExtractionFeature                # Enum for content extraction capability features
+Signatures                               # ContentExtractionFeature enum value
+Descriptions                             # ContentExtractionFeature enum value
+Arguments                                # ContentExtractionFeature enum value
+Returns                                  # ContentExtractionFeature enum value
+Attributes                               # ContentExtractionFeature enum value
+CodeExamples                             # ContentExtractionFeature enum value
+CrossReferences                          # ContentExtractionFeature enum value
+Navigation                               # ContentExtractionFeature enum value
+
