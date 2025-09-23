@@ -155,7 +155,7 @@ def format_inventory_object(
     return SphinxInventoryObject(
         name = objct.name,
         uri = objct.uri,
-        inventory_type = 'sphinx_objects_inv',
+        inventory_type = 'sphinx',
         location_url = location_url,
         display_name = (
             objct.dispname 

@@ -44,8 +44,8 @@ class MkDocsDetection( __.StructureDetection ):
             analysis. '''
         return __.StructureProcessorCapabilities(
             supported_inventory_types = frozenset( {
-                'mkdocs_search_index',
-                'sphinx_objects_inv'
+                'mkdocs',
+                'sphinx'
             } ),
             content_extraction_features = frozenset( {
                 __.ContentExtractionFeatures.Signatures,
@@ -57,8 +57,8 @@ class MkDocsDetection( __.StructureDetection ):
                 __.ContentExtractionFeatures.Navigation
             } ),
             confidence_by_inventory_type = __.immut.Dictionary( {
-                'mkdocs_search_index': 0.8,
-                'sphinx_objects_inv': 0.7  # Lower confidence (mkdocs primary)
+                'mkdocs': 0.8,
+                'sphinx': 0.7  # Lower confidence (mkdocs primary)
             } )
         )
 

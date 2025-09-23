@@ -44,7 +44,7 @@ class SphinxDetection( __.StructureDetection ):
         ''' Sphinx processor capabilities based on universal pattern
             analysis. '''
         return __.StructureProcessorCapabilities(
-            supported_inventory_types = frozenset( { 'sphinx_objects_inv' } ),
+            supported_inventory_types = frozenset( { 'sphinx' } ),
             content_extraction_features = frozenset( {
                 __.ContentExtractionFeatures.Signatures,
                 __.ContentExtractionFeatures.Descriptions,
@@ -55,7 +55,7 @@ class SphinxDetection( __.StructureDetection ):
                 __.ContentExtractionFeatures.CrossReferences
             } ),
             confidence_by_inventory_type = __.immut.Dictionary( {
-                'sphinx_objects_inv': 1.0
+                'sphinx': 1.0
             } )
         )
 
