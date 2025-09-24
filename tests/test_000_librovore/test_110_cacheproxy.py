@@ -892,7 +892,7 @@ async def test_365_retrieve_url_as_text_http_cache_miss( robots_cache ):
     assert result == test_content
     cached_result = await cache.access( url.geturl( ) )
     assert not __.is_absent( cached_result )
-    cached_content, cached_headers = cached_result
+    cached_content, _ = cached_result
     assert cached_content.decode( 'utf-8' ) == test_content
 
 
@@ -916,7 +916,7 @@ async def test_366_retrieve_url_as_text_http_cache_miss_custom_charset( robots_c
     assert result == test_content
     cached_result = await cache.access( url.geturl( ) )
     assert not __.is_absent( cached_result )
-    cached_content, cached_headers = cached_result
+    cached_content, _ = cached_result
     assert cached_content.decode( 'iso-8859-1' ) == test_content
 
 

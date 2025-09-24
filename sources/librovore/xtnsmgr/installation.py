@@ -63,7 +63,7 @@ async def _install_with_uv(
     executable = _get_uv_executable( specification )
     command = _build_uv_command( executable, cache_path, specification )
     _scribe.info( f"Installing {specification} to {cache_path}." )
-    stdout, stderr, returncode = await _execute_uv_command(
+    _, stderr, returncode = await _execute_uv_command(
         command, specification )
     _validate_installation_result( specification, returncode, stderr )
     _scribe.info( f"Successfully installed {specification}." )

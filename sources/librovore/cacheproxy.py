@@ -519,7 +519,7 @@ async def retrieve_url_as_text(
             except Exception as exc:
                 raise _exceptions.DocumentationInaccessibility(
                     url_s, exc ) from exc
-            mimetype, charset = __.detext.detect_mimetype_and_charset(
+            _, charset = __.detext.detect_mimetype_and_charset(
                 content_bytes, location )
             if not __.detext.is_textual_content( content_bytes ):
                 raise _exceptions.DocumentationInaccessibility(
