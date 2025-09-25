@@ -605,7 +605,7 @@ async def test_212_probe_url_http_cache_miss_failure( probe_cache, robots_cache 
     mock_transport = _httpx.MockTransport( handler )
     def client_factory( ):
         return _httpx.AsyncClient( transport = mock_transport )
-    with pytest.raises( _httpx.TimeoutException ):
+    with pytest.raises( _exceptions.RobotsTxtAccessFailure ):
         await module.probe_url(
             probe_cache, _URL_HTTP_TEST,
             client_factory = client_factory )

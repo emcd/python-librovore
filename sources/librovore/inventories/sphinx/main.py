@@ -78,4 +78,5 @@ async def check_objects_inv(
     try:
         return await __.probe_url(
             auxdata.probe_cache, inventory_url )
+    except __.RobotsTxtAccessFailure: raise
     except Exception: return False

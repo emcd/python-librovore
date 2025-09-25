@@ -114,7 +114,6 @@ class RobotsCache( Cache ):
     request_timeout: float = 5.0
     ttl: float = 3600.0
     user_agent: str = '*'
-
     def __init__(
         self, *,
         entries_max: __.Absential[ int ] = __.absent,
@@ -579,7 +578,11 @@ async def _cache_robots_txt_error(
     domain: str, cache: RobotsCache, error: Exception
 ) -> __.Absential[ _RobotFileParser ]:
     _scribe.debug( f"Failed to fetch/parse robots.txt from {domain}: {error}" )
-    result: RobotsResponse = _generics.Error( error )
+    if isinstance( error, _exceptions.RobotsTxtAccessFailure ):
+        result: RobotsResponse = _generics.Error( error )
+    else:
+        access_failure = _exceptions.RobotsTxtAccessFailure( domain, error )
+        result = _generics.Error( access_failure )
     return await _cache_robots_txt_result( cache, domain, result )
 
 

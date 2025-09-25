@@ -264,13 +264,19 @@ async def _execute_processors(
 ) -> dict[ str, _processors.Detection ]:
     ''' Runs all processors on the source. '''
     results: dict[ str, _processors.Detection ] = { }
+    access_failures: list[ _exceptions.RobotsTxtAccessFailure ] = [ ]
     # TODO: Parallel async fanout.
     for processor in processors.values( ):
         try: detection = await processor.detect( auxdata, source )
-        except Exception:  # noqa: PERF203,S112
-            # Skip processor on detection failure
+        except _exceptions.RobotsTxtAccessFailure as exc:  # noqa: PERF203
+            access_failures.append( exc )
+            continue
+        except Exception:  # noqa: S112
             continue
         else: results[ processor.name ] = detection
+    # If all processors failed due to robots.txt access issues, raise error
+    if not results and access_failures:
+        raise access_failures[ 0 ] from None
     return results
 
 
