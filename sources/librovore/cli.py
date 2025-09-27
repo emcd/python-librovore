@@ -20,7 +20,6 @@
 
 ''' Command-line interface. '''
 
-from __future__ import annotations
 
 import appcore.cli as _appcore_cli
 
@@ -37,13 +36,11 @@ from . import state as _state
 _scribe = __.acquire_scribe( __name__ )
 
 
-
-
 def intercept_errors( ) -> __.cabc.Callable[
     [ __.cabc.Callable[
-        ..., __.types.CoroutineType[ None, None, None ] ] ],
+        ..., __.typx.Coroutine[ __.typx.Any, __.typx.Any, None ] ] ],
     __.cabc.Callable[
-        ..., __.types.CoroutineType[ None, None, None ] ]
+        ..., __.typx.Coroutine[ __.typx.Any, __.typx.Any, None ] ]
 ]:
     ''' Decorator for CLI handlers to intercept exceptions.
 
@@ -52,8 +49,10 @@ def intercept_errors( ) -> __.cabc.Callable[
     '''
     def decorator(
         function: __.cabc.Callable[
-            ..., __.types.CoroutineType[ None, None, None ] ]
-    ) -> __.cabc.Callable[ ..., __.types.CoroutineType[ None, None, None ] ]:
+            ..., __.typx.Coroutine[ __.typx.Any, __.typx.Any, None ] ]
+    ) -> __.cabc.Callable[
+        ..., __.typx.Coroutine[ __.typx.Any, __.typx.Any, None ]
+    ]:
         @__.funct.wraps( function )
         async def wrapper(
             self: __.typx.Any,
@@ -146,7 +145,7 @@ class DetectCommand(
     ] = None
 
     @intercept_errors( )
-    async def execute( self, auxdata: __.Globals ) -> None:
+    async def execute( self, auxdata: __.Globals ) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
         if not isinstance( auxdata, _state.Globals ):  # pragma: no cover
             raise _exceptions.ContextInvalidity
         processor_name = (
@@ -196,7 +195,7 @@ class QueryInventoryCommand(
     ] = False
 
     @intercept_errors( )
-    async def execute( self, auxdata: __.Globals ) -> None:
+    async def execute( self, auxdata: __.Globals ) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
         if not isinstance( auxdata, _state.Globals ):  # pragma: no cover
             raise _exceptions.ContextInvalidity
         result = await _functions.query_inventory(
@@ -261,7 +260,7 @@ class QueryContentCommand(
         ),
     ] = False
     @intercept_errors( )
-    async def execute( self, auxdata: __.Globals ) -> None:
+    async def execute( self, auxdata: __.Globals ) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
         if not isinstance( auxdata, _state.Globals ):  # pragma: no cover
             raise _exceptions.ContextInvalidity
         content_id_ = (
@@ -294,7 +293,7 @@ class SurveyProcessorsCommand(
     ] = None
 
     @intercept_errors( )
-    async def execute( self, auxdata: __.Globals ) -> None:
+    async def execute( self, auxdata: __.Globals ) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
         if not isinstance( auxdata, _state.Globals ):  # pragma: no cover
             raise _exceptions.ContextInvalidity
         nomargs: __.NominativeArguments = { 'genus': self.genus }

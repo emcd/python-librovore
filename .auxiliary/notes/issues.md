@@ -17,6 +17,14 @@
 - Possible causes: Inventory filtering, search term matching, or object type prioritization
 - Status: Functional but could benefit from improved relevance ranking
 
+**robots.txt 403 blocking queries completely** - https://docs.pytest.org/en/latest/
+- Issue: When robots.txt returns 403 Forbidden, queries fail completely instead of proceeding
+- Impact: Sites with restrictive robots.txt policies are completely unusable
+- Expected behavior: Queries should proceed anyway when robots.txt is inaccessible (403, 404, etc.)
+- Current behavior: Shows clear error message but stops all processing
+- Status: REGRESSION - queries used to work despite robots.txt issues
+- Added: 2025-01-27
+
 ## 2025-01-26 - emcd-appcore CLI Framework Research - RESOLVED
 
 **Status**: RESOLVED - Found comprehensive examples and implementation patterns in appcore source code.
