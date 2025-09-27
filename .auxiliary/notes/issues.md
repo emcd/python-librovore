@@ -16,3 +16,9 @@
 - Impact: Users may not find the most relevant/expected documentation
 - Possible causes: Inventory filtering, search term matching, or object type prioritization
 - Status: Functional but could benefit from improved relevance ranking
+
+## 2025-01-26 - emcd-appcore CLI Framework Research - RESOLVED
+
+**Status**: RESOLVED - Found comprehensive examples and implementation patterns in appcore source code.
+
+**Note**: This was not a Librovore issue - the examples and patterns were available in the main documentation page and especially in the source code at `../python-appcore/sources/appcore/introspection.py`, which serves as a complete reference implementation.

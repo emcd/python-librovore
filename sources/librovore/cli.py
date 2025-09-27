@@ -21,6 +21,8 @@
 ''' Command-line interface. '''
 
 
+import appcore.cli as _appcore_cli
+
 from . import __
 from . import cacheproxy as _cacheproxy
 from . import exceptions as _exceptions
@@ -30,58 +32,19 @@ from . import results as _results
 from . import server as _server
 from . import state as _state
 
+_BaseDisplayOptions = _appcore_cli.DisplayOptions
+
 _scribe = __.acquire_scribe( __name__ )
 
 
 
 
-class TargetStream( __.enum.Enum ):
-    ''' Output stream selection. '''
-    Stdout = 'stdout'
-    Stderr = 'stderr'
 
 
-TargetMutex = __.tyro.conf.create_mutex_group( required = False )
-
-
-class DisplayOptions( __.immut.DataclassObject ):
+class DisplayOptions( _BaseDisplayOptions ):
     ''' Consolidated display configuration for CLI output. '''
+
     format: _interfaces.DisplayFormat = _interfaces.DisplayFormat.Markdown
-    target_stream: __.typx.Annotated[
-        __.typx.Optional[ TargetStream ],
-        TargetMutex,
-        __.tyro.conf.arg( help = "Output to stdout or stderr." )
-    ] = TargetStream.Stderr
-    target_file: __.typx.Annotated[
-        __.typx.Optional[ __.Path ],
-        TargetMutex,
-        __.tyro.conf.arg( help = "Output to specified file." )
-    ] = None
-    color: __.typx.Annotated[
-        bool,
-        __.tyro.conf.arg(
-            aliases = ( "--ansi-sgr", ),
-            help = "Enable colored output and terminal formatting."
-        ),
-    ] = True
-
-    async def provide_stream( 
-        self, exits: __.ctxl.AsyncExitStack
-    ) -> __.typx.TextIO:
-        ''' Provides the target output stream. '''
-        if self.target_file is not None:
-            target_path = self.target_file.resolve( )
-            target_path.parent.mkdir( parents = True, exist_ok = True )
-            return exits.enter_context( target_path.open( 'w' ) )
-        target_stream = self.target_stream or TargetStream.Stderr
-        match target_stream:
-            case TargetStream.Stdout: return __.sys.stdout
-            case TargetStream.Stderr: return __.sys.stderr
-            case _: return __.sys.stderr
-
-    def decide_rich_markdown( self, stream: __.typx.TextIO ) -> bool:
-        ''' Determines whether to use Rich markdown rendering. '''
-        return decide_rich_markdown( stream, self.color )
 
 
 def intercept_errors( ) -> __.cabc.Callable[ 
@@ -172,15 +135,6 @@ _MARKDOWN_OBJECT_LIMIT = 10
 _MARKDOWN_CONTENT_LIMIT = 200
 
 
-def decide_rich_markdown( 
-    stream: __.typx.TextIO, colorize: bool 
-) -> bool:
-    ''' Determines whether to use Rich markdown rendering. '''
-    return (
-        colorize
-        and stream.isatty( ) 
-        and not __.os.environ.get( 'NO_COLOR' )
-    )
 
 
 async def _render_and_print_result(
@@ -202,7 +156,7 @@ async def _render_and_print_result(
             print( output, file = stream )
         case _interfaces.DisplayFormat.Markdown:
             lines = result.render_as_markdown( **nomargs )
-            if display.decide_rich_markdown( stream ):
+            if display.determine_colorization( stream ):
                 from rich.console import Console
                 from rich.markdown import Markdown
                 console = Console( file = stream, force_terminal = True )
@@ -440,11 +394,11 @@ class ServeCommand(
         await self.serve_function( auxdata, **nomargs )
 
 
-class Cli( __.immut.DataclassObject, decorators = ( __.simple_tyro_class, ) ):
+class Cli( _appcore_cli.Application ):
     ''' MCP server CLI. '''
 
-    display: DisplayOptions = __.dcls.field( 
-        default_factory = lambda: DisplayOptions( ) )
+    display: DisplayOptions = __.dcls.field(
+        default_factory = DisplayOptions )
     command: __.typx.Union[
         __.typx.Annotated[
             DetectCommand,
@@ -468,31 +422,31 @@ class Cli( __.immut.DataclassObject, decorators = ( __.simple_tyro_class, ) ):
             __.tyro.conf.subcommand( 'serve', prefix_name = False ),
         ],
     ]
-    logfile: __.typx.Annotated[
-        __.typx.Optional[ str ],
-        __.ddoc.Doc( ''' Path to log capture file. ''' ),
-    ] = None
 
-    async def __call__( self ):
-        ''' Invokes command after library preparation. '''
-        nomargs = self.prepare_invocation_args( )
-        async with __.ctxl.AsyncExitStack( ) as exits:
-            auxdata = await _prepare( exits = exits, **nomargs )
-            from . import xtnsmgr
-            await xtnsmgr.register_processors( auxdata )
-            await self.command(
-                auxdata = auxdata,
-                display = self.display )
+    async def execute( self, auxdata: __.Globals ) -> None:
+        ''' Executes command with extension registration. '''
+        if not isinstance( auxdata, _state.Globals ):  # pragma: no cover
+            raise _exceptions.ContextInvalidity
+        from . import xtnsmgr
+        await xtnsmgr.register_processors( auxdata )
+        await self.command(
+            auxdata = auxdata,
+            display = self.display )
 
-    def prepare_invocation_args(
-        self,
-    ) -> __.cabc.Mapping[ str, __.typx.Any ]:
-        ''' Prepares arguments for initial configuration. '''
-        args: dict[ str, __.typx.Any ] = dict(
-            environment = True,
-            logfile = self.logfile,
-        )
-        return args
+    async def prepare( self, exits: __.ctxl.AsyncExitStack ) -> _state.Globals:
+        ''' Prepares librovore-specific global state with cache proxies. '''
+        auxdata_base = await super( ).prepare( exits )
+        content_cache, probe_cache, robots_cache = _cacheproxy.prepare(
+            auxdata_base )
+        nomargs = {
+            field.name: getattr( auxdata_base, field.name )
+            for field in __.dcls.fields( auxdata_base )
+            if not field.name.startswith( '_' ) }
+        return _state.Globals(
+            content_cache = content_cache,
+            probe_cache = probe_cache,
+            robots_cache = robots_cache,
+            **nomargs )
 
 
 def execute( ) -> None:
@@ -522,44 +476,3 @@ def execute( ) -> None:
 
 
 
-
-async def _prepare(
-    environment: __.typx.Annotated[
-        bool,
-        __.ddoc.Doc( ''' Whether to configure environment. ''' )
-    ],
-    exits: __.typx.Annotated[
-        __.ctxl.AsyncExitStack,
-        __.ddoc.Doc( ''' Exit stack for resource management. ''' )
-    ],
-    logfile: __.typx.Annotated[
-        __.typx.Optional[ str ],
-        __.ddoc.Doc( ''' Path to log capture file. ''' )
-    ],
-) -> __.typx.Annotated[
-    _state.Globals,
-    __.ddoc.Doc( ''' Configured global state. ''' )
-]:
-    ''' Configures application based on arguments. '''
-    nomargs: __.NominativeArguments = {
-        'environment': environment,
-        'exits': exits,
-    }
-    if logfile:
-        logfile_p = __.Path( logfile ).resolve( )
-        ( logfile_p.parent ).mkdir( parents = True, exist_ok = True )
-        logstream = exits.enter_context( logfile_p.open( 'w' ) )
-        inscription = __.appcore.inscription.Control(
-            level = 'debug', target = logstream )
-        nomargs[ 'inscription' ] = inscription
-    auxdata = await __.appcore.prepare( **nomargs )
-    content_cache, probe_cache, robots_cache = _cacheproxy.prepare( auxdata )
-    return _state.Globals(
-        application = auxdata.application,
-        configuration = auxdata.configuration,
-        directories = auxdata.directories,
-        distribution = auxdata.distribution,
-        exits = auxdata.exits,
-        content_cache = content_cache,
-        probe_cache = probe_cache,
-        robots_cache = robots_cache )

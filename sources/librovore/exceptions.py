@@ -590,3 +590,7 @@ class UrlImpermissibility( Omnierror, PermissionError ):
         super( ).__init__( message )
 
 
+class ContextInvalidity( Omnierror, TypeError ):
+    ''' Invalid context type provided to operation. '''
+
+

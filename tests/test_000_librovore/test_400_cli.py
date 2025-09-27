@@ -103,18 +103,10 @@ async def test_085_serve_command_extra_functions( ):
     mock_serve.assert_called_once_with( auxdata, extra_functions = True )
 
 
-def test_090_cli_prepare_invocation_args( ):
-    ''' CLI prepare_invocation_args returns correct arguments. '''
-    mock_display = Mock( )
-    mock_cmd = Mock( )
-    cli_obj = module.Cli(
-        display = mock_display,
-        command = mock_cmd,
-        logfile = '/test/log.txt' )
-    args = cli_obj.prepare_invocation_args( )
-    assert args[ 'environment' ] is True
-    assert args[ 'logfile' ] == '/test/log.txt'
-
+# def test_090_cli_prepare_invocation_args( ):
+#     ''' REMOVED: Method removed in framework migration. '''
+#     # This test is obsolete since prepare_invocation_args() was removed
+#     # in Phase 2 of CLI framework migration. Framework handles prep now.
 
 # def test_100_cli_prepare_invocation_args_no_logfile( ):
 #     ''' CLI prepare_invocation_args works without logfile. '''
