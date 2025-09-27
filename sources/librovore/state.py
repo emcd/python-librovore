@@ -21,17 +21,27 @@
 ''' Application state management. '''
 
 
+import appcore.cli as _appcore_cli
+
 from . import __
 from . import cacheproxy as _cacheproxy
+from . import interfaces as _interfaces
+
+
+class DisplayOptions( _appcore_cli.DisplayOptions ):
+    ''' Consolidated display configuration for CLI output. '''
+
+    format: _interfaces.DisplayFormat = _interfaces.DisplayFormat.Markdown
 
 
 class Globals( __.Globals ):
     ''' Librovore-specific global state container.
-    
+
         Extends appcore.Globals with cache instances configured from
         application configuration.
     '''
-    
+
+    display: DisplayOptions = __.dcls.field( default_factory = DisplayOptions )
     content_cache: _cacheproxy.ContentCache
-    probe_cache: _cacheproxy.ProbeCache  
+    probe_cache: _cacheproxy.ProbeCache
     robots_cache: _cacheproxy.RobotsCache

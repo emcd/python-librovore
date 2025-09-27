@@ -20,6 +20,7 @@
 
 ''' Command-line interface. '''
 
+from __future__ import annotations
 
 import appcore.cli as _appcore_cli
 
@@ -32,47 +33,41 @@ from . import results as _results
 from . import server as _server
 from . import state as _state
 
-_BaseDisplayOptions = _appcore_cli.DisplayOptions
 
 _scribe = __.acquire_scribe( __name__ )
 
 
 
 
-
-
-class DisplayOptions( _BaseDisplayOptions ):
-    ''' Consolidated display configuration for CLI output. '''
-
-    format: _interfaces.DisplayFormat = _interfaces.DisplayFormat.Markdown
-
-
-def intercept_errors( ) -> __.cabc.Callable[ 
-    [ __.cabc.Callable[ ..., __.cabc.Awaitable[ None ] ] ], 
-    __.cabc.Callable[ ..., __.cabc.Awaitable[ None ] ] 
+def intercept_errors( ) -> __.cabc.Callable[
+    [ __.cabc.Callable[
+        ..., __.types.CoroutineType[ None, None, None ] ] ],
+    __.cabc.Callable[
+        ..., __.types.CoroutineType[ None, None, None ] ]
 ]:
     ''' Decorator for CLI handlers to intercept exceptions.
-    
+
         Catches Omnierror exceptions and renders them appropriately.
         Other exceptions are logged and formatted simply.
     '''
-    def decorator( 
-        func: __.cabc.Callable[ ..., __.cabc.Awaitable[ None ] ]
-    ) -> __.cabc.Callable[ ..., __.cabc.Awaitable[ None ] ]:
-        @__.funct.wraps( func )
-        async def wrapper( 
+    def decorator(
+        function: __.cabc.Callable[
+            ..., __.types.CoroutineType[ None, None, None ] ]
+    ) -> __.cabc.Callable[ ..., __.types.CoroutineType[ None, None, None ] ]:
+        @__.funct.wraps( function )
+        async def wrapper(
             self: __.typx.Any,
             auxdata: _state.Globals,
-            display: DisplayOptions,
             *posargs: __.typx.Any,
             **nomargs: __.typx.Any,
         ) -> None:
-            stream = await display.provide_stream( auxdata.exits )
-            try:
-                return await func( 
-                    self, auxdata, display, *posargs, **nomargs )
+            if not isinstance( # pragma: no cover
+                auxdata, _state.Globals
+            ): raise _exceptions.ContextInvalidity
+            stream = await auxdata.display.provide_stream( auxdata.exits )
+            try: return await function( self, auxdata, *posargs, **nomargs )
             except _exceptions.Omnierror as exc:
-                match display.format:
+                match auxdata.display.format:
                     case _interfaces.DisplayFormat.JSON:
                         serialized = dict( exc.render_as_json( ) )
                         error_message = __.json.dumps( serialized, indent = 2 )
@@ -82,8 +77,8 @@ def intercept_errors( ) -> __.cabc.Callable[
                 print( error_message, file = stream )
                 raise SystemExit( 1 ) from None
             except Exception as exc:
-                _scribe.error( f"{func.__name__} failed: %s", exc )
-                match display.format:
+                _scribe.error( f"{function.__name__} failed: %s", exc )
+                match auxdata.display.format:
                     case _interfaces.DisplayFormat.JSON:
                         error_data = {
                             "type": "unexpected_error",
@@ -135,56 +130,8 @@ _MARKDOWN_OBJECT_LIMIT = 10
 _MARKDOWN_CONTENT_LIMIT = 200
 
 
-
-
-async def _render_and_print_result(
-    result: _results.ResultBase,
-    display: DisplayOptions,
-    exits: __.ctxl.AsyncExitStack,
-    **nomargs: __.typx.Any
-) -> None:
-    ''' Centralizes result rendering logic with Rich formatting support. '''
-    stream = await display.provide_stream( exits )
-    match display.format:
-        case _interfaces.DisplayFormat.JSON:
-            nomargs_filtered = {
-                key: value for key, value in nomargs.items()
-                if key in [ 'lines_max', 'reveal_internals' ]
-            }
-            serialized = dict( result.render_as_json( **nomargs_filtered ) )
-            output = __.json.dumps( serialized, indent = 2 )
-            print( output, file = stream )
-        case _interfaces.DisplayFormat.Markdown:
-            lines = result.render_as_markdown( **nomargs )
-            if display.determine_colorization( stream ):
-                from rich.console import Console
-                from rich.markdown import Markdown
-                console = Console( file = stream, force_terminal = True )
-                markdown_obj = Markdown( '\n'.join( lines ) )
-                console.print( markdown_obj )
-            else:
-                output = '\n'.join( lines )
-                print( output, file = stream )
-
-
-class _CliCommand(
-    __.immut.DataclassProtocol, __.typx.Protocol,
-    decorators = ( __.typx.runtime_checkable, ),
-):
-    ''' CLI command. '''
-
-    @__.abc.abstractmethod
-    def __call__(
-        self,
-        auxdata: _state.Globals,
-        display: DisplayOptions,
-    ) -> __.cabc.Awaitable[ None ]:
-        ''' Executes command with global state. '''
-        raise NotImplementedError
-
-
 class DetectCommand(
-    _CliCommand, decorators = ( __.standard_tyro_class, ),
+    _appcore_cli.Command, decorators = ( __.standard_tyro_class, )
 ):
     ''' Detect which processors can handle a documentation source. '''
 
@@ -199,11 +146,9 @@ class DetectCommand(
     ] = None
 
     @intercept_errors( )
-    async def __call__(
-        self,
-        auxdata: _state.Globals,
-        display: DisplayOptions,
-    ) -> None:
+    async def execute( self, auxdata: __.Globals ) -> None:
+        if not isinstance( auxdata, _state.Globals ):  # pragma: no cover
+            raise _exceptions.ContextInvalidity
         processor_name = (
             self.processor_name if self.processor_name is not None
             else __.absent )
@@ -211,16 +156,16 @@ class DetectCommand(
             auxdata, self.location, self.genus,
             processor_name = processor_name )
         await _render_and_print_result(
-            result, display, auxdata.exits, reveal_internals = False )
+            result, auxdata.display, auxdata.exits, reveal_internals = False )
 
 
 class QueryInventoryCommand(
-    _CliCommand, decorators = ( __.standard_tyro_class, ),
+    _appcore_cli.Command, decorators = ( __.standard_tyro_class, )
 ):
     ''' Explores documentation structure and object inventory.
 
         Use before content searches to:
-        
+
         - Discover available topics and object types
         - Identify relevant search terms and filters
         - Understand documentation scope and organization
@@ -249,12 +194,11 @@ class QueryInventoryCommand(
                 "project, version)." )
         ),
     ] = False
+
     @intercept_errors( )
-    async def __call__(
-        self,
-        auxdata: _state.Globals,
-        display: DisplayOptions,
-    ) -> None:
+    async def execute( self, auxdata: __.Globals ) -> None:
+        if not isinstance( auxdata, _state.Globals ):  # pragma: no cover
+            raise _exceptions.ContextInvalidity
         result = await _functions.query_inventory(
             auxdata,
             self.location,
@@ -263,21 +207,21 @@ class QueryInventoryCommand(
             filters = self.filters,
             results_max = self.results_max )
         await _render_and_print_result(
-            result, display, auxdata.exits,
+            result, auxdata.display, auxdata.exits,
             reveal_internals = self.reveal_internals )
 
 
 class QueryContentCommand(
-    _CliCommand, decorators = ( __.standard_tyro_class, ),
+    _appcore_cli.Command, decorators = ( __.standard_tyro_class, )
 ):
     ''' Searches documentation with flexible preview/extraction modes.
 
         Workflows:
-        
+
         - Sample: Use --lines-max 5-10 to preview results and identify relevant
           content
         - Extract: Use --content-id from sample results to retrieve full
-          content  
+          content
         - Direct: Search with higher --lines-max for immediate full results
     '''
 
@@ -317,11 +261,9 @@ class QueryContentCommand(
         ),
     ] = False
     @intercept_errors( )
-    async def __call__(
-        self,
-        auxdata: _state.Globals,
-        display: DisplayOptions,
-    ) -> None:
+    async def execute( self, auxdata: __.Globals ) -> None:
+        if not isinstance( auxdata, _state.Globals ):  # pragma: no cover
+            raise _exceptions.ContextInvalidity
         content_id_ = (
             __.absent if self.content_id is None else self.content_id )
         result = await _functions.query_content(
@@ -332,15 +274,13 @@ class QueryContentCommand(
             results_max = self.results_max,
             lines_max = self.lines_max )
         await _render_and_print_result(
-            result, display, auxdata.exits,
+            result, auxdata.display, auxdata.exits,
             reveal_internals = self.reveal_internals,
             lines_max = self.lines_max )
 
 
-
-
 class SurveyProcessorsCommand(
-    _CliCommand, decorators = ( __.standard_tyro_class, ),
+    _appcore_cli.Command, decorators = ( __.standard_tyro_class, )
 ):
     ''' List processors for specified genus and their capabilities. '''
 
@@ -354,21 +294,18 @@ class SurveyProcessorsCommand(
     ] = None
 
     @intercept_errors( )
-    async def __call__(
-        self,
-        auxdata: _state.Globals,
-        display: DisplayOptions,
-    ) -> None:
+    async def execute( self, auxdata: __.Globals ) -> None:
+        if not isinstance( auxdata, _state.Globals ):  # pragma: no cover
+            raise _exceptions.ContextInvalidity
         nomargs: __.NominativeArguments = { 'genus': self.genus }
         if self.name is not None: nomargs[ 'name' ] = self.name
         result = await _functions.survey_processors( auxdata, **nomargs )
         await _render_and_print_result(
-            result, display, auxdata.exits, reveal_internals = False )
-
+            result, auxdata.display, auxdata.exits, reveal_internals = False )
 
 
 class ServeCommand(
-    _CliCommand, decorators = ( __.standard_tyro_class, ),
+    _appcore_cli.Command, decorators = ( __.standard_tyro_class, )
 ):
     ''' Starts MCP server. '''
 
@@ -382,11 +319,9 @@ class ServeCommand(
     serve_function: __.typx.Callable[
         [ _state.Globals ], __.cabc.Awaitable[ None ]
     ] = _server.serve
-    async def __call__(
-        self,
-        auxdata: _state.Globals,
-        display: DisplayOptions,
-    ) -> None:
+    async def execute( self, auxdata: __.Globals ) -> None:
+        if not isinstance( auxdata, _state.Globals ):  # pragma: no cover
+            raise _exceptions.ContextInvalidity
         nomargs: __.NominativeArguments = { }
         if self.port is not None: nomargs[ 'port' ] = self.port
         if self.transport is not None: nomargs[ 'transport' ] = self.transport
@@ -397,8 +332,8 @@ class ServeCommand(
 class Cli( _appcore_cli.Application ):
     ''' MCP server CLI. '''
 
-    display: DisplayOptions = __.dcls.field(
-        default_factory = DisplayOptions )
+    display: _state.DisplayOptions = __.dcls.field(
+        default_factory = _state.DisplayOptions )
     command: __.typx.Union[
         __.typx.Annotated[
             DetectCommand,
@@ -429,11 +364,11 @@ class Cli( _appcore_cli.Application ):
             raise _exceptions.ContextInvalidity
         from . import xtnsmgr
         await xtnsmgr.register_processors( auxdata )
-        await self.command(
-            auxdata = auxdata,
-            display = self.display )
+        await self.command( auxdata )
 
-    async def prepare( self, exits: __.ctxl.AsyncExitStack ) -> _state.Globals:
+    async def prepare(
+        self, exits: __.ctxl.AsyncExitStack
+    ) -> _state.Globals:
         ''' Prepares librovore-specific global state with cache proxies. '''
         auxdata_base = await super( ).prepare( exits )
         content_cache, probe_cache, robots_cache = _cacheproxy.prepare(
@@ -443,6 +378,7 @@ class Cli( _appcore_cli.Application ):
             for field in __.dcls.fields( auxdata_base )
             if not field.name.startswith( '_' ) }
         return _state.Globals(
+            display = self.display,
             content_cache = content_cache,
             probe_cache = probe_cache,
             robots_cache = robots_cache,
@@ -467,12 +403,31 @@ def execute( ) -> None:
             raise SystemExit( 1 ) from None
 
 
-
-
-
-
-
-
-
-
-
+async def _render_and_print_result(
+    result: _results.ResultBase,
+    display: _state.DisplayOptions,
+    exits: __.ctxl.AsyncExitStack,
+    **nomargs: __.typx.Any
+) -> None:
+    ''' Centralizes result rendering logic with Rich formatting support. '''
+    stream = await display.provide_stream( exits )
+    match display.format:
+        case _interfaces.DisplayFormat.JSON:
+            nomargs_filtered = {
+                key: value for key, value in nomargs.items()
+                if key in [ 'lines_max', 'reveal_internals' ]
+            }
+            serialized = dict( result.render_as_json( **nomargs_filtered ) )
+            output = __.json.dumps( serialized, indent = 2 )
+            print( output, file = stream )
+        case _interfaces.DisplayFormat.Markdown:
+            lines = result.render_as_markdown( **nomargs )
+            if display.determine_colorization( stream ):
+                from rich.console import Console
+                from rich.markdown import Markdown
+                console = Console( file = stream, force_terminal = True )
+                markdown_obj = Markdown( '\n'.join( lines ) )
+                console.print( markdown_obj )
+            else:
+                output = '\n'.join( lines )
+                print( output, file = stream )

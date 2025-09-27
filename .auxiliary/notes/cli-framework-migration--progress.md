@@ -43,13 +43,16 @@
 - [x] Remove _prepare function entirely
 
 ### Phase 3: Command Protocol Standardization
-- [ ] Update DetectCommand to inherit from appcore.cli.Command
-- [ ] Update QueryInventoryCommand to inherit from appcore.cli.Command
-- [ ] Update QueryContentCommand to inherit from appcore.cli.Command
-- [ ] Update SurveyProcessorsCommand to inherit from appcore.cli.Command
-- [ ] Update ServeCommand to inherit from appcore.cli.Command
-- [ ] Remove custom __call__ implementations from commands
-- [ ] Preserve @intercept_errors decorators
+- [x] Update DetectCommand to inherit from appcore.cli.Command
+- [x] Update QueryInventoryCommand to inherit from appcore.cli.Command
+- [x] Update QueryContentCommand to inherit from appcore.cli.Command
+- [x] Update SurveyProcessorsCommand to inherit from appcore.cli.Command
+- [x] Update ServeCommand to inherit from appcore.cli.Command
+- [x] Remove custom __call__ implementations from commands
+- [x] Preserve @intercept_errors decorators
+- [x] Create ApplicationGlobals class extending _state.Globals with display field
+- [x] Convert __call__ methods to execute methods with isinstance type guards
+- [x] Update method signatures from (auxdata, display) to (auxdata) where auxdata.display provides display
 
 ### Integration Testing
 - [x] CLI interface behavior remains identical
@@ -63,7 +66,7 @@
 - [x] Linters pass (`hatch --env develop run linters`)
 - [x] Type checker passes
 - [x] Tests pass (`hatch --env develop run testers`)
-- [ ] Code review ready
+- [x] Code review ready
 
 ## Decision Log
 
@@ -77,21 +80,39 @@
   - Used framework determine_colorization() directly
   - Documented NO_COLOR limitation for upstream enhancement
   - Created ContextInvalidity exception and used isinstance check for proper type narrowing
+- 2025-01-26 Phase 3 completed - All command classes migrated to appcore.cli.Command framework
+  - Implemented Globals extending _state.Globals with display field
+  - All commands now inherit from _appcore_cli.Command with execute() methods
+  - Proper type narrowing with isinstance checks instead of type casting
+  - Preserved @intercept_errors decorators for domain-specific error handling
+- 2025-01-27 Type annotation compatibility resolved
+  - Added `from __future__ import annotations` to resolve runtime subscripting issues
+  - Fixed test framework calls to use new command signature pattern
+  - All linters pass: 0 errors, 0 warnings, 0 informations
+  - All tests pass: 175 passed, comprehensive test coverage maintained
+- 2025-01-27 DisplayOptions architectural refactor completed
+  - Moved DisplayOptions class from cli.py to state.py for proper separation of concerns
+  - Added display field to Globals class in state.py, eliminating duplicate Globals class in cli.py
+  - Updated all imports and references to use _state.DisplayOptions (private module access)
+  - Fixed test framework to import from correct module
+  - Architecture now follows proper module responsibility patterns
 
 ## Handoff Notes
 
 ### Current State
 - **Phase 1 COMPLETED**: DisplayOptions extends appcore.cli.DisplayOptions with clean imports
 - **Phase 2 COMPLETED**: Cli class inherits from appcore.cli.Application
+- **Phase 3 COMPLETED**: All command classes migrated to appcore.cli.Command framework
 - Framework integration successful - eliminated 40+ lines of boilerplate code
 - New capabilities: configfile, environment, rich inscription (logging) control
 - All existing functionality preserved and tested
 - Cache proxy functionality maintained through custom prepare method
+- Command protocol fully standardized with proper type safety
 
 ### Next Steps
-1. Optional: Implement Phase 3 (Command protocol standardization) if desired
-2. Consider Phase 4 (Inscription unification) for MCP server consistency
-3. Code review and finalization
+1. Optional: Implement Phase 4 (Inscription unification) for MCP server consistency
+2. Consider additional framework enhancements or optimizations
+3. Migration fully complete and ready for production use
 
 ### Known Issues
 - None identified yet
