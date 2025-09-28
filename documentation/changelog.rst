@@ -23,6 +23,31 @@ Release Notes
 
 .. towncrier release notes start
 
+librovore 1.0a6 (2025-09-28)
+============================
+
+Enhancements
+------------
+
+- CLI: Add new options from appcore.cli framework migration including --inscription.level, --inscription.presentation, --configfile, and --environment for enhanced logging and configuration support.
+- Implement graceful degradation for robots.txt access failures - queries now succeed with warnings instead of failing completely when robots.txt is inaccessible.
+- Improve content extraction quality with universal patterns that work across different documentation themes and provide better theme-specific precedence.
+
+
+Notices
+-------
+
+- MCP Server: Change configuration parameters from --logfile to --inscription.target-file and --inscription.level for consistency with new CLI framework.
+
+
+Repairs
+-------
+
+- CLI: Fix broken 'filters' option that was not working correctly.
+- Fix Sphinx content extraction returning sidebar content instead of main documentation for Python modules.
+- Fix confusing error messages when robots.txt access fails, now shows clear "Robots.txt Access Failure" instead of misleading "No Compatible Processor Found" messages.
+
+
 librovore 1.0a5 (2025-09-05)
 ============================
 
