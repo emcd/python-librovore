@@ -1,0 +1,1 @@
+Fix confusing error messages when robots.txt access fails, now shows clear "Robots.txt Access Failure" instead of misleading "No Compatible Processor Found" messages.

@@ -1,0 +1,1 @@
+CLI: Add new options from appcore.cli framework migration including --inscription.level, --inscription.presentation, --configfile, and --environment for enhanced logging and configuration support.

@@ -1,0 +1,1 @@
+Improve content extraction quality with universal patterns that work across different documentation themes and provide better theme-specific precedence.

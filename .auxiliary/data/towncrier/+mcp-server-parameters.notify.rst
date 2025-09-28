@@ -1,0 +1,1 @@
+MCP Server: Change configuration parameters from --logfile to --inscription.target-file and --inscription.level for consistency with new CLI framework.

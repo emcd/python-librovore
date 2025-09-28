@@ -1,0 +1,1 @@
+Fix Sphinx content extraction returning sidebar content instead of main documentation for Python modules.
