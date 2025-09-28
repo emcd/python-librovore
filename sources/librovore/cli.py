@@ -123,7 +123,6 @@ TransportArgument: __.typx.TypeAlias = __.typx.Annotated[
 
 
 _search_behaviors_default = _interfaces.SearchBehaviors( )
-_filters_default = __.immut.Dictionary[ str, __.typx.Any ]( )
 
 _MARKDOWN_OBJECT_LIMIT = 10
 _MARKDOWN_CONTENT_LIMIT = 200
@@ -173,9 +172,9 @@ class QueryInventoryCommand(
     location: LocationArgument
     term: TermArgument
     filters: __.typx.Annotated[
-        __.cabc.Mapping[ str, __.typx.Any ],
+        __.cabc.Sequence[ str ],
         __.tyro.conf.arg( prefix_name = False ),
-    ] = __.dcls.field( default_factory = lambda: dict( _filters_default ) )
+    ] = ( )
     search_behaviors: __.typx.Annotated[
         _interfaces.SearchBehaviors,
         __.tyro.conf.arg( prefix_name = False ),
@@ -190,8 +189,7 @@ class QueryInventoryCommand(
         __.tyro.conf.arg(
             help = (
                 "Show internal implementation details (domain, priority, "
-                "project, version)." )
-        ),
+                "project, version)." ) ),
     ] = False
 
     @intercept_errors( )
@@ -203,7 +201,7 @@ class QueryInventoryCommand(
             self.location,
             self.term,
             search_behaviors = self.search_behaviors,
-            filters = self.filters,
+            filters = _filters_to_dictionary( self.filters ),
             results_max = self.results_max )
         await _render_and_print_result(
             result, auxdata.display, auxdata.exits,
@@ -232,9 +230,9 @@ class QueryContentCommand(
     ] = __.dcls.field(
         default_factory = lambda: _interfaces.SearchBehaviors( ) )
     filters: __.typx.Annotated[
-        __.cabc.Mapping[ str, __.typx.Any ],
+        __.cabc.Sequence[ str ],
         __.tyro.conf.arg( prefix_name = False ),
-    ] = __.dcls.field( default_factory = lambda: dict( _filters_default ) )
+    ] = ( )
     results_max: ResultsMax = 10
     lines_max: __.typx.Annotated[
         int,
@@ -256,8 +254,7 @@ class QueryContentCommand(
         __.tyro.conf.arg(
             help = (
                 "Show internal implementation details (domain, priority, "
-                "project, version)." )
-        ),
+                "project, version)." ) ),
     ] = False
     @intercept_errors( )
     async def execute( self, auxdata: __.Globals ) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
@@ -268,7 +265,7 @@ class QueryContentCommand(
         result = await _functions.query_content(
             auxdata, self.location, self.term,
             search_behaviors = self.search_behaviors,
-            filters = self.filters,
+            filters = _filters_to_dictionary( self.filters ),
             content_id = content_id_,
             results_max = self.results_max,
             lines_max = self.lines_max )
@@ -400,6 +397,12 @@ def execute( ) -> None:
         except BaseException as exc:
             __.report_exceptions( exc, _scribe )
             raise SystemExit( 1 ) from None
+
+
+def _filters_to_dictionary(
+    filters: __.cabc.Sequence[ str ]
+) -> dict[ str, str ]:
+    return dict( map( lambda s: s.split( '=' ), filters ) )
 
 
 async def _render_and_print_result(
