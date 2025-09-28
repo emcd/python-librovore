@@ -563,9 +563,19 @@ async def _apply_request_delay(
     domain = _extract_domain( url )
     delay = cache.calculate_delay_remainder( domain )
     if delay > 0: await cache.delay_function( delay )
-    parser = await cache.access( domain )
+    try: parser = await cache.access( domain )
+    except _exceptions.RobotsTxtAccessFailure as exc:
+        _scribe.debug(
+            f"robots.txt access failed for {domain}: {exc.cause}. "
+            f"Skipping crawl delay application." )
+        return  # Skip crawl delay when robots.txt unavailable
     if __.is_absent( parser ):
-        parser = await _retrieve_robots_txt( client, cache, domain )
+        try: parser = await _retrieve_robots_txt( client, cache, domain )
+        except _exceptions.RobotsTxtAccessFailure as exc:
+            _scribe.debug(
+                f"robots.txt access failed for {domain}: {exc.cause}. "
+                f"Skipping crawl delay application." )
+            return  # Skip crawl delay when robots.txt unavailable
     if not __.is_absent( parser ):
         try: delay = parser.crawl_delay( cache.user_agent )
         except Exception as exc:
@@ -603,10 +613,20 @@ async def _check_robots_txt(
     if url.scheme not in ( 'http', 'https' ): return True
     url_s = url.geturl( )
     domain = _extract_domain( url )
-    parser = await cache.access( domain )
+    try: parser = await cache.access( domain )
+    except _exceptions.RobotsTxtAccessFailure as exc:
+        _scribe.warning(
+            f"robots.txt access failed for {domain}: {exc.cause}. "
+            f"Proceeding without robots.txt validation." )
+        return True  # Allow access when robots.txt unavailable
     if __.is_absent( parser ):
-        parser = await _retrieve_robots_txt( client, cache, domain )
-        if __.is_absent( parser ): return True
+        try: parser = await _retrieve_robots_txt( client, cache, domain )
+        except _exceptions.RobotsTxtAccessFailure as exc:
+            _scribe.warning(
+                f"robots.txt access failed for {domain}: {exc.cause}. "
+                f"Proceeding without robots.txt validation." )
+            return True  # Allow access when robots.txt unavailable
+    if __.is_absent( parser ): return True
     try: return parser.can_fetch( cache.user_agent, url_s )
     except Exception as exc:
         _scribe.debug( f"robots.txt check failed for {url_s}: {exc}" )

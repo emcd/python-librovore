@@ -599,13 +599,15 @@ async def test_211_probe_url_http_cache_miss_success(
 
 @pytest.mark.asyncio
 async def test_212_probe_url_http_cache_miss_failure( probe_cache, robots_cache ):
-    ''' HTTP cache miss handles HEAD request exceptions. '''
+    ''' HTTP cache miss handles HEAD request exceptions with graceful robots.txt degradation. '''
     def handler( request ):
         raise _httpx.TimeoutException( 'Timeout' )
     mock_transport = _httpx.MockTransport( handler )
     def client_factory( ):
         return _httpx.AsyncClient( transport = mock_transport )
-    with pytest.raises( _exceptions.RobotsTxtAccessFailure ):
+    # With graceful degradation, robots.txt timeout should not propagate
+    # The actual HEAD request timeout should still be raised
+    with pytest.raises( _httpx.TimeoutException ):
         await module.probe_url(
             probe_cache, _URL_HTTP_TEST,
             client_factory = client_factory )
