@@ -1,1 +1,0 @@
-CLI: Fix broken 'filters' option that was not working correctly.
