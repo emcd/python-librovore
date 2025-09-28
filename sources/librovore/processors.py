@@ -99,6 +99,27 @@ class InventoryDetection( Detection ):
 class StructureDetection( Detection ):
     ''' Base class for structure detection results. '''
 
+    @classmethod
+    @__.abc.abstractmethod
+    def get_capabilities( cls ) -> _interfaces.StructureProcessorCapabilities:
+        ''' Returns processor capabilities for filtering and selection.
+
+            The content_extraction_features advertise what types of content
+            this processor can reliably extract:
+            - 'signatures': Function/class signatures with parameters
+            - 'descriptions': Descriptive content and documentation text
+            - 'code-examples': Code blocks with preserved language information
+            - 'cross-references': Links and references to other documentation
+            - 'arguments': Individual parameter documentation
+            - 'returns': Return value documentation
+            - 'attributes': Class and module attribute documentation
+
+            Based on comprehensive theme analysis, these features use
+            empirically-discovered universal patterns rather than
+            theme-specific guesswork.
+        '''
+        raise NotImplementedError
+
     @__.abc.abstractmethod
     async def extract_contents(
         self,
@@ -106,8 +127,22 @@ class StructureDetection( Detection ):
         source: str,
         objects: __.cabc.Sequence[ _results.InventoryObject ], /,
     ) -> tuple[ _results.ContentDocument, ... ]:
-        ''' Extracts documentation content for specified objects. '''
+        ''' Extracts content using inventory object metadata for strategy
+            selection.
+
+            Uses inventory object roles and types to choose optimal extraction:
+            - API objects (functions, classes, methods): signature-aware
+            - Content objects (modules, pages): description-focused
+            - Code examples: language-preserving extraction
+
+            Based on universal patterns from comprehensive theme analysis.
+        '''
         raise NotImplementedError
+
+    def can_process_inventory_type( self, inventory_type: str ) -> bool:
+        ''' Checks if processor can handle inventory type. '''
+        return self.get_capabilities( ).supports_inventory_type(
+            inventory_type )
 
 
 DetectionsByProcessor: __.typx.TypeAlias = __.cabc.Mapping[ str, Detection ]

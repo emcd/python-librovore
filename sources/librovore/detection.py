@@ -44,12 +44,11 @@ class DetectionsCacheEntry( __.immut.DataclassObject ):
     def detection_optimal( self ) -> __.Absential[ _processors.Detection ]:
         ''' Returns the detection with highest confidence. '''
         if not self.detections: return __.absent
-        best_result = max(
-            self.detections.values( ),
-            key=lambda x: x.confidence )
+        optimum = max(
+            self.detections.values( ), key=lambda x: x.confidence )
         return (
-            best_result
-            if best_result.confidence >= CONFIDENCE_THRESHOLD_MINIMUM
+            optimum
+            if optimum.confidence >= CONFIDENCE_THRESHOLD_MINIMUM
             else __.absent )
 
     def invalid( self, current_time: float ) -> bool:
@@ -69,24 +68,24 @@ class DetectionsCache( __.immut.DataclassObject ):
     ) -> __.Absential[ _processors.DetectionsByProcessor ]:
         ''' Returns all detections for source, if unexpired. '''
         if source not in self._entries: return __.absent
-        cache_entry = self._entries[ source ]
+        entry = self._entries[ source ]
         current_time = __.time.time( )
-        if cache_entry.invalid( current_time ):
+        if entry.invalid( current_time ):
             del self._entries[ source ]
             return __.absent
-        return cache_entry.detections
+        return entry.detections
 
     def access_detection_optimal(
         self, source: str
     ) -> __.Absential[ _processors.Detection ]:
         ''' Returns the best detection for source, if unexpired. '''
         if source not in self._entries: return __.absent
-        cache_entry = self._entries[ source ]
+        entry = self._entries[ source ]
         current_time = __.time.time( )
-        if cache_entry.invalid( current_time ):
+        if entry.invalid( current_time ):
             del self._entries[ source ]
             return __.absent
-        return cache_entry.detection_optimal
+        return entry.detection_optimal
 
     def add_entry(
         self, source: str, detections: _processors.DetectionsByProcessor
@@ -95,8 +94,7 @@ class DetectionsCache( __.immut.DataclassObject ):
         self._entries[ source ] = DetectionsCacheEntry(
             detections = detections,
             timestamp = __.time.time( ),
-            ttl = self.ttl,
-        )
+            ttl = self.ttl )
         return self
 
     def clear( self ) -> __.typx.Self:
@@ -126,7 +124,7 @@ async def access_detections(
     __.Absential[ _processors.Detection ]
 ]:
     ''' Accesses detections via appropriate cache. '''
-    resolved_source = _url_redirects_cache.get( source, source )
+    source_ = _url_redirects_cache.get( source, source )
     match genus:
         case _interfaces.ProcessorGenera.Inventory:
             cache = _inventory_detections_cache
@@ -135,7 +133,7 @@ async def access_detections(
             cache = _structure_detections_cache
             processors = _processors.structure_processors
     return await access_detections_ll(
-        auxdata, resolved_source, cache = cache, processors = processors )
+        auxdata, source_, cache = cache, processors = processors )
 
 
 async def access_detections_ll(
@@ -161,8 +159,29 @@ async def access_detections_ll(
         if __.is_absent( detections ):
             detections = __.immut.Dictionary[
                 str, _processors.Detection ]( )
-    detection_optimal = cache.access_detection_optimal( source )
-    return detections, detection_optimal
+    optimum = cache.access_detection_optimal( source )
+    return detections, optimum
+
+
+async def collect_filter_inventories(
+    auxdata: _state.Globals,
+    location: str, /, *,
+    confidence_limit: float = 0.5,
+) -> __.immut.Dictionary[ str, _processors.InventoryDetection ]:
+    ''' Collects all inventory sources above confidence threshold.
+
+        Returns dictionary mapping processor names to their detections
+        for multi-source inventory coordination.
+    '''
+    location_ = _url_redirects_cache.get( location, location )
+    detections, _ = await access_detections(
+        auxdata, location_, genus = _interfaces.ProcessorGenera.Inventory )
+    detections_ = {
+        processor_name: __.typx.cast(
+            _processors.InventoryDetection, detection )
+        for processor_name, detection in detections.items( )
+        if detection.confidence >= confidence_limit }
+    return __.immut.Dictionary( detections_ )
 
 
 async def detect(
@@ -172,7 +191,7 @@ async def detect(
     processor_name: __.Absential[ str ] = __.absent,
 ) -> _processors.Detection:
     ''' Detects processors for source through cache system. '''
-    resolved_source = _url_redirects_cache.get( source, source )
+    source_ = _url_redirects_cache.get( source, source )
     match genus:
         case _interfaces.ProcessorGenera.Inventory:
             cache = _inventory_detections_cache
@@ -186,9 +205,9 @@ async def detect(
         if processor_name not in processors:
             raise _exceptions.ProcessorInavailability( processor_name )
         processor = processors[ processor_name ]
-        return await processor.detect( auxdata, resolved_source )
+        return await processor.detect( auxdata, source_ )
     detection = await determine_detection_optimal_ll(
-        auxdata, resolved_source, cache = cache, processors = processors )
+        auxdata, source_, cache = cache, processors = processors )
     if __.is_absent( detection ):
         raise _exceptions.ProcessorInavailability( class_name )
     return detection
@@ -245,13 +264,19 @@ async def _execute_processors(
 ) -> dict[ str, _processors.Detection ]:
     ''' Runs all processors on the source. '''
     results: dict[ str, _processors.Detection ] = { }
+    access_failures: list[ _exceptions.RobotsTxtAccessFailure ] = [ ]
     # TODO: Parallel async fanout.
     for processor in processors.values( ):
         try: detection = await processor.detect( auxdata, source )
-        except Exception:  # noqa: PERF203,S112
-            # Skip processor on detection failure
+        except _exceptions.RobotsTxtAccessFailure as exc:  # noqa: PERF203
+            access_failures.append( exc )
+            continue
+        except Exception:  # noqa: S112
             continue
         else: results[ processor.name ] = detection
+    # If all processors failed due to robots.txt access issues, raise error
+    if not results and access_failures:
+        raise access_failures[ 0 ] from None
     return results
 
 
@@ -266,7 +291,7 @@ async def _execute_processors_with_patterns(
            for detection in results.values( ) ):
         return results
     base_url = _urls.normalize_base_url( source )
-    working_url = await _urlpatterns.probe_url_patterns( 
+    working_url = await _urlpatterns.probe_url_patterns(
         auxdata, base_url, '/objects.inv' )
     if not __.is_absent( working_url ):
         working_source = working_url.geturl( )

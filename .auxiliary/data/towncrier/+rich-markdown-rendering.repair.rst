@@ -1,1 +1,0 @@
-Fix Rich markdown rendering by converting metadata patterns to bullet lists for improved readability.

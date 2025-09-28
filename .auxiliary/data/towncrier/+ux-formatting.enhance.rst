@@ -1,1 +1,0 @@
-Improve UX formatting by cleaning up metadata display order and removing dead architecture.

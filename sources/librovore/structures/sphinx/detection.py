@@ -40,6 +40,26 @@ class SphinxDetection( __.StructureDetection ):
     theme: __.typx.Optional[ str ] = None
 
     @classmethod
+    def get_capabilities( cls ) -> __.StructureProcessorCapabilities:
+        ''' Sphinx processor capabilities based on universal pattern
+            analysis. '''
+        return __.StructureProcessorCapabilities(
+            supported_inventory_types = frozenset( { 'sphinx' } ),
+            content_extraction_features = frozenset( {
+                __.ContentExtractionFeatures.Signatures,
+                __.ContentExtractionFeatures.Descriptions,
+                __.ContentExtractionFeatures.Arguments,
+                __.ContentExtractionFeatures.Returns,
+                __.ContentExtractionFeatures.Attributes,
+                __.ContentExtractionFeatures.CodeExamples,
+                __.ContentExtractionFeatures.CrossReferences
+            } ),
+            confidence_by_inventory_type = __.immut.Dictionary( {
+                'sphinx': 1.0
+            } )
+        )
+
+    @classmethod
     async def from_source(
         selfclass,
         auxdata: __.ApplicationGlobals,

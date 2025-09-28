@@ -1,0 +1,1 @@
+Implement graceful degradation for robots.txt access failures - queries now succeed with warnings instead of failing completely when robots.txt is inaccessible.

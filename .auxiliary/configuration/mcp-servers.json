@@ -7,8 +7,10 @@
         "hatch",
         "run",
         "librovore",
-        "--logfile",
+        "--inscription.target-file",
         ".auxiliary/inscriptions/server.txt",
+        "--inscription.level",
+        "debug",
         "serve"
       ]
     },

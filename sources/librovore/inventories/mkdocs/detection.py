@@ -164,7 +164,7 @@ def format_inventory_object(
     return MkDocsInventoryObject(
         name = title,
         uri = location,
-        inventory_type = 'mkdocs_search_index',
+        inventory_type = 'mkdocs',
         location_url = location_url,
         specifics = __.immut.Dictionary(
             domain = 'page',

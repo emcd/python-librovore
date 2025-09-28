@@ -21,6 +21,8 @@
 ''' Command-line interface. '''
 
 
+import appcore.cli as _appcore_cli
+
 from . import __
 from . import cacheproxy as _cacheproxy
 from . import exceptions as _exceptions
@@ -30,86 +32,41 @@ from . import results as _results
 from . import server as _server
 from . import state as _state
 
+
 _scribe = __.acquire_scribe( __name__ )
 
 
-
-
-class TargetStream( __.enum.Enum ):
-    ''' Output stream selection. '''
-    Stdout = 'stdout'
-    Stderr = 'stderr'
-
-
-TargetMutex = __.tyro.conf.create_mutex_group( required = False )
-
-
-class DisplayOptions( __.immut.DataclassObject ):
-    ''' Consolidated display configuration for CLI output. '''
-    format: _interfaces.DisplayFormat = _interfaces.DisplayFormat.Markdown
-    target_stream: __.typx.Annotated[
-        __.typx.Optional[ TargetStream ],
-        TargetMutex,
-        __.tyro.conf.arg( help = "Output to stdout or stderr." )
-    ] = TargetStream.Stderr
-    target_file: __.typx.Annotated[
-        __.typx.Optional[ __.Path ],
-        TargetMutex,
-        __.tyro.conf.arg( help = "Output to specified file." )
-    ] = None
-    color: __.typx.Annotated[
-        bool,
-        __.tyro.conf.arg(
-            aliases = ( "--ansi-sgr", ),
-            help = "Enable colored output and terminal formatting."
-        ),
-    ] = True
-
-    async def provide_stream( 
-        self, exits: __.ctxl.AsyncExitStack
-    ) -> __.typx.TextIO:
-        ''' Provides the target output stream. '''
-        if self.target_file is not None:
-            target_path = self.target_file.resolve( )
-            target_path.parent.mkdir( parents = True, exist_ok = True )
-            return exits.enter_context( target_path.open( 'w' ) )
-        target_stream = self.target_stream or TargetStream.Stderr
-        match target_stream:
-            case TargetStream.Stdout: return __.sys.stdout
-            case TargetStream.Stderr: return __.sys.stderr
-            case _: return __.sys.stderr
-
-    def decide_rich_markdown( self, stream: __.typx.TextIO ) -> bool:
-        ''' Determines whether to use Rich markdown rendering. '''
-        return decide_rich_markdown( stream, self.color )
-
-
-def intercept_errors( ) -> __.cabc.Callable[ 
-    [ __.cabc.Callable[ ..., __.cabc.Awaitable[ None ] ] ], 
-    __.cabc.Callable[ ..., __.cabc.Awaitable[ None ] ] 
+def intercept_errors( ) -> __.cabc.Callable[
+    [ __.cabc.Callable[
+        ..., __.typx.Coroutine[ __.typx.Any, __.typx.Any, None ] ] ],
+    __.cabc.Callable[
+        ..., __.typx.Coroutine[ __.typx.Any, __.typx.Any, None ] ]
 ]:
     ''' Decorator for CLI handlers to intercept exceptions.
-    
+
         Catches Omnierror exceptions and renders them appropriately.
         Other exceptions are logged and formatted simply.
     '''
-    def decorator( 
-        func: __.cabc.Callable[ ..., __.cabc.Awaitable[ None ] ]
-    ) -> __.cabc.Callable[ ..., __.cabc.Awaitable[ None ] ]:
-        @__.funct.wraps( func )
-        async def wrapper( 
+    def decorator(
+        function: __.cabc.Callable[
+            ..., __.typx.Coroutine[ __.typx.Any, __.typx.Any, None ] ]
+    ) -> __.cabc.Callable[
+        ..., __.typx.Coroutine[ __.typx.Any, __.typx.Any, None ]
+    ]:
+        @__.funct.wraps( function )
+        async def wrapper(
             self: __.typx.Any,
             auxdata: _state.Globals,
-            display: DisplayOptions,
             *posargs: __.typx.Any,
             **nomargs: __.typx.Any,
         ) -> None:
-            stream = await display.provide_stream( auxdata.exits )
-            try:
-                return await func( 
-                    self, auxdata, display, *posargs, **nomargs )
+            if not isinstance( # pragma: no cover
+                auxdata, _state.Globals
+            ): raise _exceptions.ContextInvalidity
+            stream = await auxdata.display.provide_stream( auxdata.exits )
+            try: return await function( self, auxdata, *posargs, **nomargs )
             except _exceptions.Omnierror as exc:
-                match display.format:
+                match auxdata.display.format:
                     case _interfaces.DisplayFormat.JSON:
                         serialized = dict( exc.render_as_json( ) )
                         error_message = __.json.dumps( serialized, indent = 2 )
@@ -119,8 +76,8 @@ def intercept_errors( ) -> __.cabc.Callable[
                 print( error_message, file = stream )
                 raise SystemExit( 1 ) from None
             except Exception as exc:
-                _scribe.error( f"{func.__name__} failed: %s", exc )
-                match display.format:
+                _scribe.error( f"{function.__name__} failed: %s", exc )
+                match auxdata.display.format:
                     case _interfaces.DisplayFormat.JSON:
                         error_data = {
                             "type": "unexpected_error",
@@ -166,71 +123,13 @@ TransportArgument: __.typx.TypeAlias = __.typx.Annotated[
 
 
 _search_behaviors_default = _interfaces.SearchBehaviors( )
-_filters_default = __.immut.Dictionary[ str, __.typx.Any ]( )
 
 _MARKDOWN_OBJECT_LIMIT = 10
 _MARKDOWN_CONTENT_LIMIT = 200
 
 
-def decide_rich_markdown( 
-    stream: __.typx.TextIO, colorize: bool 
-) -> bool:
-    ''' Determines whether to use Rich markdown rendering. '''
-    return (
-        colorize
-        and stream.isatty( ) 
-        and not __.os.environ.get( 'NO_COLOR' )
-    )
-
-
-async def _render_and_print_result(
-    result: _results.ResultBase,
-    display: DisplayOptions,
-    exits: __.ctxl.AsyncExitStack,
-    **nomargs: __.typx.Any
-) -> None:
-    ''' Centralizes result rendering logic with Rich formatting support. '''
-    stream = await display.provide_stream( exits )
-    match display.format:
-        case _interfaces.DisplayFormat.JSON:
-            nomargs_filtered = {
-                key: value for key, value in nomargs.items()
-                if key in [ 'lines_max', 'reveal_internals' ]
-            }
-            serialized = dict( result.render_as_json( **nomargs_filtered ) )
-            output = __.json.dumps( serialized, indent = 2 )
-            print( output, file = stream )
-        case _interfaces.DisplayFormat.Markdown:
-            lines = result.render_as_markdown( **nomargs )
-            if display.decide_rich_markdown( stream ):
-                from rich.console import Console
-                from rich.markdown import Markdown
-                console = Console( file = stream, force_terminal = True )
-                markdown_obj = Markdown( '\n'.join( lines ) )
-                console.print( markdown_obj )
-            else:
-                output = '\n'.join( lines )
-                print( output, file = stream )
-
-
-class _CliCommand(
-    __.immut.DataclassProtocol, __.typx.Protocol,
-    decorators = ( __.typx.runtime_checkable, ),
-):
-    ''' CLI command. '''
-
-    @__.abc.abstractmethod
-    def __call__(
-        self,
-        auxdata: _state.Globals,
-        display: DisplayOptions,
-    ) -> __.cabc.Awaitable[ None ]:
-        ''' Executes command with global state. '''
-        raise NotImplementedError
-
-
 class DetectCommand(
-    _CliCommand, decorators = ( __.standard_tyro_class, ),
+    _appcore_cli.Command, decorators = ( __.standard_tyro_class, )
 ):
     ''' Detect which processors can handle a documentation source. '''
 
@@ -245,11 +144,9 @@ class DetectCommand(
     ] = None
 
     @intercept_errors( )
-    async def __call__(
-        self,
-        auxdata: _state.Globals,
-        display: DisplayOptions,
-    ) -> None:
+    async def execute( self, auxdata: __.Globals ) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
+        if not isinstance( auxdata, _state.Globals ):  # pragma: no cover
+            raise _exceptions.ContextInvalidity
         processor_name = (
             self.processor_name if self.processor_name is not None
             else __.absent )
@@ -257,16 +154,16 @@ class DetectCommand(
             auxdata, self.location, self.genus,
             processor_name = processor_name )
         await _render_and_print_result(
-            result, display, auxdata.exits, reveal_internals = False )
+            result, auxdata.display, auxdata.exits, reveal_internals = False )
 
 
 class QueryInventoryCommand(
-    _CliCommand, decorators = ( __.standard_tyro_class, ),
+    _appcore_cli.Command, decorators = ( __.standard_tyro_class, )
 ):
     ''' Explores documentation structure and object inventory.
 
         Use before content searches to:
-        
+
         - Discover available topics and object types
         - Identify relevant search terms and filters
         - Understand documentation scope and organization
@@ -275,9 +172,9 @@ class QueryInventoryCommand(
     location: LocationArgument
     term: TermArgument
     filters: __.typx.Annotated[
-        __.cabc.Mapping[ str, __.typx.Any ],
+        __.cabc.Sequence[ str ],
         __.tyro.conf.arg( prefix_name = False ),
-    ] = __.dcls.field( default_factory = lambda: dict( _filters_default ) )
+    ] = ( )
     search_behaviors: __.typx.Annotated[
         _interfaces.SearchBehaviors,
         __.tyro.conf.arg( prefix_name = False ),
@@ -292,38 +189,36 @@ class QueryInventoryCommand(
         __.tyro.conf.arg(
             help = (
                 "Show internal implementation details (domain, priority, "
-                "project, version)." )
-        ),
+                "project, version)." ) ),
     ] = False
+
     @intercept_errors( )
-    async def __call__(
-        self,
-        auxdata: _state.Globals,
-        display: DisplayOptions,
-    ) -> None:
+    async def execute( self, auxdata: __.Globals ) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
+        if not isinstance( auxdata, _state.Globals ):  # pragma: no cover
+            raise _exceptions.ContextInvalidity
         result = await _functions.query_inventory(
             auxdata,
             self.location,
             self.term,
             search_behaviors = self.search_behaviors,
-            filters = self.filters,
+            filters = _filters_to_dictionary( self.filters ),
             results_max = self.results_max )
         await _render_and_print_result(
-            result, display, auxdata.exits,
+            result, auxdata.display, auxdata.exits,
             reveal_internals = self.reveal_internals )
 
 
 class QueryContentCommand(
-    _CliCommand, decorators = ( __.standard_tyro_class, ),
+    _appcore_cli.Command, decorators = ( __.standard_tyro_class, )
 ):
     ''' Searches documentation with flexible preview/extraction modes.
 
         Workflows:
-        
+
         - Sample: Use --lines-max 5-10 to preview results and identify relevant
           content
         - Extract: Use --content-id from sample results to retrieve full
-          content  
+          content
         - Direct: Search with higher --lines-max for immediate full results
     '''
 
@@ -335,9 +230,9 @@ class QueryContentCommand(
     ] = __.dcls.field(
         default_factory = lambda: _interfaces.SearchBehaviors( ) )
     filters: __.typx.Annotated[
-        __.cabc.Mapping[ str, __.typx.Any ],
+        __.cabc.Sequence[ str ],
         __.tyro.conf.arg( prefix_name = False ),
-    ] = __.dcls.field( default_factory = lambda: dict( _filters_default ) )
+    ] = ( )
     results_max: ResultsMax = 10
     lines_max: __.typx.Annotated[
         int,
@@ -359,34 +254,29 @@ class QueryContentCommand(
         __.tyro.conf.arg(
             help = (
                 "Show internal implementation details (domain, priority, "
-                "project, version)." )
-        ),
+                "project, version)." ) ),
     ] = False
     @intercept_errors( )
-    async def __call__(
-        self,
-        auxdata: _state.Globals,
-        display: DisplayOptions,
-    ) -> None:
+    async def execute( self, auxdata: __.Globals ) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
+        if not isinstance( auxdata, _state.Globals ):  # pragma: no cover
+            raise _exceptions.ContextInvalidity
         content_id_ = (
             __.absent if self.content_id is None else self.content_id )
         result = await _functions.query_content(
             auxdata, self.location, self.term,
             search_behaviors = self.search_behaviors,
-            filters = self.filters,
+            filters = _filters_to_dictionary( self.filters ),
             content_id = content_id_,
             results_max = self.results_max,
             lines_max = self.lines_max )
         await _render_and_print_result(
-            result, display, auxdata.exits,
+            result, auxdata.display, auxdata.exits,
             reveal_internals = self.reveal_internals,
             lines_max = self.lines_max )
 
 
-
-
 class SurveyProcessorsCommand(
-    _CliCommand, decorators = ( __.standard_tyro_class, ),
+    _appcore_cli.Command, decorators = ( __.standard_tyro_class, )
 ):
     ''' List processors for specified genus and their capabilities. '''
 
@@ -400,21 +290,18 @@ class SurveyProcessorsCommand(
     ] = None
 
     @intercept_errors( )
-    async def __call__(
-        self,
-        auxdata: _state.Globals,
-        display: DisplayOptions,
-    ) -> None:
+    async def execute( self, auxdata: __.Globals ) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
+        if not isinstance( auxdata, _state.Globals ):  # pragma: no cover
+            raise _exceptions.ContextInvalidity
         nomargs: __.NominativeArguments = { 'genus': self.genus }
         if self.name is not None: nomargs[ 'name' ] = self.name
         result = await _functions.survey_processors( auxdata, **nomargs )
         await _render_and_print_result(
-            result, display, auxdata.exits, reveal_internals = False )
-
+            result, auxdata.display, auxdata.exits, reveal_internals = False )
 
 
 class ServeCommand(
-    _CliCommand, decorators = ( __.standard_tyro_class, ),
+    _appcore_cli.Command, decorators = ( __.standard_tyro_class, )
 ):
     ''' Starts MCP server. '''
 
@@ -428,11 +315,9 @@ class ServeCommand(
     serve_function: __.typx.Callable[
         [ _state.Globals ], __.cabc.Awaitable[ None ]
     ] = _server.serve
-    async def __call__(
-        self,
-        auxdata: _state.Globals,
-        display: DisplayOptions,
-    ) -> None:
+    async def execute( self, auxdata: __.Globals ) -> None:
+        if not isinstance( auxdata, _state.Globals ):  # pragma: no cover
+            raise _exceptions.ContextInvalidity
         nomargs: __.NominativeArguments = { }
         if self.port is not None: nomargs[ 'port' ] = self.port
         if self.transport is not None: nomargs[ 'transport' ] = self.transport
@@ -440,11 +325,11 @@ class ServeCommand(
         await self.serve_function( auxdata, **nomargs )
 
 
-class Cli( __.immut.DataclassObject, decorators = ( __.simple_tyro_class, ) ):
+class Cli( _appcore_cli.Application ):
     ''' MCP server CLI. '''
 
-    display: DisplayOptions = __.dcls.field( 
-        default_factory = lambda: DisplayOptions( ) )
+    display: _state.DisplayOptions = __.dcls.field(
+        default_factory = _state.DisplayOptions )
     command: __.typx.Union[
         __.typx.Annotated[
             DetectCommand,
@@ -468,31 +353,32 @@ class Cli( __.immut.DataclassObject, decorators = ( __.simple_tyro_class, ) ):
             __.tyro.conf.subcommand( 'serve', prefix_name = False ),
         ],
     ]
-    logfile: __.typx.Annotated[
-        __.typx.Optional[ str ],
-        __.ddoc.Doc( ''' Path to log capture file. ''' ),
-    ] = None
 
-    async def __call__( self ):
-        ''' Invokes command after library preparation. '''
-        nomargs = self.prepare_invocation_args( )
-        async with __.ctxl.AsyncExitStack( ) as exits:
-            auxdata = await _prepare( exits = exits, **nomargs )
-            from . import xtnsmgr
-            await xtnsmgr.register_processors( auxdata )
-            await self.command(
-                auxdata = auxdata,
-                display = self.display )
+    async def execute( self, auxdata: __.Globals ) -> None:
+        ''' Executes command with extension registration. '''
+        if not isinstance( auxdata, _state.Globals ):  # pragma: no cover
+            raise _exceptions.ContextInvalidity
+        from . import xtnsmgr
+        await xtnsmgr.register_processors( auxdata )
+        await self.command( auxdata )
 
-    def prepare_invocation_args(
-        self,
-    ) -> __.cabc.Mapping[ str, __.typx.Any ]:
-        ''' Prepares arguments for initial configuration. '''
-        args: dict[ str, __.typx.Any ] = dict(
-            environment = True,
-            logfile = self.logfile,
-        )
-        return args
+    async def prepare(
+        self, exits: __.ctxl.AsyncExitStack
+    ) -> _state.Globals:
+        ''' Prepares librovore-specific global state with cache proxies. '''
+        auxdata_base = await super( ).prepare( exits )
+        content_cache, probe_cache, robots_cache = _cacheproxy.prepare(
+            auxdata_base )
+        nomargs = {
+            field.name: getattr( auxdata_base, field.name )
+            for field in __.dcls.fields( auxdata_base )
+            if not field.name.startswith( '_' ) }
+        return _state.Globals(
+            display = self.display,
+            content_cache = content_cache,
+            probe_cache = probe_cache,
+            robots_cache = robots_cache,
+            **nomargs )
 
 
 def execute( ) -> None:
@@ -513,53 +399,37 @@ def execute( ) -> None:
             raise SystemExit( 1 ) from None
 
 
+def _filters_to_dictionary(
+    filters: __.cabc.Sequence[ str ]
+) -> dict[ str, str ]:
+    return dict( map( lambda s: s.split( '=' ), filters ) )
 
 
-
-
-
-
-
-
-
-
-async def _prepare(
-    environment: __.typx.Annotated[
-        bool,
-        __.ddoc.Doc( ''' Whether to configure environment. ''' )
-    ],
-    exits: __.typx.Annotated[
-        __.ctxl.AsyncExitStack,
-        __.ddoc.Doc( ''' Exit stack for resource management. ''' )
-    ],
-    logfile: __.typx.Annotated[
-        __.typx.Optional[ str ],
-        __.ddoc.Doc( ''' Path to log capture file. ''' )
-    ],
-) -> __.typx.Annotated[
-    _state.Globals,
-    __.ddoc.Doc( ''' Configured global state. ''' )
-]:
-    ''' Configures application based on arguments. '''
-    nomargs: __.NominativeArguments = {
-        'environment': environment,
-        'exits': exits,
-    }
-    if logfile:
-        logfile_p = __.Path( logfile ).resolve( )
-        ( logfile_p.parent ).mkdir( parents = True, exist_ok = True )
-        logstream = exits.enter_context( logfile_p.open( 'w' ) )
-        inscription = __.appcore.inscription.Control(
-            level = 'debug', target = logstream )
-        nomargs[ 'inscription' ] = inscription
-    auxdata = await __.appcore.prepare( **nomargs )
-    content_cache, probe_cache, robots_cache = _cacheproxy.prepare( auxdata )
-    return _state.Globals(
-        application = auxdata.application,
-        configuration = auxdata.configuration,
-        directories = auxdata.directories,
-        distribution = auxdata.distribution,
-        exits = auxdata.exits,
-        content_cache = content_cache,
-        probe_cache = probe_cache,
-        robots_cache = robots_cache )
+async def _render_and_print_result(
+    result: _results.ResultBase,
+    display: _state.DisplayOptions,
+    exits: __.ctxl.AsyncExitStack,
+    **nomargs: __.typx.Any
+) -> None:
+    ''' Centralizes result rendering logic with Rich formatting support. '''
+    stream = await display.provide_stream( exits )
+    match display.format:
+        case _interfaces.DisplayFormat.JSON:
+            nomargs_filtered = {
+                key: value for key, value in nomargs.items()
+                if key in [ 'lines_max', 'reveal_internals' ]
+            }
+            serialized = dict( result.render_as_json( **nomargs_filtered ) )
+            output = __.json.dumps( serialized, indent = 2 )
+            print( output, file = stream )
+        case _interfaces.DisplayFormat.Markdown:
+            lines = result.render_as_markdown( **nomargs )
+            if display.determine_colorization( stream ):
+                from rich.console import Console
+                from rich.markdown import Markdown
+                console = Console( file = stream, force_terminal = True )
+                markdown_obj = Markdown( '\n'.join( lines ) )
+                console.print( markdown_obj )
+            else:
+                output = '\n'.join( lines )
+                print( output, file = stream )

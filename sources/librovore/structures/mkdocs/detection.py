@@ -39,6 +39,30 @@ class MkDocsDetection( __.StructureDetection ):
     theme: __.typx.Optional[ str ] = None
 
     @classmethod
+    def get_capabilities( cls ) -> __.StructureProcessorCapabilities:
+        ''' MkDocs processor capabilities based on universal pattern
+            analysis. '''
+        return __.StructureProcessorCapabilities(
+            supported_inventory_types = frozenset( {
+                'mkdocs',
+                'sphinx'
+            } ),
+            content_extraction_features = frozenset( {
+                __.ContentExtractionFeatures.Signatures,
+                __.ContentExtractionFeatures.Descriptions,
+                __.ContentExtractionFeatures.Arguments,
+                __.ContentExtractionFeatures.Returns,
+                __.ContentExtractionFeatures.Attributes,
+                __.ContentExtractionFeatures.CodeExamples,
+                __.ContentExtractionFeatures.Navigation
+            } ),
+            confidence_by_inventory_type = __.immut.Dictionary( {
+                'mkdocs': 0.8,
+                'sphinx': 0.7  # Lower confidence (mkdocs primary)
+            } )
+        )
+
+    @classmethod
     async def from_source(
         selfclass,
         auxdata: __.ApplicationGlobals,

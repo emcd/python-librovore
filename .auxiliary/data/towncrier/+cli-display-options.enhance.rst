@@ -1,1 +1,0 @@
-CLI: Consolidate display options into unified dataclass with mutual exclusion validation for better user experience.

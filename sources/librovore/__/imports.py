@@ -52,12 +52,15 @@ import                      warnings
 from logging import getLogger as acquire_scribe
 from pathlib import Path
 
+
 import accretive as         accret
 import                      appcore
+import                      bs4
 import dynadoc as           ddoc
 import detextive as         detext
 import exceptiongroup as    excg
 import frigid as            immut
+import                      markdownify
 import typing_extensions as typx
 # --- BEGIN: Injected by Copier ---
 import tyro

@@ -352,6 +352,49 @@ class ProcessorInvalidity( Omnierror, TypeError ):
         super( ).__init__( message )
 
 
+class RobotsTxtAccessFailure( Omnierror, RuntimeError ):
+    ''' Robots.txt file access failure (network issue, not policy). '''
+
+    def __init__( self, domain: str, cause: BaseException ):
+        message = (
+            f"Failed to access robots.txt at '{domain}' due to network issue: "
+            f"{cause}" )
+        self.domain = domain
+        self.cause = cause
+        super( ).__init__( message )
+
+    def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Renders robots.txt access failure as JSON-compatible dict. '''
+        return __.immut.Dictionary[
+            str, __.typx.Any
+        ](
+            type = 'robots_txt_access_failure',
+            title = 'Robots.txt Access Failure',
+            message = str( self ),
+            domain = self.domain,
+            cause = str( self.cause ),
+            suggestion = (
+                'This is likely a temporary network issue or server '
+                'configuration problem. The site content may still be '
+                'accessible.' ),
+        )
+
+    def render_as_markdown(
+        self, /, *,
+        reveal_internals: bool = True,
+    ) -> tuple[ str, ... ]:
+        ''' Renders robots.txt access failure as Markdown lines. '''
+        lines = [ "## Error: Robots.txt Access Failure" ]
+        lines.append( f"**Message:** {self}" )
+        lines.append(
+            "**Suggestion:** This is likely a temporary network issue or "
+            "server configuration problem. The site content may still be "
+            "accessible." )
+        if reveal_internals:
+            lines.append( f"**Domain:** {self.domain}" )
+            lines.append( f"**Cause:** {self.cause}" )
+            lines.append( "**Error Type:** robots_txt_access_failure" )
+        return tuple( lines )
 
 
 class StructureIncompatibility( Omnierror, ValueError ):
@@ -545,3 +588,9 @@ class UrlImpermissibility( Omnierror, PermissionError ):
         self.url = url
         self.user_agent = user_agent
         super( ).__init__( message )
+
+
+class ContextInvalidity( Omnierror, TypeError ):
+    ''' Invalid context type provided to operation. '''
+
+

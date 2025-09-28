@@ -27,6 +27,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 import librovore.cli as module
+import librovore.state as state_module
 
 # from .fixtures import run_cli_command, get_test_inventory_path
 
@@ -41,9 +42,13 @@ class MockDisplayOptions:
         return self.stream
 
 
-def create_test_auxdata( ):
+def create_test_auxdata( display_options = None ):
     ''' Create mock auxdata for testing. '''
-    return Mock( )
+    if display_options is None:
+        display_options = MockDisplayOptions( )
+    auxdata = Mock( spec = state_module.Globals )
+    auxdata.display = display_options
+    return auxdata
 
 
 # @pytest.mark.asyncio
@@ -70,12 +75,12 @@ def create_test_auxdata( ):
 async def test_070_serve_command_unit( ):
     ''' ServeCommand processes arguments correctly. '''
     display = MockDisplayOptions( )
-    auxdata = create_test_auxdata( )
+    auxdata = create_test_auxdata( display )
     mock_serve = AsyncMock( )
     cmd = module.ServeCommand(
         port = 8080, transport = 'stdio', serve_function = mock_serve
     )
-    await cmd( auxdata, display )
+    await cmd( auxdata )
     mock_serve.assert_called_once_with(
         auxdata, port = 8080, transport = 'stdio', extra_functions = False )
 
@@ -84,10 +89,10 @@ async def test_070_serve_command_unit( ):
 async def test_080_serve_command_defaults( ):
     ''' ServeCommand works with default arguments. '''
     display = MockDisplayOptions( )
-    auxdata = create_test_auxdata( )
+    auxdata = create_test_auxdata( display )
     mock_serve = AsyncMock( )
     cmd = module.ServeCommand( serve_function = mock_serve )
-    await cmd( auxdata, display )
+    await cmd( auxdata )
     mock_serve.assert_called_once_with( auxdata, extra_functions = False )
 
 
@@ -95,26 +100,18 @@ async def test_080_serve_command_defaults( ):
 async def test_085_serve_command_extra_functions( ):
     ''' ServeCommand passes extra_functions flag correctly. '''
     display = MockDisplayOptions( )
-    auxdata = create_test_auxdata( )
+    auxdata = create_test_auxdata( display )
     mock_serve = AsyncMock( )
     cmd = module.ServeCommand(
         extra_functions = True, serve_function = mock_serve )
-    await cmd( auxdata, display )
+    await cmd( auxdata )
     mock_serve.assert_called_once_with( auxdata, extra_functions = True )
 
 
-def test_090_cli_prepare_invocation_args( ):
-    ''' CLI prepare_invocation_args returns correct arguments. '''
-    mock_display = Mock( )
-    mock_cmd = Mock( )
-    cli_obj = module.Cli(
-        display = mock_display,
-        command = mock_cmd,
-        logfile = '/test/log.txt' )
-    args = cli_obj.prepare_invocation_args( )
-    assert args[ 'environment' ] is True
-    assert args[ 'logfile' ] == '/test/log.txt'
-
+# def test_090_cli_prepare_invocation_args( ):
+#     ''' REMOVED: Method removed in framework migration. '''
+#     # This test is obsolete since prepare_invocation_args() was removed
+#     # in Phase 2 of CLI framework migration. Framework handles prep now.
 
 # def test_100_cli_prepare_invocation_args_no_logfile( ):
 #     ''' CLI prepare_invocation_args works without logfile. '''
