@@ -141,13 +141,17 @@ class RobotsCache( Cache ):
         robots_ttl = cache_config.get( 'robots-ttl', 3600.0 )
         return cls( ttl = robots_ttl )
 
-    async def access( self, domain: str ) -> __.Absential[ _RobotFileParser ]:
+    async def access(
+        self, client: _httpx.AsyncClient, domain: str, # TODO: retriever
+    ) -> _RobotFileParser:
         ''' Retrieves cached robots.txt parser if valid. '''
-        if domain not in self._cache: return __.absent
+        if domain not in self._cache:
+            await _retrieve_robots_txt( client, self, domain )
         entry = self._cache[ domain ]
         if entry.invalid:
             self._remove( domain )
-            return __.absent
+            await _retrieve_robots_txt( client, self, domain )
+            entry = self._cache[ domain ]
         self._record_access( domain )
         return entry.response.extract( )
 
@@ -563,25 +567,17 @@ async def _apply_request_delay(
     domain = _extract_domain( url )
     delay = cache.calculate_delay_remainder( domain )
     if delay > 0: await cache.delay_function( delay )
-    try: parser = await cache.access( domain )
+    try: parser = await cache.access( client, domain )
     except _exceptions.RobotsTxtAccessFailure as exc:
         _scribe.debug(
             f"robots.txt access failed for {domain}: {exc.cause}. "
             f"Skipping crawl delay application." )
         return  # Skip crawl delay when robots.txt unavailable
-    if __.is_absent( parser ):
-        try: parser = await _retrieve_robots_txt( client, cache, domain )
-        except _exceptions.RobotsTxtAccessFailure as exc:
-            _scribe.debug(
-                f"robots.txt access failed for {domain}: {exc.cause}. "
-                f"Skipping crawl delay application." )
-            return  # Skip crawl delay when robots.txt unavailable
-    if not __.is_absent( parser ):
-        try: delay = parser.crawl_delay( cache.user_agent )
-        except Exception as exc:
-            _scribe.debug( f"Failed to get crawl delay for {domain}: {exc}" )
-        else:
-            if delay: cache.assign_delay( domain, float( delay ) )
+    try: delay = parser.crawl_delay( cache.user_agent )
+    except Exception as exc:
+        _scribe.debug( f"Failed to get crawl delay for {domain}: {exc}" )
+    else:
+        if delay: cache.assign_delay( domain, float( delay ) )
 
 
 async def _cache_robots_txt_error(
@@ -613,20 +609,12 @@ async def _check_robots_txt(
     if url.scheme not in ( 'http', 'https' ): return True
     url_s = url.geturl( )
     domain = _extract_domain( url )
-    try: parser = await cache.access( domain )
+    try: parser = await cache.access( client, domain )
     except _exceptions.RobotsTxtAccessFailure as exc:
         _scribe.warning(
             f"robots.txt access failed for {domain}: {exc.cause}. "
             f"Proceeding without robots.txt validation." )
         return True  # Allow access when robots.txt unavailable
-    if __.is_absent( parser ):
-        try: parser = await _retrieve_robots_txt( client, cache, domain )
-        except _exceptions.RobotsTxtAccessFailure as exc:
-            _scribe.warning(
-                f"robots.txt access failed for {domain}: {exc.cause}. "
-                f"Proceeding without robots.txt validation." )
-            return True  # Allow access when robots.txt unavailable
-    if __.is_absent( parser ): return True
     try: return parser.can_fetch( cache.user_agent, url_s )
     except Exception as exc:
         _scribe.debug( f"robots.txt check failed for {url_s}: {exc}" )

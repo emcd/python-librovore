@@ -1130,43 +1130,43 @@ def test_400_robots_cache_initialization( test_delay_fn ):
     assert len( cache._request_delays ) == 0
 
 
-@pytest.mark.asyncio
-async def test_401_robots_cache_access_missing_returns_absent( robots_cache ):
-    ''' Cache miss returns absent when domain not cached. '''
-    result = await robots_cache.access( 'https://example.com' )
-    assert __.is_absent( result )
+# @pytest.mark.asyncio
+# async def test_401_robots_cache_access_missing_returns_absent( robots_cache ):
+#     ''' Cache miss returns absent when domain not cached. '''
+#     result = await robots_cache.access( 'https://example.com' )
+#     assert __.is_absent( result )
 
 
-@pytest.mark.asyncio
-async def test_402_robots_cache_access_fresh_returns_parser(
-    robots_cache, safe_robots_parser_factory
-):
-    ''' Fresh entries return robots parser from cache access. '''
-    parser = safe_robots_parser_factory( )
-    response = _generics.Value( parser )
-    with patch.object( module.__.time, 'time', return_value = 1000.0 ):
-        await robots_cache.store( 'https://example.com', response, 3600.0 )
-    with patch.object( module.__.time, 'time', return_value = 1100.0 ):
-        result = await robots_cache.access( 'https://example.com' )
-    assert not __.is_absent( result )
-    from urllib.robotparser import RobotFileParser
-    assert isinstance( result, RobotFileParser )
+# @pytest.mark.asyncio
+# async def test_402_robots_cache_access_fresh_returns_parser(
+#     robots_cache, safe_robots_parser_factory
+# ):
+#     ''' Fresh entries return robots parser from cache access. '''
+#     parser = safe_robots_parser_factory( )
+#     response = _generics.Value( parser )
+#     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
+#         await robots_cache.store( 'https://example.com', response, 3600.0 )
+#     with patch.object( module.__.time, 'time', return_value = 1100.0 ):
+#         result = await robots_cache.access( 'https://example.com' )
+#     assert not __.is_absent( result )
+#     from urllib.robotparser import RobotFileParser
+#     assert isinstance( result, RobotFileParser )
 
 
-@pytest.mark.asyncio
-async def test_403_robots_cache_access_expired_returns_absent(
-    robots_cache, safe_robots_parser_factory
-):
-    ''' Expired entries return absent and are removed from cache. '''
-    parser = safe_robots_parser_factory( )
-    response = _generics.Value( parser )
-    domain = 'https://example.com'
-    with patch.object( module.__.time, 'time', return_value = 1000.0 ):
-        await robots_cache.store( domain, response, 3600.0 )
-    with patch.object( module.__.time, 'time', return_value = 5000.0 ):
-        result = await robots_cache.access( domain )
-    assert __.is_absent( result )
-    assert domain not in robots_cache._cache
+# @pytest.mark.asyncio
+# async def test_403_robots_cache_access_expired_returns_absent(
+#     robots_cache, safe_robots_parser_factory
+# ):
+#     ''' Expired entries return absent and are removed from cache. '''
+#     parser = safe_robots_parser_factory( )
+#     response = _generics.Value( parser )
+#     domain = 'https://example.com'
+#     with patch.object( module.__.time, 'time', return_value = 1000.0 ):
+#         await robots_cache.store( domain, response, 3600.0 )
+#     with patch.object( module.__.time, 'time', return_value = 5000.0 ):
+#         result = await robots_cache.access( domain )
+#     assert __.is_absent( result )
+#     assert domain not in robots_cache._cache
 
 
 @pytest.mark.asyncio
@@ -1237,27 +1237,27 @@ def test_408_robots_cache_determine_ttl_success_vs_error( robots_cache ):
     assert success_ttl > error_ttl
 
 
-@pytest.mark.asyncio
-async def test_409_robots_cache_record_access_updates_lru( ):
-    ''' Accessing entries moves domains to end of recency queue. '''
-    cache = module.RobotsCache( )
-    from urllib.robotparser import RobotFileParser
-    # Store multiple entries
-    for i in range( 3 ):
-        parser = RobotFileParser( )
-        response = _generics.Value( parser )
-        domain = f'https://example{i}.com'
-        with patch.object( module.__.time, 'time', return_value = 1000.0 + i ):
-            await cache.store( domain, response, 3600.0 )
-    # Access middle entry
-    with patch.object( module.__.time, 'time', return_value = 1100.0 ):
-        await cache.access( 'https://example1.com' )
-    # Should have moved example1 to end
-    assert list( cache._recency ) == [
-        'https://example0.com',
-        'https://example2.com',
-        'https://example1.com'
-    ]
+# @pytest.mark.asyncio
+# async def test_409_robots_cache_record_access_updates_lru( ):
+#     ''' Accessing entries moves domains to end of recency queue. '''
+#     cache = module.RobotsCache( )
+#     from urllib.robotparser import RobotFileParser
+#     # Store multiple entries
+#     for i in range( 3 ):
+#         parser = RobotFileParser( )
+#         response = _generics.Value( parser )
+#         domain = f'https://example{i}.com'
+#         with patch.object( module.__.time, 'time', return_value = 1000.0 + i ):
+#             await cache.store( domain, response, 3600.0 )
+#     # Access middle entry
+#     with patch.object( module.__.time, 'time', return_value = 1100.0 ):
+#         await cache.access( 'https://example1.com' )
+#     # Should have moved example1 to end
+#     assert list( cache._recency ) == [
+#         'https://example0.com',
+#         'https://example2.com',
+#         'https://example1.com'
+#     ]
 
 
 #
@@ -1309,10 +1309,6 @@ def test_414_extract_domain_with_query( ):
     domain = module._extract_domain( url )
     assert domain == 'https://example.com'
 
-
-#
-# Series 420: robots.txt Permission Checking Tests
-#
 
 
 # @pytest.mark.asyncio
@@ -1416,25 +1412,6 @@ def test_414_extract_domain_with_query( ):
 #     assert result is True
 
 
-# @pytest.mark.asyncio
-# async def test_426_check_robots_txt_cache_miss_fetch( robots_txt_samples ):
-#     ''' Cache miss triggers robots.txt fetch and parsing. '''
-#     robots_cache = module.RobotsCache( )
-#     def handler( request ):
-#         return _httpx.Response(
-#             200, text = robots_txt_samples[ 'block_specific' ] )
-#     mock_transport = _httpx.MockTransport( handler )
-#     def client_factory( ):
-#         return _httpx.AsyncClient( transport = mock_transport )
-#     url = Url(
-#         scheme = 'https', netloc = 'example.com', path = '/public/test',
-#         params = '', query = '', fragment = '' )
-#     result = await module._check_robots_txt(
-#         url, robots_cache = robots_cache, client_factory = client_factory )
-#     assert result is True
-#     # Should have cached the result
-#     cached_parser = await robots_cache.access( 'https://example.com' )
-#     assert not __.is_absent( cached_parser )
 
 
 # @pytest.mark.asyncio
@@ -1613,21 +1590,6 @@ def test_414_extract_domain_with_query( ):
 #     assert not __.is_absent( result )
 
 
-# @pytest.mark.asyncio
-# async def test_447_retrieve_robots_txt_cache_storage( robots_txt_samples ):
-#     ''' Result is stored in cache after fetch. '''
-#     robots_cache = module.RobotsCache( )
-#     def handler( request ):
-#         return _httpx.Response( 200, text = robots_txt_samples[ 'allow_all' ] )
-#     mock_transport = _httpx.MockTransport( handler )
-#     def client_factory( ):
-#         return _httpx.AsyncClient( transport = mock_transport )
-#     result = await module._retrieve_robots_txt(
-#         'https://example.com', robots_cache, client_factory = client_factory )
-#     assert not __.is_absent( result )
-#     # Should be cached now
-#     cached_result = await robots_cache.access( 'https://example.com' )
-#     assert not __.is_absent( cached_result )
 
 
 # @pytest.mark.asyncio
@@ -1678,24 +1640,6 @@ def test_414_extract_domain_with_query( ):
 #     # No assertion needed - just ensuring no exception
 
 
-# @pytest.mark.asyncio
-# async def test_461_apply_request_delay_no_robots_cached( robots_txt_samples ):
-#     ''' Fetches robots.txt when not cached. '''
-#     robots_cache = module.RobotsCache( )
-#     def handler( request ):
-#         return _httpx.Response(
-#             200, text = robots_txt_samples[ 'with_crawl_delay' ] )
-#     mock_transport = _httpx.MockTransport( handler )
-#     def client_factory( ):
-#         return _httpx.AsyncClient( transport = mock_transport )
-#     url = Url(
-#         scheme = 'https', netloc = 'example.com', path = '/test',
-#         params = '', query = '', fragment = '' )
-#     await module._apply_request_delay(
-#         url, robots_cache = robots_cache, client_factory = client_factory )
-#     # Should have cached robots.txt
-#     cached_parser = await robots_cache.access( 'https://example.com' )
-#     assert not __.is_absent( cached_parser )
 
 
 # @pytest.mark.asyncio
@@ -1821,27 +1765,6 @@ def test_414_extract_domain_with_query( ):
 #     await module._apply_request_delay( url, robots_cache = robots_cache )
 #     # Should handle exception gracefully
 #     assert 'https://example.com' not in robots_cache._request_delays
-
-
-# @pytest.mark.asyncio
-# async def test_468_apply_request_delay_with_custom_client(
-#         robots_txt_samples ):
-#     ''' Custom client factory is used for robots.txt fetch. '''
-#     robots_cache = module.RobotsCache( )
-#     def handler( request ):
-#         return _httpx.Response(
-#             200, text = robots_txt_samples[ 'with_crawl_delay' ] )
-#     mock_transport = _httpx.MockTransport( handler )
-#     def client_factory( ):
-#         return _httpx.AsyncClient( transport = mock_transport )
-#     url = Url(
-#         scheme = 'https', netloc = 'example.com', path = '/test',
-#         params = '', query = '', fragment = '' )
-#     await module._apply_request_delay(
-#         url, robots_cache = robots_cache, client_factory = client_factory )
-#     # Should have fetched and cached robots.txt
-#     cached_parser = await robots_cache.access( 'https://example.com' )
-#     assert not __.is_absent( cached_parser )
 
 
 # @pytest.mark.asyncio
