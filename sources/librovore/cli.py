@@ -184,6 +184,20 @@ class QueryInventoryCommand(
         int,
         __.tyro.conf.arg( help = __.access_doctab( 'results max argument' ) ),
     ] = 5
+    summarize: __.typx.Annotated[
+        bool,
+        __.tyro.conf.arg(
+            help = (
+                "Show distribution summary instead of full object list." ) ),
+    ] = False
+    group_by: __.typx.Annotated[
+        __.cabc.Sequence[ str ],
+        __.tyro.conf.arg(
+            prefix_name = False,
+            help = (
+                "Grouping dimensions for summary. Uses processor's supported "
+                "filters if not specified." ) ),
+    ] = ( )
     reveal_internals: __.typx.Annotated[
         bool,
         __.tyro.conf.arg(
@@ -205,7 +219,9 @@ class QueryInventoryCommand(
             results_max = self.results_max )
         await _render_and_print_result(
             result, auxdata.display, auxdata.exits,
-            reveal_internals = self.reveal_internals )
+            reveal_internals = self.reveal_internals,
+            summarize = self.summarize,
+            group_by = self.group_by )
 
 
 class QueryContentCommand(
@@ -417,7 +433,8 @@ async def _render_and_print_result(
         case _interfaces.DisplayFormat.JSON:
             nomargs_filtered = {
                 key: value for key, value in nomargs.items()
-                if key in [ 'lines_max', 'reveal_internals' ]
+                if key in [
+                    'lines_max', 'reveal_internals', 'summarize', 'group_by' ]
             }
             serialized = dict( result.render_as_json( **nomargs_filtered ) )
             output = __.json.dumps( serialized, indent = 2 )

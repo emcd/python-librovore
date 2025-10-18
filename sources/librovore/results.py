@@ -29,6 +29,7 @@ from . import exceptions as _exceptions
 
 
 _CONTENT_PREVIEW_LIMIT = 100
+_SUMMARY_ITEMS_LIMIT = 20
 
 
 class ResultBase( __.immut.DataclassProtocol, __.typx.Protocol ):
@@ -488,11 +489,17 @@ class InventoryQueryResult( ResultBase ):
     def render_as_json(
         self, /, *,
         reveal_internals: bool = False,
+        summarize: bool = False,
+        group_by: __.cabc.Sequence[ str ] = ( ),
     ) -> __.immut.Dictionary[ str, __.typx.Any ]:
         ''' Renders inventory query result as JSON-compatible dictionary. '''
+        if summarize:
+            return self._render_summary_json( group_by, reveal_internals )
+        results_max = self.search_metadata.results_max
+        displayed_objects = self.objects[ : results_max ]
         objects_json = [
             dict( obj.render_as_json( reveal_internals = reveal_internals ) )
-            for obj in self.objects ]
+            for obj in displayed_objects ]
         locations_json = [
             dict( loc.render_as_json( ) ) for loc in self.inventory_locations ]
         return __.immut.Dictionary[
@@ -511,26 +518,95 @@ class InventoryQueryResult( ResultBase ):
             bool,
             __.ddoc.Doc( "Controls whether internal details are shown." ),
         ] = False,
+        summarize: bool = False,
+        group_by: __.cabc.Sequence[ str ] = ( ),
     ) -> tuple[ str, ... ]:
         ''' Renders inventory query result as Markdown lines for display. '''
+        if summarize:
+            return self._render_summary_markdown( group_by, reveal_internals )
+        results_max = self.search_metadata.results_max
+        displayed_objects = self.objects[ : results_max ]
         lines = [ "# Inventory Query Results" ]
         lines.append( "- **Term:** {term}".format( term = self.term ) )
         if reveal_internals:
             lines.append( "- **Location:** {location}".format(
                 location = self.location ) )
-        lines.append( "- **Results:** {count} of {max}".format(
-            count = self.search_metadata.results_count,
-            max = self.search_metadata.results_max ) )
-        if self.objects:
+        lines.append( "- **Results:** {count} of {total}".format(
+            count = len( displayed_objects ),
+            total = len( self.objects ) ) )
+        if displayed_objects:
             lines.append( "" )
             lines.append( "## Objects" )
-            for index, obj in enumerate( self.objects, 1 ):
+            for index, obj in enumerate( displayed_objects, 1 ):
                 separator = "\n📦 ── Object {} ─────────────────────── 📦\n"
                 lines.append( separator.format( index ) )
                 obj_lines = obj.render_as_markdown(
                     reveal_internals = reveal_internals )
                 lines.extend( obj_lines )
         return tuple( lines )
+
+    def _render_summary_json(
+        self,
+        group_by: __.cabc.Sequence[ str ],
+        reveal_internals: bool,
+    ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Computes and renders summary statistics as JSON. '''
+        distributions = self._compute_distributions( group_by )
+        return __.immut.Dictionary[
+            str, __.typx.Any
+        ](
+            location = self.location,
+            term = self.term,
+            matches_total = len( self.objects ),
+            group_by = list( group_by ),
+            distributions = distributions,
+            search_metadata = dict( self.search_metadata.render_as_json( ) ),
+        )
+
+    def _render_summary_markdown(
+        self,
+        group_by: __.cabc.Sequence[ str ],
+        reveal_internals: bool,
+    ) -> tuple[ str, ... ]:
+        ''' Computes and renders summary statistics as Markdown. '''
+        distributions = self._compute_distributions( group_by )
+        lines = [ "# Inventory Query Summary" ]
+        lines.append( f"- **Term:** {self.term}" )
+        lines.append( f"- **Total matches:** {len( self.objects )}" )
+        if group_by:
+            group_by_formatted = ', '.join( group_by )
+            lines.append( f"- **Grouped by:** {group_by_formatted}" )
+        for dimension in group_by:
+            if dimension in distributions:
+                lines.append( "" )
+                dimension_title = dimension.replace( '_', ' ' ).title( )
+                lines.append( f"### By {dimension_title}" )
+                dist = distributions[ dimension ]
+                total = sum( dist.values( ) )
+                sorted_items = sorted(
+                    dist.items( ), key = lambda x: x[ 1 ], reverse = True )
+                for value, count in sorted_items[ :_SUMMARY_ITEMS_LIMIT ]:
+                    pct = ( count / total * 100 ) if total > 0 else 0
+                    lines.append( f"- `{value}`: {count} ({pct:.1f}%)" )
+                if len( sorted_items ) > _SUMMARY_ITEMS_LIMIT:
+                    remaining = len( sorted_items ) - _SUMMARY_ITEMS_LIMIT
+                    lines.append( f"- ...and {remaining} more" )
+        return tuple( lines )
+
+    def _compute_distributions(
+        self, group_by: __.cabc.Sequence[ str ]
+    ) -> dict[ str, dict[ str, int ] ]:
+        ''' Computes distribution statistics from objects. '''
+        distributions: dict[ str, dict[ str, int ] ] = { }
+        for dimension in group_by:
+            dist: dict[ str, int ] = { }
+            for obj in self.objects:
+                value = obj.specifics.get( dimension )
+                if value is not None:
+                    value_str = str( value )
+                    dist[ value_str ] = dist.get( value_str, 0 ) + 1
+            distributions[ dimension ] = dist
+        return distributions
 
 
 class Detection( __.immut.DataclassObject ):

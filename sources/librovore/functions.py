@@ -184,16 +184,16 @@ async def query_inventory(  # noqa: PLR0913
         auxdata, resolved_location, filters = filters )
     results = _search.filter_by_name(
         objects, term, search_behaviors = search_behaviors )
-    selections = [
-        result.inventory_object for result in results[ : results_max ] ]
+    all_selections = [
+        result.inventory_object for result in results ]
     end_time = __.time.perf_counter( )
     search_time_ms = int( ( end_time - start_time ) * 1000 )
     return _results.InventoryQueryResult(
         location = resolved_location,
         term = term,
-        objects = tuple( selections ),
+        objects = tuple( all_selections ),
         search_metadata = _results.SearchMetadata(
-            results_count = len( selections ),
+            results_count = len( all_selections ),
             results_max = results_max,
             matches_total = len( objects ),
             search_time_ms = search_time_ms ),
