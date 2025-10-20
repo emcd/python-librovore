@@ -302,6 +302,14 @@ class SearchMetadata( __.immut.DataclassObject ):
         __.typx.Optional[ int ],
         __.ddoc.Doc( "Search execution time in milliseconds." ),
     ] = None
+    filters_applied: __.typx.Annotated[
+        tuple[ str, ... ],
+        __.ddoc.Doc( "Filter names that were successfully applied." ),
+    ] = ( )
+    filters_ignored: __.typx.Annotated[
+        tuple[ str, ... ],
+        __.ddoc.Doc( "Filter names that were not supported by processor." ),
+    ] = ( )
 
     @property
     def results_truncated( self ) -> bool:
@@ -318,6 +326,8 @@ class SearchMetadata( __.immut.DataclassObject ):
             matches_total = self.matches_total,
             search_time_ms = self.search_time_ms,
             results_truncated = self.results_truncated,
+            filters_applied = list( self.filters_applied ),
+            filters_ignored = list( self.filters_ignored ),
         )
 
 
@@ -534,6 +544,25 @@ class InventoryQueryResult( ResultBase ):
         lines.append( "- **Results:** {count} of {total}".format(
             count = len( displayed_objects ),
             total = len( self.objects ) ) )
+        if self.search_metadata.filters_ignored:
+            lines.append( "" )
+            lines.append( "⚠️  **Warning: Unsupported Filters**" )
+            ignored_list = ', '.join( self.search_metadata.filters_ignored )
+            message = (
+                "The following filters are not supported by this "
+                "processor and were ignored: {filters}" )
+            lines.append( message.format( filters = ignored_list ) )
+            if len( self.objects ) == 0:
+                lines.append(
+                    "No results returned due to unsupported filters. "
+                    "Remove unsupported filters to see results." )
+        elif self.search_metadata.filters_applied and len( self.objects ) == 0:
+            lines.append( "" )
+            lines.append( "**No Matches**" )
+            applied_list = ', '.join( self.search_metadata.filters_applied )
+            lines.append(
+                "Filters applied ({filters}) matched 0 objects.".format(
+                    filters = applied_list ) )
         if displayed_objects:
             lines.append( "" )
             lines.append( "## Objects" )
@@ -576,12 +605,43 @@ class InventoryQueryResult( ResultBase ):
         if group_by:
             group_by_formatted = ', '.join( group_by )
             lines.append( f"- **Grouped by:** {group_by_formatted}" )
+        if self.search_metadata.filters_ignored:
+            lines.extend( self._render_filter_warnings( ) )
+        empty_dimensions = self._render_distribution_sections(
+            lines, group_by, distributions )
+        if empty_dimensions:
+            lines.extend( self._render_empty_dimension_warnings(
+                empty_dimensions ) )
+        return tuple( lines )
+
+    def _render_filter_warnings( self ) -> tuple[ str, ... ]:
+        ''' Renders filter warning messages for summary output. '''
+        lines = [ "" ]
+        lines.append( "⚠️  **Warning: Unsupported Filters**" )
+        ignored_list = ', '.join( self.search_metadata.filters_ignored )
+        message = (
+            "The following filters are not supported by this "
+            "processor: {filters}" )
+        lines.append( message.format( filters = ignored_list ) )
+        return tuple( lines )
+
+    def _render_distribution_sections(
+        self,
+        lines: list[ str ],
+        group_by: __.cabc.Sequence[ str ],
+        distributions: dict[ str, dict[ str, int ] ],
+    ) -> list[ str ]:
+        ''' Renders distribution sections and returns empty dimensions. '''
+        empty_dimensions: list[ str ] = [ ]
         for dimension in group_by:
             if dimension in distributions:
+                dist = distributions[ dimension ]
+                if not dist:
+                    empty_dimensions.append( dimension )
+                    continue
                 lines.append( "" )
                 dimension_title = dimension.replace( '_', ' ' ).title( )
                 lines.append( f"### By {dimension_title}" )
-                dist = distributions[ dimension ]
                 total = sum( dist.values( ) )
                 sorted_items = sorted(
                     dist.items( ), key = lambda x: x[ 1 ], reverse = True )
@@ -591,6 +651,20 @@ class InventoryQueryResult( ResultBase ):
                 if len( sorted_items ) > _SUMMARY_ITEMS_LIMIT:
                     remaining = len( sorted_items ) - _SUMMARY_ITEMS_LIMIT
                     lines.append( f"- ...and {remaining} more" )
+        return empty_dimensions
+
+    def _render_empty_dimension_warnings(
+        self, empty_dimensions: list[ str ]
+    ) -> tuple[ str, ... ]:
+        ''' Renders warnings for empty group-by dimensions. '''
+        lines = [ "" ]
+        lines.append( "⚠️  **Warning: Empty Group-By Dimensions**" )
+        empty_list = ', '.join( empty_dimensions )
+        message = (
+            "The following dimensions have no values: {dimensions}. "
+            "This may indicate unsupported dimensions for this "
+            "processor." )
+        lines.append( message.format( dimensions = empty_list ) )
         return tuple( lines )
 
     def _compute_distributions(
