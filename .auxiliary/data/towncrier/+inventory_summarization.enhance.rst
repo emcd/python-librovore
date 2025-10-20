@@ -1,1 +1,0 @@
-Add ``--summarize`` and ``--group-by`` options to query-inventory command to display distribution statistics across inventory dimensions instead of full object lists.
