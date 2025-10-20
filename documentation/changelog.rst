@@ -23,6 +23,16 @@ Release Notes
 
 .. towncrier release notes start
 
+librovore 1.0a7 (2025-10-20)
+============================
+
+Enhancements
+------------
+
+- Add ``--summarize`` and ``--group-by`` options to query-inventory command to display distribution statistics across inventory dimensions instead of full object lists.
+- Add comprehensive filter validation with user-facing warnings to prevent silent filter failures.
+
+
 librovore 1.0a6 (2025-09-28)
 ============================
 
