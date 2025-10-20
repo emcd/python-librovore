@@ -217,6 +217,20 @@ def _produce_query_inventory_function( auxdata: _state.Globals ):
         results_max: ResultsMax = 5,
         contains_term: ContainsTerm = True,
         case_sensitive: CaseSensitive = False,
+        summarize: __.typx.Annotated[
+            bool,
+            _Field(
+                description = (
+                    "Show distribution summary instead "
+                    "of full object list" ) ),
+        ] = False,
+        group_by: __.typx.Annotated[
+            __.cabc.Sequence[ str ],
+            _Field(
+                description = (
+                    "Grouping dimensions for summary. Uses processor's "
+                    "supported filters if not specified." ) ),
+        ] = ( ),
         reveal_internals: __.typx.Annotated[
             bool,
             _Field(
@@ -239,7 +253,9 @@ def _produce_query_inventory_function( auxdata: _state.Globals ):
             filters = immutable_filters,
             results_max = results_max )
         return dict( result.render_as_json(
-            reveal_internals = reveal_internals ) )
+            reveal_internals = reveal_internals,
+            summarize = summarize,
+            group_by = group_by ) )
 
     return query_inventory
 

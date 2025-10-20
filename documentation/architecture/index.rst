@@ -29,3 +29,4 @@ Architecture
    decisions/index
    designs/index
    testplans/index
+   research/index

@@ -1,0 +1,1 @@
+Add comprehensive filter validation with user-facing warnings to prevent silent filter failures.

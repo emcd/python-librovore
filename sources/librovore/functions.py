@@ -43,6 +43,32 @@ _search_behaviors_default = _interfaces.SearchBehaviors( )
 _filters_default = __.immut.Dictionary[ str, __.typx.Any ]( )
 
 
+FilterValidationResult: __.typx.TypeAlias = tuple[
+    tuple[ str, ... ], tuple[ str, ... ] ]
+
+
+def validate_filters(
+    filters: __.cabc.Mapping[ str, __.typx.Any ],
+    processor_capabilities: _interfaces.ProcessorCapabilities,
+) -> FilterValidationResult:
+    ''' Validates filters against processor capabilities.
+
+        Returns tuple of (filters_applied, filters_ignored) where
+        filters_applied contains filter names that are supported by the
+        processor and filters_ignored contains filter names that are not
+        supported.
+    '''
+    supported_filter_names = frozenset(
+        fc.name for fc in processor_capabilities.supported_filters )
+    filters_applied: list[ str ] = [ ]
+    filters_ignored: list[ str ] = [ ]
+    for filter_name in filters:
+        if filter_name in supported_filter_names:
+            filters_applied.append( filter_name )
+        else: filters_ignored.append( filter_name )
+    return tuple( filters_applied ), tuple( filters_ignored )
+
+
 async def detect(
     auxdata: _state.Globals,
     location: LocationArgument, /,
@@ -102,6 +128,26 @@ async def query_content(  # noqa: PLR0913
     location = _normalize_location( location )
     start_time = __.time.perf_counter( )
     resolved_location = _detection.resolve_source_url( location )
+    idetection = await _detection.detect_inventory(
+        auxdata, location, processor_name = processor_name )
+    filters_applied, filters_ignored = validate_filters(
+        filters, idetection.processor.capabilities )
+    if filters_ignored:
+        locations = await _create_inventory_location_info(
+            auxdata, location, resolved_location, 0 )
+        end_time = __.time.perf_counter( )
+        search_time_ms = int( ( end_time - start_time ) * 1000 )
+        return _results.ContentQueryResult(
+            location = resolved_location,
+            term = term,
+            documents = tuple( ),
+            search_metadata = _results.SearchMetadata(
+                results_count = 0,
+                results_max = results_max,
+                search_time_ms = search_time_ms,
+                filters_applied = filters_applied,
+                filters_ignored = filters_ignored ),
+            inventory_locations = locations )
     objects = await _collect_inventory_objects_multi_source(
         auxdata, location, resolved_location, processor_name, filters )
     if not __.is_absent( content_id ):
@@ -125,7 +171,9 @@ async def query_content(  # noqa: PLR0913
             search_metadata = _results.SearchMetadata(
                 results_count = 0,
                 results_max = results_max,
-                search_time_ms = search_time_ms ),
+                search_time_ms = search_time_ms,
+                filters_applied = filters_applied,
+                filters_ignored = filters_ignored ),
             inventory_locations = locations )
     sdetection = await _detection.detect_structure(
         auxdata, resolved_location, processor_name = processor_name )
@@ -142,7 +190,9 @@ async def query_content(  # noqa: PLR0913
             search_metadata = _results.SearchMetadata(
                 results_count = 0,
                 results_max = results_max,
-                search_time_ms = search_time_ms ),
+                search_time_ms = search_time_ms,
+                filters_applied = filters_applied,
+                filters_ignored = filters_ignored ),
             inventory_locations = locations )
     documents = await sdetection.extract_contents(
         auxdata, resolved_location, compatible_candidates )
@@ -156,7 +206,9 @@ async def query_content(  # noqa: PLR0913
             results_count = len( documents ),
             results_max = results_max,
             matches_total = len( candidates ),
-            search_time_ms = search_time_ms ),
+            search_time_ms = search_time_ms,
+            filters_applied = filters_applied,
+            filters_ignored = filters_ignored ),
         inventory_locations = locations )
 
 
@@ -178,25 +230,49 @@ async def query_inventory(  # noqa: PLR0913
     start_time = __.time.perf_counter( )
     detection = await _detection.detect_inventory(
         auxdata, location, processor_name = processor_name )
-    # Resolve URL after detection to get working URL if redirect exists
     resolved_location = _detection.resolve_source_url( location )
+    filters_applied, filters_ignored = validate_filters(
+        filters, detection.processor.capabilities )
+    if filters_ignored:
+        end_time = __.time.perf_counter( )
+        search_time_ms = int( ( end_time - start_time ) * 1000 )
+        return _results.InventoryQueryResult(
+            location = resolved_location,
+            term = term,
+            objects = ( ),
+            search_metadata = _results.SearchMetadata(
+                results_count = 0,
+                results_max = results_max,
+                matches_total = 0,
+                search_time_ms = search_time_ms,
+                filters_applied = filters_applied,
+                filters_ignored = filters_ignored ),
+            inventory_locations = tuple( [
+                _results.InventoryLocationInfo(
+                    inventory_type = detection.processor.name,
+                    location_url = resolved_location,
+                    processor_name = detection.processor.name,
+                    confidence = detection.confidence,
+                    object_count = 0 ) ] ) )
     objects = await detection.filter_inventory(
         auxdata, resolved_location, filters = filters )
     results = _search.filter_by_name(
         objects, term, search_behaviors = search_behaviors )
-    selections = [
-        result.inventory_object for result in results[ : results_max ] ]
+    all_selections = [
+        result.inventory_object for result in results ]
     end_time = __.time.perf_counter( )
     search_time_ms = int( ( end_time - start_time ) * 1000 )
     return _results.InventoryQueryResult(
         location = resolved_location,
         term = term,
-        objects = tuple( selections ),
+        objects = tuple( all_selections ),
         search_metadata = _results.SearchMetadata(
-            results_count = len( selections ),
+            results_count = len( all_selections ),
             results_max = results_max,
             matches_total = len( objects ),
-            search_time_ms = search_time_ms ),
+            search_time_ms = search_time_ms,
+            filters_applied = filters_applied,
+            filters_ignored = filters_ignored ),
         inventory_locations = tuple( [
             _results.InventoryLocationInfo(
                 inventory_type = detection.processor.name,

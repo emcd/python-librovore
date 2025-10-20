@@ -29,6 +29,7 @@ from . import exceptions as _exceptions
 
 
 _CONTENT_PREVIEW_LIMIT = 100
+_SUMMARY_ITEMS_LIMIT = 20
 
 
 class ResultBase( __.immut.DataclassProtocol, __.typx.Protocol ):
@@ -301,6 +302,14 @@ class SearchMetadata( __.immut.DataclassObject ):
         __.typx.Optional[ int ],
         __.ddoc.Doc( "Search execution time in milliseconds." ),
     ] = None
+    filters_applied: __.typx.Annotated[
+        tuple[ str, ... ],
+        __.ddoc.Doc( "Filter names that were successfully applied." ),
+    ] = ( )
+    filters_ignored: __.typx.Annotated[
+        tuple[ str, ... ],
+        __.ddoc.Doc( "Filter names that were not supported by processor." ),
+    ] = ( )
 
     @property
     def results_truncated( self ) -> bool:
@@ -317,6 +326,8 @@ class SearchMetadata( __.immut.DataclassObject ):
             matches_total = self.matches_total,
             search_time_ms = self.search_time_ms,
             results_truncated = self.results_truncated,
+            filters_applied = list( self.filters_applied ),
+            filters_ignored = list( self.filters_ignored ),
         )
 
 
@@ -488,11 +499,17 @@ class InventoryQueryResult( ResultBase ):
     def render_as_json(
         self, /, *,
         reveal_internals: bool = False,
+        summarize: bool = False,
+        group_by: __.cabc.Sequence[ str ] = ( ),
     ) -> __.immut.Dictionary[ str, __.typx.Any ]:
         ''' Renders inventory query result as JSON-compatible dictionary. '''
+        if summarize:
+            return self._render_summary_json( group_by, reveal_internals )
+        results_max = self.search_metadata.results_max
+        displayed_objects = self.objects[ : results_max ]
         objects_json = [
             dict( obj.render_as_json( reveal_internals = reveal_internals ) )
-            for obj in self.objects ]
+            for obj in displayed_objects ]
         locations_json = [
             dict( loc.render_as_json( ) ) for loc in self.inventory_locations ]
         return __.immut.Dictionary[
@@ -511,26 +528,159 @@ class InventoryQueryResult( ResultBase ):
             bool,
             __.ddoc.Doc( "Controls whether internal details are shown." ),
         ] = False,
+        summarize: bool = False,
+        group_by: __.cabc.Sequence[ str ] = ( ),
     ) -> tuple[ str, ... ]:
         ''' Renders inventory query result as Markdown lines for display. '''
+        if summarize:
+            return self._render_summary_markdown( group_by, reveal_internals )
+        results_max = self.search_metadata.results_max
+        displayed_objects = self.objects[ : results_max ]
         lines = [ "# Inventory Query Results" ]
         lines.append( "- **Term:** {term}".format( term = self.term ) )
         if reveal_internals:
             lines.append( "- **Location:** {location}".format(
                 location = self.location ) )
-        lines.append( "- **Results:** {count} of {max}".format(
-            count = self.search_metadata.results_count,
-            max = self.search_metadata.results_max ) )
-        if self.objects:
+        lines.append( "- **Results:** {count} of {total}".format(
+            count = len( displayed_objects ),
+            total = len( self.objects ) ) )
+        if self.search_metadata.filters_ignored:
+            lines.append( "" )
+            lines.append( "⚠️  **Warning: Unsupported Filters**" )
+            ignored_list = ', '.join( self.search_metadata.filters_ignored )
+            message = (
+                "The following filters are not supported by this "
+                "processor and were ignored: {filters}" )
+            lines.append( message.format( filters = ignored_list ) )
+            if len( self.objects ) == 0:
+                lines.append(
+                    "No results returned due to unsupported filters. "
+                    "Remove unsupported filters to see results." )
+        elif self.search_metadata.filters_applied and len( self.objects ) == 0:
+            lines.append( "" )
+            lines.append( "**No Matches**" )
+            applied_list = ', '.join( self.search_metadata.filters_applied )
+            lines.append(
+                "Filters applied ({filters}) matched 0 objects.".format(
+                    filters = applied_list ) )
+        if displayed_objects:
             lines.append( "" )
             lines.append( "## Objects" )
-            for index, obj in enumerate( self.objects, 1 ):
+            for index, obj in enumerate( displayed_objects, 1 ):
                 separator = "\n📦 ── Object {} ─────────────────────── 📦\n"
                 lines.append( separator.format( index ) )
                 obj_lines = obj.render_as_markdown(
                     reveal_internals = reveal_internals )
                 lines.extend( obj_lines )
         return tuple( lines )
+
+    def _render_summary_json(
+        self,
+        group_by: __.cabc.Sequence[ str ],
+        reveal_internals: bool,
+    ) -> __.immut.Dictionary[ str, __.typx.Any ]:
+        ''' Computes and renders summary statistics as JSON. '''
+        distributions = self._compute_distributions( group_by )
+        return __.immut.Dictionary[
+            str, __.typx.Any
+        ](
+            location = self.location,
+            term = self.term,
+            matches_total = len( self.objects ),
+            group_by = list( group_by ),
+            distributions = distributions,
+            search_metadata = dict( self.search_metadata.render_as_json( ) ),
+        )
+
+    def _render_summary_markdown(
+        self,
+        group_by: __.cabc.Sequence[ str ],
+        reveal_internals: bool,
+    ) -> tuple[ str, ... ]:
+        ''' Computes and renders summary statistics as Markdown. '''
+        distributions = self._compute_distributions( group_by )
+        lines = [ "# Inventory Query Summary" ]
+        lines.append( f"- **Term:** {self.term}" )
+        lines.append( f"- **Total matches:** {len( self.objects )}" )
+        if group_by:
+            group_by_formatted = ', '.join( group_by )
+            lines.append( f"- **Grouped by:** {group_by_formatted}" )
+        if self.search_metadata.filters_ignored:
+            lines.extend( self._render_filter_warnings( ) )
+        empty_dimensions = self._render_distribution_sections(
+            lines, group_by, distributions )
+        if empty_dimensions:
+            lines.extend( self._render_empty_dimension_warnings(
+                empty_dimensions ) )
+        return tuple( lines )
+
+    def _render_filter_warnings( self ) -> tuple[ str, ... ]:
+        ''' Renders filter warning messages for summary output. '''
+        lines = [ "" ]
+        lines.append( "⚠️  **Warning: Unsupported Filters**" )
+        ignored_list = ', '.join( self.search_metadata.filters_ignored )
+        message = (
+            "The following filters are not supported by this "
+            "processor: {filters}" )
+        lines.append( message.format( filters = ignored_list ) )
+        return tuple( lines )
+
+    def _render_distribution_sections(
+        self,
+        lines: list[ str ],
+        group_by: __.cabc.Sequence[ str ],
+        distributions: dict[ str, dict[ str, int ] ],
+    ) -> list[ str ]:
+        ''' Renders distribution sections and returns empty dimensions. '''
+        empty_dimensions: list[ str ] = [ ]
+        for dimension in group_by:
+            if dimension in distributions:
+                dist = distributions[ dimension ]
+                if not dist:
+                    empty_dimensions.append( dimension )
+                    continue
+                lines.append( "" )
+                dimension_title = dimension.replace( '_', ' ' ).title( )
+                lines.append( f"### By {dimension_title}" )
+                total = sum( dist.values( ) )
+                sorted_items = sorted(
+                    dist.items( ), key = lambda x: x[ 1 ], reverse = True )
+                for value, count in sorted_items[ :_SUMMARY_ITEMS_LIMIT ]:
+                    pct = ( count / total * 100 ) if total > 0 else 0
+                    lines.append( f"- `{value}`: {count} ({pct:.1f}%)" )
+                if len( sorted_items ) > _SUMMARY_ITEMS_LIMIT:
+                    remaining = len( sorted_items ) - _SUMMARY_ITEMS_LIMIT
+                    lines.append( f"- ...and {remaining} more" )
+        return empty_dimensions
+
+    def _render_empty_dimension_warnings(
+        self, empty_dimensions: list[ str ]
+    ) -> tuple[ str, ... ]:
+        ''' Renders warnings for empty group-by dimensions. '''
+        lines = [ "" ]
+        lines.append( "⚠️  **Warning: Empty Group-By Dimensions**" )
+        empty_list = ', '.join( empty_dimensions )
+        message = (
+            "The following dimensions have no values: {dimensions}. "
+            "This may indicate unsupported dimensions for this "
+            "processor." )
+        lines.append( message.format( dimensions = empty_list ) )
+        return tuple( lines )
+
+    def _compute_distributions(
+        self, group_by: __.cabc.Sequence[ str ]
+    ) -> dict[ str, dict[ str, int ] ]:
+        ''' Computes distribution statistics from objects. '''
+        distributions: dict[ str, dict[ str, int ] ] = { }
+        for dimension in group_by:
+            dist: dict[ str, int ] = { }
+            for obj in self.objects:
+                value = obj.specifics.get( dimension )
+                if value is not None:
+                    value_str = str( value )
+                    dist[ value_str ] = dist.get( value_str, 0 ) + 1
+            distributions[ dimension ] = dist
+        return distributions
 
 
 class Detection( __.immut.DataclassObject ):
