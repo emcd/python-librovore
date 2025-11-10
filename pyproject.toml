@@ -15,14 +15,10 @@ license = 'Apache-2.0'
 readme = { 'file' = 'README.rst', 'content-type' = 'text/x-rst' }
 requires-python = '>= 3.10'
 dependencies = [
-  'absence~=1.1',
   'accretive~=4.1',
   'beautifulsoup4',
   'detextive~=1.0',
-  'dynadoc~=1.3',
-  'emcd-appcore[cli]~=1.1',
   'exceptiongroup',
-  'frigid~=4.1',
   'httpx',
   'lxml',
   'markdownify',
@@ -33,7 +29,10 @@ dependencies = [
   'typing-extensions',
   'uv',
   # --- BEGIN: Injected by Copier ---
-  'tyro',
+  'absence~=1.1',
+  'dynadoc~=1.4',
+  'frigid~=4.2',
+  'emcd-appcore[cli]~=1.6',
   # --- END: Injected by Copier ---
 ]
 classifiers = [ # https://pypi.org/classifiers
@@ -46,6 +45,7 @@ classifiers = [ # https://pypi.org/classifiers
   'Programming Language :: Python :: 3.11',
   'Programming Language :: Python :: 3.12',
   'Programming Language :: Python :: 3.13',
+  'Programming Language :: Python :: 3.14',
   'Programming Language :: Python :: Implementation :: CPython',
   'Programming Language :: Python :: Implementation :: PyPy',
   # --- END: Injected by Copier ---
@@ -155,7 +155,6 @@ linters = [
   # --- BEGIN: Injected by Copier ---
   # --- END: Injected by Copier ---
   """isort --check-only --diff sources tests""",
-  """vulture""",
   """pyright sources""",
 ]
 packagers = [
@@ -212,7 +211,9 @@ python = [
     '3.11',
     '3.12',
     '3.13',
+    '3.14',
     'pypy3.10',
+    'pypy3.11',
 ]
 [tool.hatch.version]
 path = 'sources/librovore/__init__.py'

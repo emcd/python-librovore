@@ -13,12 +13,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".auxiliary/scripts/claude/pre-bash-python-check",
+            "command": ".claude/scripts/pre-bash-python-check",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": ".auxiliary/scripts/claude/pre-bash-git-commit-check",
+            "command": ".claude/scripts/pre-bash-git-commit-check",
             "timeout": 300
           }
         ]
@@ -30,7 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".auxiliary/scripts/claude/post-edit-linter",
+            "command": ".claude/scripts/post-edit-linter",
             "timeout": 60
           }
         ]
@@ -90,5 +90,9 @@
       "mcp__pyright__references",
       "mcp__pyright__rename_symbol"
     ]
+  },
+  "sandbox": {
+    "enabled": false,
+    "autoAllowBashIfSandboxed": true
   }
 }
