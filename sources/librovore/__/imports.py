@@ -64,7 +64,9 @@ import                      markdownify
 import                      tyro
 import typing_extensions as typx
 
+# --- BEGIN: Injected by Copier ---
 from absence import Absential, absent, is_absent
+# --- END: Injected by Copier ---
 from appcore import asyncf, generics
 from appcore.state import Globals
 
