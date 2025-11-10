@@ -400,6 +400,7 @@ class Cli( _appcore_cli.Application ):
 def execute( ) -> None:
     ''' Entrypoint for CLI execution. '''
     config = (
+        __.tyro.conf.EnumChoicesFromValues,
         __.tyro.conf.HelptextFromCommentsOff,
     )
     with __.warnings.catch_warnings( ):

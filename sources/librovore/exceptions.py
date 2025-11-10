@@ -26,11 +26,8 @@ import urllib.parse as _urlparse
 from . import __
 
 
-class Omniexception( __.immut.Object, BaseException ):
+class Omniexception( __.immut.exceptions.Omniexception ):
     ''' Base for all exceptions raised by package API. '''
-
-    _attribute_visibility_includes_: __.cabc.Collection[ str ] = (
-        frozenset( ( '__cause__', '__context__', ) ) )
 
 
 class Omnierror( Omniexception, Exception ):
