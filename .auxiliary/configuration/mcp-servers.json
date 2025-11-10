@@ -1,8 +1,18 @@
 {
   "mcpServers": {
     "librovore": {
-      "command": "uvx",
-      "args": [ "librovore", "serve" ]
+      "command": "reloaderoo",
+      "args": [
+        "--",
+        "hatch",
+        "run",
+        "librovore",
+        "--inscription.target-file",
+        ".auxiliary/inscriptions/server.txt",
+        "--inscription.level",
+        "debug",
+        "serve"
+      ]
     },
     "pyright": {
       "command": "mcp-language-server",
