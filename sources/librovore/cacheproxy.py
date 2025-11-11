@@ -522,22 +522,28 @@ async def retrieve_url_as_text(
             except Exception as exc:
                 raise _exceptions.DocumentationInaccessibility(
                     url_s, exc ) from exc
-            _, charset = __.detext.detect_mimetype_and_charset(
-                content_bytes, location )
-            if not __.detext.is_textual_content( content_bytes ):
+            try:
+                return __.detext.decode(
+                    content_bytes,
+                    location = str( location ),
+                    charset_default = charset_default )
+            except Exception as exc:
                 raise _exceptions.DocumentationInaccessibility(
-                    url_s, "Content analysis indicates non-textual data" )
-            encoding = charset or charset_default
-            return content_bytes.decode( encoding )
+                    url_s, "Content analysis indicates non-textual data" ) from exc
         case 'http' | 'https':
             result = await cache.access( url_s )
             if not __.is_absent( result ):
                 content_bytes, headers = result
-                _validate_textual_content(
-                    content_bytes, headers, url_s )
-                charset = _detect_charset_with_fallback(
-                    content_bytes, headers, charset_default )
-                return content_bytes.decode( charset )
+                http_content_type = headers.get( 'content-type', '' )
+                try:
+                    return __.detext.decode(
+                        content_bytes,
+                        location = url_s,
+                        http_content_type = http_content_type,
+                        charset_default = charset_default )
+                except Exception as exc:
+                    raise _exceptions.DocumentationInaccessibility(
+                        url_s, "Content analysis indicates non-textual data" ) from exc
             async with client_factory( ) as client:
                 result, headers = await _retrieve_url(
                     url, duration_max = duration_max,
@@ -547,11 +553,16 @@ async def retrieve_url_as_text(
             ttl = cache.determine_ttl( result )
             await cache.store( url_s, result, headers, ttl )
             content_bytes = result.extract( )
-            _validate_textual_content(
-                content_bytes, headers, url_s )
-            charset = _detect_charset_with_fallback(
-                content_bytes, headers, charset_default )
-            return content_bytes.decode( charset )
+            http_content_type = headers.get( 'content-type', '' )
+            try:
+                return __.detext.decode(
+                    content_bytes,
+                    location = url_s,
+                    http_content_type = http_content_type,
+                    charset_default = charset_default )
+            except Exception as exc:
+                raise _exceptions.DocumentationInaccessibility(
+                    url_s, "Content analysis indicates non-textual data" ) from exc
         case _:
             raise _exceptions.DocumentationInaccessibility(
                 url_s, f"Unsupported scheme: {url.scheme}" )
@@ -622,13 +633,14 @@ async def _check_robots_txt(
 
 
 def _detect_charset_with_fallback(
-    content: bytes, headers: _httpx.Headers, default: str
+    content: bytes, headers: _httpx.Headers, default: str, location: str = ''
 ) -> str:
     ''' Detects charset from headers with content-based fallback. '''
     header_charset = _extract_charset_from_headers( headers, '' )
     if header_charset:
         return header_charset
-    detected_charset = __.detext.detect_charset( content )
+    detected_charset = __.detext.detect_charset(
+        content, default = default, location = location or __.absent )
     return detected_charset or default
 
 
@@ -639,7 +651,7 @@ def _detect_mimetype_with_fallback(
     header_mimetype = _extract_mimetype_from_headers( headers )
     if header_mimetype:
         return header_mimetype
-    return __.detext.detect_mimetype( content, url ) or ''
+    return __.detext.detect_mimetype( content, location = url )
 
 
 def _extract_charset_from_headers(
@@ -753,14 +765,3 @@ async def _retrieve_url(
         else: return _generics.Value( response.content ), response.headers
 
 
-def _validate_textual_content(
-    content: bytes, headers: _httpx.Headers, url: str
-) -> None:
-    ''' Validates that content is textual via headers and content analysis. '''
-    mimetype = _detect_mimetype_with_fallback( content, headers, url )
-    if mimetype and not __.detext.is_textual_mimetype( mimetype ):
-        raise _exceptions.HttpContentTypeInvalidity(
-            url, mimetype, "text decoding" )
-    if not __.detext.is_textual_content( content ):
-        raise _exceptions.HttpContentTypeInvalidity(
-            url, mimetype or 'unknown', "content analysis" )

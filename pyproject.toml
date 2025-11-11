@@ -17,7 +17,7 @@ requires-python = '>= 3.10'
 dependencies = [
   'accretive~=4.1',
   'beautifulsoup4',
-  'detextive~=1.0',
+  'detextive~=2.0',
   'exceptiongroup',
   'httpx',
   'lxml',
