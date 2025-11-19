@@ -13,6 +13,10 @@ enabled = true
 name = "mkdocs"
 enabled = true
 
+[[inventory-extensions]]
+name = "rustdoc"
+enabled = true
+
 # Built-in Structure Extensions  
 # These extensions process documentation structures and do not require external packages.
 
