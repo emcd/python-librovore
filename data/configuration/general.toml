@@ -14,6 +14,10 @@ name = "mkdocs"
 enabled = true
 
 [[inventory-extensions]]
+name = "pydoctor"
+enabled = true
+
+[[inventory-extensions]]
 name = "rustdoc"
 enabled = true
 

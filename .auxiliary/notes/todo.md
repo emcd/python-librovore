@@ -21,6 +21,7 @@
 ### 🧪 Testing Strategy Improvements
 - [ ] **Mock heavy operations**: Replace inventory parsing with mocks for unit tests
 - [ ] **Focus on hard gaps**: Mock HTTP/network failures for error path testing
+- [ ] **Pydoctor-only testing**: Test Pydoctor inventory processor without Sphinx interference (need Pydoctor-only site or mock that excludes objects.inv)
 
 ### 📖 Documentation
 - [ ] **API documentation**: Complete documentation for all public interfaces
