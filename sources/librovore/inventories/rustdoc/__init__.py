@@ -31,6 +31,3 @@ def register(
     ''' Registers Rustdoc inventory processor. '''
     processor = RustdocInventoryProcessor( )
     __.inventory_processors[ 'rustdoc' ] = processor
-
-
-__all__ = ( 'RustdocInventoryProcessor', )
