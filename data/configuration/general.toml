@@ -32,6 +32,10 @@ enabled = true
 name = "mkdocs"
 enabled = true
 
+[[structure-extensions]]
+name = "pydoctor"
+enabled = true
+
 # External Extension Examples
 # Uncomment and modify these examples to add external documentation processors.
 
