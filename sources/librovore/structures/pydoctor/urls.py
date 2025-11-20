@@ -21,30 +21,10 @@
 ''' URL manipulation and normalization functions. '''
 
 
-import urllib.parse as _urlparse
-
 from urllib.parse import ParseResult as _Url
 
-from . import __
-
-
-def normalize_base_url( source: str ) -> _Url:
-    ''' Extracts clean base documentation URL from any source. '''
-    try: url = _urlparse.urlparse( source )
-    except Exception as exc:
-        raise __.InventoryUrlInvalidity( source ) from exc
-    match url.scheme:
-        case '':
-            path = __.Path( source )
-            if path.is_file( ) or ( not path.exists( ) and path.suffix ):
-                path = path.parent
-            url = _urlparse.urlparse( path.resolve( ).as_uri( ) )
-        case 'http' | 'https' | 'file': pass
-        case _: raise __.InventoryUrlInvalidity( source )
-    path = url.path.rstrip( '/' )
-    return _urlparse.ParseResult(
-        scheme = url.scheme, netloc = url.netloc, path = path,
-        params = '', query = '', fragment = '' )
+# Import shared URL utilities from parent module for re-export
+from .__ import normalize_base_url  # noqa: F401
 
 
 def derive_documentation_url(
