@@ -33,6 +33,10 @@ name = "mkdocs"
 enabled = true
 
 [[structure-extensions]]
+name = "pydoctor"
+enabled = true
+
+[[structure-extensions]]
 name = "rustdoc"
 enabled = true
 
