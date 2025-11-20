@@ -24,4 +24,3 @@
 
 from ..__ import *
 from ..xtnsapi import *
-from .urls import *

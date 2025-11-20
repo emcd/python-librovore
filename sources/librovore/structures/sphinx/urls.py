@@ -23,9 +23,6 @@
 
 from urllib.parse import ParseResult as _Url
 
-# Import shared URL utilities from parent module for re-export
-from .__ import normalize_base_url  # noqa: F401
-
 
 def derive_documentation_url(
     base_url: _Url, object_uri: str, object_name: str

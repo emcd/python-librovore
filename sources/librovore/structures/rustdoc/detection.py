@@ -53,17 +53,6 @@ class RustdocDetection( __.StructureDetection ):
             } )
         )
 
-    @classmethod
-    async def from_source(
-        selfclass,
-        auxdata: __.ApplicationGlobals,
-        processor: __.Processor,
-        source: str,
-    ) -> __.typx.Self:
-        ''' Constructs detection from source location. '''
-        detection = await processor.detect( auxdata, source )
-        return __.typx.cast( __.typx.Self, detection )
-
     async def extract_contents(
         self,
         auxdata: __.ApplicationGlobals,
