@@ -80,30 +80,26 @@ async def detect_pydoctor(
 ) -> float:
     ''' Detects if source is a Pydoctor documentation site. '''
     confidence = 0.0
-
     # Check for index.html
     index_url = _urls.derive_index_url( base_url )
     try:
         html_content = await __.retrieve_url_as_text(
             auxdata.content_cache,
             index_url, duration_max = 10.0 )
-        html_lower = html_content.lower( )
-
-        # Check for pydoctor meta tag (highest confidence)
-        if '<meta name="generator" content="pydoctor' in html_lower:
-            confidence = 1.0
-        # Check for characteristic CSS files
-        elif 'apidocs.css' in html_lower:
-            confidence = 0.8
-        # Check for Bootstrap-based navigation with pydoctor structure
-        elif 'navbar navbar-default mainnavbar' in html_lower:
-            confidence += 0.3
-        # Check for pydoctor-specific elements
-        if 'class="docstring"' in html_lower:
-            confidence += 0.2
-
-        confidence = min( confidence, 1.0 )
     except Exception as exc:
         _scribe.debug( f"Detection failed for {base_url.geturl( )}: {exc}" )
-
-    return confidence
+        return confidence
+    html_lower = html_content.lower( )
+    # Check for pydoctor meta tag (highest confidence)
+    if '<meta name="generator" content="pydoctor' in html_lower:
+        confidence = 1.0
+    # Check for characteristic CSS files
+    elif 'apidocs.css' in html_lower:
+        confidence = 0.8
+    # Check for Bootstrap-based navigation with pydoctor structure
+    elif 'navbar navbar-default mainnavbar' in html_lower:
+        confidence += 0.3
+    # Check for pydoctor-specific elements
+    if 'class="docstring"' in html_lower:
+        confidence += 0.2
+    return min( confidence, 1.0 )

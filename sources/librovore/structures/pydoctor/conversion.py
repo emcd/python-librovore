@@ -68,21 +68,17 @@ def html_to_markdown( html_text: str ) -> str:
 def _preprocess_pydoctor_html( html_text: str ) -> str:
     ''' Preprocesses Pydoctor HTML before markdown conversion. '''
     soup: __.typx.Any = _BeautifulSoup( html_text, 'lxml' )
-
     # Remove navigation elements
     for selector in [ '.navbar', '.sidebar', '.mainnavbar' ]:
         for element in soup.select( selector ):
             element.decompose( )
-
     # Remove search elements
     for selector in [ '#searchBox', '.search' ]:
         for element in soup.select( selector ):
             element.decompose( )
-
     # Remove Bootstrap scaffolding that doesn't contribute to content
     for selector in [ '.container', '.row', '.col-md-*' ]:
         for element in soup.select( selector ):
             # Unwrap instead of decompose to keep content
             element.unwrap( )
-
     return str( soup )

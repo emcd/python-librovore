@@ -56,19 +56,15 @@ def parse_pydoctor_html(
     try: soup = _BeautifulSoup( content, 'lxml' )
     except Exception as exc:
         raise __.DocumentationParseFailure( qname, exc ) from exc
-
     # Extract signature from various possible locations
     signature = _extract_signature( soup, qname )
-
     # Extract docstring content
     docstring = _extract_docstring( soup )
-
     description_parts: list[ str ] = [ ]
     if signature:
         description_parts.append( f"```python\n{signature}\n```" )
     if docstring:
         description_parts.append( docstring )
-
     return {
         'description': '\n\n'.join( description_parts ),
         'object_name': qname,
@@ -83,24 +79,20 @@ async def _extract_object_documentation(
     ''' Extracts documentation for a single object. '''
     base_url = _urls.normalize_base_url( location )
     doc_url = _urls.derive_documentation_url( base_url, obj.uri )
-
     try:
         html_content = await __.retrieve_url_as_text(
             auxdata.content_cache, doc_url )
     except Exception as exc:
         _scribe.debug( "Failed to retrieve %s: %s", doc_url, exc )
         return None
-
     try:
         parsed_content = parse_pydoctor_html( html_content, obj.name )
     except Exception as exc:
         _scribe.debug( "Failed to parse %s: %s", obj.name, exc )
         return None
-
     description = _conversion.html_to_markdown(
         parsed_content[ 'description' ] )
     content_id = __.produce_content_id( location, obj.name )
-
     return __.ContentDocument(
         inventory_object = obj,
         content_id = content_id,
@@ -112,25 +104,21 @@ def _extract_docstring( soup: __.typx.Any ) -> str:
     ''' Extracts docstring from .docstring div. '''
     docstring_div = soup.find( 'div', class_ = 'docstring' )
     if not docstring_div: return ''
-
     # Remove navigation elements
     for nav in docstring_div.find_all( 'nav' ):
         nav.decompose( )
-
     return str( docstring_div )
 
 
 def _extract_signature( soup: __.typx.Any, qname: str ) -> str:
     ''' Extracts signature from Pydoctor HTML. '''
     # Try to find the signature in various locations
-
     # 1. Look for thisobject in thingTitle (module/class name)
     thisobject = soup.find( 'code', class_ = 'thisobject' )
     if thisobject:
         signature_text = thisobject.get_text( strip = True )
         if signature_text:
             return signature_text
-
     # 2. Look for function header
     function_header = soup.find( 'div', class_ = 'functionHeader' )
     if function_header:
@@ -139,7 +127,6 @@ def _extract_signature( soup: __.typx.Any, qname: str ) -> str:
             signature_text = code.get_text( strip = True )
             if signature_text:
                 return signature_text
-
     # 3. Look for code in thingTitle
     thing_title = soup.find( class_ = 'thingTitle' )
     if thing_title:
@@ -148,6 +135,5 @@ def _extract_signature( soup: __.typx.Any, qname: str ) -> str:
             signature_text = code.get_text( strip = True )
             if signature_text:
                 return signature_text
-
     # 4. Fallback to qualified name
     return qname
