@@ -23,7 +23,6 @@
 
 from . import __
 from . import detection as _detection
-from . import urls as _urls
 
 
 _scribe = __.acquire_scribe( __name__ )
@@ -71,7 +70,7 @@ class SphinxProcessor( __.Processor ):
         self, auxdata: __.ApplicationGlobals, source: str
     ) -> __.StructureDetection:
         ''' Detects if can process documentation from source. '''
-        try: base_url = _urls.normalize_base_url( source )
+        try: base_url = __.normalize_base_url( source )
         except Exception:
             return _detection.SphinxDetection(
                 processor = self, confidence = 0.0, source = source )

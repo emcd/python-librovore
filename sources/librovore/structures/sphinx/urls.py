@@ -21,38 +21,7 @@
 ''' URL manipulation and normalization functions. '''
 
 
-import urllib.parse as _urlparse
-
 from urllib.parse import ParseResult as _Url
-
-from . import __
-
-
-def normalize_base_url( source: str ) -> __.typx.Annotated[
-    _Url,
-    __.ddoc.Doc(
-        ''' Normalized base URL without trailing slash.
-
-            Extracts clean base documentation URL from any source.
-            Handles URLs, file paths, and directories consistently.
-        ''' )
-]:
-    ''' Extracts clean base documentation URL from any source. '''
-    try: url = _urlparse.urlparse( source )
-    except Exception as exc:
-        raise __.InventoryUrlInvalidity( source ) from exc
-    match url.scheme:
-        case '':
-            path = __.Path( source )
-            if path.is_file( ) or ( not path.exists( ) and path.suffix ):
-                path = path.parent
-            url = _urlparse.urlparse( path.resolve( ).as_uri( ) )
-        case 'http' | 'https' | 'file': pass
-        case _: raise __.InventoryUrlInvalidity( source )
-    path = url.path.rstrip( '/' )
-    return _urlparse.ParseResult(
-        scheme = url.scheme, netloc = url.netloc, path = path,
-        params = '', query = '', fragment = '' )
 
 
 def derive_documentation_url(

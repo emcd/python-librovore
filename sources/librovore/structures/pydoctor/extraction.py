@@ -77,7 +77,7 @@ async def _extract_object_documentation(
     obj: __.InventoryObject,
 ) -> __.ContentDocument | None:
     ''' Extracts documentation for a single object. '''
-    base_url = _urls.normalize_base_url( location )
+    base_url = __.normalize_base_url( location )
     doc_url = _urls.derive_documentation_url( base_url, obj.uri )
     try:
         html_content = await __.retrieve_url_as_text(

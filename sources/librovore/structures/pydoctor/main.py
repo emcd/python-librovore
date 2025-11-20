@@ -23,7 +23,6 @@
 
 from . import __
 from . import detection as _detection
-from . import urls as _urls
 
 
 _scribe = __.acquire_scribe( __name__ )
@@ -53,7 +52,7 @@ class PydoctorProcessor( __.Processor ):
     ) -> __.StructureDetection:
         ''' Detects if can process documentation from source. '''
         try:
-            base_url = _urls.normalize_base_url( source )
+            base_url = __.normalize_base_url( source )
         except Exception:
             return _detection.PydoctorDetection(
                 processor = self, confidence = 0.0, source = source )
