@@ -21,8 +21,6 @@
 ''' Documentation extraction and content retrieval for Rustdoc. '''
 
 
-import urllib.parse as _urlparse
-
 from bs4 import BeautifulSoup as _BeautifulSoup
 
 from . import __
@@ -56,7 +54,10 @@ async def extract_object_documentation(
     obj: __.InventoryObject,
 ) -> __.Absential[ __.ContentDocument ]:
     ''' Extracts documentation for a single Rustdoc object. '''
-    doc_url = _urlparse.urlparse( obj.uri )
+    base_url = __.normalize_base_url( source )
+    doc_path = obj.uri.lstrip( '/' )
+    full_path = f"{base_url.path}/{doc_path}"
+    doc_url = base_url._replace( path = full_path )
     try:
         html_content = await __.retrieve_url_as_text(
             auxdata.content_cache, doc_url, duration_max = 10.0 )
@@ -72,12 +73,12 @@ async def extract_object_documentation(
         _scribe.warning( f"Parse failure for {obj.uri}: {exc}" )
         return __.absent
     markdown_content = _assemble_markdown_content( obj, content_parts )
-    content_id = f"{obj.name}@{obj.uri}"
+    content_id = f"{obj.name}@{doc_url.geturl()}"
     return __.ContentDocument(
         inventory_object = obj,
         content_id = content_id,
         description = markdown_content,
-        documentation_url = obj.uri,
+        documentation_url = doc_url.geturl( ),
         extraction_metadata = __.immut.Dictionary( {
             'extraction_method': 'rustdoc_html_parsing',
             'relevance_score': 1.0,

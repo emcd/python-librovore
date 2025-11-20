@@ -63,7 +63,7 @@ class RustdocStructureProcessor( __.Processor ):
                 processor = self, confidence = 0.0, source = source )
         normalized_url = base_url.geturl( )
         is_rustdoc, rustdoc_version = await _detection.detect_rustdoc(
-            auxdata, normalized_url )
+            auxdata, base_url )
         confidence = 0.95 if is_rustdoc else 0.0
         return _detection.RustdocDetection(
             processor = self,
