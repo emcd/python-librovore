@@ -36,6 +36,10 @@ enabled = true
 name = "pydoctor"
 enabled = true
 
+[[structure-extensions]]
+name = "rustdoc"
+enabled = true
+
 # External Extension Examples
 # Uncomment and modify these examples to add external documentation processors.
 
