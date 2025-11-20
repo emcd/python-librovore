@@ -21,14 +21,16 @@
 - **Location 2**: `sources/librovore/structures/pydoctor/urls.py:31-47`
 - **Description**: Identical function that extracts clean base documentation URL from any source (URL, file path, or directory)
 - **Complexity**: 25 lines of logic with URL parsing, path handling, and scheme validation
+- **STATUS**: FIXED - Extracted to `sources/librovore/structures/urls.py`
 
-### Secondary Duplication Candidates
-
-1. **URL derivation pattern** - Both processors have `derive_*_url` functions that follow similar patterns
-   - `derive_html_url` (sphinx) vs `derive_index_url` (pydoctor) - essentially the same
-   - `derive_documentation_url` - exists in both but with different signatures
-
-2. **Detection try-except pattern** - Both `main.py` files have similar try-except blocks around `normalize_base_url`
+### Secondary Duplication: from_source classmethod
+- **Location 1**: `sources/librovore/structures/sphinx/detection.py:62-71`
+- **Location 2**: `sources/librovore/structures/pydoctor/detection.py:55-64`
+- **Location 3**: `sources/librovore/structures/mkdocs/detection.py:65-74`
+- **Location 4**: `sources/librovore/structures/rustdoc/detection.py:56-65`
+- **Description**: Identical classmethod implementation across all 4 Detection classes
+- **Complexity**: 10 lines per class (40 lines total)
+- **STATUS**: FIXED - Moved to `StructureDetection` base class in `sources/librovore/processors.py`
 
 ## Refactoring Strategy
 
@@ -80,38 +82,62 @@ Create a shared `urls.py` module at `sources/librovore/structures/urls.py` conta
 - [x] Code review ready
 
 ## Decision Log
-- [2025-11-20] Create shared urls.py at structures level - This provides a natural location for common URL utilities that all structure processors can use, following the existing import pattern via __.py
-- [2025-11-20] Use noqa: F401 for re-exports - The normalize_base_url function is imported into processor-specific urls.py modules for re-export to other modules that import urls. Used `# noqa: F401` to indicate this is an intentional re-export pattern.
-- [2025-11-20] Use wildcard import in structures/__.py - Following the existing pattern, used `from .urls import *` to make shared URL utilities available to all structure processors via their `__.py` imports.
+- [2025-11-20] Create shared urls.py at structures level - This provides a natural location for common URL utilities that all structure processors can use
+- [2025-11-20] Corrected import hierarchy - Processor __.py files should import from parent level using `from ..urls import *`, not the structures/__.py file importing sideways
+- [2025-11-20] Use __.normalize_base_url directly - Callers should use `__.normalize_base_url()` instead of re-exporting through processor-specific urls.py modules
+- [2025-11-20] Move from_source to base class - All four Detection classes had identical implementation, indicating this should be in the base StructureDetection class rather than duplicated in subclasses
 
 ## Handoff Notes
 
 ### Current State
-**COMPLETED** - All refactoring work is done and verified.
+**COMPLETED** - All refactoring work is done, verified, committed, and pushed.
 
-Implementation summary:
-- Created `sources/librovore/structures/urls.py` with shared `normalize_base_url` function
-- Updated `sources/librovore/structures/__.py` to export shared URL utilities via wildcard import
-- Refactored `sphinx/urls.py` and `pydoctor/urls.py` to import and re-export the shared function
-- Removed duplicate implementations (25 lines of identical code per processor)
-- All linters pass (ruff, isort, pyright)
+**Commits:**
+- f47a5b0: Initial normalize_base_url extraction (first attempt with incorrect import pattern)
+- 26050d5: Fixed import patterns and extracted from_source to base class
+
+**Implementation summary:**
+1. **normalize_base_url duplication** (25 lines per processor):
+   - Created `sources/librovore/structures/urls.py` with shared function
+   - Updated processor __.py files (sphinx, pydoctor) to import `from ..urls import *`
+   - Changed callers to use `__.normalize_base_url()` directly
+   - Removed duplicate implementations from processor-specific urls.py files
+
+2. **from_source duplication** (10 lines per class, 4 classes):
+   - Moved identical implementation to `StructureDetection` base class
+   - Removed duplicate methods from all 4 Detection subclasses
+   - Prevents future implementation drift
+
+**Quality verification:**
+- All linters pass (ruff, isort, pyright) with 0 errors
 - All 171 tests pass
-- Code coverage maintained
+- Code coverage maintained at 32%
+- Total duplicate code eliminated: ~90 lines
 
 ### Next Steps
-1. Commit changes with descriptive message
-2. Push to the designated branch
-3. Consider future enhancements:
-   - Extract other common URL utilities if more duplication is found
-   - Look for similar duplication patterns in other processor modules
+All refactoring complete. Future considerations:
+- Monitor for additional duplication patterns that emerge
+- Consider extracting other common utilities if patterns are discovered
 
 ### Implementation Details
-The refactoring successfully eliminated the duplicate `normalize_base_url` function by:
-1. Creating a new shared module at the structures level
-2. Leveraging the existing `__.py` import pattern where each processor imports `from ..__ import *`
-3. Using re-export pattern in processor-specific urls.py modules to maintain backward compatibility
+
+**normalize_base_url refactoring:**
+1. Created shared `sources/librovore/structures/urls.py` module
+2. Updated processor __.py files to import `from ..urls import *`
+3. Changed callers to use `__.normalize_base_url` instead of `_urls.normalize_base_url`
+4. Removed duplicate implementations (25 lines per processor)
+5. Followed correct import hierarchy with processor __.py files importing from parent level
+
+**from_source refactoring:**
+1. Identified identical implementation across all 4 Detection classes
+2. Moved implementation to `StructureDetection` base class in `processors.py`
+3. Removed duplicate implementations from all Detection subclasses
+4. Eliminated 10 lines per class (40 lines total)
+5. Prevents future implementation drift
 
 ### Context Dependencies
-- The __.py import pattern automatically makes shared utilities available to all processors
-- The normalize_base_url function is called via `_urls.normalize_base_url()` from main.py and extraction.py modules
-- The function handles URL parsing, file path conversion, and scheme validation identically for all processors
+- Processor __.py files use `from ..__ import *` to import from parent module
+- Processor __.py files use `from ..urls import *` to import shared URL utilities
+- The normalize_base_url function is called as `__.normalize_base_url()` from main.py and extraction.py modules
+- The from_source classmethod is inherited by all StructureDetection subclasses
+- Function handles URL parsing, file path conversion, and scheme validation identically for all processors
