@@ -46,9 +46,7 @@ def filter_by_name(
                 obj, score = 1.0, match_reasons = [ 'empty term' ] )
             for obj in objects
         )
-
     results: list[ _results.SearchResult ] = [ ]
-
     match search_behaviors.match_mode:
         case _interfaces.MatchMode.Exact:
             results = _filter_exact(
@@ -61,7 +59,6 @@ def filter_by_name(
                 objects, term, search_behaviors.similarity_score_min,
                 search_behaviors.contains_term,
                 search_behaviors.case_sensitive )
-
     sorted_results = sorted( results, key = lambda r: r.score, reverse = True )
     return tuple( sorted_results )
 
@@ -104,7 +101,6 @@ def _filter_regex(
         pattern = _re.compile( query, _re.IGNORECASE )
     except _re.error:
         return [ ]
-
     return [
         _results.SearchResult.from_inventory_object(
             obj, score = 1.0, match_reasons = [ 'regex match' ] )

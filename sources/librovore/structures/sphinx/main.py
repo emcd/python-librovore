@@ -89,7 +89,6 @@ class SphinxProcessor( __.Processor ):
         except Exception as exc:
             _scribe.debug( f"Theme detection failed for {source}: {exc}" )
         confidence = min( confidence, 1.0 )
-        
         return _detection.SphinxDetection(
             processor = self,
             confidence = confidence,

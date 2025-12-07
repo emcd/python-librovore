@@ -56,10 +56,8 @@ class PydoctorProcessor( __.Processor ):
         except Exception:
             return _detection.PydoctorDetection(
                 processor = self, confidence = 0.0, source = source )
-
         confidence = await _detection.detect_pydoctor(
             auxdata, base_url )
-
         return _detection.PydoctorDetection(
             processor = self,
             confidence = confidence,

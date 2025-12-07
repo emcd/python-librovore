@@ -56,13 +56,15 @@ from pathlib import Path
 import accretive as         accret
 import                      appcore
 import                      bs4
-import dynadoc as           ddoc
 import detextive as         detext
 import exceptiongroup as    excg
-import frigid as            immut
 import                      markdownify
 import                      tyro
 import typing_extensions as typx
+# --- BEGIN: Injected by Copier ---
+import dynadoc as           ddoc
+import frigid as            immut
+# --- END: Injected by Copier ---
 
 # --- BEGIN: Injected by Copier ---
 from absence import Absential, absent, is_absent

@@ -62,7 +62,6 @@ class MkDocsProcessor( __.Processor ):
             await _detection.check_mkdocs_html_markers( auxdata, base_url ) )
         confidence += mkdocs_html_confidence
         confidence = min( confidence, 1.0 )
-        
         return _detection.MkDocsDetection(
             processor = self,
             confidence = confidence,
