@@ -1,5 +1,16 @@
 {
   "mcpServers": {
+    "pyright": {
+      "command": "mcp-language-server",
+      "args": [
+        "--lsp", "pyright-langserver", "--workspace", ".",
+        "--", "--stdio"
+      ]
+    },
+    "context7": {
+      "command": "npx",
+      "args": [ "-y", "@upstash/context7-mcp" ]
+    },
     "librovore": {
       "command": "reloaderoo",
       "args": [
@@ -12,17 +23,6 @@
         "--inscription.level",
         "debug",
         "serve"
-      ]
-    },
-    "pyright": {
-      "command": "mcp-language-server",
-      "args": [
-        "--lsp",
-        "pyright-langserver",
-        "--workspace",
-        ".",
-        "--",
-        "--stdio"
       ]
     }
   }
