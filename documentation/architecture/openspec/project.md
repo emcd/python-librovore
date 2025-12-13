@@ -1,7 +1,7 @@
 # Project Context
 
 ## Purpose
-A Documentation Search Engine providing a CLI and MCP (Model Context Protocol) server for AI agents to search and extract documentation from Sphinx and MkDocs sites. It aims to make technical documentation easily consumable by AI agents.
+A Documentation Search Engine providing a CLI and MCP (Model Context Protocol) server for AI agents to search and extract documentation from Sphinx, MkDocs, Pydoctor, and Rustdoc sites. It aims to make technical documentation easily consumable by AI agents.
 
 ## Tech Stack
 - **Language**: Python 3.10+
@@ -45,6 +45,8 @@ The project follows a standard filesystem organization as detailed in [Filesyste
 ## Domain Context
 - **Sphinx**: Understands `objects.inv` inventory files.
 - **MkDocs**: Understands `search_index.json`.
+- **Pydoctor**: Understands Pydoctor inventory and structure formats.
+- **Rustdoc**: Understands Rustdoc structure and search index.
 - **MCP**: Implements Model Context Protocol for AI integration.
 - **HTML to Markdown**: Converts documentation HTML to clean Markdown for AI consumption.
 
