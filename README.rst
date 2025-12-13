@@ -47,9 +47,9 @@
 
 🐲📚 **Documentation Search Engine** - An intelligent documentation search and
 extraction tool that provides both a command-line interface for humans and an
-MCP (Model Context Protocol) server for AI agents. Search across Sphinx and
-MkDocs sites with fuzzy matching, extract clean markdown content, and integrate
-seamlessly with AI development workflows.
+MCP (Model Context Protocol) server for AI agents. Search across Sphinx,
+MkDocs, Pydoctor, and Rustdoc sites with fuzzy matching, extract clean markdown
+content, and integrate seamlessly with AI development workflows.
 
 
 Key Features ⭐
@@ -57,7 +57,7 @@ Key Features ⭐
 
 * 🔍 **Universal Search**: Fuzzy, exact, and regex search across documentation inventories and full content
 * 🤖 **AI Agent Ready**: Built-in MCP server for seamless integration with Claude Code and other AI tools
-* 📖 **Multi-Format Support**: Works with Sphinx (Furo, ReadTheDocs themes) and MkDocs (Material theme) sites
+* 📖 **Multi-Format Support**: Works with Sphinx, MkDocs, Pydoctor, and Rustdoc sites
 * 🚀 **High Performance**: In-memory caching with sub-second response times for repeated queries
 * 🧹 **Clean Output**: High-quality HTML-to-Markdown conversion preserving code blocks and formatting
 * 🎯 **Auto-Detection**: Automatically identifies documentation type without manual configuration

@@ -58,7 +58,7 @@ Goals and Objectives
 ===============================================================================
 
 **Primary Objectives (Critical):**
-1. **Unified Documentation Access**: Provide consistent interface for both Sphinx and MkDocs documentation sites
+1. **Unified Documentation Access**: Provide consistent interface for Sphinx, MkDocs, Pydoctor, and Rustdoc documentation sites
 2. **Advanced Search**: Enable fuzzy, exact, and regex-based search across documentation inventories and content
 3. **MCP Integration**: Seamless integration with AI agents through Model Context Protocol
 4. **Performance**: Fast response times with intelligent caching for frequently accessed documentation
@@ -71,7 +71,7 @@ Goals and Objectives
 
 **Success Metrics:**
 - Sub-second response times for cached inventory queries
-- Support for 90%+ of popular Sphinx and MkDocs sites
+- Support for 90%+ of popular Sphinx, MkDocs, Pydoctor, and Rustdoc sites
 - Clean markdown output with preserved code formatting
 - Successful integration with major MCP clients
 - 90%+ test coverage with comprehensive edge case handling
@@ -137,7 +137,31 @@ Functional Requirements
     - Handle mkdocstrings-specific content structure
     - Filter out navigation and UI elements during extraction
 
-**REQ-004: Search Functionality (Critical)**
+**REQ-004: Pydoctor Documentation Processing (Critical)**
+- **Priority**: Critical
+- **Description**: Full support for Pydoctor documentation sites
+- **User Story**: As a user, I want to search Pydoctor documentation so that I can access API documentation for Twisted and other Zope-stack projects
+- **Acceptance Criteria**:
+
+    - Parse objects.inv files from Pydoctor sites
+    - Extract content from Pydoctor-generated HTML
+    - Convert HTML to Markdown with language-aware code blocks
+    - Handle Pydoctor-specific content structure
+    - Filter out navigation and UI elements during extraction
+
+**REQ-005: Rustdoc Documentation Processing (Critical)**
+- **Priority**: Critical
+- **Description**: Full support for Rustdoc documentation sites
+- **User Story**: As a user, I want to search Rustdoc documentation so that I can access API documentation for Rust crates
+- **Acceptance Criteria**:
+
+    - Parse search-index.js files from Rustdoc sites
+    - Extract content from Rustdoc-generated HTML
+    - Convert HTML to Markdown with language-aware code blocks
+    - Handle Rustdoc-specific content structure
+    - Filter out navigation and UI elements during extraction
+
+**REQ-006: Search Functionality (Critical)**
 - **Priority**: Critical
 - **Description**: Multiple search modes with configurable behavior
 - **User Story**: As a user, I want to search documentation using different matching strategies so that I can find relevant content efficiently
@@ -150,7 +174,7 @@ Functional Requirements
     - Filtering by domain, role, and custom processor filters
     - Configurable result limits and detail levels
 
-**REQ-005: Caching System (High)**
+**REQ-007: Caching System (High)**
 - **Priority**: High
 - **Description**: Intelligent caching to improve performance and reduce network requests
 - **User Story**: As a user, I want fast response times for repeated queries so that my workflow is not interrupted
@@ -162,7 +186,7 @@ Functional Requirements
     - Cache hit/miss metrics for optimization
     - Configurable cache settings
 
-**REQ-006: CLI Interface (High)**
+**REQ-008: CLI Interface (High)**
 - **Priority**: High
 - **Description**: Human-usable command-line interface for testing and standalone use
 - **User Story**: As a developer, I want to test librovore functionality from the command line so that I can validate behavior and debug issues
@@ -174,7 +198,7 @@ Functional Requirements
     - Support for all MCP server capabilities
     - Configuration file support for frequent use cases
 
-**REQ-007: Processor Detection (High)**
+**REQ-009: Processor Detection (High)**
 - **Priority**: High
 - **Description**: Automatic detection of appropriate processor for given documentation site
 - **User Story**: As a user, I want the system to automatically determine the correct processor so that I don't need to specify the documentation type
@@ -182,11 +206,13 @@ Functional Requirements
 
     - Detect Sphinx sites by robots.txt and objects.inv presence
     - Detect MkDocs sites with mkdocstrings by objects.inv and site structure
+    - Detect Pydoctor sites by objects.inv and site structure
+    - Detect Rustdoc sites by search-index.js and site structure
     - Graceful fallback when detection is ambiguous
     - Clear error messages when no suitable processor is found
     - Confidence scoring for processor selection
 
-**REQ-008: Content Quality (Medium)**
+**REQ-010: Content Quality (Medium)**
 - **Priority**: Medium
 - **Description**: High-quality content extraction and formatting
 - **User Story**: As a user, I want extracted content to be clean and well-formatted so that it's easily readable and usable
@@ -198,7 +224,7 @@ Functional Requirements
     - Convert HTML tables to Markdown tables
     - Handle images and media references appropriately
 
-**REQ-009: Error Handling (Medium)**
+**REQ-011: Error Handling (Medium)**
 - **Priority**: Medium
 - **Description**: Robust error handling and user feedback
 - **User Story**: As a user, I want clear error messages when something goes wrong so that I can understand and resolve issues
@@ -210,7 +236,7 @@ Functional Requirements
     - Detailed logging for debugging purposes
     - Recovery from temporary service unavailability
 
-**REQ-010: Plugin Architecture Foundation (Low)**
+**REQ-012: Plugin Architecture Foundation (Low)**
 - **Priority**: Low
 - **Description**: Extensible architecture for additional documentation processors
 - **User Story**: As a tool developer, I want to extend the system with custom processors so that I can support additional documentation formats
