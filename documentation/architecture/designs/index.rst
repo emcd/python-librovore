@@ -28,8 +28,4 @@ Each design documents Python-specific architecture, interface contracts, module 
    :maxdepth: 2
    :glob:
 
-   processor-detection-system
-   inventory-processors
-   structure-processors
-   results-objects
    ../openspec/specs/*/design
