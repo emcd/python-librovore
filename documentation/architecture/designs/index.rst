@@ -29,4 +29,4 @@ Each design documents Python-specific architecture, interface contracts, module 
    :glob:
 
    ../openspec/specs/*/spec
-   ../openspec/specs/*/*-design
+   ../openspec/specs/*/design
