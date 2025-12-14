@@ -28,5 +28,4 @@ Each design documents Python-specific architecture, interface contracts, module 
    :maxdepth: 2
    :glob:
 
-   ../openspec/specs/*/spec
    ../openspec/specs/*/design
