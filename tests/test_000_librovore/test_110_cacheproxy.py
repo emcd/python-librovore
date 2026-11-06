@@ -805,10 +805,10 @@ async def test_351_retrieve_url_as_text_unsupported_scheme_raises_exception( con
 
 
 @pytest.mark.asyncio
-async def test_360_retrieve_url_as_text_file_scheme_utf8( fs, content_cache, robots_cache ):
+async def test_360_retrieve_url_as_text_file_scheme_utf8( fs_chardet, content_cache, robots_cache ):
     ''' UTF-8 files return decoded content as text. '''
     test_content = 'UTF-8 text content with émojis 🚀'
-    fs.create_file(
+    fs_chardet.create_file(
         '/test/utf8.txt', contents = test_content, encoding = 'utf-8' )
     url = Url(
         scheme = 'file', netloc = '', path = '/test/utf8.txt',
@@ -818,10 +818,10 @@ async def test_360_retrieve_url_as_text_file_scheme_utf8( fs, content_cache, rob
 
 
 @pytest.mark.asyncio
-async def test_361_retrieve_url_as_text_file_scheme_custom_charset( fs, content_cache, robots_cache ):
+async def test_361_retrieve_url_as_text_file_scheme_custom_charset( fs_chardet, content_cache, robots_cache ):
     ''' Custom default charset is used for file text retrieval. '''
     test_content = 'ASCII content only'
-    fs.create_file(
+    fs_chardet.create_file(
         '/test/ascii.txt', contents = test_content.encode( 'ascii' ) )
     url = Url(
         scheme = 'file', netloc = '', path = '/test/ascii.txt',
