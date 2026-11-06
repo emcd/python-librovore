@@ -1,17 +1,12 @@
 # Changes here will be overwritten by Copier
-_commit: v1.0a7-25-gbb445ee
+_commit: v1.0a18
 _src_path: gh:emcd/agents-common
 coders:
 - claude
-- gemini
+- codex
 - opencode
-instructions_sources:
--   files:
-        '*.rst':
-            strip_header_lines: 20
-    source: github:emcd/python-project-common@docs-1#documentation/common
-instructions_target: .auxiliary/instructions
+instructions_target: .auxiliary/agents/standards
 languages:
 - python
 project_name: python-librovore
-provide_instructions: true
+support_local_models: false

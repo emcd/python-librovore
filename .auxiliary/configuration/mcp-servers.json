@@ -1,10 +1,9 @@
 {
   "mcpServers": {
-    "pyright": {
-      "command": "mcp-language-server",
+    "agentmux": {
+      "command": "agentmux",
       "args": [
-        "--lsp", "pyright-langserver", "--workspace", ".",
-        "--", "--stdio"
+        "host", "mcp"
       ]
     },
     "context7": {
@@ -12,10 +11,8 @@
       "args": [ "-y", "@upstash/context7-mcp" ]
     },
     "librovore": {
-      "command": "reloaderoo",
+      "command": "hatch",
       "args": [
-        "--",
-        "hatch",
         "run",
         "librovore",
         "--inscription.target-file",
@@ -23,6 +20,13 @@
         "--inscription.level",
         "debug",
         "serve"
+      ]
+    },
+    "nb": {
+      "command": "nb-mcp",
+      "args": [
+        "--notebook", "python-librovore",
+        "--no-commit-signing"
       ]
     }
   }
