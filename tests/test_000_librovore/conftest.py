@@ -64,24 +64,23 @@ def fake_fs_with_inventories(fs, cached_inventories):
 
 
 @pytest.fixture
-def fs_chardet(fs):
-    """Exposes real chardet model data inside the fake filesystem.
+def behaviors_harness():
+    """Test-only detextive configuration with no detector execution.
 
-    chardet 7.x loads language models from ``.bin`` data files at
-    detection time; these are invisible under pyfakefs by default.
+    Sanctioned harness-only configuration: an empty detector order with
+    trial decode disabled and explicit trial codecs, so pyfakefs tests
+    decode deterministically without invoking any detector backend.
+    Production keeps default detection; the real-filesystem smoke subset
+    covers production-default detector order.
     """
-    from pathlib import Path
+    from detextive import Behaviors
+    from detextive.core import BehaviorTristate
 
-    fs.pause()
-    try:
-        import chardet
-
-        data_paths = list(Path(chardet.__file__).parent.glob("models/*.bin"))
-    finally:
-        fs.resume()
-    for data_path in data_paths:
-        fs.add_real_file(data_path)
-    return fs
+    return Behaviors(
+        charset_detectors_order=(),
+        trial_decode=BehaviorTristate.Never,
+        trial_codecs=("utf-8", "utf-8-sig"),
+    )
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)

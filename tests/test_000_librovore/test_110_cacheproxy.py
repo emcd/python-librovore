@@ -187,71 +187,6 @@ def test_016_probe_cache_entry_basic_construction( ):
     assert entry.ttl == 300.0
 
 
-def test_030_extract_charset_from_headers_with_charset( ):
-    ''' Charset is extracted from Content-Type headers. '''
-    headers = _httpx.Headers( {
-        'content-type': 'text/html; charset=iso-8859-1',
-    } )
-    result = module._extract_charset_from_headers( headers, 'utf-8' )
-    assert result == 'iso-8859-1'
-
-
-def test_031_extract_charset_from_headers_with_quotes( ):
-    ''' Quoted charset values are handled correctly. '''
-    headers = _httpx.Headers( {
-        'content-type': 'text/html; charset="utf-16"',
-    } )
-    result = module._extract_charset_from_headers( headers, 'utf-8' )
-    assert result == 'utf-16'
-
-
-def test_032_extract_charset_from_headers_no_charset( ):
-    ''' Default charset is returned when none specified. '''
-    headers = _httpx.Headers( { 'content-type': 'text/html' } )
-    result = module._extract_charset_from_headers( headers, 'utf-8' )
-    assert result == 'utf-8'
-
-
-def test_033_extract_charset_from_headers_missing_header( ):
-    ''' Default charset is returned when header is missing. '''
-    headers = _httpx.Headers( )
-    result = module._extract_charset_from_headers( headers, 'utf-8' )
-    assert result == 'utf-8'
-
-
-def test_034_extract_charset_from_headers_with_semicolon_no_charset( ):
-    ''' Default charset returned when semicolon present but no charset. '''
-    headers = _httpx.Headers( {
-        'content-type': 'text/html; boundary=something'
-    } )
-    result = module._extract_charset_from_headers( headers, 'utf-8' )
-    assert result == 'utf-8'
-
-
-def test_035_extract_mimetype_from_headers_with_params( ):
-    ''' Mimetype is extracted before parameters. '''
-    headers = _httpx.Headers( {
-        'content-type': 'application/json; charset=utf-8',
-    } )
-    result = module._extract_mimetype_from_headers( headers )
-    assert result == 'application/json'
-
-
-def test_036_extract_mimetype_from_headers_no_params( ):
-    ''' Full mimetype value is returned without parameters. '''
-    headers = _httpx.Headers( { 'content-type': 'text/plain' } )
-    result = module._extract_mimetype_from_headers( headers )
-    assert result == 'text/plain'
-
-
-def test_037_extract_mimetype_from_headers_missing_header( ):
-    ''' Empty string is returned when mimetype header is missing. '''
-    headers = _httpx.Headers( )
-    result = module._extract_mimetype_from_headers( headers )
-    assert result == ''
-
-
-#
 # Series 100: ContentCache Tests
 #
 
@@ -805,29 +740,31 @@ async def test_351_retrieve_url_as_text_unsupported_scheme_raises_exception( con
 
 
 @pytest.mark.asyncio
-async def test_360_retrieve_url_as_text_file_scheme_utf8( fs_chardet, content_cache, robots_cache ):
+async def test_360_retrieve_url_as_text_file_scheme_utf8( fs, behaviors_harness, content_cache, robots_cache ):
     ''' UTF-8 files return decoded content as text. '''
     test_content = 'UTF-8 text content with émojis 🚀'
-    fs_chardet.create_file(
+    fs.create_file(
         '/test/utf8.txt', contents = test_content, encoding = 'utf-8' )
     url = Url(
         scheme = 'file', netloc = '', path = '/test/utf8.txt',
         params = '', query = '', fragment = '' )
-    result = await module.retrieve_url_as_text( content_cache, url )
+    result = await module.retrieve_url_as_text(
+        content_cache, url, behaviors = behaviors_harness )
     assert result == test_content
 
 
 @pytest.mark.asyncio
-async def test_361_retrieve_url_as_text_file_scheme_custom_charset( fs_chardet, content_cache, robots_cache ):
+async def test_361_retrieve_url_as_text_file_scheme_custom_charset( fs, behaviors_harness, content_cache, robots_cache ):
     ''' Custom default charset is used for file text retrieval. '''
     test_content = 'ASCII content only'
-    fs_chardet.create_file(
+    fs.create_file(
         '/test/ascii.txt', contents = test_content.encode( 'ascii' ) )
     url = Url(
         scheme = 'file', netloc = '', path = '/test/ascii.txt',
         params = '', query = '', fragment = '' )
     result = await module.retrieve_url_as_text(
-        content_cache, url, charset_default = 'ascii' )
+        content_cache, url, charset_default = 'ascii',
+        behaviors = behaviors_harness )
     assert result == test_content
 
 
@@ -923,7 +860,49 @@ async def test_366_retrieve_url_as_text_http_cache_miss_custom_charset( robots_c
 
 
 @pytest.mark.asyncio
-async def test_370_retrieve_url_as_text_dependency_injection( fs, robots_cache ):
+async def test_367_unknown_header_charset_treated_as_absent( robots_cache ):
+    ''' Unknown header charset falls back to detection. '''
+    mock_cache = Mock( spec = module.ContentCache )
+    test_content = 'UTF-8 text with emojis '
+    test_headers = _httpx.Headers( {
+        'content-type': 'text/plain; charset=invalid-review-charset',
+    } )
+    mock_cache.access.return_value = (
+        test_content.encode( 'utf-8' ), test_headers )
+    result = await module.retrieve_url_as_text(
+        mock_cache, _URL_HTTP_TEST )
+    assert result == test_content
+
+
+@pytest.mark.asyncio
+async def test_368_nontext_codec_header_stripped( robots_cache ):
+    ''' Non-text codec header charset is stripped, MIME retained. '''
+    mock_cache = Mock( spec = module.ContentCache )
+    test_content = 'UTF-8 text with emojis '
+    test_headers = _httpx.Headers( {
+        'content-type': 'text/plain; charset=base64_codec',
+    } )
+    mock_cache.access.return_value = (
+        test_content.encode( 'utf-8' ), test_headers )
+    result = await module.retrieve_url_as_text(
+        mock_cache, _URL_HTTP_TEST )
+    assert result == test_content
+
+
+@pytest.mark.asyncio
+async def test_369_empty_nontextual_http_body_rejected( robots_cache ):
+    ''' Empty body with non-textual MIME raises on cache hit. '''
+    mock_cache = Mock( spec = module.ContentCache )
+    mock_cache.access.return_value = ( b'', _HEADERS_IMAGE_PNG )
+    url_image = Url(
+        scheme = 'http', netloc = 'example.com', path = '/image',
+        params = '', query = '', fragment = '' )
+    with pytest.raises( _exceptions.HttpContentTypeInvalidity ):
+        await module.retrieve_url_as_text( mock_cache, url_image )
+
+
+@pytest.mark.asyncio
+async def test_370_retrieve_url_as_text_dependency_injection( fs, behaviors_harness, robots_cache ):
     ''' Injected cache dependencies are accepted for text retrieval. '''
     custom_cache = module.ContentCache( memory_max = 1024 )
     test_content = 'Custom text content'
@@ -931,12 +910,128 @@ async def test_370_retrieve_url_as_text_dependency_injection( fs, robots_cache )
     url = Url(
         scheme = 'file', netloc = '', path = '/test/text.txt',
         params = '', query = '', fragment = '' )
-    result = await module.retrieve_url_as_text( custom_cache, url )
+    result = await module.retrieve_url_as_text(
+        custom_cache, url, behaviors = behaviors_harness )
     assert result == test_content
     assert custom_cache.memory_max == 1024
 
 
-#
+@pytest.mark.asyncio
+async def test_371_empty_nontextual_http_body_rejected_miss( robots_cache ):
+    ''' Empty body with non-textual MIME raises on cache miss. '''
+    cache = module.ContentCache( )
+    url_image = Url(
+        scheme = 'http', netloc = 'example.com', path = '/image',
+        params = '', query = '', fragment = '' )
+    def handler( request ):
+        return _httpx.Response(
+            200, content = b'',
+            headers = { 'content-type': 'image/png' } )
+    mock_transport = _httpx.MockTransport( handler )
+    def client_factory( ):
+        return _httpx.AsyncClient( transport = mock_transport )
+    with pytest.raises( _exceptions.HttpContentTypeInvalidity ):
+        await module.retrieve_url_as_text(
+            cache, url_image, client_factory = client_factory )
+
+
+@pytest.mark.asyncio
+async def test_372_empty_textual_body_valid( fs, behaviors_harness, content_cache, robots_cache ):
+    ''' Empty textual bodies decode to empty string. '''
+    mock_cache = Mock( spec = module.ContentCache )
+    mock_cache.access.return_value = (
+        b'', _httpx.Headers( { 'content-type': 'text/plain' } ) )
+    result = await module.retrieve_url_as_text( mock_cache, _URL_HTTP_TEST )
+    assert result == ''
+    fs.create_file( '/test/empty.txt', contents = '' )
+    url = Url(
+        scheme = 'file', netloc = '', path = '/test/empty.txt',
+        params = '', query = '', fragment = '' )
+    result = await module.retrieve_url_as_text(
+        content_cache, url, behaviors = behaviors_harness )
+    assert result == ''
+
+
+@pytest.mark.asyncio
+async def test_373_wrong_header_charset_falls_back_to_default( robots_cache ):
+    ''' Undecodable header charset retries with default charset. '''
+    mock_cache = Mock( spec = module.ContentCache )
+    test_content = 'Caf\u00e9 \U0001f680'
+    test_headers = _httpx.Headers( {
+        'content-type': 'text/plain; charset=iso-8859-1',
+    } )
+    mock_cache.access.return_value = (
+        test_content.encode( 'utf-8' ), test_headers )
+    result = await module.retrieve_url_as_text( mock_cache, _URL_HTTP_TEST )
+    assert result == test_content
+
+
+@pytest.mark.asyncio
+async def test_374_undefined_header_charset_falls_back_hit( robots_cache ):
+    ''' Always-failing header codec falls back to detection (hit). '''
+    mock_cache = Mock( spec = module.ContentCache )
+    mock_cache.access.return_value = (
+        b'hello',
+        _httpx.Headers( { 'content-type': 'text/plain; charset=undefined' } ) )
+    result = await module.retrieve_url_as_text( mock_cache, _URL_HTTP_TEST )
+    assert result == 'hello'
+
+
+@pytest.mark.asyncio
+async def test_375_undefined_header_charset_falls_back_miss( robots_cache ):
+    ''' Always-failing header codec falls back to detection (miss). '''
+    cache = module.ContentCache( )
+    def handler( request ):
+        if request.url.path.endswith( 'robots.txt' ):
+            return _httpx.Response(
+                200, content = b'User-agent: *\nAllow: /',
+                headers = { 'content-type': 'text/plain' } )
+        return _httpx.Response(
+            200, content = b'hello',
+            headers = {
+                'content-type': 'text/plain; charset=undefined' } )
+    mock_transport = _httpx.MockTransport( handler )
+    def client_factory( ):
+        return _httpx.AsyncClient( transport = mock_transport )
+    result = await module.retrieve_url_as_text(
+        cache, _URL_HTTP_TEST, client_factory = client_factory )
+    assert result == 'hello'
+
+
+@pytest.mark.asyncio
+async def test_376_nullbyte_header_charset_falls_back_hit( robots_cache ):
+    ''' Null-byte header charset is refused, MIME retained (hit). '''
+    mock_cache = Mock( spec = module.ContentCache )
+    mock_cache.access.return_value = (
+        b'hello',
+        _httpx.Headers( {
+            'content-type': 'text/plain; charset="utf-8\x00"' } ) )
+    result = await module.retrieve_url_as_text( mock_cache, _URL_HTTP_TEST )
+    assert result == 'hello'
+
+
+@pytest.mark.asyncio
+async def test_377_nullbyte_header_charset_falls_back_miss( robots_cache ):
+    ''' Null-byte header charset is refused, MIME retained (miss). '''
+    cache = module.ContentCache( )
+    def handler( request ):
+        if request.url.path.endswith( 'robots.txt' ):
+            return _httpx.Response(
+                200, content = b'User-agent: *\nAllow: /',
+                headers = { 'content-type': 'text/plain' } )
+        return _httpx.Response(
+            200, content = b'hello',
+            headers = [ (
+                b'content-type',
+                b'text/plain; charset="utf-8\x00"' ) ] )
+    mock_transport = _httpx.MockTransport( handler )
+    def client_factory( ):
+        return _httpx.AsyncClient( transport = mock_transport )
+    result = await module.retrieve_url_as_text(
+        cache, _URL_HTTP_TEST, client_factory = client_factory )
+    assert result == 'hello'
+
+
 # Series 800: Edge Case Coverage Tests
 #
 
@@ -979,14 +1074,6 @@ def test_803_probe_cache_evict_empty_recency_queue( ):
     assert len( cache._cache ) == 1  # Unchanged since nothing to evict
 
 
-def test_804_extract_charset_no_semicolon( ):
-    ''' Content-Type without semicolon returns charset default. '''
-    headers = _httpx.Headers( { 'content-type': 'text/plain' } )
-    result = module._extract_charset_from_headers( headers, 'utf-8' )
-    assert result == 'utf-8'  # Default returned when no semicolon
-
-
-#
 # Series 900: HTTP Request Deduplication Tests
 #
 
