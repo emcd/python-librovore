@@ -22,7 +22,7 @@ dependencies = [
   'httpx',
   'lxml',
   'markdownify',
-  'mcp<2',
+  'mcp~=2.0',
   'rapidfuzz',
   'rich',
   'sphobjinv',
