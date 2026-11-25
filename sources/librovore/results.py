@@ -81,7 +81,8 @@ class InventoryObject( ResultBase ):
         __.immut.Dictionary[ str, __.typx.Any ],
         __.ddoc.Doc(
             "Format-specific metadata (domain, role, priority, etc.)." ),
-    ] = __.dcls.field( default_factory = lambda: __.immut.Dictionary( ) )
+    ] = __.dcls.field(
+        default_factory = __.immut.Dictionary[ str, __.typx.Any ] )
 
 
     @property
@@ -175,7 +176,8 @@ class ContentDocument( ResultBase ):
     extraction_metadata: __.typx.Annotated[
         __.immut.Dictionary[ str, __.typx.Any ],
         __.ddoc.Doc( "Metadata from structure processor extraction." ),
-    ] = __.dcls.field( default_factory = lambda: __.immut.Dictionary( ) )
+    ] = __.dcls.field(
+        default_factory = __.immut.Dictionary[ str, __.typx.Any ] )
 
     @property
     def has_meaningful_content( self ) -> bool:
@@ -701,7 +703,8 @@ class Detection( __.immut.DataclassObject ):
     detection_metadata: __.typx.Annotated[
         __.immut.Dictionary[ str, __.typx.Any ],
         __.ddoc.Doc( "Processor-specific detection metadata." ),
-    ] = __.dcls.field( default_factory = lambda: __.immut.Dictionary( ) )
+    ] = __.dcls.field(
+        default_factory = __.immut.Dictionary[ str, __.typx.Any ] )
 
     def render_as_json( self ) -> __.immut.Dictionary[ str, __.typx.Any ]:
         ''' Renders detection as JSON-compatible dictionary. '''

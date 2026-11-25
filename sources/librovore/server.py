@@ -142,7 +142,7 @@ def _produce_detect_function( auxdata: _state.Globals ):
 
 def _produce_query_content_function( auxdata: _state.Globals ):
     @intercept_errors
-    async def query_content(  # noqa: PLR0913
+    async def query_content(  # noqa: PLR0913, PLR0917
         location: LocationArgument,
         term: TermArgument,
         search_behaviors: __.typx.Annotated[
@@ -203,7 +203,7 @@ def _produce_query_content_function( auxdata: _state.Globals ):
 
 def _produce_query_inventory_function( auxdata: _state.Globals ):
     @intercept_errors
-    async def query_inventory(  # noqa: PLR0913
+    async def query_inventory(  # noqa: PLR0913, PLR0917
         location: LocationArgument,
         term: TermArgument,
         search_behaviors: __.typx.Annotated[

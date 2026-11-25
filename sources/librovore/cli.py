@@ -179,7 +179,7 @@ class QueryInventoryCommand(
         _interfaces.SearchBehaviors,
         __.tyro.conf.arg( prefix_name = False ),
     ] = __.dcls.field(
-        default_factory = lambda: _interfaces.SearchBehaviors( ) )
+        default_factory = _interfaces.SearchBehaviors )
     results_max: __.typx.Annotated[
         int,
         __.tyro.conf.arg( help = __.access_doctab( 'results max argument' ) ),
@@ -244,7 +244,7 @@ class QueryContentCommand(
         _interfaces.SearchBehaviors,
         __.tyro.conf.arg( prefix_name = False ),
     ] = __.dcls.field(
-        default_factory = lambda: _interfaces.SearchBehaviors( ) )
+        default_factory = _interfaces.SearchBehaviors )
     filters: __.typx.Annotated[
         __.cabc.Sequence[ str ],
         __.tyro.conf.arg( prefix_name = False ),

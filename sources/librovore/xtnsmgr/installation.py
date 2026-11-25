@@ -40,7 +40,7 @@ async def install_package(
     '''
     for attempt in range( retries_max + 1 ):
         try: return await _install_with_uv( specification, cache_path )
-        except __.ExtensionInstallFailure as exc:  # noqa: PERF203
+        except __.ExtensionInstallFailure as exc:
             if attempt == retries_max:
                 _scribe.error(
                     f"Failed to install {specification} after "
