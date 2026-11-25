@@ -46,6 +46,4 @@ _URL_EMPTY_SCHEME = Url(
 
 _HEADERS_TEXT_PLAIN = _httpx.Headers( { 'content-type': 'text/plain' } )
 _HEADERS_TEXT_HTML = _httpx.Headers( { 'content-type': 'text/html' } )
-_HEADERS_APP_JSON = _httpx.Headers( {
-    'content-type': 'application/json; charset=utf-8' } )
 _HEADERS_IMAGE_PNG = _httpx.Headers( { 'content-type': 'image/png' } )

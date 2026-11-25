@@ -45,7 +45,8 @@ This test suite follows the project standard numbering conventions:
 modules sharing `conftest.py` fixtures and `shared.py` constants:
 - `test_110_cacheproxy_caches.py`: entries, ContentCache, ProbeCache,
   probe_url, and retrieve_url tests
-- `test_111_cacheproxy_text.py`: retrieve_url_as_text decoding tests
+- `test_111_cacheproxy_text.py`: retrieve_url_as_text decoding,
+  cache edge-case, and request-deduplication tests
 - `test_112_cacheproxy_robots.py`: RobotsCache, domain, and robots.txt
   fetching tests
 - `test_113_cacheproxy_disabled_a.py`: preserved disabled crawl-delay

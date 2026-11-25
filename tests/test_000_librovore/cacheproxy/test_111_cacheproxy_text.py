@@ -18,7 +18,7 @@
 #============================================================================#
 
 
-''' Tests for text-decoding retrieval paths. '''
+''' Tests for text decoding, edge cases, and request dedup. '''
 
 # ruff: noqa: E501
 
