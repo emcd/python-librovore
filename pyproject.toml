@@ -18,6 +18,9 @@ dependencies = [
   'accretive~=4.1',
   'beautifulsoup4',
   'detextive~=3.2.1',
+  # Intel macOS has no cryptography>=49 wheel; sdist builds link the
+  # wrong libssl under PyInstaller. Last universal2 wheel is 48.x.
+  'cryptography<49; sys_platform == "darwin" and platform_machine == "x86_64"',
   'exceptiongroup',
   'httpx',
   'lxml',
