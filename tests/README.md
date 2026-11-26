@@ -39,8 +39,21 @@ This test suite follows the project standard numbering conventions:
 - `300-399`: determine_processor_optimal tests
 - `700-799`: Sphinx processor integration tests (future)
 
-#### Special: Cacheproxy Module Function Organization
-`test_110_cacheproxy.py` uses feature-based numbering:
+#### Special: Cacheproxy Test Subpackage Organization
+`tests/test_000_librovore/cacheproxy/` splits the former
+`test_110_cacheproxy.py` (over the 1000-line module limit) into topical
+modules sharing `conftest.py` fixtures and `shared.py` constants:
+- `test_110_cacheproxy_caches.py`: entries, ContentCache, ProbeCache,
+  probe_url, and retrieve_url tests
+- `test_111_cacheproxy_text.py`: retrieve_url_as_text decoding,
+  cache edge-case, and request-deduplication tests
+- `test_112_cacheproxy_robots.py`: RobotsCache, domain, and robots.txt
+  fetching tests
+- `test_113_cacheproxy_disabled_a.py`: preserved disabled crawl-delay
+  and integration tests
+- `test_114_cacheproxy_disabled_b.py`: preserved disabled error and
+  edge-case tests
+Test function numbering within modules is unchanged:
 - `100-199`: ContentCache class tests
 - `200-299`: ProbeCache class tests
 - `300-399`: retrieve_url functions tests

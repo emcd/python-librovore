@@ -62,17 +62,6 @@ class MkDocsDetection( __.StructureDetection ):
             } )
         )
 
-    @classmethod
-    async def from_source(
-        selfclass,
-        auxdata: __.ApplicationGlobals,
-        processor: __.Processor,
-        source: str,
-    ) -> __.typx.Self:
-        ''' Constructs detection from source location. '''
-        detection = await processor.detect( auxdata, source )
-        return __.typx.cast( __.typx.Self, detection )
-
     async def extract_contents(
         self,
         auxdata: __.ApplicationGlobals,
@@ -109,7 +98,7 @@ async def check_mkdocs_html_markers(
             html_content = await __.retrieve_url_as_text(
                 auxdata.content_cache,
                 html_url, duration_max = 10.0 )
-        except __.DocumentationInaccessibility: continue # noqa: PERF203
+        except __.DocumentationInaccessibility: continue
         else: break
     if not html_content: return 0.0
     confidence = 0.0
@@ -143,7 +132,7 @@ async def detect_theme(
             html_content = await __.retrieve_url_as_text(
                 auxdata.content_cache,
                 html_url, duration_max = 10.0 )
-        except __.DocumentationInaccessibility: continue # noqa: PERF203
+        except __.DocumentationInaccessibility: continue
         else: break
     if html_content:
         html_content_lower = html_content.lower( )

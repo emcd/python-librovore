@@ -49,17 +49,25 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'sphinx.ext.githubpages',
+    'myst_parser',
     'sphinx_copybutton',
     'sphinx_inline_tabs',
 ]
 
 templates_path = [ '_templates' ]
 
-exclude_patterns = [ ]
+exclude_patterns = [
+    'architecture/**',
+]
 
 rst_prolog = f'''
 .. |project| replace:: {project}
 '''
+
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.md': 'markdown',
+}
 
 nitpicky = True
 nitpick_ignore = [
@@ -119,6 +127,9 @@ linkcheck_ignore = [
     r'https://pypi.org/project/librovore/',
     # Github aggressively rate-limits access to certain blobs.
     r'https://github\.com/.*/.*/blob/.*',
+    # Crates.io fingerprints user agents and 404s bot-like probes
+    # (e.g. linkcheck), so all crate pages must be ignored.
+    r'https://crates\.io/crates/.*',
     # Avoid timeouts for slow sites.
     r'http://www\.catb\.org/~esr/faqs/smart-questions\.html',
 ]
@@ -156,7 +167,35 @@ intersphinx_mapping = {
         'https://docs.python.org/3', None),
     'typing-extensions': (
         'https://typing-extensions.readthedocs.io/en/latest', None),
+  # --- BEGIN: Injected by Copier ---
+    'absence': (
+        'https://emcd.github.io/python-absence/stable/sphinx-html', None),
+    'dynadoc': (
+        'https://emcd.github.io/python-dynadoc/stable/sphinx-html', None),
+    'frigid': (
+        'https://emcd.github.io/python-frigid/stable/sphinx-html', None),
+  # --- END: Injected by Copier ---
 }
+
+# -- Options for Myst extension ----------------------------------------------
+
+# https://myst-parser.readthedocs.io/en/latest/syntax/optional.html
+myst_enable_extensions = [
+    # 'amsmath',
+    # 'attrs_inline',
+    'colon_fence',      # ::: blocks
+    'deflist',          # Definition lists
+    # 'dollarmath',
+    # 'fieldlist',
+    # 'html_admonition',
+    # 'html_image',
+    # 'linkify',
+    # 'replacements',
+    # 'smartquotes',
+    # 'strikethrough',
+    # 'substitution',
+    'tasklist',         # - [ ] tasks
+]
 
 # -- Options for todo extension ----------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/extensions/todo.html#configuration

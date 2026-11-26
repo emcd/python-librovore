@@ -1,3 +1,4 @@
-artifacts/
-caches/
+/artifacts/
+/caches/
+/temporary/
 inscriptions/

@@ -20,9 +20,9 @@
 
 ''' MCP server implementation. '''
 
-from mcp.server.fastmcp import FastMCP as _FastMCP
+from mcp.server.mcpserver import MCPServer as _MCPServer
 
-# FastMCP uses Pydantic to generate JSON schemas from function signatures.
+# MCPServer uses Pydantic to generate JSON schemas from function signatures.
 from pydantic import Field as _Field
 
 from . import __
@@ -57,7 +57,7 @@ def intercept_errors(
 
 @__.dcls.dataclass( kw_only = True, slots = True )
 class SearchBehaviorsMutable:
-    ''' Mutable version of SearchBehaviors for FastMCP/Pydantic compatibility.
+    ''' Mutable SearchBehaviors for MCPServer/Pydantic compatibility.
 
         Note: Fields are manually duplicated from SearchBehaviors to avoid
         immutable dataclass internals leaking into JSON schema generation.
@@ -108,12 +108,12 @@ async def serve(
     extra_functions: bool = False,
 ) -> None:
     ''' Runs MCP server. '''
-    _scribe.debug( "Initializing FastMCP server." )
-    mcp = _FastMCP( 'Librovore Documentation Server', port = port )
+    _scribe.debug( "Initializing MCP server." )
+    mcp = _MCPServer( 'Librovore Documentation Server' )
     _register_server_functions(
         auxdata, mcp, extra_functions = extra_functions )
     match transport:
-        case 'sse': await mcp.run_sse_async( mount_path = None )
+        case 'sse': await mcp.run_sse_async( port = port )
         case 'stdio': await mcp.run_stdio_async( )
         case _: raise ValueError
 
@@ -142,7 +142,7 @@ def _produce_detect_function( auxdata: _state.Globals ):
 
 def _produce_query_content_function( auxdata: _state.Globals ):
     @intercept_errors
-    async def query_content(  # noqa: PLR0913
+    async def query_content(  # noqa: PLR0913, PLR0917
         location: LocationArgument,
         term: TermArgument,
         search_behaviors: __.typx.Annotated[
@@ -203,7 +203,7 @@ def _produce_query_content_function( auxdata: _state.Globals ):
 
 def _produce_query_inventory_function( auxdata: _state.Globals ):
     @intercept_errors
-    async def query_inventory(  # noqa: PLR0913
+    async def query_inventory(  # noqa: PLR0913, PLR0917
         location: LocationArgument,
         term: TermArgument,
         search_behaviors: __.typx.Annotated[
@@ -281,7 +281,8 @@ def _produce_survey_processors_function( auxdata: _state.Globals ):
 
 
 def _register_server_functions(
-    auxdata: _state.Globals, mcp: _FastMCP, /, *, extra_functions: bool = False
+    auxdata: _state.Globals, mcp: _MCPServer, /, *,
+    extra_functions: bool = False
 ) -> None:
     ''' Registers MCP server tools with closures for auxdata access. '''
     _scribe.debug( "Registering tools." )

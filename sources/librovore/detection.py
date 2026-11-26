@@ -268,7 +268,7 @@ async def _execute_processors(
     # TODO: Parallel async fanout.
     for processor in processors.values( ):
         try: detection = await processor.detect( auxdata, source )
-        except _exceptions.RobotsTxtAccessFailure as exc:  # noqa: PERF203
+        except _exceptions.RobotsTxtAccessFailure as exc:
             access_failures.append( exc )
             continue
         except Exception:  # noqa: S112

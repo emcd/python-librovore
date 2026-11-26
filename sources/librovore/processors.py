@@ -100,6 +100,17 @@ class StructureDetection( Detection ):
     ''' Base class for structure detection results. '''
 
     @classmethod
+    async def from_source(
+        selfclass,
+        auxdata: _state.Globals,
+        processor: Processor,
+        source: str,
+    ) -> __.typx.Self:
+        ''' Constructs detection from source location. '''
+        detection = await processor.detect( auxdata, source )
+        return __.typx.cast( __.typx.Self, detection )
+
+    @classmethod
     @__.abc.abstractmethod
     def get_capabilities( cls ) -> _interfaces.StructureProcessorCapabilities:
         ''' Returns processor capabilities for filtering and selection.

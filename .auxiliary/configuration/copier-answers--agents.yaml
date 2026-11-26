@@ -1,0 +1,12 @@
+# Changes here will be overwritten by Copier
+_commit: v1.0a18
+_src_path: gh:emcd/agents-common
+coders:
+- claude
+- codex
+- opencode
+instructions_target: .auxiliary/agents/standards
+languages:
+- python
+project_name: python-librovore
+support_local_models: false

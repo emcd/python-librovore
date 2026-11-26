@@ -39,7 +39,7 @@ async def extract_contents(
     theme: __.Absential[ str ] = __.absent,
 ) -> list[ __.ContentDocument ]:
     ''' Extracts documentation content for specified objects. '''
-    base_url = _urls.normalize_base_url( source )
+    base_url = __.normalize_base_url( source )
     if not objects: return [ ]
     tasks = [
         _extract_object_documentation(
