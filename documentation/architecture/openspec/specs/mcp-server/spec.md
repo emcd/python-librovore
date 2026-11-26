@@ -6,14 +6,24 @@ The MCP (Model Context Protocol) Server interface enables AI agents to programma
 ## Requirements
 
 ### Requirement: MCP Server Implementation
-The system SHALL implement a complete MCP server with FastMCP framework.
+The system SHALL implement a complete MCP server with the MCP SDK v2 `MCPServer` framework.
 
 Priority: Critical
 
 #### Scenario: AI Agent Connection
 - **WHEN** an AI agent connects to the MCP server
 - **THEN** the server accepts the connection
-- **AND** exposes available tools (query_inventory, query_content, summarize_inventory)
+- **AND** exposes available tools (`query_inventory`, `query_content`, plus opt-in extras)
+
+#### Scenario: Transport Configuration At Run Time
+- **WHEN** the server starts with the SSE transport and a configured port
+- **THEN** the port is passed to the run call, not the server constructor
+- **AND** stdio transport starts with no transport arguments
+
+#### Scenario: Stdio And Legacy-SSE Compatibility
+- **WHEN** a real MCP client connects over stdio, and over legacy SSE on a non-default port
+- **THEN** both connections succeed
+- **AND** the exposed tool list is served on each transport
 
 ### Requirement: JSON Schema Generation
 The server SHALL generate JSON schemas for all tool parameters.
