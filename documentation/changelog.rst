@@ -23,6 +23,15 @@ Release Notes
 
 .. towncrier release notes start
 
+librovore 1.0a8 (2026-11-26)
+============================
+
+Notices
+-------
+
+- Require MCP SDK 2.x and Detextive 3.x. The MCP server now uses the ``MCPServer`` API, and text decoding routes through Detextive 3.x with charset-default fallback.
+
+
 librovore 1.0a7 (2025-10-20)
 ============================
 
